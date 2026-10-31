@@ -16,7 +16,7 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 ## The options
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="26dqAHp7Clk" title="Watch recordings and live TV on your TV with Freetvarr" duration="2:19" />
+<YouTubeVideo id="R3PEi4rLf7k" title="Watch recordings and live TV on your TV with Freetvarr" duration="2:20" />
 
 | App                                 | Platforms                                | Points at              | Note                                                                                      |
 | ----------------------------------- | ---------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |

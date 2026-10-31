@@ -139,7 +139,7 @@ export const buildScenes = ({ clips, marks }) => {
         <div style="background:#ff4d4f;color:#fff;font-size:44px;font-weight:800;letter-spacing:.12em;padding:22px 0;border-radius:24px 24px 0 0">OCTOBER</div>
         <div style="font-size:300px;font-weight:800;line-height:1;padding:30px 0 10px">31</div>
         <div style="font-size:40px;color:#a9b4be;padding-bottom:40px">2026</div>`, { position: 'relative', width: '560px', textAlign: 'center', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.14)' })
-      const calNote = el(b, 'div', 'subline', 'Last day to opt in to the levy', { position: 'absolute', top: '930px', width: '100%', textAlign: 'center', color: '#f2f5f7' })
+      const calNote = el(b, 'div', 'subline', 'Fetch set this opt-in deadline', { position: 'absolute', top: '930px', width: '100%', textAlign: 'center', color: '#f2f5f7' })
       const c = el(root, 'div', 'layer')
       const row = (top, k, v) => el(c, 'div', 'card', `<div style="display:flex;align-items:center;gap:40px"><div style="color:#ff8486">${ICONS.cross(84)}</div><div><div style="font-size:30px;color:#8d9aa7;font-weight:700;letter-spacing:.06em;text-transform:uppercase">${k}</div><div style="font-size:64px;font-weight:800;margin-top:6px">${v}</div></div></div>`, { left: '240px', top: `${top}px`, width: '1440px', padding: '44px 56px', borderColor: 'rgba(255,77,79,0.45)' })
       const r1 = row(300, 'In November, if you do nothing', 'Fetch suspends the box')
@@ -398,8 +398,9 @@ export const buildScenes = ({ clips, marks }) => {
       const tvCaption = el(tvLayer, 'div', 'subline', 'Your media player app (e.g. Plex or Infuse)', { position: 'absolute', top: '940px', width: '100%', textAlign: 'center', color: '#f2f5f7' })
       const devices = el(root, 'div', 'layer')
       const laptop = appWindow(devices, { x: 120, y: 170, w: 1180, url: 'freetvarr.lan/#/live', clip: 'live' })
-      const phone = el(devices, 'div', '', '', { position: 'absolute', left: '1400px', top: '150px', width: '400px', height: '820px', borderRadius: '56px', border: '14px solid #26323e', background: '#000', overflow: 'hidden' })
+      const phone = el(devices, 'div', '', '', { position: 'absolute', left: '1400px', top: '150px', width: '400px', height: '820px', borderRadius: '22px', border: '5px solid #26323e', background: '#000', overflow: 'hidden' })
       const phoneImg = el(phone, 'img', '', '', { width: '100%', height: '100%', objectFit: 'cover' })
+      el(phone, 'div', '', '', { position: 'absolute', left: '50%', top: '7px', width: '26%', height: '18px', marginLeft: '-13%', borderRadius: '9px', background: '#000' })
       const k2 = kicker(devices, { label: 'In the browser', text: 'Live TV and recordings', tone: 'is-mint', x: 150, y: 880 })
       const k3 = kicker(devices, { label: 'Multiview', text: 'Two channels at once', tone: 'is-mint', x: 150, y: 880 })
       const press = (node, at) => {
@@ -466,7 +467,7 @@ export const buildScenes = ({ clips, marks }) => {
           <div style="padding-left:44px"><span style="color:#5ce1c6">${ICONS.folder(32)}</span> Mountain Rangers</div>
         </div>`, { left: '520px', top: '230px', width: '880px', padding: '40px 48px' })
       tree.querySelectorAll('svg').forEach((s) => { s.style.verticalAlign = '-6px' })
-      const warn = el(root, 'div', 'card', `<div style="display:flex;gap:40px;align-items:center"><div style="color:#ff8486">${ICONS.calendar(110)}</div><div><div style="font-size:30px;color:#ff8486;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Do it before 31 October</div><div style="font-size:58px;font-weight:800;margin-top:8px">A suspended box can't be copied</div></div></div>`, { left: '240px', top: '420px', width: '1440px', padding: '50px 60px', borderColor: 'rgba(255,77,79,0.5)', background: 'rgba(255,77,79,0.08)' })
+      const warn = el(root, 'div', 'card', `<div style="display:flex;gap:40px;align-items:center"><div style="color:#ff8486">${ICONS.calendar(110)}</div><div><div style="font-size:30px;color:#ff8486;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Do it before Fetch suspends the box</div><div style="font-size:58px;font-weight:800;margin-top:8px">A suspended box can't be copied</div></div></div>`, { left: '240px', top: '420px', width: '1440px', padding: '50px 60px', borderColor: 'rgba(255,77,79,0.5)', background: 'rgba(255,77,79,0.08)' })
       const k1 = kicker(root, { label: 'fetchtv', text: 'Free, runs on a Windows PC or a Mac', tone: 'is-mint', x: 120, y: 860 })
       return (t) => {
         bg(t, scene.duration)

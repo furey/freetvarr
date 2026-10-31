@@ -6,16 +6,16 @@ export const SCENES = [
   { id: 'library', chapter: 'The library', lines: [
     'Open Recordings, then Library. Each show has a poster, on a shelf.',
     'Shows, movies, and specials and one-offs each have their own shelf.',
-    'A number badge counts the episodes you have not started. A REC badge means one records now.',
+    'A number badge counts the episodes you have not started. A REC badge means one is recording now.',
   ] },
   { id: 'show', chapter: 'Show pages', lines: [
     'Press a poster to open the show page.',
-    'Play, or Resume, starts the next episode you have not watched.',
-    'The status line says what records next, and on which channel.',
-    'Each episode has a row, with a bar for how much you watched.',
+    'The play button starts the next episode, or carries on where you stopped.',
+    'The status line says what is set to record next, and on which channel.',
+    'Each episode has a bar for how much you watched.',
   ] },
   { id: 'menu', chapter: 'Episode menus', lines: [
-    'Press the three dots on a row, or hold the row on a touch screen, for the episode menu.',
+    'Press the three dots on an episode, or press and hold it on a touch screen, for the episode menu.',
     'Mark an episode as watched, see where its file is, or delete it.',
   ] },
   { id: 'options', chapter: 'Recording options', lines: [
@@ -32,7 +32,7 @@ export const SCENES = [
   ] },
   { id: 'plex', chapter: 'Plex', lines: [
     'If you use Plex, {Freetvarr} asks it to scan after each new recording, so episodes show up straight away.',
-    'Watched marks and resume points stay the same in both.',
+    'Watched marks, and where you stopped, stay the same in both.',
     'Watch an episode in Plex, and {Freetvarr} shows it as watched too.',
   ] },
   { id: 'whole-library', chapter: 'Your whole Plex library', lines: [

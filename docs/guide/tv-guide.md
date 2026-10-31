@@ -8,7 +8,7 @@ description: >-
 # TV guide
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="RuAWde2_9v4" title="Record free-to-air TV from the Freetvarr TV guide" duration="2:35" />
+<YouTubeVideo id="8CAIgknGnho" title="Record free-to-air TV from the Freetvarr TV guide" duration="2:35" />
 
 The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
 

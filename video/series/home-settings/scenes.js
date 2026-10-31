@@ -20,8 +20,9 @@ export const buildScenes = (deps) => {
 
   const phone = (root, { x, y, w = 380 }) => {
     const h = Math.round(w * 2.165)
-    const frame = el(root, 'div', '', '', { position: 'absolute', left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, borderRadius: '56px', border: '14px solid #26323e', background: '#000', overflow: 'hidden' })
+    const frame = el(root, 'div', '', '', { position: 'absolute', left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, borderRadius: '22px', border: '5px solid #26323e', background: '#000', overflow: 'hidden' })
     const img = el(frame, 'img', '', '', { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' })
+    el(frame, 'div', '', '', { position: 'absolute', left: '50%', top: '7px', width: '26%', height: '18px', marginLeft: '-13%', borderRadius: '9px', background: '#000' })
     return { frame, show: (s, c) => footage(img, clips, c, s) }
   }
 
@@ -29,10 +30,11 @@ export const buildScenes = (deps) => {
     open: (root, scene) => {
       const bg = glow(root)
       const [c0, c1] = cueTimes(scene)
-      const head = title(root, 'Five places', { size: 84 })
+      const head = title(root, 'Five main sections', { size: 84 })
       const names = ['Home', 'Live TV', 'TV guide', 'Recordings', 'Settings']
       const row = el(root, 'div', '', '', { position: 'absolute', left: '120px', top: '230px', display: 'flex', gap: '16px' })
       const chips = names.map((n) => el(row, 'div', '', n, { padding: '16px 30px', borderRadius: '14px', background: '#141c24', border: '2px solid rgba(255,255,255,0.1)', fontSize: '38px', fontWeight: '700' }))
+      const forYou = el(row, 'div', '', 'For you', { padding: '16px 30px', borderRadius: '14px', background: 'transparent', border: '2px dashed rgba(255,255,255,0.3)', fontSize: '38px', fontWeight: '700', color: '#8d9aa7' })
       const ph = phone(root, { x: 140, y: 330, w: 330 })
       const lap = appWindow(root, { x: 620, y: 340, w: 1180, url: `${URL}/#/home`, clip: 'hhome' })
       const lab1 = el(root, 'div', 'subline', 'Phone: the tab bar', { position: 'absolute', left: '140px', top: '1040px', fontSize: '28px', display: 'none' })
@@ -46,6 +48,10 @@ export const buildScenes = (deps) => {
           c.style.borderColor = on ? 'rgba(92,225,198,0.8)' : 'rgba(255,255,255,0.1)'
           c.style.color = on ? MINT : '#f2f5f7'
         })
+        rise(forYou, t, c1 + 0.3)
+        const forYouOn = t >= c1 + 1.0
+        forYou.style.borderColor = forYouOn ? 'rgba(92,225,198,0.8)' : 'rgba(255,255,255,0.3)'
+        forYou.style.color = forYouOn ? MINT : '#8d9aa7'
         place(ph.frame, { opacity: ramp(t, c0 + 0.2, 0.5), y: 30 * (1 - ramp(t, c0 + 0.2, 0.6)) })
         ph.show(2.0, 'hphonetabs')
         place(lap.win, { opacity: ramp(t, c0 + 0.7, 0.5), y: 30 * (1 - ramp(t, c0 + 0.7, 0.6)) })
@@ -80,7 +86,7 @@ export const buildScenes = (deps) => {
       const [c0, c1] = cueTimes(scene)
       const k = [
         kicker(root, { label: 'Search', text: 'Your recordings, and the next 7 days' }),
-        kicker(root, { label: 'Initials or a close spelling', text: 'bws, mountin rangers', tone: 'is-mint' }),
+        kicker(root, { label: 'Initials or a similar spelling', text: 'bws, mountin rangers', tone: 'is-mint' }),
       ]
       const map = piecewise([[0, 0.5], [c1 - 0.3, 5.5], [scene.duration, 10.4]])
       return (t) => {

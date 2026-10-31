@@ -27,7 +27,7 @@ export const SCENES = [
     chapter: 'The Fetch levy',
     lines: [
       'If you have a Fetch Mini or Mighty Gen 3, and no Fetch subscription, Fetch now asks for a one-off levy to keep the box working.',
-      'The deadline to opt in is the thirty-first of October.',
+      'Fetch set the opt-in deadline for the thirty-first of October.',
       'Do nothing, and in November, Fetch suspends the box. A Fetch Mighty loses its recordings for good.',
       'Paying the levy is one choice. The other is to own the whole setup yourself.',
     ],
@@ -100,7 +100,7 @@ export const SCENES = [
       'Before you cancel Fetch, save your recordings.',
       'The free fetch T V tool copies them off the box, over your home network.',
       'It names each file the way your media library expects, so your old shows sit next to your new ones.',
-      'Do it before the thirty-first. Once the box is suspended, you cannot copy them.',
+      'Do it before Fetch suspends the box. Once the box is suspended, you cannot copy them.',
     ],
   },
   {

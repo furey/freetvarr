@@ -9,7 +9,7 @@ description: >-
 # Home and search
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="jWodWm2xSTY" title="Freetvarr Home, For you, Activity, Health, and Settings" duration="2:19" />
+<YouTubeVideo id="frmAuvjz9eo" title="Freetvarr Home, For you, Activity, Health, and Settings" duration="2:23" />
 
 Home is the first page Freetvarr opens. It answers one question: what can I watch now? Its title greets you for the time of day, such as `Good evening`.
 

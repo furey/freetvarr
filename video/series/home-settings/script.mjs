@@ -1,18 +1,18 @@
 export const SCENES = [
   { id: 'open', chapter: 'Intro', lines: [
-    '{Freetvarr} has five places: Home, Live TV, TV guide, Recordings, and Settings.',
-    'On a phone, they sit in the tab bar at the bottom. On a computer, they run down the left side.',
+    '{Freetvarr} has five main sections: Home, Live TV, TV guide, Recordings, and Settings.',
+    'On a phone, they sit in the tab bar at the bottom, and For you opens from Home. On a computer, they run down the left side, with For you as a sixth.',
   ] },
   { id: 'home', chapter: 'Home', lines: [
     'Home answers one question: what can I watch now?',
-    'The slides at the top show things such as the episode to carry on with, and what records now.',
-    'Below them are rows of new recordings, suggestions, what is on now, and what records tonight.',
+    'The slides at the top show things such as the episode to carry on with, and what is recording now.',
+    'Below them are new recordings, suggestions, what is on now, and what is set to record tonight.',
     'On now shows only your favourite channels. Star a few channels to fill it.',
     'Press and hold any card for more choices.',
   ] },
   { id: 'search', chapter: 'Search', lines: [
     'Search finds a show in your recordings, and in the next seven days of the guide.',
-    'It also finds a show by its initials, and offers a close spelling when nothing matches.',
+    'It also finds a show by its initials, and offers a similar spelling when nothing matches.',
   ] },
   { id: 'for-you', chapter: 'For you', lines: [
     'For you suggests programmes from the next week of the guide.',

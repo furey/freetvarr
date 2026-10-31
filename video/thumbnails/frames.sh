@@ -19,5 +19,5 @@ grab watch-tv          $S/watching/video-watching.mp4              23.0
 grab watch-player      $S/watching/video-watching.mp4              76.4
 grab lib-posters       $S/library/video-library.mp4                15.9
 grab lib-show          $S/library/video-library.mp4                34.1
-grab home-home         $S/home-settings/video-home-settings.mp4    15.7
+grab home-home         $S/home-settings/video-home-settings.mp4    21.8
 grab home-phone        $S/home-settings/video-home-settings.mp4    10.7

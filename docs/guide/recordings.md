@@ -25,7 +25,7 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 ## Library
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="YRZN9NP0nL8" title="Freetvarr recordings library, with Plex, Sonarr, and Radarr" duration="2:37" />
+<YouTubeVideo id="ZkVVYPSEmuA" title="Freetvarr recordings library, with Plex, Sonarr, and Radarr" duration="2:38" />
 
 The library groups your recordings in shelves:
 

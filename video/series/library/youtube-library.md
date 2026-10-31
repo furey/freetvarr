@@ -13,11 +13,11 @@ Chapters:
 0:12 The library
 0:28 Show pages
 0:43 Episode menus
-0:54 Recording options
-1:11 Delete
-1:31 Plex
-1:47 Your whole Plex library
-2:06 Sonarr and Radarr
+0:55 Recording options
+1:13 Delete
+1:32 Plex
+1:48 Your whole Plex library
+2:07 Sonarr and Radarr
 
 Links:
 - Recordings: https://furey.github.io/freetvarr/guide/recordings
@@ -37,4 +37,4 @@ Upload `video-library.srt` as English (Australia) subtitles.
 
 ## Duration
 
-2:37
+2:38

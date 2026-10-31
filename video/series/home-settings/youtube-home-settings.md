@@ -10,12 +10,12 @@ A tour of the pages you use every day in Freetvarr: Home, with what to watch now
 
 Chapters:
 0:00 Intro
-0:13 Home
-0:36 Search
-0:47 For you
-1:13 Activity
-1:32 Health
-1:50 Settings
+0:17 Home
+0:40 Search
+0:51 For you
+1:17 Activity
+1:37 Health
+1:54 Settings
 
 Links:
 - Home and search: https://furey.github.io/freetvarr/guide/home
@@ -37,4 +37,4 @@ Upload `video-home-settings.srt` as English (Australia) subtitles.
 
 ## Duration
 
-2:19
+2:23

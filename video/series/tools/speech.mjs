@@ -11,6 +11,7 @@ export const SPOKEN_TEXT = (line) => line
   .replace(/TVHeadend/g, 'T V Head End')
   .replace(/Sonarr/g, 'Sonar')
   .replace(/Radarr/g, 'Radar')
+  .replace(/Go live/g, 'Go lyve')
 
 export const CAPTION_TEXT = (line) => line
   .replace(/\{Freetvarr\}/g, 'Freetvarr')

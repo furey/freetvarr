@@ -39,8 +39,8 @@ export const SCENES = [
   ] },
   { id: 'scheduled', chapter: 'Scheduled', lines: [
     'To see what will record, open Recordings, then Scheduled.',
-    'It lists what records now, today, tomorrow, and later this week.',
-    'Turn off a row\'s switch to skip that episode. The series keeps recording the rest.',
+    'It lists what is recording now, then today, tomorrow, and later this week.',
+    'Turn off an episode\'s switch to skip it. The series keeps recording the rest.',
     'On a wide screen, a timeline shows each tuner. It warns when more shows record at once than you have tuners.',
   ] },
   { id: 'ads', chapter: 'Ad removal', lines: [
