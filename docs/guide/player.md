@@ -134,7 +134,7 @@ If a recording needs a tuner that Multiview uses, only the pictures on that tune
 
 ## Playback settings
 
-Under **THIS DEVICE**, Settings → Watching → **Playback** holds two choices for the device you use:
+Under **THIS DEVICE**, Settings → WATCHING → **Playback** holds two choices for the device you use:
 
 - **Start muted**: every video starts with the sound off. This is the same choice as the sound button.
 - **Hide player controls after**: `1 s` to `5 s`. The default is `2 s`.
@@ -143,7 +143,7 @@ Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, 
 
 ## Live streams at once
 
-**Live streams at once**, under **LIVE TV** in Settings → Watching → **Playback**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
+**Live streams at once**, under **LIVE TV** in Settings → WATCHING → **Playback**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
 
 Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or [ad scan](/guide/ad-removal) runs.
 

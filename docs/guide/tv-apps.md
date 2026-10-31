@@ -9,7 +9,7 @@ description: >-
 
 <Illustration name="tv-apps" />
 
-In Freetvarr, Settings → Watching → **Watch on TV** is so you can use Jellyfin or Kodi instead of your tuner's own app (e.g. the HDHomeRun app). It makes a watch-only login in TVHeadend and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
+In Freetvarr, Settings → WATCHING → **Watch on TV** is so you can use Jellyfin or Kodi instead of your tuner's own app (e.g. the HDHomeRun app). It makes a watch-only login in TVHeadend and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
 
 > [!NOTE]<br>
 > Once set up, the app plays straight from TVHeadend, so your live TV keeps working, even if Freetvarr was stopped for whatever reason. The app also gets TVHeadend's TV guide listings from TVHeadend. Your recordings appear separately, in Plex or Infuse.
@@ -26,7 +26,7 @@ If you already run Jellyfin, use it: one server feeds every Jellyfin app in the 
 
 ## The TV login
 
-1. In Freetvarr, open Settings → Watching → **Watch on TV**.
+1. In Freetvarr, open Settings → WATCHING → **Watch on TV**.
 2. Check the login name. `tv` is the default; any name with no spaces works.
 3. Press **Make a TV login** to create the TV login in TVHeadend.
 
@@ -41,7 +41,7 @@ Freetvarr then fills in **TVHeadend address for TV apps** with the address your 
 
 Delete the TV login when no TV app uses it any more, or to stop everyone who has its details.
 
-1. In Freetvarr, open Settings → Watching → **Watch on TV**.
+1. In Freetvarr, open Settings → WATCHING → **Watch on TV**.
 2. Under **TV LOGIN**, press **Delete TV login**.
 3. Read the confirmation, then press **Delete TV login** again.
 
@@ -71,7 +71,7 @@ If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV lo
 1. In Kodi, open **Settings → Add-ons → Install from repository → PVR clients**.
 2. Choose **Tvheadend HTSP Client** (HTSP is TVHeadend's own streaming protocol) and press **Install**.
 3. Press **Configure** on the add-on.
-4. Enter the values from the **KODI (TVHEADEND HTSP CLIENT)** rows in Freetvarr's Settings → Watching → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
+4. Enter the values from the **KODI (TVHEADEND HTSP CLIENT)** rows in Freetvarr's Settings → WATCHING → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
 5. Press **OK**, then go back to the Kodi home screen.
 
 **TV** on the home screen now lists the channels, and its **Guide** shows the TV guide. Kodi shows Australian captions, which most other apps do not ([Captions in other apps](/guide/live-tv#captions-in-other-apps)).

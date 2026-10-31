@@ -66,7 +66,7 @@ export const runForeign = async ({ targets, roots, connected, clientFor, unmonit
     const outcome = route === 'disk'
       ? await deleteFromDisk({ group, roots, fs })
       : route === 'not-connected'
-        ? failed(`${appName(group.manager)} is not connected, so Freetvarr left the file alone. Connect it in Settings → Recording → Sonarr and Radarr`)
+        ? failed(`${appName(group.manager)} is not connected, so Freetvarr left the file alone. Connect it in Settings → RECORDING → Sonarr and Radarr`)
         : await deleteThroughManager({ group, client: await clientFor(route), unmonitor })
     if (outcome.ok) await removeParts(group.filePath)
     outcomes.push({ ...outcome, route, filePath: group.filePath, recordingIds: group.recordingIds, sectionId: group.sectionId ?? null })

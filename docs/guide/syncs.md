@@ -11,7 +11,7 @@ description: >-
 
 **Activity** shows what the Freetvarr server does now, and every sync it has run. A sync is one pass over TVHeadend's finished recordings: list them, match them against your [series folders](/guide/series), import anything new, then refresh [Plex](/guide/plex) if you use it and something imported.
 
-Open Activity from Settings → System → **Activity**. While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
+Open Activity from Settings → SYSTEM → **Activity**. While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
 
 The page has two tabs:
 
@@ -26,10 +26,10 @@ The line above the jobs on **Now** shows how long the server has run, how often 
 
 **Now** has these groups:
 
-- **Running now**: the jobs that run at this moment, with their progress, and each recording TVHeadend makes now, with its channel, tuner, and time left.
-- **Watching now**: each live TV channel or recording that someone plays in Freetvarr, with the device and browser.
-- **Up next**: the jobs that run on a timer, such as the next sync, and when each one starts.
-- **Finished**: the jobs that finished in the last `24` hours, newest first. The group shows the latest `5`; press **Show all** to see the rest. Failed jobs stay for `7` days, also after a restart.
+- **RUNNING NOW**: the jobs that run at this moment, with their progress, and each recording TVHeadend makes now, with its channel, tuner, and time left.
+- **WATCHING NOW**: each live TV channel or recording that someone plays in Freetvarr, with the device and browser.
+- **UP NEXT**: the jobs that run on a timer, such as the next sync, and when each one starts.
+- **FINISHED**: the jobs that finished in the last `24` hours, newest first. The group shows the latest `5`; press **Show all** to see the rest. Failed jobs stay for `7` days, also after a restart.
 
 Press a row to see its steps, details, and log, and press it again to close them. A job that belongs to a sync has an **Open sync** link to that sync on the **Syncs** tab.
 
@@ -45,7 +45,7 @@ Press a row to see its steps, details, and log, and press it again to close them
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/activity">
-  <img src="../img/screenshot-syncs.png" alt="Settings → System → Activity" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-syncs.png" alt="Settings → SYSTEM → Activity" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -59,7 +59,7 @@ In the Freetvarr Home Screen app on an iPhone ([Save it as an app](/guide/gettin
 
 ## Scheduled and manual
 
-Choose how often Freetvarr checks TVHeadend in Settings → System → **Schedule**, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and [title match](/guide/series#title-matches) at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in Settings → SYSTEM → **Schedule**, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and [title match](/guide/series#title-matches) at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
 
 Activity states the schedule in plain words, such as "Syncs run every 30 minutes." A schedule that has no plain description shows its cron expression instead.
 

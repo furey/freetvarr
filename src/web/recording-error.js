@@ -9,7 +9,7 @@ export const diagnoseRecordingError = (error = '') => {
 
 const formatGb = (bytes) => `${(Number(bytes) / 1e9).toFixed(2)} GB`
 
-const DOCTOR_STEP = 'Open Settings → System → Health and press Run checks. It checks every folder and connection Freetvarr needs.'
+const DOCTOR_STEP = 'Open Settings → SYSTEM → Health and press Run checks. It checks every folder and connection Freetvarr needs.'
 
 const RULES = [
   {
@@ -20,7 +20,7 @@ const RULES = [
       steps: [
         'If the programme ended in the last 10 minutes, wait. TVHeadend can still be writing the file, and the next sync tries again.',
         'Check that TVHeadend\'s recordings folder is mounted into the Freetvarr Docker container.',
-        'In Settings → Recording → Media library, check that the Recordings folder is the path where Freetvarr sees that folder.',
+        'In Settings → RECORDING → Media library, check that the Recordings folder is the path where Freetvarr sees that folder.',
         DOCTOR_STEP,
       ],
       doc: 'guide/troubleshooting#skipped-recordings',
@@ -32,7 +32,7 @@ const RULES = [
       title: 'Recording path does not match',
       meaning: 'TVHeadend reported a file path that does not start with the TVHeadend recordings path in Settings, so Freetvarr cannot find the file.',
       steps: [
-        'In Settings → Recording → Media library, press Check TVHeadend to compare the two recordings paths.',
+        'In Settings → RECORDING → Media library, press Check TVHeadend to compare the two recordings paths.',
         'Set TVHeadend recordings path to the folder TVHeadend saves recordings to, inside the TVHeadend Docker container.',
         'Set Recordings root to the same folder as Freetvarr sees it, inside the Freetvarr Docker container.',
       ],
@@ -46,7 +46,7 @@ const RULES = [
       meaning: `Freetvarr files this recording in the ${kind} folder, but that folder (below) does not exist inside the Freetvarr Docker container.`,
       steps: [
         `Mount the host folder for ${kind} into the Freetvarr Docker container, then restart the container.`,
-        `Or, in Settings → Recording → Media library, change the ${kind === 'movies' ? 'Movies' : 'One-off'} folder and press Test path.`,
+        `Or, in Settings → RECORDING → Media library, change the ${kind === 'movies' ? 'Movies' : 'One-off'} folder and press Test path.`,
         'The next sync imports the recording.',
       ],
       doc: 'guide/troubleshooting#test-path-failures',

@@ -82,7 +82,7 @@ Freetvarr updates the genres and the description data once a night, between 2am 
 
 ## For you settings
 
-Open Settings → Watching → **For you**, or press the settings button at the top of the For you page.
+Open Settings → WATCHING → **For you**, or press the settings button at the top of the For you page.
 
 | Setting                      | What it does                                                                                                                                           |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -90,11 +90,11 @@ Open Settings → Watching → **For you**, or press the settings button at the 
 | **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                         |
 | **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English. |
 | **Hidden shows**             | Lists the shows you marked **Not interested**. Press **Show again** to get suggestions for a show again.                                               |
-| **Suggestion level**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                             |
+| **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                             |
 | **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off.                                                                                          |
 | **Clear viewing history**    | Deletes your viewing history, including **More like this** and **Fewer like this**. Suggestions start again from new.                                  |
 
-**Genres**, in Settings → Watching → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
+**Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 
 ## Suggestion level
 
@@ -110,6 +110,6 @@ The first time it uses Standard or Plus, Freetvarr downloads the language model 
 
 ## Viewing history
 
-Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → Watching → **For you** control it. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
+Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → WATCHING → **For you** control it. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
 
 Your viewing history never leaves that computer: the genre lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.

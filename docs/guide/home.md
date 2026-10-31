@@ -107,14 +107,14 @@ Press **Search** in any page header, then type at least two letters. Search cove
 - **IN RECORDINGS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
 - **IN THE TV GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
 
-When nothing in the next 7 days matches, the results end with **Add “title” to watchlist**. Press it to list the show under **Watchlist** in Scheduled, or to record it when it is in the TV guide. See [Watchlist](/guide/tv-guide#watchlist).
+When nothing in the next 7 days matches, the results end with **Add “title” to watchlist**. Press it to list the show under **WATCHLIST** in Scheduled, or to record it when it is in the TV guide. See [Watchlist](/guide/tv-guide#watchlist).
 
 Search finds a show in these ways:
 
 - **The title**, or any part of it.
 - **A nickname** from a list that ships with Freetvarr, such as `MKR` for My Kitchen Rules or `GBBO` for The Great British Bake Off.
 - **Your own names** for a show. Add them under **Also known as** in a show's [Recording options](/guide/recordings#recording-options).
-- **Other titles** of a show, such as its title in another country. Freetvarr learns these from TVmaze and Wikidata while it looks up pictures and genres, when those lookups are on in Settings → Watching → [Film and TV info](/guide/settings#watching).
+- **Other titles** of a show, such as its title in another country. Freetvarr learns these from TVmaze and Wikidata while it looks up pictures and genres, when those lookups are on in Settings → WATCHING → [Film and TV info](/guide/settings#watching).
 - **Initials**: `bbt` finds The Big Bang Theory.
 - **A close spelling**, when nothing else matches. The result says `Did you mean`.
 

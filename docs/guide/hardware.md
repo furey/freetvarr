@@ -157,7 +157,7 @@ At startup, Freetvarr measures how many live streams this computer converts smoo
 
 With the minimum, Freetvarr records, imports, and serves every page, but it is limited in these ways:
 
-- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The startup measurement sets **Live streams at once**; if streams stutter, choose a lower number in Settings → Watching → Playback.
+- **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The startup measurement sets **Live streams at once**; if streams stutter, choose a lower number in Settings → WATCHING → Playback.
 - **Multiview:** [Multiview](/guide/player#multiview) shows several channels on one screen. Each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
 - **Ad removal:** a scan takes about `30` minutes per `75`-minute recording on a `2`-core Celeron, and longer on a slower processor.
 - **For you:** Freetvarr picks **Basic** when the nightly work with the language model would take more than `5` minutes, or when less than `400MB` of memory is free.
