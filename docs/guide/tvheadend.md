@@ -54,7 +54,13 @@ services:
 > [!IMPORTANT]<br>
 > Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server (those broadcasts don't cross Docker's private bridge network). A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping. TVHeadend binds `9981` (web interface and API) and `9982` (its own streaming protocol) straight onto the host.
 
-If the TVHeadend Docker container is not running, run `docker compose up -d tvheadend` in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`). Open `http://<host-ip>:9981` in a browser to reach TVHeadend's web interface, where `<host-ip>` is the address of the machine that runs Docker.
+If the TVHeadend Docker container is not running, run this in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`):
+
+```sh
+docker compose up -d tvheadend
+```
+
+Open `http://<host-ip>:9981` in a browser to reach TVHeadend's web interface, where `<host-ip>` is the address of the machine that runs Docker.
 
 > [!NOTE]<br>
 > Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports each recording into your media library by hardlink where it can, and it deletes the TVHeadend copy afterwards. Both need the same owner on the recordings folder.
@@ -95,7 +101,14 @@ Use TVHeadend's own wizard instead if you already set up TVHeadend users, or you
 Finish or cancel the wizard, even if you configured TVHeadend by hand. An unfinished wizard leaves the `wizard` value set in **Configuration → General → Base**, and the wizard opens again on every page load. Finishing or cancelling it clears the value.
 
 > [!WARNING]<br>
-> TVHeadend's password field has no confirm box, and a typo or a password manager's autofill leaves you locked out with `403 Forbidden`. To get back in, add `RUN_OPTS=--noacl` to the `environment:` of the `tvheadend` service in `docker-compose.yml`, then run `docker compose up -d tvheadend` to restart TVHeadend. That option switches off all access checks. Set a new password in **Configuration → Users → Passwords**, then remove `--noacl` and run `docker compose up -d tvheadend` again.
+> TVHeadend's password field has no confirm box, and a typo or a password manager's autofill leaves you locked out with `403 Forbidden`. To get back in, add `RUN_OPTS=--noacl` to the `environment:` of the `tvheadend` service in `docker-compose.yml`, then restart TVHeadend:
+>
+> ```sh
+> docker compose up -d tvheadend
+> ```
+
+>
+> That option switches off all access checks. Set a new password in **Configuration → Users → Passwords**, then remove `--noacl` and run the same command again.
 
 ## 3. Add the tuner
 

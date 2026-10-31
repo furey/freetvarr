@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 
-const HERE = new URL('.', import.meta.url).pathname
+const CODE = new URL('.', import.meta.url).pathname
+const HERE = process.env.FTV_CUT_DIR || CODE
 const ASSETS = process.env.FTV_VIDEO_ASSETS || `${homedir()}/code/repos/furey/freetvarr-video-assets`
 const PYTHON = process.env.FTV_VIDEO_PYTHON || 'python3'
 const timeline = JSON.parse(await readFile(`${HERE}timeline.json`, 'utf8'))
@@ -12,7 +13,7 @@ const inputs = cues.flatMap((c) => ['-i', c.file])
 const delays = cues.map((c, i) => `[${i}:a]aresample=48000,adelay=${Math.round(c.at * 1000)}:all=1[a${i}]`)
 const mix = `${cues.map((_, i) => `[a${i}]`).join('')}amix=inputs=${cues.length}:normalize=0:dropout_transition=0,apad=whole_dur=${timeline.duration},atrim=0:${timeline.duration}[out]`
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', [...delays, mix].join(';'), '-map', '[out]', '-ar', '48000', '-ac', '1', '-c:a', 'pcm_f32le', `${HERE}voice-dry.wav`])
-execFileSync(PYTHON, [`${HERE}mix-music.py`, `${HERE}timeline.json`, `${HERE}voice-dry.wav`, `${ASSETS}/music/480.mp3`, `${HERE}voiceover.wav`], { stdio: 'inherit' })
+execFileSync(PYTHON, [`${CODE}mix-music.py`, `${HERE}timeline.json`, `${HERE}voice-dry.wav`, `${ASSETS}/music/480.mp3`, `${HERE}voiceover.wav`], { stdio: 'inherit' })
 
 const stamp = (s) => {
   const ms = Math.round(s * 1000)

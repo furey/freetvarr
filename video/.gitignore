@@ -25,6 +25,8 @@ eleven/mine.json
 eleven/shared.json
 overview/vo.json
 overview/timeline.json
+intro/vo.json
+intro/timeline.json
 stage/timeline.js
 stage/clips.js
 stage/frames

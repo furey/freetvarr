@@ -147,7 +147,11 @@ Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, 
 
 Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or [ad scan](/guide/ad-removal) runs.
 
-`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's Docker compose file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then run `docker compose up -d` in the `freetvarr` folder to restart Freetvarr.
+`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's Docker compose file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then restart Freetvarr. In the `freetvarr` folder, run:
+
+```sh
+docker compose up -d
+```
 
 ## Keyboard shortcuts
 

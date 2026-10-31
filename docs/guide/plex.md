@@ -23,7 +23,13 @@ The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the
    COMPOSE_PROFILES=plex
    ```
 
-3. In a terminal in the `freetvarr` folder, run `docker compose pull`. This downloads the Plex Docker image now, so the claim code in the next step does not expire during the download.
+3. In a terminal in the `freetvarr` folder, run:
+
+   ```sh
+   docker compose pull
+   ```
+
+   This downloads the Plex Docker image now, so the claim code in the next step does not expire during the download.
 4. In a browser, open `https://plex.tv/claim` and sign in to your Plex account (a free account works).
 5. Copy the claim code. It expires 4 minutes after Plex shows it, so do the next two steps straight away.
 6. Add the claim code to the `.env` on a new line:
@@ -32,7 +38,12 @@ The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the
    PLEX_CLAIM=claim-xxxxxxxxxxxxxxxxxxxx
    ```
 
-7. In the terminal, run `docker compose up -d` to start Plex.
+7. In the terminal, start Plex:
+
+   ```sh
+   docker compose up -d
+   ```
+
 8. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → RECORDING → Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
 9. Check the library names and folders, then press **Create libraries** to create the libraries in Plex.
 
@@ -40,10 +51,18 @@ Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs**
 
 Plex keeps its settings in `${CONFIG_PATH}/plex`, where `CONFIG_PATH` is the host config folder set in the `.env` ([Configuration](/guide/configuration#compose-environment)). Plex reads your library at `/data/media`, the same paths as Freetvarr. To finish the Plex setup (for example, to name the server), open `http://<host-ip>:32400/web` in a browser.
 
-If the claim code expired before Plex started, Plex runs without an account and Freetvarr finds no token. Get a new code, replace `PLEX_CLAIM` in the `.env`, and run `docker compose up -d` again in a terminal in the `freetvarr` folder.
+If the claim code expired before Plex started, Plex runs without an account and Freetvarr finds no token. Get a new code, replace `PLEX_CLAIM` in the `.env`, and run this again in a terminal in the `freetvarr` folder:
+
+```sh
+docker compose up -d
+```
 
 > [!NOTE]<br>
-> Without `COMPOSE_PROFILES=plex` in `.env`, run `docker compose --profile plex up -d` instead, every time you start the Docker containers.
+> Without `COMPOSE_PROFILES=plex` in `.env`, start the Docker containers every time with this command instead:
+>
+> ```sh
+> docker compose --profile plex up -d
+> ```
 
 ## Point Freetvarr at Plex
 
@@ -69,7 +88,13 @@ If you set a movies folder, point a **Movies** library at it and choose that lib
 
 ## The token
 
-- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and setup does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the Freetvarr Docker container: run `docker compose up -d freetvarr` in a terminal in the `freetvarr` folder. If you share the file with Freetvarr at another path, open **Token not found?** in Settings → RECORDING → Plex and enter the path Freetvarr sees.
+- **Auto-detect** reads `PlexOnlineToken` from Plex's `Preferences.xml`. With the `plex` profile, Freetvarr reads the file from Plex's settings folder, and setup does this for you. If you installed Plex yourself on the same computer, set `PLEX_PREFS_PATH` in `.env` to the host path of the file (see [Configuration](/guide/configuration)), then recreate the Freetvarr Docker container. In a terminal in the `freetvarr` folder, run:
+
+  ```sh
+  docker compose up -d freetvarr
+  ```
+
+  If you share the file with Freetvarr at another path, open **Token not found?** in Settings → RECORDING → Plex and enter the path Freetvarr sees.
 - Otherwise **paste the token manually** into Settings → RECORDING → Plex. Copy it from `app.plex.tv` (Plex's own support article explains how to find your token).
 
 Where `Preferences.xml` lives depends on how Plex is installed:

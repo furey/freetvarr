@@ -197,11 +197,27 @@ Fitting a module means shutting the NAS down, opening the memory cover on the un
 
 Live TV in the browser re-encodes H.264 so that Chrome can play interlaced channels (see [Video handling](/guide/live-tv#video-handling)). A graphics chip does this work with almost no CPU. Freetvarr supports Intel Quick Sync and AMD through VAAPI. NVIDIA (NVENC) is not supported. A host without a supported chip needs no setup: Freetvarr uses software and caps the video at `540` lines.
 
-1. In a terminal on the host, find the render group ID: `stat -c %g /dev/dri/renderD128`.
+1. In a terminal on the host, find the render group ID:
+
+   ```sh
+   stat -c %g /dev/dri/renderD128
+   ```
+
 2. Add that number to the `.env` in the `freetvarr` folder (the folder that [the install](/guide/getting-started#_1-install) creates): `RENDER_GID=<number>`.
 3. Download `docker-compose.hwaccel.example.yml` from the repository (`https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.hwaccel.example.yml`) and save it as `docker-compose.override.yml` beside `docker-compose.yml`. Docker Compose loads the override file by itself.
-4. Recreate the Docker containers: run `docker compose up -d` in the `freetvarr` folder.
-5. Check Freetvarr's log: run `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.
+4. Recreate the Docker containers. In the `freetvarr` folder, run:
+
+   ```sh
+   docker compose up -d
+   ```
+
+5. Check Freetvarr's log:
+
+   ```sh
+   docker compose logs freetvarr | grep "\[live\] video"
+   ```
+
+   The line says `hardware (VAAPI` when it works.
 
 The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, set `LIVE_TV_VAAPI_DEVICE` in the `.env` (e.g. `LIVE_TV_VAAPI_DEVICE=/dev/dri/renderD129`).
 
