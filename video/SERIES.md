@@ -126,7 +126,7 @@ The Fetch facts come from the Leaving Fetch guide, which quotes Fetch's levy FAQ
 **4. Find the box** (`find`)
 
 - Voiceover:
-  1. Open a terminal, a window where you type commands. On a Mac, open Terminal. On Windows, open PowerShell.
+  1. Open a terminal, a window where you type commands. On a Mac, open Terminal. On Windows, open Command Prompt.
   2. Type the command on screen, and press Enter. If it asks to install fetch T V, type y.
   3. The tool lists each Fetch box it finds, with its IP address.
   4. No box found? Look up its address in your router's list of connected devices.
@@ -163,13 +163,13 @@ The Fetch facts come from the Leaving Fetch guide, which quotes Fetch's levy FAQ
 **8. Cancel Fetch** (`cancel`)
 
 - Voiceover:
-  1. Move the aerial lead to your new tuner, and check every channel you watch.
+  1. Move the aerial cable to your new tuner, and check every channel you watch.
   2. Then sign in to Fetch account management.
   3. Under Packages, choose Cancel Service, then Yes, cancel my service.
   4. Do it on or before the thirty-first of October. It cancels every box on the account.
-  5. Got Fetch through your internet provider? Cancel through the provider instead.
+  5. If your internet provider supplied your Fetch box, cancel through the provider instead.
   6. Not ready in time? Opt in to the levy by the thirty-first. It keeps the box going until at least June 2028.
-- Visual: A plain sign-in mock-up (no Fetch branding) with the note "Username: your email address, in lower case", then a menu card: Packages → Cancel Service → Yes, cancel my service. The aerial lead moves from the box to a generic network tuner.
+- Visual: A plain sign-in mock-up (no Fetch branding) with the note "Username: your email address, in lower case", then a menu card: Packages → Cancel Service → Yes, cancel my service. The aerial cable moves from the box to a generic network tuner.
 - Kicker: Packages, Cancel Service
 
 **9. More help** (`end`)

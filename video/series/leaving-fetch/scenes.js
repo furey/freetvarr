@@ -165,7 +165,7 @@ export const buildScenes = (deps) => {
       const [c0, c1, c2, c3] = cueTimes(scene)
       const tabs = el(root, 'div', '', `<div style="display:flex;gap:24px">
         <div style="padding:20px 34px;border-radius:16px;background:#141c24;border:2px solid rgba(255,255,255,0.12);font-size:34px;font-weight:700"><span style="color:#8d9aa7;font-weight:600">Mac:</span> Terminal</div>
-        <div style="padding:20px 34px;border-radius:16px;background:#141c24;border:2px solid rgba(255,255,255,0.12);font-size:34px;font-weight:700"><span style="color:#8d9aa7;font-weight:600">Windows:</span> PowerShell</div></div>`, { position: 'absolute', left: '1060px', top: '130px' })
+        <div style="padding:20px 34px;border-radius:16px;background:#141c24;border:2px solid rgba(255,255,255,0.12);font-size:34px;font-weight:700"><span style="color:#8d9aa7;font-weight:600">Windows:</span> Command Prompt</div></div>`, { position: 'absolute', right: '120px', top: '130px' })
       const term = terminal(root, { x: 120, y: 260, w: 1680, h: 600, title: 'Terminal' })
       const out = [
         '<span class="t-dim">Need to install the following packages:</span>',
@@ -353,7 +353,7 @@ export const buildScenes = (deps) => {
         <div class="mono" style="padding:18px 24px;border-radius:12px;background:#070b0f;border:2px solid rgba(255,255,255,0.12);font-size:32px">••••••••••</div>`, { left: '120px', top: '270px', width: '760px', padding: '40px 48px' })
       const steps = ['Packages', 'Cancel Service', 'Yes, cancel my service'].map((s, i) => card(root, `<div style="display:flex;align-items:center;gap:28px"><div style="width:64px;height:64px;border-radius:50%;background:#26323e;display:grid;place-items:center;font-size:32px;font-weight:800">${i + 1}</div><div style="font-size:48px;font-weight:800">${s}</div></div>`, { left: '960px', top: `${300 + i * 170}px`, width: '840px', padding: '28px 40px' }))
       const every = factCard(root, { label: 'One cancel', value: 'Cancels every box on the account', x: 960, y: 820, w: 840, size: 40 })
-      const isp = factCard(root, { label: 'Fetch through your internet provider?', value: 'Cancel through the provider instead', x: 120, y: 780, w: 760, size: 40 })
+      const isp = factCard(root, { label: 'Fetch box from your internet provider?', value: 'Cancel through the provider instead', x: 120, y: 780, w: 760, size: 40 })
       const safe = factCard(root, { label: 'Cancel only once your recordings are safe', value: 'A cancelled box can’t be switched back on', tone: 'red', x: 120, y: 420, w: 1680, size: 64, icon: ICONS.cross(96) })
       return (t) => {
         bg(t, scene.duration)

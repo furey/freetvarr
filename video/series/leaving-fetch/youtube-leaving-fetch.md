@@ -6,6 +6,8 @@ Save your Fetch TV recordings before you cancel, with fetchtv
 
 ## Description
 
+Windows tip: if PowerShell says "running scripts is disabled on this system", Windows is blocking PowerShell scripts (its default setting). Open Command Prompt instead (search the Start menu for cmd) and type the same commands, or in PowerShell type npx.cmd instead of npx.
+
 Save your Fetch TV recordings before you cancel. The free fetchtv tool copies them off a Fetch box over your home network, names each file the way your media library expects, and does not need your Fetch account.
 
 Fetch set the levy opt-in deadline for 31 October 2026. If you opt in, Fetch keeps a Gen 3 box working until at least 30 June 2028. If you don't, Fetch suspends the box in November 2026, and you cannot copy recordings off a suspended box. Facts about the levy come from Fetch's levy FAQ; check the Leaving Fetch guide for changes.
@@ -23,9 +25,9 @@ Chapters:
 0:10 The levy deadline
 0:37 What you need
 0:53 Find the box
-1:18 List your recordings
+1:19 List your recordings
 1:31 Copy everything
-1:52 Into your library
+1:53 Into your library
 2:14 Cancel Fetch
 
 Links:
@@ -46,4 +48,4 @@ Upload `video-leaving-fetch.srt` as English (Australia) subtitles.
 
 ## Duration
 
-2:46
+2:47

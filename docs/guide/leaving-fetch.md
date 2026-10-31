@@ -193,14 +193,14 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 ## Saving your Fetch recordings
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="H1zWepdwW6Y" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
+<YouTubeVideo id="mLbXBfHPvsE" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
 
 The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a Fetch box over your home network. It does not need your Fetch account. It runs on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
 
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
 1. Install Node.js, the free software that runs the tool. Download the LTS (long-term support) installer from [nodejs.org](https://nodejs.org/en/download) and run it.
-2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", type `npx.cmd` wherever these steps say `npx`, or use Command Prompt. Running PowerShell as administrator does not fix this message.
+2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", Windows is blocking PowerShell scripts, which is its default setting. Use Command Prompt, or type `npx.cmd` wherever these steps say `npx`. Running PowerShell as administrator does not change this. (Some PCs already allow PowerShell scripts, e.g. with PowerShell 7, so `npx` works there unchanged.) If Windows says `npx` is not recognized, close the window and open a new one after installing Node.js.
 3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 5. List your recordings. In the terminal, run `npx fetchtv shows --ip=192.168.1.50`, with your box's IP address in place of the example.
