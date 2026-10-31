@@ -14,20 +14,27 @@ Plex is optional. Without it, Freetvarr still imports and files episodes (you re
 
 ## No Plex yet?
 
-The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex [token](#the-token) (the key Freetvarr uses to sign in to Plex) itself, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
+The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex [token](#the-token) (the key Freetvarr uses to sign in to Plex) itself, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) creates the Plex libraries.
 
-1. In a browser, open `https://plex.tv/claim` and sign in to your Plex account (a free account works).
-2. Copy the claim code. It expires 4 minutes after Plex shows it, so do the next steps straight away.
-3. Add these lines to the `.env` beside `docker-compose.yml` in the `freetvarr` folder (the [install script](/guide/getting-started#_1-install) creates all three):
+1. Run the [install script](/guide/getting-started#_1-install) first, if Freetvarr does not run yet. It creates the `freetvarr` folder with `docker-compose.yml` and a `.env` that holds your `PUID` and `PGID` (the user and group that own the files), then starts Freetvarr.
+2. Add this line to the `.env` in the `freetvarr` folder:
 
    ```ini
    COMPOSE_PROFILES=plex
+   ```
+
+3. In a terminal in the `freetvarr` folder, run `docker compose pull`. This downloads the Plex Docker image now, so the claim code in the next step does not expire during the download.
+4. In a browser, open `https://plex.tv/claim` and sign in to your Plex account (a free account works).
+5. Copy the claim code. It expires 4 minutes after Plex shows it, so do the next two steps straight away.
+6. Add the claim code to the `.env` on a new line:
+
+   ```ini
    PLEX_CLAIM=claim-xxxxxxxxxxxxxxxxxxxx
    ```
 
-4. In a terminal in the `freetvarr` folder, start the Docker containers: `docker compose up -d`. The first start downloads the Plex Docker image. If you have not installed Freetvarr yet, run the [install script](/guide/getting-started#_1-install) instead.
-5. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → RECORDING → Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
-6. Check the library names and folders, then press **Create libraries** to create the libraries in Plex.
+7. In the terminal, run `docker compose up -d` to start Plex.
+8. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → RECORDING → Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
+9. Check the library names and folders, then press **Create libraries** to create the libraries in Plex.
 
 Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a [movies folder](/guide/configuration#the-one-off-folder), it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings → RECORDING → Plex. Each library uses the language and rating system of the country from your time zone.
 
