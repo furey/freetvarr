@@ -15,11 +15,19 @@ The steps, in order:
 2. [Back up](#back-up) the Freetvarr settings folder.
 3. [Update](#update).
 
+## The compose folder
+
+Each command on this page runs in the folder that holds your `docker-compose.yml`:
+
+- **Installed with the install script**: the script made a folder called `freetvarr` in the folder where you ran it (e.g. `~/freetvarr`), and its final message shows the update command with that folder.
+- **Set up by hand**: the folder where you saved `docker-compose.yml`.
+- **Set up as a project in a NAS container app** (e.g. Synology Container Manager): the folder you made for the project (e.g. `docker/freetvarr`).
+
 ## Back up
 
-Freetvarr keeps its database and settings in a folder called `freetvarr`, inside the `config` folder next to your `docker-compose.yml` (the setting `CONFIG_PATH` in `.env` can move the `config` folder). The database is the file `state.db`. Its most recent changes sit in two files beside it, `state.db-wal` and `state.db-shm`, so always copy the whole folder:
+Freetvarr keeps its database and settings in a folder called `freetvarr`, inside the `config` folder next to your `docker-compose.yml` (the setting `CONFIG_PATH` in the `.env` file beside `docker-compose.yml` can move the `config` folder). The database is the file `state.db`. Its most recent changes sit in two files beside it, `state.db-wal` and `state.db-shm`, so always copy the whole folder:
 
-1. Open a terminal in the folder that holds your `docker-compose.yml` (see [Update](#update) for where that is).
+1. Open a terminal in the [compose folder](#the-compose-folder).
 2. Stop Freetvarr: run `docker compose stop freetvarr`.
 3. Copy the whole `config/freetvarr` folder somewhere safe, such as `config/freetvarr-backup`.
 
@@ -27,13 +35,9 @@ A backup matters most before an update that changes the database, because an old
 
 ## Update
 
-Run the update in the folder that holds your `docker-compose.yml`:
+If you set up Freetvarr as a project in a NAS container app, update the project in the container app instead. The app downloads the new Docker images and restarts the project.
 
-- **Installed with the install script**: the script made a folder called `freetvarr` in the folder where you ran it (e.g. `~/freetvarr`), and its final message shows the update command with that folder.
-- **Set up by hand**: the folder where you saved `docker-compose.yml`.
-- **Set up as a project in a NAS container app** (e.g. Synology Container Manager): update the project in the container app instead. The app downloads the new images and restarts the project.
-
-In a terminal in that folder, download the new Docker images, then restart the containers:
+Otherwise, in a terminal in the [compose folder](#the-compose-folder), download the new Docker images, then restart the Docker containers:
 
 ```sh
 docker compose pull
@@ -52,7 +56,7 @@ These releases change something on your install when you update to them. Read ea
 
 [Release notes for `2.0.2`](https://github.com/furey/freetvarr/releases/tag/2.0.2)
 
-- **New series folders**: a series recorded for the first time after the update gets a folder named after the show, with its TVDB number, such as `Big Brother (AU) {tvdb-76237}`. The country code appears only when shows from other countries have the same title. New episode files take the form `Big Brother (AU) - S17E06.ts`. See [Series folder names](/guide/series#series-folder-names).
+- **New series folders**: a series recorded for the first time after the update gets a folder named after the show, with its TVDB number (the show's ID on TheTVDB, an online TV database), such as `Big Brother (AU) {tvdb-76237}`. The country code appears only when shows from other countries have the same title. New episode files take the form `Big Brother (AU) - S17E06.ts`. See [Series folder names](/guide/series#series-folder-names).
 - **Existing folders keep their names**: new episodes keep going to each series' current folder.
 - **Check which show this is**: the edit form of a series names the show Freetvarr found, and asks you to pick when Freetvarr is not sure ([Check which show this is](/guide/series#check-which-show-this-is)).
 - **Rename folder**: renames an existing series folder to the new name. Before you rename a folder that Plex already shows, turn off **Empty trash automatically after every scan** in Plex ([Renamed folders](/guide/plex#renamed-folders)). Freetvarr does not offer the rename for a folder that Sonarr or Radarr also saves into ([Rename folder](/guide/series#rename-folder)).
