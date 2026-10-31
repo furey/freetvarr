@@ -29,7 +29,7 @@ export const TvAppsPanel = {
       <p class="ui-banner">This setting is so you can use Jellyfin or Kodi instead of your tuner's own app (e.g. the HDHomeRun app). Once set up, the app plays straight from TVHeadend, so your live TV keeps working, even if Freetvarr was stopped for whatever reason. Your recordings appear separately, in Plex or Infuse.</p>
       <p class="ui-banner is-info">A Freetvarr app for Apple TV and Android TV is planned. Stay tuned!</p>
       <div v-if="!tvhUrl" class="ui-group">
-        <p class="settings-row settings-row-meta">Set the TVHeadend address in Settings → System → TVHeadend first.</p>
+        <p class="settings-row settings-row-meta">Set the TVHeadend address in Settings → SYSTEM → TVHeadend first.</p>
       </div>
       <div v-else-if="!login.authCode" class="settings-group" data-setting="tv-login">
         <h3 class="ui-group-label">TV login</h3>

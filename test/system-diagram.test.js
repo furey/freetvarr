@@ -72,7 +72,7 @@ test('tourStepView: the first step cannot go back and the last step starts setup
   const last = tourStepView({ index: 9 })
   assert.equal(last.nextLabel, 'Start setup')
   assert.equal(last.isLast, true)
-  assert.match(last.text, /Settings → About → System diagram/)
+  assert.match(last.text, /Settings → ABOUT → System diagram/)
 })
 
 test('tourStepView: an optional piece gets a quiet need pill', () => {

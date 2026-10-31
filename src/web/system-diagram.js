@@ -113,7 +113,7 @@ export const TOUR_STEPS = [
   { piece: 'screens', from: 'player-screens' },
   {
     title: 'Required and optional',
-    text: 'Required: aerial, tuner, TVHeadend, XMLTV guide, Freetvarr, and the two folders. Optional: media player, metadata, and ad removal. Settings → About → System diagram shows this diagram again.',
+    text: 'Required: aerial, tuner, TVHeadend, XMLTV guide, Freetvarr, and the two folders. Optional: media player, metadata, and ad removal. Settings → ABOUT → System diagram shows this diagram again.',
     last: true,
   },
 ]
