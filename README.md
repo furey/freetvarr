@@ -128,12 +128,12 @@ The setup wizard, from the time zone to the ready step.
 
 <p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-series.png" alt="Series rules" width="100%"/>
-  <br/><em>Series rules (Settings → Recording)</em>
+  <br/><em>Series rules (Settings → RECORDING)</em>
 </p>
 
 <p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-syncs.png" alt="Activity" width="100%"/>
-  <br/><em>Activity (Settings → System)</em>
+  <br/><em>Activity (Settings → SYSTEM)</em>
 </p>
 
 ## Prerequisites
@@ -197,8 +197,8 @@ To back up first, go back to an older version, or see what changes in each relea
 
 - **Series recording**: a series becomes one TVHeadend autorec rule that matches the title and the channel. TVHeadend's own duplicate detection skips repeats, and the default padding is `2` minutes before and `10` after, because free-to-air broadcasts run late. Turn on **Any channel** to record a show on whichever channel airs it. Recording on an SD channel offers the HD simulcast instead.
 - **TV guide**: a 7-day programme guide. Schedule, cancel, and series-record in TVHeadend, search the week, and put your favourite channels first. Freetvarr keeps the programmes that already aired today (TVHeadend drops them), and each day runs on to 3am. A +1 channel gets the listings of its main channel one hour later.
-- **Watchlist**: **Add to watchlist** in search lists a show under **Watchlist** whenever it is in the TV guide. **Record when it appears** starts an any-channel series recording the first time the show is in the TV guide.
-- **Recording options**: each show's page has the channels, how many episodes to keep, the start and finish padding, ad removal, and pause. Settings → Recording → Series rules lists every rule with where its episodes save.
+- **Watchlist**: **Add to watchlist** in search lists a show under **WATCHLIST** whenever it is in the TV guide. **Record when it appears** starts an any-channel series recording the first time the show is in the TV guide.
+- **Recording options**: each show's page has the channels, how many episodes to keep, the start and finish padding, ad removal, and pause. Settings → RECORDING → Series rules lists every rule with where its episodes save.
 - **Scheduled**: Recordings → Scheduled lists what records now, today, tomorrow, and later this week. On a wide screen, a timeline shows what each tuner records and warns when two recordings need more tuners than you have.
 - **Optional ad removal**: comskip finds the ad breaks. **Detect** mode writes a `.edl` file that Kodi and Freetvarr's player skip. **Cut** mode copies the video across untouched (no re-encode) and keeps a `.orig` backup. Off by default; see [Ad removal](https://furey.github.io/freetvarr/guide/ad-removal).
 
@@ -218,7 +218,7 @@ To back up first, go back to an older version, or see what changes in each relea
 - **For you**: suggestions from the next week of the TV guide, worked out on your own computer from what you record and watch ([For you](https://furey.github.io/freetvarr/guide/for-you)).
 - **Live TV in the browser**: watch any channel on a TV, tablet, or phone. Freetvarr checks for a free tuner first and warns when a recording will need it within the hour. It converts channels a browser cannot play, in hardware through VAAPI when the host has it.
 - **Player**: pause and rewind live TV up to `30` minutes, **Start over** a programme, and **Go live** to return to now. Recordings resume where you stopped, and **Skip ad** jumps past a detected ad break. **Captions** shows the Teletext subtitles of the broadcast. A Miniplayer keeps playing while you browse, and Multiview shows up to four live channels at once.
-- **Watch on your TV**: Settings → Watching → **Watch on TV** makes a TVHeadend login for TV apps and shows each address to copy, so a TV app (e.g. Jellyfin, Kodi, etc.) plays live TV on the TV itself ([TV apps](https://furey.github.io/freetvarr/guide/tv-apps)).
+- **Watch on your TV**: Settings → WATCHING → **Watch on TV** makes a TVHeadend login for TV apps and shows each address to copy, so a TV app (e.g. Jellyfin, Kodi, etc.) plays live TV on the TV itself ([TV apps](https://furey.github.io/freetvarr/guide/tv-apps)).
 - **Search**: each page header has **Search**, which finds a show by its title, a nickname, its initials, or a close spelling.
 
 ### Plex, Sonarr, and Radarr
@@ -231,12 +231,12 @@ To back up first, go back to an older version, or see what changes in each relea
 
 ### Running it
 
-- **Setup wizard**: sets up TVHeadend, channels, the TV guide, folders, and Plex. If Freetvarr installed TVHeadend for you, setup creates the admin and Freetvarr logins and closes TVHeadend's open access. Settings → System → Setup shows what it saved.
-- **Activity**: Settings → System → Activity has a **Now** tab with running jobs, recordings in progress, watching sessions, and what runs next. The **Syncs** tab holds the sync history. Press a job to see its steps and log.
-- **Health**: Settings → System → Health checks TVHeadend, the TV guide, the folders, Plex, and live TV, with the fix and a docs link for each problem. A dot on the Settings icon shows when a check fails.
+- **Setup wizard**: sets up TVHeadend, channels, the TV guide, folders, and Plex. If Freetvarr installed TVHeadend for you, setup creates the admin and Freetvarr logins and closes TVHeadend's open access. Settings → SYSTEM → Setup shows what it saved.
+- **Activity**: Settings → SYSTEM → Activity has a **Now** tab with running jobs, recordings in progress, watching sessions, and what runs next. The **Syncs** tab holds the sync history. Press a job to see its steps and log.
+- **Health**: Settings → SYSTEM → Health checks TVHeadend, the TV guide, the folders, Plex, and live TV, with the fix and a docs link for each problem. A dot on the Settings icon shows when a check fails.
 - **Scheduled and manual sync**: Freetvarr checks TVHeadend every `15` minutes, `30` minutes (the default), hour, or on your own cron expression. It also syncs about a minute after a recording finishes. **Sync now** runs a sync at once.
 - **Phone-friendly UI**: every page works on a phone. Add Freetvarr to the Home Screen to open it full screen from its own icon.
-- **Reset**: **Reset Freetvarr** under Settings → Danger zone deletes Freetvarr's settings, series, list of recordings, and sync history, then returns to setup. Your video files and TVHeadend stay as they are.
+- **Reset**: **Reset Freetvarr** under Settings → DANGER ZONE deletes Freetvarr's settings, series, list of recordings, and sync history, then returns to setup. Your video files and TVHeadend stay as they are.
 - **Single container**: SQLite-backed, one Docker container next to TVHeadend, no login, and no external runtime dependencies once configured.
 
 ## Regions
@@ -315,7 +315,7 @@ After a change, run `docker compose up -d` in the `freetvarr` folder to restart 
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where Freetvarr sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports. In the example Docker compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`. Freetvarr rewrites the one prefix to the other. The full environment reference is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
-**Ad removal** lives in Settings, not in the `.env`. Turn it on in Settings → Recording → Ad removal (off by default), then pick a mode for each series in Settings → Recording → Series rules. Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
+**Ad removal** lives in Settings, not in the `.env`. Turn it on in Settings → RECORDING → Ad removal (off by default), then pick a mode for each series in Settings → RECORDING → Series rules. Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
 
 <p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-settings.png" alt="Settings" width="100%"/>
@@ -388,7 +388,7 @@ The [troubleshooting guide](https://furey.github.io/freetvarr/guide/troubleshoot
 
 ### Wrong timestamps
 
-- Choose your time zone in Settings → System → Schedule. Freetvarr shows every timestamp in that zone, whatever device you browse from. A `TZ` in your `.env` only pre-fills the zone.
+- Choose your time zone in Settings → SYSTEM → Schedule. Freetvarr shows every timestamp in that zone, whatever device you browse from. A `TZ` in your `.env` only pre-fills the zone.
 
 ## Disclaimer
 
