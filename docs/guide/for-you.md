@@ -14,7 +14,7 @@ Suggestions show in three places:
 
 - The **For you** row on [Home](/guide/home#rows).
 - A **For you** slide in the [highlights](/guide/home#highlights) on Home.
-- The **For you** page. Press **See all** or the row title on Home to open it. On a tablet or computer, **For you** in the rail opens it too.
+- The **For you** page. Press **See all** or the row title on Home to open it. On a tablet or computer, **For you** in the rail (the menu down the left side; see [Navigation](/guide/home#navigation)) opens it too.
 
 ## The For you page
 
@@ -29,7 +29,7 @@ The page groups its suggestions under these headings, and leaves out any heading
 - **Coming up this week for you**, sorted by air time.
 - **New seasons and returning**.
 - **You might like**.
-- **Top rated movies this week**: up to 10 films from the next 7 days with the best TMDB user scores, weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**.
+- **Top rated movies this week**: up to 10 films from the next 7 days with the best user scores on TMDB (The Movie Database, an online film database), weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**.
 - **Movies for you**.
 - **Premieres and movies this week**.
 
@@ -38,8 +38,8 @@ A suggestion you have already scheduled carries a `Recording` badge and goes to 
 Press a card to act on it. What happens depends on the suggestion:
 
 - On now: plays the channel live.
-- Already scheduled: opens the show page.
-- A new season or a returning show: opens the programme sheet with **Every episode** picked.
+- Already scheduled: opens the [show page](/guide/recordings#show-pages).
+- A new season or a returning show: opens the [programme sheet](/guide/tv-guide#recording-a-programme) with **Every episode** picked.
 - A premiere or a new show: opens the programme sheet with **Every episode** picked, or **This episode** for a movie.
 - Anything else: opens the programme sheet with **This episode** picked (**This movie** for a movie, **This showing** for a one-off).
 
@@ -59,7 +59,7 @@ The reason under a card names how you came to the show:
 | **More like** a show            | You pressed **More like this** on it.                                                                    |
 | **Because you like** a genre    | Most of what you watched and recorded is in that genre.                                                  |
 
-Only time you spend watching counts: the Freetvarr page is on screen and the picture plays, with or without sound. A hidden tab or a paused picture does not count. In Multiview with more than one picture, a picture counts only when it has the sound or shows captions. Time on a live channel counts towards each programme by the minutes you watched of it. Opening a programme's details counts a little towards a show, but never gives a reason on its own.
+Only time you spend watching counts: the Freetvarr page is on screen and the picture plays, with or without sound. A hidden tab or a paused picture does not count. In [Multiview](/guide/player#multiview) with more than one picture, a picture counts only when it has the sound or shows captions. Time on a live channel counts towards each programme by the minutes you watched of it. Opening a programme's details counts a little towards a show, but never gives a reason on its own.
 
 ## Getting started
 
@@ -82,7 +82,7 @@ Freetvarr updates the genres and the description data once a night, between 2am 
 
 ## For you settings
 
-Open Settings → **For you**, or press the settings button at the top of the For you page.
+Open Settings → Watching → **For you**, or press the settings button at the top of the For you page.
 
 | Setting                      | What it does                                                                                                                                           |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -106,10 +106,10 @@ The suggestion level decides how much of the processor For you uses:
 
 **Auto**, the default, picks the level from a short test of your computer. The setting shows the result, such as `Standard, detected on this box`, and the reason, such as how many seconds a day the work would take. A computer with less than `400MB` of free memory stays at Basic. Press **Check again** to run the test again, for example after a hardware change. To choose a level yourself, press **Basic**, **Standard**, or **Plus**.
 
-The first time it uses Standard or Plus, Freetvarr downloads the language model from Hugging Face into its config folder (`${CONFIG_PATH}/freetvarr/models` on the host). After that it works offline.
+The first time it uses Standard or Plus, Freetvarr downloads the language model from Hugging Face into its config folder (`${CONFIG_PATH}/freetvarr/models` on the host; `CONFIG_PATH` is set in the `.env`, see [Configuration](/guide/configuration#compose-environment)). After that it works offline.
 
 ## Viewing history
 
-Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → **For you** control it. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
+Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → Watching → **For you** control it. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
 
 Your viewing history never leaves that computer: the genre lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.
