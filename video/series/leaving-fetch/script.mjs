@@ -31,7 +31,7 @@ export const SCENES = [
     id: 'find',
     chapter: 'Find the box',
     lines: [
-      'Open a terminal, a window where you type commands. On a Mac, open Terminal. On Windows, open PowerShell.',
+      'Open a terminal, a window where you type commands. On a Mac, open Terminal. On Windows, open Command Prompt.',
       'Type the command on screen, and press Enter. If it asks to install fetch T V, type y.',
       'The tool lists each Fetch box it finds, with its IP address.',
       'No box found? Look up its address in your router\'s list of connected devices.',
@@ -68,11 +68,11 @@ export const SCENES = [
     id: 'cancel',
     chapter: 'Cancel Fetch',
     lines: [
-      'Move the aerial lead to your new tuner, and check every channel you watch.',
+      'Move the aerial cable to your new tuner, and check every channel you watch.',
       'Then sign in to Fetch account management.',
       'Under Packages, choose Cancel Service, then Yes, cancel my service.',
       'It cancels every box on the account.',
-      'Got Fetch through your internet provider? Cancel through the provider instead.',
+      'If your internet provider supplied your Fetch box, cancel through the provider instead.',
       'Cancel only once your recordings are safe. A cancelled box cannot be switched back on.',
     ],
   },
@@ -94,6 +94,8 @@ export const TIMING = {
 export const YOUTUBE = {
   title: 'Save your Fetch TV recordings before you cancel, with fetchtv',
   description: `
+Windows tip: if PowerShell says "running scripts is disabled on this system", Windows is blocking PowerShell scripts (its default setting). Open Command Prompt instead (search the Start menu for cmd) and type the same commands, or in PowerShell type npx.cmd instead of npx.
+
 Save your Fetch TV recordings before you cancel. The free fetchtv tool copies them off a Fetch box over your home network, names each file the way your media library expects, and does not need your Fetch account.
 
 Fetch set the levy opt-in deadline for 31 October 2026. If you opt in, Fetch keeps a Gen 3 box working until at least 30 June 2028. If you don't, Fetch suspends the box in November 2026, and you cannot copy recordings off a suspended box. Facts about the levy come from Fetch's levy FAQ; check the Leaving Fetch guide for changes.
