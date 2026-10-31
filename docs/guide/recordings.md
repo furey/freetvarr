@@ -12,6 +12,8 @@ description: >-
 
 The Recordings page holds everything Freetvarr has recorded and everything TVHeadend will record. A switch at the top picks **Library** or **Scheduled**. The **Scheduled** label also shows how many recordings are coming up.
 
+When TVHeadend finishes a recording, a [sync](/guide/syncs) imports it: Freetvarr hardlinks or copies the file into your media library folders (the TV folder for series, the one-off folder for one-offs, and the optional movies folder for films; see [Configuration](/guide/configuration#the-two-recordings-paths)). A hardlink is a second name for the same file, so it uses no extra disk space. Freetvarr hardlinks when TVHeadend's recordings folder and the library folders are on one disk, and copies the file otherwise.
+
 Freetvarr saves each programme image while the recording is still scheduled, because TV guide image links often stop working once the programme has aired. A recording with no saved image shows a title card.
 
 <!-- markdownlint-disable MD033 -->
@@ -28,14 +30,14 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 The library groups your recordings in shelves:
 
 - **Shows**: a poster for each TV series, even when you recorded only one episode. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now, and a red bar on the picture shows how much of the programme has aired.
-- **Movies**: films that Freetvarr filed in the movies folder, and films in your Plex movie library.
+- **Movies**: films that Freetvarr filed in the [movies folder](/guide/series#films), and films in your Plex movie library when [Plex](/guide/plex) is connected.
 - **Specials and one-offs**: programmes that air once, such as a grand final, an awards night, or a special. The import puts them in the [one-off folder](/guide/configuration#the-one-off-folder).
 
 A show that has no recordings yet but has an episode scheduled in TVHeadend also gets a poster on its shelf. The day and time of the recording show under the poster, such as `Tue 8:30pm`.
 
 Freetvarr decides between Shows and One-offs the same way for the shelf and for the folder the file goes to. A programme counts as a series when any of these is true:
 
-- It has a series recording or a series folder, or Plex lists it as a TV show.
+- It has a [series recording](/guide/series#how-a-series-recording-works) (TVHeadend records every new episode) or a [series folder](/guide/series), or Plex lists it as a TV show.
 - You recorded it on two or more days.
 - The TV guide shows different episodes of it on two or more days. A weekly sport slot, such as a Friday night football match under one title, counts.
 - The TV guide gives it a real season number (not the year).
@@ -47,7 +49,7 @@ If Freetvarr gets one wrong, choose **Move to Shows** or **Move to One-offs** in
 
 A recording appears on its shelf as soon as it starts, even before it is in your library. See [Recordings in progress](#recordings-in-progress).
 
-When Plex is connected, the shelves also list every episode and film in your Plex TV and Movies libraries, including files that Sonarr or Radarr downloaded and files you copied in yourself. These episodes sit beside your recordings on the same show page, play in Freetvarr's player, and take their watched state and resume point from Plex. An episode that Plex has as both a recording and a download shows once; **Episode info** lists both versions. Turn this off, or choose the Plex libraries it lists, in Settings → Recording → Plex → [Your whole library](/guide/plex#your-whole-library).
+When Plex is connected, the shelves also list every episode and film in your Plex TV and Movies libraries, including files that [Sonarr or Radarr](/guide/sonarr-radarr) downloaded and files you copied in yourself. These episodes sit beside your recordings on the same show page, play in Freetvarr's player, and take their watched state and resume point from Plex. An episode that Plex has as both a recording and a download shows once; **Episode info** in the [episode menu](#episode-menu) lists both versions. Turn this off, or choose the Plex libraries it lists, in Settings → Recording → Plex → [Your whole library](/guide/plex#your-whole-library).
 
 **Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides shows you have finished; when you have watched everything, the page says `You are all caught up`. The browser remembers both choices.
 
@@ -61,22 +63,22 @@ An empty library says `Nothing recorded yet` and offers **Find a show in the TV 
 
 Freetvarr moves a recorded file when its shelf and its folder do not match:
 
-- Once, 3 minutes after the first start. A recording in the wrong folder, such as the episodes of a weekly series in the one-off folder, moves to the matching folder.
-- After each sync, for a title that changed shelf.
+- Once, 3 minutes after Freetvarr first starts (after an update from 1.x, the first start of 2.0.0 or later). A recording in the wrong folder, such as the episodes of a weekly series in the one-off folder, moves to the matching folder.
+- After each [sync](/guide/syncs), for a title that changed shelf.
 - At once, after you choose **Move to Shows** or **Move to One-offs**, or undo that choice.
 
-Files move only between the TV folder and the one-off folder; films stay where they are. Freetvarr skips a file when a file with the same name is already in the new place, or while ad removal works on it, and tries again after the next sync. Each run shows in Settings → System → [Activity](/guide/syncs) as **Library folders**, with each file and its result.
+Files move only between the TV folder and the one-off folder; films stay where they are. Freetvarr skips a file when a file with the same name is already in the new place, or while [ad removal](/guide/ad-removal) works on it, and tries again after the next sync. Each run shows in Settings → System → [Activity](/guide/syncs) as **Library folders**, with each file and its result.
 
 ## Show pages
 
 A show page has these parts:
 
-- **Back**: returns to the page you came from, such as Home, Library, or Scheduled. A show page opened from a link, or from the recording chip in the header, returns to the Library.
+- **Back**: returns to the page you came from, such as Home, Library, or Scheduled. A show page opened from a link, or from the recording chip in the header (it shows while a recording runs; see [Recordings in progress](#recordings-in-progress)), returns to the Library.
 - **Play** or **Resume**: plays the next episode you have not watched.
 - **Recording options**: opens the [Recording options](#recording-options) of a show with a series recording.
 - **⋯**: opens the [show menu](#show-menu).
 - **Status line**: what the series recording does next, such as `Next: Tue 8:30pm on 9HD`, `Recording now`, or `Paused`, with a summary such as `Records every new episode on 9HD · keeps the latest 10 · ads removed`. Press it to open Recording options. A show with no series recording says `Not recording new episodes`, with a **TV guide** button. A show with no series recording but an episode scheduled in TVHeadend says when it records instead, such as `Records tonight 8:30pm on 9HD`.
-- **Classification**: the age label of the latest episode, such as `M` or `MA15+`. A show recorded before this version has none.
+- **Classification**: the age label of the latest episode, such as `M` or `MA15+`. A show recorded before Freetvarr 2.0.0 has none.
 - **About**: the synopsis of the show, and a line from a review. See [About and cast and crew](#about-and-cast-and-crew).
 - **Cast and crew**: the people in the show. See [About and cast and crew](#about-and-cast-and-crew).
 - **Season chips**: pick a season when the show has more than one. When the TV guide uses the year as the season, such as season `26` of `NRL 2026`, the chip says `2026`, and a show with only that season has no chip. One-offs and movies have no season chips; their page lists each recording, newest first.
@@ -114,7 +116,7 @@ A recording shows in the Library from the moment TVHeadend starts it. Its show p
 When the show has no other episodes, the line under the title says `Series recording`, `One-off recording`, or `Movie recording`, to match the shelf, and the show page has these parts:
 
 - **Watch from the start**: plays the recording from its first minute while TVHeadend keeps recording it. You can move anywhere in the part that is already recorded, or go to live.
-- **Watch live**: opens the channel in the live player.
+- **Watch live**: opens the channel in the live [player](/guide/player).
 - **⋯**: opens the [show menu](#show-menu). It has **Watch from the start** and **Stop recording…** while the recording runs.
 - **Recording card**: says when the recording ends, such as `Recording now until 10:10pm`. When the recording started late, the card says so, for example `Recording started at 8:00pm, 30 min after the programme began.` **Watch from the start** then plays from 8:00pm, because the recording has nothing earlier.
 
@@ -126,19 +128,19 @@ To watch a recording from the start while it records:
 2. Press the poster or card with the `REC` badge.
 3. Press **Watch from the start**.
 
-Watching from the start reads the recording file, so it does not use a tuner. It uses one of the streams that Freetvarr can play at once. When all of them are in use, the player says what is already playing; stop one of them and try again. Freetvarr remembers where you stopped, and the episode resumes from there after it is imported.
+Watching from the start reads the recording file, so it does not use a tuner. It uses one of the streams that Freetvarr can play at once ([Live streams at once](/guide/player#live-streams-at-once)). When all of them are in use, the player says what is already playing; stop one of them and try again. Freetvarr remembers where you stopped, and the episode resumes from there after it is imported.
 
-The timeline covers the whole recording slot, from when the recording started to its scheduled end with padding. The end label is the scheduled end time, such as `10:10pm`. The part already recorded is brighter, and a red mark shows how far the recording has got. You can move anywhere before the mark but not past it. If the recording runs past its scheduled end, the timeline gets 10 minutes longer. When the recording finishes, the timeline ends at the end of the recording.
+The player's timeline covers the whole recording slot, from when the recording started to its scheduled end with padding (the **Start early** and **Finish late** minutes in [Recording options](#recording-options)). The end label is the scheduled end time, such as `10:10pm`. The part already recorded is brighter, and a red mark shows how far the recording has got. You can move anywhere before the mark but not past it. If the recording runs past its scheduled end, the timeline gets 10 minutes longer. When the recording finishes, the timeline ends at the end of the recording.
 
-When the recording finishes, the row says `Waiting to import`. About a minute later Freetvarr starts a sync that imports it (see [Scheduled and manual](/guide/syncs#scheduled-and-manual)). The imported episode then takes the same place in the list. You cannot delete, select, move, or mark a recording in progress. To stop it, press **⋯** on the row, then **Stop recording…**, then **Stop recording** in the sheet.
+When the recording finishes, the episode row says `Waiting to import`. About a minute later Freetvarr starts a sync that imports it (see [Scheduled and manual](/guide/syncs#scheduled-and-manual)). The imported episode then takes the same place in the list. You cannot delete, select, move, or mark a recording in progress. To stop it, press **⋯** on the row, then **Stop recording…**, then **Stop recording** in the sheet.
 
-A recording that Freetvarr will not import, because Settings → Recording → Media library → **Import every recording** is off and no series folder matches it, also shows in the Library. Its card says `When it finishes it stays in TVHeadend`, and why. After it finishes, its row says `Not imported`, and its episode menu offers **Import**.
+A recording that Freetvarr will not import, because Settings → Recording → Media library → **Import every recording** is off and no [series folder](/guide/series) matches it, also shows in the Library. Its card says `When it finishes it stays in TVHeadend`, and why. After it finishes, its row says `Not imported`, and its episode menu offers **Import**.
 
 ### About and cast and crew
 
 The **About** and **Cast and crew** sections load after the page opens, so the episodes show first.
 
-- **About**: the show synopsis from TMDB or TVmaze, or the synopsis of the newest episode when they have none. Below it, one line from a TMDB review shows with a link to the reviews. The score shows in the header; press it for the source. See [Ratings and reviews](/guide/tv-guide#ratings-and-reviews).
+- **About**: the show synopsis from TMDB or TVmaze (online film and TV databases), or the synopsis of the newest episode when they have none. Below it, one line from a TMDB review shows with a link to the reviews. The score shows in the header; press it for the source. See [Ratings and reviews](/guide/tv-guide#ratings-and-reviews).
 - **Cast and crew**: up to 12 cast members, each with a photo (initials when there is no photo), a name, and the character. Crew shows as lines, such as `Director: Jane Smith`. For a film, the crew is the director, up to 2 writers, and up to 2 producers. For a series, it is the creators and up to 2 executive producers. Press a person to open their TMDB or TVmaze page in a new tab. When that site does not answer, the person has no link.
 
 A show with no match gets neither section. Reality and game show hosts appear in the cast. A film needs a [TMDB key](/guide/tv-guide#tmdb-key) for its cast and crew. To turn the lookup off, go to Settings → Watching → Film and TV info and turn off **Cast and crew**.
@@ -237,14 +239,14 @@ An episode with two versions, such as your recording and a Sonarr download, offe
 
 **Recording options** is a panel that opens from the show page. On a phone it slides up from the bottom. On a wide screen it opens as a dialog. It changes the series recording of the show, and each change saves by itself. Press **Done** to close it.
 
-| Option              | What it does                                                                                                      |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Channels**        | The channels the series recording uses. Pick **Any channel** to record the show wherever it airs.                 |
-| **Keep the latest** | The number of episodes TVHeadend keeps. **All** keeps every episode.                                              |
-| **Start early**     | Minutes to start before the programme.                                                                            |
-| **Finish late**     | Minutes to finish after the programme.                                                                            |
-| **Remove ads**      | Cuts the ad breaks from new episodes. It needs ad removal on in Settings → Ad removal, and a folder for the show. |
-| **Pause recording** | Stops recording new episodes. Episodes already recorded still import.                                             |
+| Option              | What it does                                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Channels**        | The channels the series recording uses. Pick **Any channel** to record the show wherever it airs.                                             |
+| **Keep the latest** | The number of episodes TVHeadend keeps. **All** keeps every episode.                                                                          |
+| **Start early**     | Minutes to start before the programme.                                                                                                        |
+| **Finish late**     | Minutes to finish after the programme.                                                                                                        |
+| **Remove ads**      | Cuts the ad breaks from new episodes. It needs ad removal on in Settings → [Ad removal](/guide/ad-removal), and a series folder for the show. |
+| **Pause recording** | Stops recording new episodes. Episodes already recorded still import.                                                                         |
 
 **Advanced** has these parts:
 
@@ -343,9 +345,9 @@ The buttons under the facts depend on the recording: **Play**, **Import** or **I
 
 - **IMPORTED**: the file on disk matches the size TVHeadend reported.
 - **PARTIAL**: the imported file came up more than `1MB` short. The next sync imports it again.
-- **SKIPPED**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the recordings folder Freetvarr can see. The row's error says which.
+- **SKIPPED**: there was nothing to import. Either TVHeadend has no file for the entry yet (it's still recording, or the recording failed), or the path it reported sits outside the [recordings folder](/guide/configuration#the-two-recordings-paths) Freetvarr can see. The row's error says which.
 - **FAILED**: the import hit an error.
-- **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **Add to library** off, or it matches no series folder and **Import every recording** is off in Settings → Recording → Media library. Press **Import** to add it to the library at once.
+- **NOT IMPORTED**: Freetvarr left the recording in TVHeadend. You recorded it with **Add to library** off (a switch in the [programme sheet](/guide/tv-guide#recording-a-programme)), or it matches no series folder and **Import every recording** is off in Settings → Recording → Media library. Press **Import** to add it to the library at once.
 - **REPLACED**: Freetvarr imported the recording, but its library file is gone, and the folder has another file for the same episode. Another app, such as Sonarr, replaced it. See [Replaced recordings](/guide/troubleshooting#replaced-recordings).
 - **NOT IN LIBRARY**: Freetvarr imported the recording, but its library file is gone and no other copy of the episode is in the folder. The episode leaves your library shelves, show pages, and counts, and stays in this log. Press **Import again** on its row to import the TVHeadend copy again, while TVHeadend still has it.
 
@@ -388,4 +390,4 @@ To clear a **FAILED**, **SKIPPED**, or **NOT IMPORTED** row, press it, then **Cl
 
 ### Filters and time
 
-Filter by show, by status, by whether the recording is in TVHeadend, or by time. Times show in the time zone chosen in Settings → Schedule (or `TZ` from your `.env` until you choose one), whatever device you browse from.
+Filter by show, by status, by whether the recording is in TVHeadend, or by time. Times show in the time zone chosen in Settings → Schedule (or `TZ` from your `.env` until you choose one; see [Compose environment](/guide/configuration#compose-environment)), whatever device you browse from.
