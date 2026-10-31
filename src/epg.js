@@ -867,7 +867,7 @@ const showArtSources = async ({ title, kind = null }) => {
 
 const showArtworkFor = async ({ title, kind = null }) => {
   const artworkKind = kind ?? await guideKindFor(title)
-  if (isFilmKind(artworkKind)) return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
+  if (isFilmKind(artworkKind)) return filmArtworkFor({ title, kind: artworkKind })
   const artwork = await showArtwork.artworkFor(title).catch(() => NO_ARTWORK)
   if (artwork.sources.length) return artwork
   if (artwork.pending) {
@@ -875,6 +875,13 @@ const showArtworkFor = async ({ title, kind = null }) => {
     return artwork
   }
   return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
+}
+
+const filmArtworkFor = async ({ title, kind }) => {
+  const artwork = await fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
+  if (artwork.sources.length || artwork.pending) return artwork
+  const otherAirings = await guideImagesFor(title)
+  return otherAirings.length ? { ...artwork, sources: otherAirings } : artwork
 }
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))

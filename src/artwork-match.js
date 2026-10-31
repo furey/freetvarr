@@ -4,11 +4,11 @@ export const programmeHintsOf = (programs = [], { channelNameOf = () => null } =
   const matching = programs.filter((program) => program?.title)
   if (!matching.length) return null
   const title = matching[0].title
-  const synopsis = matching
-    .map((program) => String(program.synopsis || '').trim())
-    .sort((a, b) => b.length - a.length)[0] || ''
+  const synopsis = longestOf(matching.map((program) => program.synopsis)) ||
+    longestOf(matching.map((program) => program.episode_title).filter(isDescriptionLike))
   const isEpisode = matching.some((program) =>
-    program.series_no != null || program.episode_no != null || Boolean(program.episode_title))
+    program.series_no != null || program.episode_no != null ||
+    Boolean(program.episode_title && !isDescriptionLike(program.episode_title)))
   return {
     title,
     synopsis,
@@ -16,11 +16,22 @@ export const programmeHintsOf = (programs = [], { channelNameOf = () => null } =
     years: yearsOf(`${title} ${synopsis}`),
     releaseYears: releaseYearsOf({ title, synopsis }),
     castNames: castNamesOf(synopsis),
-    episodeTitles: [...new Set(matching.map((program) => episodeTitleKeyOf(program.episode_title)).filter(Boolean))],
+    episodeTitles: [...new Set(matching
+      .filter((program) => !isDescriptionLike(program.episode_title))
+      .map((program) => episodeTitleKeyOf(program.episode_title)).filter(Boolean))],
     channelNames: [...new Set(matching.map((program) => channelNameOf(program.channel_id)).filter(Boolean))],
     ...evidenceWordsOf({ synopsis, title }),
   }
 }
+
+export const isDescriptionLike = (value) => {
+  const text = String(value || '').trim()
+  return text.length >= MIN_DESCRIPTION_LENGTH && /[.!?…]$/.test(text)
+}
+
+const longestOf = (values) => values
+  .map((value) => String(value || '').trim())
+  .sort((a, b) => b.length - a.length)[0] || ''
 
 export const episodeTitleKeyOf = (value) => {
   const key = String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -417,6 +428,7 @@ const MAX_SEARCH_RANK = 10
 const MAX_TMDB_CAST = 15
 const MAX_PROGRAMMES_PER_TITLE = 8
 const MIN_EPISODE_TITLE_LENGTH = 6
+const MIN_DESCRIPTION_LENGTH = 60
 const GENERIC_EPISODE_TITLE = /^(episode|part|series|season|chapter)\b|^\d+$/
 const DOMINANT_FILM_VOTES = 500
 const DOMINANT_FILM_RATIO = 10
