@@ -1,0 +1,3 @@
+demo patch: src/live-tv.js tunerVerdict and src/tuner-status.js describeTuners default 4 tuners when TVHeadend reports none (IPTV demo stack)
+demo patch: src/tvheadend.js getTunerStatus tunerCount defaults to 4
+demo patch: getTunerStatus tunerCount is at least 4 (IPTV inputs only appear while in use)

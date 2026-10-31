@@ -1,0 +1,7 @@
+{ "length": 30,
+  "parts": [["gap", 2.0], ["clip", "out/O4-1.wav"], ["gap", 0.6], ["clip", "out/O4-2.wav"], ["gap", 3.2], ["clip", "out/O4-3b1.wav"], ["gap", 0.6], ["clip", "out/O4-4.wav"]],
+  "tracks": [
+    {"id": "music-A", "file": "music/tracks/480.mp3", "from": 0},
+    {"id": "music-B", "file": "music/tracks/1167.mp3", "from": 0},
+    {"id": "music-C", "file": "music/tracks/1168.mp3", "from": 0}
+  ] }

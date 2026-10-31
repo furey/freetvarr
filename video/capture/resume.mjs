@@ -1,0 +1,12 @@
+import { openBrowser, wait } from './lib.mjs'
+const { browser, page } = await openBrowser()
+await page.goto('http://127.0.0.1:3857/#/recordings/show/big-wave-season')
+await wait(page, 3000)
+await page.getByRole('button', { name: 'Play E1', exact: true }).click()
+await wait(page, 4000)
+await page.evaluate(() => { const v = document.querySelector('video'); if (v) v.currentTime = 55 })
+await wait(page, 12000)
+await page.screenshot({ path: 'shots/player.png' })
+await page.keyboard.press('Escape')
+await wait(page, 2000)
+await browser.close()

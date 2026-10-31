@@ -9,5 +9,5 @@
     "MD041": false,
     "MD051": false
   },
-  "ignores": ["**/node_modules/**", "docs/.vitepress/dist/**", "docs/.vitepress/cache/**"]
+  "ignores": ["**/node_modules/**", "docs/.vitepress/dist/**", "docs/.vitepress/cache/**", "video/youtube.md", "video/series/*/youtube-*.md"]
 }
