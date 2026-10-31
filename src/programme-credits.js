@@ -42,8 +42,9 @@ export const createProgrammeCredits = ({
   linkOf = linkHealth.linkOf,
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
   isAllowed = lookupAllowed,
+  missesBeforeMs = 0,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, staleBeforeMs, isAllowed })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, staleBeforeMs, isAllowed, missesBeforeMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)

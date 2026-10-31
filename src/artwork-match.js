@@ -329,6 +329,8 @@ export const cachedStateOf = ({ cached, nowMs, hitTtlMs, hasValue, maxAgeMs = DA
 
 export const TMDB_FIRST_SAVED_AFTER_MS = Date.parse('2026-10-21T21:00:00+11:00')
 
+export const MISSES_RETRIED_AFTER_MS = Date.parse('2026-10-31T23:30:00+11:00')
+
 export const DATA_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
 const entityKindFits = ({ row, hints }) => {
