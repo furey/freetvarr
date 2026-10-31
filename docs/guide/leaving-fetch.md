@@ -200,7 +200,7 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
 1. Install Node.js, the free software that runs the tool. Download the LTS (long-term support) installer from [nodejs.org](https://nodejs.org/en/download) and run it.
-2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **PowerShell** on Windows.
+2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", type `npx.cmd` wherever these steps say `npx`, or use Command Prompt. Running PowerShell as administrator does not fix this message.
 3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 5. List your recordings. In the terminal, run `npx fetchtv shows --ip=192.168.1.50`, with your box's IP address in place of the example.
