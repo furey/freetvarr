@@ -10,15 +10,15 @@ description: >-
 
 <Illustration name="plex-integration" />
 
-Plex is optional. Without it, Freetvarr still imports and files episodes (you refresh your media library yourself). With it, Freetvarr refreshes the matching Plex library section after every sync that imported something, keeps watched marks and resume points the same in both apps, and can list your whole Plex library in Recordings.
+Plex is optional. Without it, Freetvarr still imports and files episodes (you refresh your media library yourself). With it, Freetvarr refreshes the matching Plex library after every sync that imported something, keeps watched marks and resume points the same in both apps, and can list your whole Plex library in Recordings. A [sync](/guide/syncs) is Freetvarr's pass over TVHeadend's finished recordings. Freetvarr's settings call each Plex library a section.
 
 ## No Plex yet?
 
-The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex token itself, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
+The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the Plex [token](#the-token) (the key Freetvarr uses to sign in to Plex) itself, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) creates the Plex libraries. Do these steps before you run the install script, or now if Freetvarr already runs.
 
 1. In a browser, open `https://plex.tv/claim` and sign in to your Plex account (a free account works).
 2. Copy the claim code. It expires 4 minutes after Plex shows it, so do the next steps straight away.
-3. Add these lines to the `.env` beside `docker-compose.yml`:
+3. Add these lines to the `.env` beside `docker-compose.yml` in the `freetvarr` folder (the [install script](/guide/getting-started#_1-install) creates all three):
 
    ```ini
    COMPOSE_PROFILES=plex
@@ -29,9 +29,9 @@ The Docker compose file can run Plex next to Freetvarr. Freetvarr then finds the
 5. In Freetvarr in a browser, proceed to the **Plex** step of setup. Freetvarr finds Plex and its token itself. If you already finished setup, open Settings → Recording → Plex instead, enter the URL `http://127.0.0.1:32400` and press **Auto-detect token**.
 6. Check the library names and folders, then press **Create libraries** to create the libraries in Plex.
 
-Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a movies folder, it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings → Recording → Plex. Each library uses the language and rating system of the country from your time zone.
+Freetvarr creates a **TV Shows** library for `/data/media/tv` and a **One-offs** library (the Other Videos type) for `/data/media/one-offs`. If you set a [movies folder](/guide/configuration#the-one-off-folder), it also creates a **Movies** library. It skips any folder that a Plex library already reads, and selects each library in Settings → Recording → Plex. Each library uses the language and rating system of the country from your time zone.
 
-Plex keeps its settings in `${CONFIG_PATH}/plex` and reads your library at `/data/media`, the same paths as Freetvarr. To finish the Plex setup (for example, to name the server), open `http://<host-ip>:32400/web` in a browser.
+Plex keeps its settings in `${CONFIG_PATH}/plex`, where `CONFIG_PATH` is the host config folder set in the `.env` ([Configuration](/guide/configuration#compose-environment)). Plex reads your library at `/data/media`, the same paths as Freetvarr. To finish the Plex setup (for example, to name the server), open `http://<host-ip>:32400/web` in a browser.
 
 If the claim code expired before Plex started, Plex runs without an account and Freetvarr finds no token. Get a new code, replace `PLEX_CLAIM` in the `.env`, and run `docker compose up -d` again in a terminal in the `freetvarr` folder.
 
@@ -52,7 +52,7 @@ Each library has a name and a folder. The folder is the path as Plex sees it. Wi
 
 ## The library folder
 
-Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/tv` inside its Docker container). The Plex TV library you pick has to include that same host folder, or Plex refreshes the section and finds nothing new. If Plex runs in a Docker container, mount `${DATA_PATH}/media/tv` into it, then edit the library in Plex and add the path Plex sees under **Add folders**. The two Docker containers can use different paths for the folder. Only the host folder has to be the same.
+Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/tv` inside its Docker container), where `DATA_PATH` is the host data folder set in the `.env`. The Plex TV library you pick has to include that same host folder, or Plex refreshes the section and finds nothing new. If Plex runs in a Docker container, mount `${DATA_PATH}/media/tv` into it, then edit the library in Plex and add the path Plex sees under **Add folders**. The two Docker containers can use different paths for the folder. Only the host folder has to be the same.
 
 ## The one-off library
 
@@ -134,7 +134,7 @@ With **Empty trash automatically after every scan** on (the Plex default), Plex 
 
 ## File layout
 
-Imports write under your media root using each series folder and season template ([Series rules](/guide/series)). Plex reads them as an ordinary TV library.
+Imports write under your [media root](/guide/configuration#the-two-recordings-paths) (the TV folder, `/data/media/tv` by default) using each series folder and season template ([Series rules](/guide/series)). Plex reads them as an ordinary TV library.
 
 > [!NOTE]<br>
 > Episodes stay `.ts`, the raw broadcast format. Plex plays them, but seeking is slow, because a transport stream has no index. If that bothers you, run the files through Tdarr or similar to remux them to `.mkv` after Freetvarr is done with them.

@@ -11,15 +11,15 @@ Health checks the parts Freetvarr depends on and says what to fix. Open it from 
 
 The page has three groups:
 
-- **Sync**: the last sync, the next sync, and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
+- **Sync**: the last sync, the next sync (a sync is Freetvarr's pass over TVHeadend's finished recordings to import them), and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
 - **Checks**: the read-only checks described below. Settings → About calls them **Health checks**.
-- **Storage**: the free space on the recordings and media folders, with a bar for each.
+- **Storage**: the free space on the recordings and media folders ([Configuration](/guide/configuration#the-two-recordings-paths) describes both), with a bar for each.
 
 The sentence under the page title summarises the result, for example `Everything is working.`
 
 ## Health badge
 
-Freetvarr runs the checks by itself 2 minutes after it starts and every 3 hours after that, so the badge is up to date without opening Health. When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, and on the Health row in Settings. Amber means it needs a look. Red means it needs attention.
+Freetvarr runs the checks by itself 2 minutes after it starts and every 3 hours after that, so the result is up to date without opening Health. When everything works, Freetvarr shows no health marker. When a check or the last sync has a problem, a dot appears on the Settings icon in the tab bar or rail, and on the Health row in Settings. Amber means it needs a look. Red means it needs attention.
 
 While the result is red, Home also shows the reason as an alert under the greeting. Press it to open Health. Press **×** to hide that alert for a day. A new problem shows again at once. The dot stays until the problem is fixed.
 
@@ -36,7 +36,7 @@ Each check gets one of these results, shown as a dot beside the check:
 
 When every check passes, the page says `Everything's working`. Otherwise the checks are grouped as **Needs attention** (fails), **Needs a look** (warnings), and **Working**. The **Working** group folds into one row, such as `12 checks working`; press it to see each check. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
 
-From a source checkout, `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
+From a source checkout (a clone of the Freetvarr repository), `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
 
 ## Connection {#tvh-reach}
 
@@ -44,7 +44,7 @@ Asks TVHeadend for its version (`/api/serverinfo`). It fails when no TVHeadend a
 
 ## Login {#tvh-auth}
 
-Checks that TVHeadend accepts the username and password. A `401` means TVHeadend asked for a login and did not get a valid one. A `403` means a wrong password, an address outside **Allowed networks**, or an access entry with no rights. See [TVHeadend 401 or 403](/guide/troubleshooting#tvheadend-401-or-403).
+Checks that TVHeadend accepts the username and password. A `401` means TVHeadend asked for a login and did not get a valid one. A `403` means a wrong password, an address outside **Allowed networks**, or an access entry with no rights (an access entry is a TVHeadend login and its rights; see [Make a user for Freetvarr](/guide/tvheadend#_8-make-a-user-for-freetvarr)). See [TVHeadend 401 or 403](/guide/troubleshooting#tvheadend-401-or-403).
 
 ## User rights {#tvh-rights}
 
@@ -52,7 +52,7 @@ Reads the tuner status, which needs **Admin**, and the upcoming recordings, whic
 
 ## Open access {#tvh-open}
 
-Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh linuxserver TVHeadend starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
+Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the linuxserver Docker image (the one in Freetvarr's Docker compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
 
 ## Tuners {#tvh-tuners}
 
@@ -68,7 +68,7 @@ Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the las
 
 ## Channel logos {#guide-logos}
 
-Counts the channels that have a TVHeadend icon. It skips when there are no channels. It warns when **Prefer picons over channel icons** is on but no **Picon path** is set, because TVHeadend then reports no icon at all. See [Missing channel logos](/guide/troubleshooting#missing-channel-logos).
+Counts the channels that have a TVHeadend icon. It skips when there are no channels. It warns when the TVHeadend setting **Prefer picons over channel icons** is on but no **Picon path** is set, because TVHeadend then reports no icon at all. See [Missing channel logos](/guide/troubleshooting#missing-channel-logos).
 
 ## Recordings folder {#paths-recordings}
 

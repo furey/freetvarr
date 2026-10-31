@@ -11,17 +11,17 @@ description: >-
 
 Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the Freetvarr Docker image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
 
+## Modes
+
+- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate comskip is on your channels, or to skip the ads instead of cutting them.
+- **Cut** removes the breaks by copying the video across untouched (no re-encoding; the output stays `.ts`) and keeps the original as `<file>.ts.orig`.
+
 > [!WARNING]<br>
 > Detection accuracy varies channel by channel, because every broadcaster cuts its breaks differently. Set a series to **Detect** mode first, and check the breaks Freetvarr reports in the [recording log](/guide/recordings#recording-log) before you switch the series to **Cut**.
 
 ## Turn it on
 
 In Freetvarr, turn on ad removal in Settings → Recording → Ad removal, then press **Save settings**. Then open the series in [Series rules](/guide/series#edit-a-series-folder), pick a mode under **Ad removal**, and press **Save**. For one show, you can also turn on **Remove ads** in [Recording options](/guide/recordings#recording-options), which sets the series to **Cut**. Ad removal runs only when both the Settings switch and the series mode are on. To scan one episode by hand, press **Find ads**, **Remove ads**, or **Remove ads again** in its [episode menu](/guide/recordings#episode-menu) or in the [recording log](/guide/recordings#re-scan-and-re-cut). A dialog says what changes and what stays before anything starts.
-
-## Modes
-
-- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate comskip is on your channels, or to skip the ads instead of cutting them.
-- **Cut** removes the breaks by copying the video across untouched (no re-encoding; the output stays `.ts`) and keeps the original as `<file>.ts.orig`.
 
 ## Skip instead of cut
 
@@ -45,7 +45,7 @@ To undo a cut, press **Put the original back** in the [episode menu](/guide/reco
 
 ## The comskip.ini
 
-Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. It is an example, not a requirement. To use your own, put a `comskip.ini` in the `/config` bind mount (`${CONFIG_PATH}/freetvarr` on the host). Settings → Recording → Ad removal shows which file is in use.
+Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. It is an example, not a requirement. To use your own, put a `comskip.ini` in Freetvarr's settings folder (`config/freetvarr` next to your `docker-compose.yml`, which is `/config` inside the Freetvarr Docker container). Settings → Recording → Ad removal shows which file is in use.
 
 ## Cost and gating
 

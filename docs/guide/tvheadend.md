@@ -15,7 +15,7 @@ This page lists each TVHeadend setting in the order TVHeadend needs it. Each ste
 > Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup](/guide/getting-started#_2-run-setup) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, to connect an existing TVHeadend, or to see what setup changed.
 
 > [!NOTE]<br>
-> The HDHomeRun tuner, the `au-Sydney` mux list, and the Sydney XMLTV feed on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
+> The HDHomeRun tuner, the `au-Sydney` mux list (the broadcast frequencies TVHeadend scans), and the Sydney XMLTV feed (a TV guide file TVHeadend downloads) on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
 
 ```mermaid
 flowchart TD
@@ -30,7 +30,7 @@ flowchart TD
 
 ## 1. Run the container
 
-The example Docker compose file already defines TVHeadend next to Freetvarr. [Step 1 of Getting started](/guide/getting-started#_1-install) starts it, so you do not start it here. The TVHeadend service in that file looks like this:
+The Docker compose file that the install script downloads (`docker-compose.yml`) already defines TVHeadend next to Freetvarr. [Step 1 of Getting started](/guide/getting-started#_1-install) starts it, so you do not start it here. The TVHeadend service in that file looks like this:
 
 ```yaml
 services:
@@ -49,19 +49,19 @@ services:
       - /etc/localtime:/etc/localtime:ro
 ```
 
-The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. The read-only `/etc/localtime` mount gives the TVHeadend Docker container the host's time zone, so TVHeadend needs no `TZ`. The bare `TZ` line passes `TZ` through only when your `.env` sets it, to override the host zone. Freetvarr does not use this mount. Freetvarr asks for its time zone in its setup wizard instead. `/config` holds TVHeadend's own configuration. `/recordings` is where TVHeadend writes its recordings. Remember that path: step 7 sets it as TVHeadend's recording path. Freetvarr mounts the same host folder through `${DATA_PATH}`, at `/data/recordings`.
+`CONFIG_PATH` and `DATA_PATH` are host folders that the `.env` file sets ([Compose environment](/guide/configuration#compose-environment)). The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. The read-only `/etc/localtime` mount gives the TVHeadend Docker container the host's time zone, so TVHeadend needs no `TZ`. The bare `TZ` line passes `TZ` through only when your `.env` sets it, to override the host zone. Freetvarr does not use this mount. Freetvarr asks for its time zone in its setup wizard instead. `/config` holds TVHeadend's own configuration. `/recordings` is where TVHeadend writes its recordings. Remember that path: step 7 sets it as TVHeadend's recording path. Freetvarr mounts the same host folder through `${DATA_PATH}`, at `/data/recordings`.
 
 > [!IMPORTANT]<br>
 > Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server (those broadcasts don't cross Docker's private bridge network). A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping. TVHeadend binds `9981` (web interface and API) and `9982` (its own streaming protocol) straight onto the host.
 
-In a terminal in the `freetvarr` folder, run `docker compose up -d tvheadend` to start the TVHeadend Docker container. Then open `http://<host-ip>:9981` in a browser to reach TVHeadend's web interface.
+If the TVHeadend Docker container is not running, run `docker compose up -d tvheadend` in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`). Open `http://<host-ip>:9981` in a browser to reach TVHeadend's web interface, where `<host-ip>` is the address of the machine that runs Docker.
 
 > [!NOTE]<br>
-> Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports by hardlink where it can, and it deletes the TVHeadend copy afterwards. Both need the same owner on the recordings folder.
+> Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports each recording into your media library by hardlink where it can, and it deletes the TVHeadend copy afterwards. Both need the same owner on the recordings folder.
 
 ## 2. Secure TVHeadend
 
-A fresh linuxserver TVHeadend has no logins. It starts with a default access entry, username `*`, that gives anyone on any network full admin rights. Freetvarr's setup replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open setup ([step 2](/guide/getting-started#_2-run-setup)).
+A fresh linuxserver TVHeadend has no logins. It starts with a default access entry (a TVHeadend rule that gives a username rights from given networks), username `*`, that gives anyone on any network full admin rights. Freetvarr's setup replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open setup ([step 2](/guide/getting-started#_2-run-setup)).
 
 When setup finds a TVHeadend with only the default entry, it asks for three things:
 
@@ -79,7 +79,7 @@ Freetvarr signs in with both new logins before it removes the default entry. If 
 
 If you installed TVHeadend yourself, setup asks for the TVHeadend username and password you created for Freetvarr instead ([step 8](#_8-make-a-user-for-freetvarr)) and uses that. [Health](/guide/doctor#tvh-open) warns while the default entry is still there.
 
-In TVHeadend's web interface, set the interface and TV guide (EPG) languages under **Configuration → General → Base**.
+In TVHeadend's web interface, set the interface and TV guide (EPG, electronic programme guide) languages under **Configuration → General → Base**.
 
 ### Securing by hand
 
@@ -112,7 +112,7 @@ Now create the network the tuners will use:
 1. **Configuration → DVB Inputs → Networks → Add.**
 2. Network type: pick what your country broadcasts. **DVB-T Network** in Australia, New Zealand, the UK, and Europe; **ATSC-T Network** in North America; **DVB-C Network** on cable.
 3. Give it a name (for example, `Free-to-air`).
-4. **Pre-defined muxes**: pick the entry for your transmitter (details in step 4).
+4. **Pre-defined muxes**: pick the entry for your transmitter. A mux is one broadcast frequency, which carries several channels. Step 4 explains the list.
 5. Press **Save**. Then go back to **TV adapters**, select each tuner, tick **Enabled**, set its **Networks** field to the network you just created, and press **Save**.
 
 ## 4. Scan the muxes
@@ -123,7 +123,7 @@ The Australian files are named `au-<Location>`, such as `au-Sydney` or `au-Newca
 
 The current linuxserver build drops the last letter of every name in the list, so `au-Sydney` shows as `au-Sydne` and `au-Brisbane` as `au-Brisban`. Pick by the stem. A search for the full city name finds only the longer entries, such as `au-Sydney_Kings_Cros`. That one is the Kings Cross repeater: an antenna aimed at the main Sydney transmitter fails every mux on it.
 
-Saving the network with a pre-defined mux list starts the scan. Check progress in **Configuration → DVB Inputs → Muxes**. The scan is done when each mux shows `OK` or `FAIL`. A few `FAIL` results are normal: the antenna can't reach that mux, or the list entry is out of date. In the author's Sydney scan, five VHF muxes found 59 services, and `536.625 MHz` failed because SBS now broadcasts on `184.5 MHz`. Delete a failed mux so TVHeadend stops retrying it.
+Saving the network with a pre-defined mux list starts the scan. Check progress in **Configuration → DVB Inputs → Muxes**. The scan is done when each mux shows `OK` or `FAIL`. A few `FAIL` results are normal: the antenna can't reach that mux, or the list entry is out of date. In the author's Sydney scan, five VHF muxes found 59 services (the separate streams inside a mux, see step 5), and `536.625 MHz` failed because SBS now broadcasts on `184.5 MHz`. Delete a failed mux so TVHeadend stops retrying it.
 
 ## 5. Map services to channels
 
@@ -140,11 +140,11 @@ The channels appear in **Configuration → Channel/EPG → Channels**. Fix the n
 
 The **Guide** step of Freetvarr setup does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
 
-Broadcast guide data in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes series recording and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
+Broadcast guide data (EIT, the guide data the channels send with their signal) in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes [series recording](/guide/series) and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
 
 ### Matt Huisman's free feed
 
-[Matt Huisman](https://i.mjh.nz/au/) publishes free Australian XMLTV per region, updated daily. The regions are `Adelaide`, `Brisbane`, `Canberra`, `Darwin`, `Hobart`, `Melbourne`, `Perth`, and `Sydney`. Each has:
+[Matt Huisman](https://i.mjh.nz/au/) publishes free Australian XMLTV per region, updated daily (the mjh feed, after its address `i.mjh.nz`). The regions are `Adelaide`, `Brisbane`, `Canberra`, `Darwin`, `Hobart`, `Melbourne`, `Perth`, and `Sydney`. Each has:
 
 | URL                                       | What it is                                      |
 | ----------------------------------------- | ----------------------------------------------- |
@@ -217,7 +217,7 @@ The path is the one inside the TVHeadend Docker container, not the host path. Fr
 
 Leave the file-naming options alone. TVHeadend's own layout does not matter, because Freetvarr renames every file as it imports it into your library ([Series rules](/guide/series)).
 
-Freetvarr also sets these two on each recording it schedules, unless you change them with **Start early** and **Finish late** in the programme sheet:
+Freetvarr also sets these two on each recording it schedules, unless you change them with **Start early** and **Finish late** in the [programme sheet](/guide/tv-guide#recording-a-programme) (the panel that opens when you press a programme in Freetvarr):
 
 - **Pre-recording padding**: `2` minutes.
 - **Post-recording padding**: `10` minutes, because free-to-air broadcasts often run late.
@@ -237,14 +237,14 @@ If you already set up TVHeadend users, create one for Freetvarr by hand in TVHea
 5. Tick the rights in the table below, then press **Save**.
 6. Open **Configuration → Users → Passwords** and press **Add**. Tick **Enabled**, enter the same username, set a password, and press **Save**. You enter this username and password in Freetvarr setup once.
 
-| Right              | Tick                              | Why Freetvarr needs it                                                                                                                            |
-| ------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for **Check TVHeadend**)                    |
-| **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series recordings, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend |
-| **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                         |
-| **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web interface as this user                                                                                 |
+| Right              | Tick                              | Why Freetvarr needs it                                                                                                                                                 |
+| ------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**          | On                                | Tuner status and signal readings, the channel icons from the guide feed, and TVHeadend's DVR profile (for **Check TVHeadend** in Settings → Recording → Media library) |
+| **Video recorder** | `Basic`, `View all`, `Manage all` | Scheduling, series recordings, the list of finished recordings, and delete-after-import, including recordings someone else scheduled in TVHeadend                      |
+| **Streaming**      | `Basic`, `Advanced`, `HTSP`       | [Live TV](/guide/live-tv)                                                                                                                                              |
+| **Web interface**  | Optional                          | Only for signing in to TVHeadend's own web interface as this user                                                                                                      |
 
-Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, **Test connection** still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
+Admin is not optional. TVHeadend serves the tuner status and the guide feed's channel list to admin users only. Without admin, **Test connection** in Settings → System → TVHeadend still passes but reports `0` tuners, and channels without a TVHeadend icon show no logo.
 
 TVHeadend's default configuration accepts only HTTP Digest logins. Freetvarr answers whichever challenge TVHeadend sends, Digest or Basic, so leave TVHeadend's authentication setting as it is.
 

@@ -9,11 +9,11 @@ description: >-
 
 <Illustration name="removes-that-work" />
 
-Once an episode is in your library, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after Plex has the file. This is optional, and you turn it on per series.
+Once an episode is in your library, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after the import (and after the Plex refresh, if you use [Plex](/guide/plex)). This is optional, and you turn it on per series.
 
 ## How it works
 
-Freetvarr deletes the recording file and keeps TVHeadend's entry for it. That entry is how TVHeadend knows the episode is already recorded. Before a series recording records a repeat, TVHeadend's duplicate check looks for an earlier entry with the same episode. If the entry is gone, TVHeadend records the repeat, and the next sync imports the same episode again.
+Freetvarr deletes the recording file and keeps TVHeadend's entry for it. That entry is how TVHeadend knows the episode is already recorded. Before a series recording records a repeat, TVHeadend's duplicate check looks for an earlier entry with the same episode. If the entry is gone, TVHeadend records the repeat, and the next [sync](/guide/syncs) imports the same episode again.
 
 For each recording, Freetvarr makes these calls to TVHeadend's DVR API, in this order:
 
@@ -40,10 +40,10 @@ Remove after import is a per-series switch in [Series rules](/guide/series#edit-
 
 ## When it removes
 
-Freetvarr removes a recording only after Plex confirms the imported file, and only when both of these checks pass:
+Freetvarr removes a recording only after it imports the file, and only when both of these checks pass:
 
-- **The Plex guard.** If Freetvarr tried the Plex refresh and it failed, Freetvarr skips the remove and the recording stays in TVHeadend. To turn this off, switch off **Wait for Plex before removing recordings from TVHeadend** in Settings → Recording → Plex.
-- **The cut guard.** For a **Cut**-mode show, the TVHeadend copy is the last untouched original once Freetvarr has rewritten the local file. The remove waits for the cut to pass its checks. A failed cut keeps the original ([Ad removal](/guide/ad-removal)).
+- **The Plex guard.** If Plex is set up and the library refresh after the import failed, Freetvarr skips the remove and the recording stays in TVHeadend. To turn this off, switch off **Wait for Plex before removing recordings from TVHeadend** in Settings → Recording → Plex.
+- **The cut guard.** For a show whose ad removal is in **Cut** mode (Freetvarr cuts the ad breaks out of its copy), the TVHeadend copy is the last untouched original once Freetvarr has rewritten the local file. The remove waits for the cut to pass its checks. A failed cut keeps the original ([Ad removal](/guide/ad-removal)).
 
 Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheadend), marked `NOT IN TVHEADEND`, for 30 days.
 
@@ -53,4 +53,4 @@ Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheaden
 
 - **"Recording not in TVHeadend's finished list"** means the entry has left TVHeadend's **Finished Recordings** tab, usually because you removed or deleted it in TVHeadend's own web interface. Nothing needs fixing (the row stays as it is).
 - **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. In TVHeadend's web interface, tick **Video recorder** `Basic` and `Manage all` under **Configuration → Users → Access Entries** (`Manage all` covers recordings another user scheduled). See [TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr).
-- **A file that won't disappear** is a permissions problem, not an API one. TVHeadend deletes the file as its own user, so check that `PUID`/`PGID` in the `.env` match across both Docker containers.
+- **A file that won't disappear** is a permissions problem, not an API one. TVHeadend deletes the file as its own user, so check that `PUID` and `PGID` (the user and group IDs that own the files) in the `.env` file match across both Docker containers ([Compose environment](/guide/configuration#compose-environment)).

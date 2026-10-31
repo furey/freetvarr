@@ -23,14 +23,14 @@ The wiring, the connector, and the signal checks below are the same for every mo
 
 ## The tuner
 
-The rest of this page is the author's own setup, in Australia. Read it as a worked example and substitute your own region's model and retailer.
+This section is the author's own setup, in Australia. Read it as a worked example and substitute your own region's model and retailer.
 
 Buy an **HDHomeRun Flex Quatro**, model `HDFX-4DT`, direct from [SiliconDust](https://shop.silicondust.com/shop/product/hdfx-4dt/). It is `US$199.99`, receives DVB-T and DVB-T2, and carries four tuners, so four things can record at once (or three record while you watch a fourth live).
 
 It is a network tuner: it plugs into your router, or a switch on your home network, with a network (ethernet) cable, and serves its tuners over your home network. Nothing plugs into the NAS. The author's router has a single LAN port, so a `TP-Link TL-SG105` five-port switch connects the router, the NAS, and the tuner.
 
 > [!IMPORTANT]<br>
-> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter. SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the order notes, and both came in the box.
+> In the order notes, ask for the AU/NZ power adapter and an F-to-PAL aerial adapter (see [The connector](#the-connector)). SiliconDust has power adapters for the US, UK, EU, and AU/NZ. The author asked for both in the order notes, and both came in the box.
 
 No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust is the normal route, and shipping to Australia is free.
 
@@ -41,7 +41,7 @@ No Australian retailer stocks a DVB-T HDHomeRun. Buying direct from SiliconDust 
 
 ### Direct to a spare NAS port
 
-A NAS with a second ethernet port can take the tuner directly, with no router in between. It works, with two catches. Nothing on that link hands out addresses, so the tuner and the NAS port fall back to link-local addresses (`169.254.x.x`). TVHeadend under host networking still finds the tuner by broadcast on that port. But the tuner no longer appears in your router's client list, and its status page answers only from the NAS itself. Plug the tuner into the router or a switch on your home network if you can.
+A NAS with a second ethernet port can take the tuner directly, with no router in between. It works, with two catches. Nothing on that link hands out addresses, so the tuner and the NAS port fall back to link-local addresses (`169.254.x.x`). TVHeadend under host networking (the Docker compose file runs every service on the host's network) still finds the tuner by broadcast on that port. But the tuner no longer appears in your router's client list, and its status page answers only from the NAS itself. Plug the tuner into the router or a switch on your home network if you can.
 
 ### Models that work in Australia
 
@@ -120,7 +120,7 @@ flowchart LR
 
 ### The connector
 
-The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. Ask for an F-to-PAL adapter in the order notes, as above. Buyers on the Whirlpool HDHomeRun thread report that it comes in the box. If it is missing, buy one: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
+The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate may need an adapter. This depends on your country's plug standard. In Australia it does: Australian wall plates and leads use a PAL (Belling-Lee) push-on plug, so the two do not meet. Ask for an F-to-PAL adapter in the order notes, as above. Buyers on the HDHomeRun thread of Whirlpool (an Australian forum) report that it comes in the box. If it is missing, buy one: an F plug that screws onto the tuner with a PAL socket that takes your existing lead. Jaycar `PA3672` is about `$6`, or use a fly lead with a PAL plug on one end and an F plug on the other.
 
 <div class="product-shot">
   <img src="../img/hardware/pal-and-f-plugs.webp" alt="Two aerial leads side by side: a PAL plug with a plain metal barrel on the left, and a smaller threaded F plug with a bare centre wire on the right" width="1000" height="644" loading="lazy">
@@ -143,37 +143,37 @@ Only with a power injector: if its `TELEVISION` port is not fully isolated it ca
 
 ## The computer
 
-Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g. Synology, QNAP, etc.), a mini PC, or an old laptop or desktop. Recording takes almost no processor time, because TVHeadend saves the broadcast to disk as it arrives, with no conversion. The processor and graphics chip matter for live TV in a browser, ad removal, and the For you suggestions.
+Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g. Synology, QNAP, etc.), a mini PC, or an old laptop or desktop. Recording takes almost no processor time, because TVHeadend saves the broadcast to disk as it arrives, with no conversion. The processor and graphics chip matter for [live TV](/guide/live-tv) in a browser, [ad removal](/guide/ad-removal), and the [For you](/guide/for-you) suggestions.
 
-| Part             | Minimum                                                       | Recommended                                                                                                  | What it changes                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Processor        | Any 64-bit `x86-64` or `ARM64` processor with `2` cores       | An Intel processor with Quick Sync, or an AMD processor with graphics (e.g. Intel Celeron J4025, Intel N100) | Quick Sync or AMD graphics converts live TV with almost no processor time (see [Hardware transcoding](#hardware-transcoding))                             |
-| Memory (RAM)     | `2GB`                                                         | `4GB` or more                                                                                                | For you (Standard and Plus) and face-aware picture crops need `400MB` free; with less, they wait or stay at Basic                                         |
-| Storage          | Room for the recordings you keep: `3–6GB` for each hour of HD | `4TB` or more (about `650–1,300` hours of HD)                                                                | Health warns under `20GB` free, and recordings fail when the disk fills                                                                                   |
-| Operating system | Linux with Docker and Compose v2                              | The same, on a NAS or a mini PC that stays on                                                                | A Mac runs Freetvarr, but Docker on a Mac cannot find a network tuner by itself or use the graphics chip. Windows is untested ([Windows](/guide/windows)) |
-| Network          | Wired network on the same part of the network as the tuner    | The same                                                                                                     | TVHeadend finds a network tuner by broadcast, which does not cross between subnets                                                                        |
+| Part             | Minimum                                                       | Recommended                                                                                                  | What it changes                                                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Processor        | Any 64-bit `x86-64` or `ARM64` processor with `2` cores       | An Intel processor with Quick Sync, or an AMD processor with graphics (e.g. Intel Celeron J4025, Intel N100) | Quick Sync or AMD graphics converts live TV with almost no processor time (see [Hardware transcoding](#hardware-transcoding))                                                                           |
+| Memory (RAM)     | `2GB`                                                         | `4GB` or more                                                                                                | For you ([suggestion levels](/guide/for-you#suggestion-level) Standard and Plus) and face-aware picture crops (crops that keep faces in frame) need `400MB` free; with less, they wait or stay at Basic |
+| Storage          | Room for the recordings you keep: `3–6GB` for each hour of HD | `4TB` or more (about `650–1,300` hours of HD)                                                                | [Health](/guide/doctor) warns under `20GB` free, and recordings fail when the disk fills                                                                                                                |
+| Operating system | Linux with Docker and Compose v2                              | The same, on a NAS or a mini PC that stays on                                                                | A Mac runs Freetvarr, but Docker on a Mac cannot find a network tuner by itself or use the graphics chip. Windows is untested ([Windows](/guide/windows))                                               |
+| Network          | Wired network on the same part of the network as the tuner    | The same                                                                                                     | TVHeadend finds a network tuner by broadcast, which does not cross between subnets                                                                                                                      |
+
+At startup, Freetvarr measures how many live streams this computer converts smoothly. The result sets the default for **Live streams at once**. When `LIVE_TV_MAX_SESSIONS` is set in the `.env` (Freetvarr's settings file; see [Configuration](/guide/configuration)), its value is the default and the upper limit instead (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
 
 With the minimum, Freetvarr records, imports, and serves every page, but it is limited in these ways:
 
 - **Live TV in the browser:** usually `1` live stream at a time, at `540` lines. Without a graphics chip, Freetvarr converts in software, which needs both cores. The startup measurement sets **Live streams at once**; if streams stutter, choose a lower number in Settings → Watching → Playback.
-- **Multiview:** each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
+- **Multiview:** [Multiview](/guide/player#multiview) shows several channels on one screen. Each picture needs a live stream, so Multiview shows only as many pictures as **Live streams at once** allows.
 - **Ad removal:** a scan takes about `30` minutes per `75`-minute recording on a `2`-core Celeron, and longer on a slower processor.
 - **For you:** Freetvarr picks **Basic** when the nightly work with the language model would take more than `5` minutes, or when less than `400MB` of memory is free.
 
 With the recommended computer, you get these:
 
-- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer. The startup measurement sets the default; on the author's DS220+ it measured `4`.
+- **Live TV in the browser:** up to `4` live streams at once at `720` lines (limited also by your tuner count), and so `4` pictures in Multiview on a tablet or computer. The startup measurement sets the default; on the author's Synology DS220+ it measured `4`.
 - **Ad removal:** scans that finish sooner on a faster processor, at low priority so imports still run at full speed.
 - **For you:** **Standard**, or **Plus** on a fast processor.
-
-At startup, Freetvarr measures how many live streams this computer converts smoothly. The result sets the default for **Live streams at once**. When `LIVE_TV_MAX_SESSIONS` is set in the `.env`, its value is the default and the upper limit instead (see [Live streams at once](/guide/player#live-streams-at-once)). For the suggestion level, see [Suggestion level](/guide/for-you#suggestion-level).
 
 ### The computer: Examples
 
 - **A Synology Plus-series NAS with an Intel Celeron**, such as the DS225+. Its Quick Sync chip converts live TV, and the drives hold the recordings.
 - **A mini PC with an Intel N100 or N150.** It is cheaper than a NAS and has Quick Sync. It also takes a USB tuner, which a NAS cannot use (see [Why not a USB tuner](#why-not-a-usb-tuner)).
 - **An old laptop or desktop that runs Linux.** Many Intel processors with built-in graphics have Quick Sync; the log check in [Hardware transcoding](#hardware-transcoding) shows whether Freetvarr can use it. Without it, live TV converts in software, with the limits above.
-- **A Raspberry Pi 5 or another ARM board.** The Freetvarr Docker image is built for `ARM64`, but the author has not tested it on an ARM board. Freetvarr's hardware path uses VAAPI, which Raspberry Pi boards do not offer, so live TV converts in software.
+- **A Raspberry Pi 5 or another ARM board.** The Freetvarr Docker image is built for `ARM64`, but the author has not tested it on an ARM board. Freetvarr's hardware path uses VAAPI (the Linux interface to the graphics chip's video engine), which Raspberry Pi boards do not offer, so live TV converts in software.
 
 > [!NOTE]<br>
 > The author's computer is a Synology DS220+: an Intel Celeron J4025 with `2` cores, Intel UHD 600 graphics with Quick Sync, and `18GB` of memory after the upgrade in [The computer: Memory upgrade](#the-computer-memory-upgrade) (`6GB` before). It also runs Plex and other Docker containers. The startup check measured `4` smooth live streams in hardware. For you picked Standard (about `64` seconds a day for `510` new descriptions). Face detection takes about `74ms` per picture. Freetvarr and TVHeadend together use about `450MB` of memory when idle.
@@ -182,11 +182,11 @@ At startup, Freetvarr measures how many live streams this computer converts smoo
 
 Some Synology Plus-series NAS units take one extra memory module, and the author fitted one to the DS220+ that runs Freetvarr. On `2026-10-27` the author added a Timetec `16GB` DDR4-2666 SO-DIMM (dual rank, part `76TT26NUS2R8-16G`, [Amazon AU](https://www.amazon.com.au/dp/B07H4XNNXK?tag=freetvarr-22)). The DS220+ has `2GB` soldered on and one slot. The new module replaced the `4GB` module in that slot, so the total went from `6GB` to `18GB`.
 
-Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space. Freetvarr's stall monitor (`GET /api/health/loop`) recorded `47` pauses of `100ms` or longer over `8.4` hours, the worst `1.0s`.
+Before the upgrade, the NAS reported `5.8GB` of memory. Another Docker project on the same NAS (a camera system) used about `2.2GB`, and more than half of that sat in compressed swap (zram), which is memory squeezed into a smaller space. Freetvarr's stall monitor (`GET /api/health/loop`), which records each time the Freetvarr server pauses, recorded `47` pauses of `100ms` or longer over `8.4` hours, the worst `1.0s`.
 
 After the upgrade, `free -m` on the NAS reports `17836MB` in total, `13774MB` available, and about `62MB` of swap in use. The stall monitor recorded `23` pauses of `100ms` or longer in the first `2` hours after Freetvarr restarted, the worst `1.1s`. The restart itself (guide load, first sync) causes some of them, so that count says nothing yet about a settled day.
 
-Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` on the author's NAS accepted the `16GB` module with no warning, and reports the full `18GB`. Synology does not support memory that is not on its list. Check your model's memory page on Synology's site before you buy.
+Synology lists a `4GB` module (`D4NESO-2666-4G`) for the DS220+, DS420+, DS720+, and DS920+, and a larger module is not on its list. DSM `7.3.2` (Synology's operating system) on the author's NAS accepted the `16GB` module with no warning, and reports the full `18GB`. Synology does not support memory that is not on its list. Check your model's memory page on Synology's site before you buy.
 
 Fitting a module means shutting the NAS down, opening the memory cover on the underside, and clicking the module into the slot. Freetvarr needs none of this: it runs with `4GB` or less.
 
@@ -198,7 +198,7 @@ Fitting a module means shutting the NAS down, opening the memory cover on the un
 Live TV in the browser re-encodes H.264 so that Chrome can play interlaced channels (see [Video handling](/guide/live-tv#video-handling)). A graphics chip does this work with almost no CPU. Freetvarr supports Intel Quick Sync and AMD through VAAPI. NVIDIA (NVENC) is not supported. A host without a supported chip needs no setup: Freetvarr uses software and caps the video at `540` lines.
 
 1. In a terminal on the host, find the render group ID: `stat -c %g /dev/dri/renderD128`.
-2. Add that number to the `.env` in the `freetvarr` folder: `RENDER_GID=<number>`.
+2. Add that number to the `.env` in the `freetvarr` folder (the folder that [the install](/guide/getting-started#_1-install) creates): `RENDER_GID=<number>`.
 3. Download `docker-compose.hwaccel.example.yml` from the repository (`https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.hwaccel.example.yml`) and save it as `docker-compose.override.yml` beside `docker-compose.yml`. Docker Compose loads the override file by itself.
 4. Recreate the Docker containers: run `docker compose up -d` in the `freetvarr` folder.
 5. Check Freetvarr's log: run `docker compose logs freetvarr | grep "\[live\] video"`. The line says `hardware (VAAPI` when it works.

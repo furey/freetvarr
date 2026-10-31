@@ -30,12 +30,12 @@ If you already run Jellyfin, use it: one server feeds every Jellyfin app in the 
 2. Check the login name. `tv` is the default; any name with no spaces works.
 3. Press **Make a TV login** to create the TV login in TVHeadend.
 
-Freetvarr creates a TVHeadend login that can only watch: it cannot record, change settings, or open TVHeadend's web pages. The login works only from the same networks as Freetvarr's own login. Freetvarr keeps the password and shows it in the panel, so you can copy it again later.
+Freetvarr creates a TVHeadend login that can only watch: it cannot record, change settings, or open TVHeadend's web pages. The login works only from the same networks as the TVHeadend login that Freetvarr itself uses. Freetvarr keeps the password and shows it in the panel, so you can copy it again later.
 
 Freetvarr then fills in **TVHeadend address for TV apps** with the address your browser used to open Freetvarr. Check the address. It must be the IP address of the computer that runs TVHeadend (e.g. `192.168.1.10`). Change it if it is wrong (the addresses below it change too).
 
 > [!NOTE]<br>
-> The playlist and TV guide addresses carry a code instead of a password. Anyone on your home network who has them can watch your channels, but they cannot change TVHeadend or your recordings.
+> The **Tuner (M3U) URL** and **Guide (XMLTV) URL** addresses carry a code instead of a password. Anyone on your home network who has them can watch your channels, but they cannot change TVHeadend or your recordings.
 
 ### Delete the TV login
 
@@ -45,11 +45,11 @@ Delete the TV login when no TV app uses it any more, or to stop everyone who has
 2. Under **TV LOGIN**, press **Delete TV login**.
 3. Read the confirmation, then press **Delete TV login** again.
 
-Freetvarr deletes only the login it made: the TVHeadend user and password with that name and Freetvarr's note. Other TVHeadend logins stay. TV apps that use the deleted login stop getting channels until you make a new TV login and enter its details in each app.
+Freetvarr deletes only the login it made: the TVHeadend user and password with that name and the note Freetvarr adds to them. Other TVHeadend logins stay. TV apps that use the deleted login stop getting channels until you make a new TV login and enter its details in each app.
 
 ## Jellyfin
 
-Jellyfin has its own TVHeadend plugin, but each plugin release suits only some Jellyfin versions. The tuner and TV guide addresses below work with any recent Jellyfin.
+Jellyfin has its own TVHeadend plugin, but each plugin release suits only some Jellyfin versions. The tuner address (an M3U playlist of the channels) and the TV guide address (an XMLTV file) below work with any recent Jellyfin.
 
 1. Open Jellyfin in a browser and sign in as an administrator.
 2. Open the user menu (top right), then **Dashboard → Live TV**.
@@ -69,7 +69,7 @@ If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV lo
 ## Kodi
 
 1. In Kodi, open **Settings → Add-ons → Install from repository → PVR clients**.
-2. Choose **Tvheadend HTSP Client** and press **Install**.
+2. Choose **Tvheadend HTSP Client** (HTSP is TVHeadend's own streaming protocol) and press **Install**.
 3. Press **Configure** on the add-on.
 4. Enter the values from the **KODI (TVHEADEND HTSP CLIENT)** rows in Freetvarr's Settings → Watching → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
 5. Press **OK**, then go back to the Kodi home screen.

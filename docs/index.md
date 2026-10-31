@@ -51,8 +51,8 @@ features:
   - title: Series folders
     illustration: series-folders
     details: >-
-      Record a series from the TV guide, match it to a folder under your media
-      root, set a season template, and Freetvarr imports new episodes on your
+      Record a series from the TV guide, match it to a folder in your media
+      library, set a season template, and Freetvarr imports new episodes on your
       schedule.
     link: /guide/series
     linkText: Set it up
@@ -81,8 +81,8 @@ features:
   - title: Removes that work
     illustration: removes-that-work
     details: >-
-      TVHeadend's DVR API deletes the file once Plex has confirmed its copy,
-      and keeps the entry so TVHeadend's duplicate check still sees the
+      TVHeadend's DVR API deletes the file after the import (and the Plex
+      refresh, if you use Plex), and keeps the entry so TVHeadend's duplicate check still sees the
       episode.
     link: /guide/remove-from-tvheadend
     linkText: The rules

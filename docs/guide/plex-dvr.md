@@ -8,7 +8,7 @@ description: >-
 
 # Plex DVR instead
 
-Plex has its own recorder, Live TV & DVR. With a network tuner such as an HDHomeRun, it records free-to-air TV straight into your Plex library. If you already have a Plex Pass, that may be all you need, and you can skip TVHeadend and Freetvarr.
+Plex has its own recorder, Live TV & DVR. With a network tuner such as an HDHomeRun, it records free-to-air TV straight into your Plex library. If you already have a Plex Pass, that may be all you need, and you can skip [TVHeadend](/guide/tvheadend) (the free, open-source recorder that Freetvarr works with) and Freetvarr.
 
 The author built Freetvarr before noticing that the author's own Plex Pass already covered Plex DVR.
 
@@ -60,18 +60,18 @@ Plex DVR suits you if most of these are true:
 
 ## Comparison
 
-| Topic          | Plex DVR                                                                                                                        | TVHeadend + Freetvarr                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Cost           | Plex Pass to record (see [Cost](#cost))                                                                                         | Free                                                                     |
-| Guide          | Plex's own guide (in Australia, a "Freeview" lineup for your region), or an XMLTV feed such as [i.mjh.nz](https://i.mjh.nz/au/) | An XMLTV feed, or the broadcast guide                                    |
-| Series rules   | All, new only, keep latest, delete after watching                                                                               | Title and channel, skip episodes already recorded                        |
-| Padding        | Minutes before and after, per show                                                                                              | The same, `2` and `10` minutes by default                                |
-| Ad removal     | Mark and skip (default), or delete (cannot be undone); custom `comskip.ini` allowed                                             | Detect-only, or cut with an `.orig` backup; `comskip.ini` tuned for AU   |
-| Live TV        | Every Plex app                                                                                                                  | Any browser; the tuner's own app on the TV                               |
-| Captions       | None on live TV; no Teletext support yet                                                                                        | Shown on live TV in the browser; kept in recordings for Kodi and VLC     |
-| Filing         | Straight into Plex                                                                                                              | Renamed into your media library; Plex refreshed                          |
-| Away from home | Plex remote access, with a Plex Pass                                                                                            | Home network only; a VPN for away                                        |
-| Setup          | One wizard in Plex                                                                                                              | Freetvarr's install and wizard, which set up TVHeadend (`45–90 minutes`) |
+| Topic          | Plex DVR                                                                                                                                                     | TVHeadend + Freetvarr                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Cost           | Plex Pass to record (see [Cost](#cost))                                                                                                                      | Free                                                                     |
+| Guide          | Plex's own guide (in Australia, a "Freeview" lineup for your region), or an XMLTV feed (a TV guide file on the web) such as [i.mjh.nz](https://i.mjh.nz/au/) | An XMLTV feed, or the broadcast guide                                    |
+| Series rules   | All, new only, keep latest, delete after watching                                                                                                            | Title and channel, skip episodes already recorded                        |
+| Padding        | Minutes before and after, per show                                                                                                                           | The same, `2` and `10` minutes by default                                |
+| Ad removal     | Mark and skip (default), or delete (cannot be undone); custom `comskip.ini` allowed                                                                          | Detect-only, or cut with an `.orig` backup; `comskip.ini` tuned for AU   |
+| Live TV        | Every Plex app                                                                                                                                               | Any browser; the tuner's own app on the TV                               |
+| Captions       | None on live TV; no Teletext support yet                                                                                                                     | Shown on live TV in the browser; kept in recordings for Kodi and VLC     |
+| Filing         | Straight into Plex                                                                                                                                           | Renamed into your media library; Plex refreshed                          |
+| Away from home | Plex remote access, with a Plex Pass                                                                                                                         | Home network only; a VPN for away                                        |
+| Setup          | One wizard in Plex                                                                                                                                           | Freetvarr's install and wizard, which set up TVHeadend (`45–90 minutes`) |
 
 Sources: Plex's [Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/), [XMLTV](https://support.plex.tv/articles/using-an-xmltv-guide/), and [Watching live TV](https://support.plex.tv/articles/115007689648-watching-live-tv/) articles, and an open [Teletext request](https://forums.plex.tv/t/australian-subtitle-support/932558) on the Plex forum.
 

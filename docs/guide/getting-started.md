@@ -15,9 +15,9 @@ description: >-
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. [Hardware](/guide/hardware) covers the choice.
-- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of setup instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows; [Windows](/guide/windows) describes a theoretical route through WSL. [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of [setup](#_2-run-setup) instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows; [Windows](/guide/windows) describes a theoretical route through WSL. [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
 
-The Docker compose file runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the Docker compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
+Freetvarr's Docker compose file, which the install downloads, runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the Docker compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
 
 ## 1. Install
 
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | s
 
 <BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" ratio="1280 / 960" label="Terminal" single aria-label="The one-line install in a terminal, from the curl command to the address of setup" />
 
-The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env`, and asks for confirmation regarding project file ownership. Press `Enter` to accept the defaults (most people do). The first start downloads the Docker images, which takes a few minutes. The script then starts the Docker containers and outputs the URL of setup. Open that URL in a browser and proceed to [step 2](#_2-run-setup).
+The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env` (the settings file that Docker Compose reads), and asks for confirmation regarding project file ownership. Press `Enter` to accept the defaults (most people do). The first start downloads the Docker images, which takes a few minutes. The script then starts the Docker containers and outputs the URL of setup. Open that URL in a browser and proceed to [step 2](#_2-run-setup).
 
 ::: details Install script options
 
@@ -70,7 +70,7 @@ Use this instead of the script if you prefer to run each command yourself in a t
 Use this instead of the script if your NAS has no SSH access, or if you prefer to manage Freetvarr in the NAS container app.
 
 1. In the NAS file manager, create a folder such as `docker/freetvarr`.
-2. Create two subfolders in it: `config` and `data`.
+2. Create two subfolders in it: `config` (settings) and `data` (recordings and your media library).
 3. Optional: save a `.env` in the folder with your NAS user's `PUID` and `PGID`.
 4. In the NAS container app, create a Compose project (some apps call it a stack) in the folder you made.
 5. Upload [`docker-compose.example.yml`](https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml), or paste its content.
@@ -88,19 +88,19 @@ The first visit to `http://<host-ip>:3733` in a browser opens setup. Setup fills
 <BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" aria-label="A walkthrough of Freetvarr setup, from the time zone to the last step" />
 
 1. **Start**: confirm your time zone, then press **Start setup**. To see each component of the system first, press **How it works**; **Start setup** on its last step, or **Skip**, goes on to the TVHeadend step.
-2. **TVHeadend**: check the TVHeadend address. If Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks, then press **Secure and connect**. Freetvarr saves the logins in TVHeadend and connects to it. If you installed TVHeadend yourself, press **Use my own TVHeadend login instead**, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)), and press **Save and next**.
+2. **TVHeadend**: check the TVHeadend address. If Freetvarr installed TVHeadend for you, choose an admin username and password (press the eye button to check what you typed), check the allowed networks (the address ranges the logins work from), then press **Secure and connect**. Freetvarr saves the logins in TVHeadend and connects to it. If you installed TVHeadend yourself, press **Use my own TVHeadend login instead**, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)), and press **Save and next**.
 3. **Channels**: check the tuners and the transmitter your antenna points at, then press **Find channels**. The scan takes a few minutes, and **Next** is available when it finishes. If TVHeadend already has channels, press **Next** to keep them, or **Scan again** to add channels that are missing. A dialog asks you to confirm first: the scan only adds channels, your favourites stay, and live TV and recordings keep their tuners (the scan uses a free tuner and waits when none is free). If setup finds no tuner, press **Enter the tuner's address**, enter the tuner's IP address, and press **Use this address**. In Australia, the scan also makes the HD channels of ABC, Seven, Nine, 10, and SBS your favourites, in that order, if you have no favourites yet. To change them, press **Channels** in the TV guide ([Favourites](/guide/tv-guide#favourites)).
-4. **Guide**: check the TV guide region, then press **Set up guide**. For any channel left without TV guide listings, setup pre-selects its best guess. Check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number. Then press **Save and next**. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an XMLTV guide address if you have one, or press **Skip**.
-5. **Folders**: Freetvarr checks the recordings folder and the TV folder of your media library. If the checks pass, press **Next**. If a check fails, do what its message says, or press **Change folders**.
+4. **Guide**: check the TV guide region, then press **Set up guide**. For any channel left without TV guide listings, setup pre-selects its best guess. Check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number. Then press **Save and next**. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an XMLTV guide address if you have one ([XMLTV guide](/guide/tvheadend#_6-load-the-xmltv-guide)), or press **Skip**.
+5. **Folders**: Freetvarr checks the recordings folder (where TVHeadend saves recordings) and the TV folder of your media library. If the checks pass, press **Next**. If a check fails, do what its message says, or press **Change folders**.
 6. **Plex**: optional. Freetvarr looks for Plex and its access token. If Freetvarr connects to Plex, check the TV library, press **Create libraries** if Plex has no library for your recordings yet, then press **Next**. **Skip Plex** leaves Plex out. To enter the Plex address and token yourself, press **Connect Plex by hand** ([Plex](/guide/plex)).
 
-**You're set** lists what setup saved. If channels or the TV guide are missing, the list says so and links back to that step. Press **Start watching** to finish and open Home (**Open Freetvarr** when something is still missing).
+**You're set** lists what setup saved. If channels or the TV guide are missing, the list says so and links back to that step. Press **Start watching** to finish and open [Home](/guide/home) (**Open Freetvarr** when something is still missing).
 
 **Finish later** leaves setup and keeps what you saved so far. To check or change any part later, open Settings → System → Setup ([Settings](/guide/settings#system)).
 
 ## 3. Record something
 
-In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. About a minute after a recording finishes, Freetvarr imports it into your library. Freetvarr also checks for finished recordings every `30` minutes (change it in Settings → System → Schedule) ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
+In Freetvarr, open the [TV guide](/guide/tv-guide), press a programme, and press **Record** for one airing. Pick **Every episode** and press **Record series** for every episode. About a minute after a recording finishes, Freetvarr imports it into your library (it [hardlinks or copies](/guide/series#import-not-download) the file into the folders of your media library). Freetvarr also checks for finished recordings every `30` minutes (change it in Settings → System → Schedule) ([Series rules](/guide/series)). Your recordings appear in [Recordings](/guide/recordings). To check the whole setup, open Settings → System → [Health](/guide/doctor).
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/record-demo.mp4" poster="/record-demo-poster.jpg" label="http://freetvarr.lan/#/guide" aria-label="Recording a programme from the TV guide: press the programme and press Record for one airing, then pick Every episode on another programme and press Record series" />
@@ -143,7 +143,7 @@ If TVHeadend already runs on another host or in another compose project:
 1. Delete the `tvheadend` service from your `docker-compose.yml`.
 2. Remove `tvheadend` from the `depends_on` of `freetvarr`.
 3. Mount the folder TVHeadend records into (a NAS share, for example) into the Freetvarr Docker container.
-4. In the **TVHeadend** step of setup, enter `http://<tvheadend-host>:9981` and the TVHeadend username and password you created for Freetvarr.
+4. In the **TVHeadend** step of setup, enter `http://<tvheadend-host>:9981` and the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
 5. On the **Folders** step of setup, press **Change folders**.
 6. Set **Recordings folder, as Freetvarr sees it** to the path of the folder inside the Freetvarr Docker container.
 7. Set **Recordings folder, as TVHeadend sees it** to the path TVHeadend writes to, then press **Test** beside it to compare it with TVHeadend.

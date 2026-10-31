@@ -26,7 +26,7 @@ Freetvarr has five destinations: **Home**, **Live TV**, **TV guide**, **Recordin
 Each page has these controls in its header:
 
 - **Search**: finds a show. See [Search](#search).
-- The recording chip, while TVHeadend records, for example `Recording The Block`. Point at it to see the minutes left. Press it to open the show page; **Back** then goes to Recordings → Library. While recordings of more than one show run, it says how many, such as `Recording 2 shows`, and opens [Scheduled](/guide/recordings#scheduled).
+- The recording chip, while TVHeadend records, for example `Recording The Block`. Point at it to see the minutes left. Press it to open the [show page](/guide/recordings#show-pages); **Back** then goes to Recordings → Library. While recordings of more than one show run, it says how many, such as `Recording 2 shows`, and opens [Scheduled](/guide/recordings#scheduled).
 - On a phone, the recording chip is a banner under the page title instead. Its first line is the show title (or the titles, for more than one show), and its second line says what records and the minutes left, such as `Recording · 27 min left`.
 - The clock, on a tablet or computer.
 
@@ -83,12 +83,12 @@ Every card and every **Recording tonight** row has a **⋯** menu. To open it:
 
 The menu depends on the row:
 
-| Row                   | Menu                                                                                                                          |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                   |
-| **For you**           | **Record this episode**, **Record series**, **Programme info**, feedback, and **Why this?**.                                  |
-| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                           |
-| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a series rule), and **Don't record this episode**. |
+| Row                   | Menu                                                                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                                    |
+| **For you**           | **Record this episode**, **Record series**, **Programme info**, feedback, and **Why this?**.                                                   |
+| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                            |
+| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**. |
 
 For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
 
@@ -98,7 +98,7 @@ For a programme with no season or episode number, the menus on **On now** and th
 
 ## Health alert
 
-When something Freetvarr needs is broken, such as TVHeadend not answering or the last sync failing, Home shows the reason under its title. Press it to open [Health](/guide/doctor). Press **×** to hide the alert for a day; a different problem shows at once. The dot on the Settings icon stays until the problem is fixed.
+When something Freetvarr needs is broken, such as TVHeadend not answering or the last [sync](/guide/syncs) (Freetvarr's pass over TVHeadend's finished recordings) failing, Home shows the reason under its title. Press it to open [Health](/guide/doctor). Press **×** to hide the alert for a day; a different problem shows at once. The dot on the Settings icon stays until the problem is fixed.
 
 ## Search
 
@@ -114,7 +114,7 @@ Search finds a show in these ways:
 - **The title**, or any part of it.
 - **A nickname** from a list that ships with Freetvarr, such as `MKR` for My Kitchen Rules or `GBBO` for The Great British Bake Off.
 - **Your own names** for a show. Add them under **Also known as** in a show's [Recording options](/guide/recordings#recording-options).
-- **Other titles** of a show, such as its title in another country. Freetvarr learns these from TVmaze and Wikidata while it looks up pictures and genres, when those lookups are on.
+- **Other titles** of a show, such as its title in another country. Freetvarr learns these from TVmaze and Wikidata while it looks up pictures and genres, when those lookups are on in Settings → Watching → [Film and TV info](/guide/settings#watching).
 - **Initials**: `bbt` finds The Big Bang Theory.
 - **A close spelling**, when nothing else matches. The result says `Did you mean`.
 

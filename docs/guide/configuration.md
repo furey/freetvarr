@@ -7,7 +7,7 @@ description: >-
 
 # Configuration
 
-Freetvarr reads settings from two places. Freetvarr's `.env`, next to its Docker compose file, holds deploy settings. You set everything else (the TVHeadend URL and login, the Plex token, the schedule) in Freetvarr's Settings page in a browser.
+Freetvarr reads settings from two places. Freetvarr's `.env`, next to its Docker compose file in the `freetvarr` folder that the [install script](/guide/getting-started#_1-install) creates, holds deploy settings. You set everything else (the TVHeadend URL and login, the Plex token, the schedule) in Freetvarr's Settings page in a browser.
 
 ## Compose environment
 
@@ -15,14 +15,14 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 
 | Variable                 | Purpose                                                                                                                                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONFIG_PATH`            | Optional. Host folder for the two Docker containers' config (default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                                                                           |
+| `CONFIG_PATH`            | Optional. Host folder for the config of each Docker container (Freetvarr, TVHeadend, and Plex with the `plex` profile; default `./config`); Freetvarr's database lives in `${CONFIG_PATH}/freetvarr`                                                                                 |
 | `DATA_PATH`              | Optional. Host folder (default `./data`) that holds `recordings/` (TVHeadend's output), `media/tv` (your TV library), and `media/one-offs` (recordings with no series folder), and nothing else. [One shared mount](#one-shared-mount) explains why                                  |
 | `PLEX_PREFS_PATH`        | Optional. Path to Plex's `Preferences.xml`, used by the Auto-detect token button, for a Plex you installed yourself on the same computer; omit otherwise                                                                                                                             |
 | `COMPOSE_PROFILES`       | Optional. `plex` adds the Plex service to `docker compose up -d` ([No Plex yet?](/guide/plex#no-plex-yet))                                                                                                                                                                           |
 | `PLEX_CLAIM`             | Optional, `plex` profile only. The claim code from `https://plex.tv/claim`, which signs the new Plex in to your Plex account. A code expires 4 minutes after you get it                                                                                                              |
 | `CSRF_SECRET`            | Optional override. Freetvarr otherwise generates a secret on first start and saves it to `${CONFIG_PATH}/freetvarr/csrf-secret`. See [CSRF secret](#csrf-secret)                                                                                                                     |
-| `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in setup; a zone chosen in Settings → Schedule wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                                                             |
-| `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Both Docker containers use the same pair                                                                                                         |
+| `TZ`                     | Optional IANA timezone (e.g. `Australia/Sydney`). Pre-fills Freetvarr's time zone in setup; a zone chosen in Settings → System → Schedule wins over it. Applies to TVHeadend when set. TVHeadend otherwise follows the host clock                                                    |
+| `PUID`/`PGID`            | Optional. UID and GID to run as (default `1000`). Set your own user, or the files show an unknown owner in the host's file manager. Every Docker container uses the same pair                                                                                                        |
 | `FREETVARR_PORT`         | Host port to serve on (default `3733`)                                                                                                                                                                                                                                               |
 | `TVH_URL`                | Optional. Fixes the address **Auto-discover TVHeadend** offers, e.g. `http://192.168.1.10:9981`; omit to let Freetvarr probe port `9981` on the host                                                                                                                                 |
 | `LIVE_TV_MAX_SESSIONS`   | Optional. The upper limit for [Live streams at once](/guide/player#live-streams-at-once) in Settings → Watching → Playback (`1` to `4`, and no more than your tuner count); when set, it is also the default. Omit it to let the startup measurement of the computer set the default |
@@ -47,7 +47,7 @@ To restore, stop Freetvarr, put the copied folder back in place of `${CONFIG_PAT
 
 ## CSRF secret
 
-Freetvarr signs its CSRF cookie with a secret. On first start, with `CSRF_SECRET` unset, it generates a random secret and saves it to the file `csrf-secret` in its config folder (`/config/csrf-secret` in the container, `${CONFIG_PATH}/freetvarr/csrf-secret` on the host). Only the Freetvarr user can read the file. Later starts reuse it. A `CSRF_SECRET` in your `.env` overrides the file.
+CSRF (cross-site request forgery) protection stops another website open in your browser from sending changes to Freetvarr. Freetvarr signs its CSRF cookie with a secret. On first start, with `CSRF_SECRET` unset, it generates a random secret and saves it to the file `csrf-secret` in its config folder (`/config/csrf-secret` in the container, `${CONFIG_PATH}/freetvarr/csrf-secret` on the host). Only the Freetvarr user can read the file. Later starts reuse it. A `CSRF_SECRET` in your `.env` overrides the file.
 
 If the config folder is not writable, Freetvarr exits with a message to check that `CONFIG_PATH` is owned by `PUID:PGID`. To replace the secret with a new one, delete the file and restart Freetvarr. Freetvarr generates a new secret at the next start, and browsers get a fresh CSRF token automatically.
 
@@ -66,11 +66,11 @@ The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/me
 
 The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example Docker compose file) holds recordings that match no [series folder](/guide/series#recordings-with-no-series). On the host it is `${DATA_PATH}/media/one-offs`. Create the host folder first, owned by `PUID:PGID`. If the folder is missing, these recordings show as **SKIPPED** with a note.
 
-The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in the `.env`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same shared mount as the recordings, for example `/data/media/movies`.
+The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in the `.env`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same [shared mount](#one-shared-mount) as the recordings, for example `/data/media/movies`.
 
 When a title moves between the Shows and One-offs shelves of [Recordings](/guide/recordings), Freetvarr moves its files between the TV library and the one-off folder.
 
-**Import every recording**, under **What to import** in Settings → Recording → Media library, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the TV guide. To have Plex refresh the one-off library after an import, choose it as the **One-off section**; for films, choose the **Movies section**.
+**Import every recording**, under **What to import** in Settings → Recording → Media library, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the TV guide. To have Plex refresh the one-off library after an import, choose it as the **One-off section** in Settings → Recording → Plex ([The one-off library](/guide/plex#the-one-off-library)); for films, choose the **Movies section**.
 
 ## One shared mount
 

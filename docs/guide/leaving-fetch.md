@@ -16,7 +16,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
 ## What you'll need
 
-1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun is a good one. The Flex Quatro has four tuners inside, so it receives four channels at once.
+1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun, made by SiliconDust, is a good one. The HDHomeRun Flex Quatro has four tuners inside, so it receives four channels at once.
 
    <div class="product-shot">
      <img src="https://shop.silicondust.com/shop/wp-content/uploads/2020/11/UK-Quatro-for-shopsite.jpg" alt="A black HDHomeRun Flex Quatro network tuner, a small square box" width="400" height="400" loading="lazy" referrerpolicy="no-referrer">
@@ -30,7 +30,7 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
      <p>A two-bay NAS (Synology DS223j). It holds two hard drives and stays on all the time.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Synology_Disk_Station_DS223J_-_NAS-Server.jpg">DYVER</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
    </div>
 
-3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service.
+3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service. Plex and Jellyfin are also media players: apps that show your recordings and other videos on your TV.
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
@@ -40,6 +40,8 @@ To watch live TV only, you need just the tuner and its free app. The drive and t
 > If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
 
 ## What the Fetch box did
+
+Path 1 and Path 2 in the table are the two ways to replace the box: Path 1 is for watching live TV only, and Path 2 also records. [Two paths](#two-paths) compares them.
 
 | Job                 | Fetch box                          | Replacement                                                                     |
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
@@ -92,7 +94,7 @@ The first path needs no technical skill. The second path means installing and se
 | Cost             | about `A$280–400` once              | about `A$600–1,400` once, or the tuner alone if you already own an always-on computer             |
 | What you get     | Live TV on TVs, tablets, and phones | Everything in Path 1, plus a 7-day guide, recordings to watch on your TV, and optional ad removal |
 | Your time        | about `30 minutes`                  | `1–2` evenings                                                                                    |
-| Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC                                   |
+| Needs a computer | No                                  | Yes, one that stays on: a NAS (a home storage box) or a mini PC (a small desktop computer)        |
 
 On cost alone, paying the levy or buying a new Fetch box can come out cheaper. [Staying with Fetch](#staying-with-fetch) has the numbers.
 
@@ -111,7 +113,7 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
 
 - A 7-day [TV guide](/guide/tv-guide), where you record one programme or a whole series.
-- [Recordings](/guide/recordings) filed into your media library, so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
+- [Recordings](/guide/recordings) filed into your media library (the folders of video files that Plex, Jellyfin, or Kodi reads), so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.
 - Optional [ad removal](/guide/ad-removal) from recordings.
 - [Live TV](/guide/live-tv) in the browser on any phone, tablet, or computer in the house, with no app to install. On the TV itself, watch live TV with the 7-day guide in Jellyfin or Kodi: Freetvarr shows the addresses to copy into the app ([TV apps](/guide/tv-apps)).
 
@@ -143,7 +145,7 @@ On a phone, open Freetvarr in the browser, open Live TV, and tap a channel. The 
 
 Live TV on a phone: the channel list, then the player.
 
-The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few commands typed in a terminal. The guides linked in [Setting up](#setting-up) show each step.
+The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few commands typed in a terminal (a window where you type commands). The guides linked in [Setting up](#setting-up) show each step.
 
 To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
@@ -197,7 +199,7 @@ The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a F
 
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
-1. Install Node.js, the free software that runs the tool. Download the LTS installer from [nodejs.org](https://nodejs.org/en/download) and run it.
+1. Install Node.js, the free software that runs the tool. Download the LTS (long-term support) installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **PowerShell** on Windows.
 3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
@@ -215,7 +217,7 @@ The files play in VLC (a free video player).
 
 On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. With `--for-plex`, `fetchtv` names the files the way they expect: a folder for each show, a `Season` folder inside it, and file names that end with the season and episode (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). You do not rename anything.
 
-Once the NAS and Freetvarr are set up, open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac) and drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder:
+Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up)), open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac). Drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder. The install script creates it at `freetvarr/data/media`, with a `tv` and a `one-offs` folder inside:
 
 | Fetch folder                                                                                      | Goes into                                                                         |
 | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -332,4 +334,4 @@ What the tuner route buys is control: you own the hardware and the recordings, a
 
 ### Former Fetcharr users
 
-See [From Fetcharr](/guide/from-fetcharr) for what carries over.
+Fetcharr is the earlier tool by the same author, which filed recordings from a Fetch box into a media library. See [From Fetcharr](/guide/from-fetcharr) for what carries over.
