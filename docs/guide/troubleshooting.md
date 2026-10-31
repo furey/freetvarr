@@ -212,7 +212,7 @@ A recording shows `NOT IN LIBRARY` in the recording log when its file is gone an
 
 ## Copy files in the library
 
-A file named like `Show - S01E02 - copy 2.ts` appears in the TV library or the one-off folder. Freetvarr never writes over a file it did not import. When the name an import needs already belongs to another file (e.g. a Sonarr download, a file you copied in, or a Fetch recording saved by [`fetchtv`](/guide/leaving-fetch#saving-your-fetch-recordings)), Freetvarr leaves that file as it is and saves the recording under the next free `copy` name. The import's log in Settings → SYSTEM → [Activity](/guide/syncs) names both files.
+A file named like `Show - S01E02 - copy 2.ts` appears in the TV library or the one-off folder. Freetvarr never writes over a file it did not import. When the name an import needs already belongs to another file (e.g. a Sonarr download, a file you copied in, or a Fetch recording saved by [Fetch My Recordings or `fetchtv`](/guide/leaving-fetch#saving-your-fetch-recordings)), Freetvarr leaves that file as it is and saves the recording under the next free `copy` name. The import's log in Settings → SYSTEM → [Activity](/guide/syncs) names both files.
 
 Keep the file you want and delete the other. To delete Freetvarr's copy, press **Delete episode** in its [episode menu](/guide/recordings#episode-menu), so that the TVHeadend copy goes too.
 

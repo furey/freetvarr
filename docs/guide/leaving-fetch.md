@@ -195,12 +195,52 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 ## Saving your Fetch recordings
 
+Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
+
+The simplest way is the Fetch My Recordings app. The [terminal commands](#copy-with-the-terminal) do the same job by hand, and also run on a NAS or in Docker.
+
+### Copy with the app
+
+Fetch My Recordings is a free desktop app that copies the recordings on a Fetch box to your computer over your home network. It needs no Fetch account, and it deletes nothing from the box. It is open source and not made by Fetch TV: Freetvarr's author built it on the [`fetchtv`](https://github.com/furey/fetchtv) tool. Allow `10 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
+
+<!-- markdownlint-disable-next-line MD033 -->
+<BrowserFrame src="/fetch-my-recordings-demo.mp4" poster="/fetch-my-recordings-demo-poster.jpg" ratio="1600 / 1268" label="Fetch My Recordings" single aria-label="Fetch My Recordings finds a Fetch box, lists its recordings, and saves the chosen ones to a folder with names for Plex, Jellyfin or Kodi turned on" />
+
+Download the app for the computer you will copy to. It must be on the same home network as the Fetch box.
+
+| Computer                             | Download                                                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Mac with an Apple chip (M1 or later) | [Fetch-My-Recordings-mac-arm64.dmg](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-mac-arm64.dmg)                 |
+| Mac with an Intel chip               | [Fetch-My-Recordings-mac-x64.dmg](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-mac-x64.dmg)                     |
+| Windows PC                           | [Fetch-My-Recordings-win-x64.exe](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-win-x64.exe)                     |
+| Linux PC                             | [Fetch-My-Recordings-linux-x86_64.AppImage](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-linux-x86_64.AppImage) |
+| Linux computer with an ARM chip      | [Fetch-My-Recordings-linux-arm64.AppImage](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-linux-arm64.AppImage)   |
+
+To see which chip a Mac has, choose Apple menu → About This Mac. The **Chip** line names an Apple chip; an Intel Mac has a **Processor** line instead.
+
+1. Download the file for your computer from the table.
+2. Install the app:
+   - On a Mac, open the `.dmg` file, drag Fetch My Recordings into the Applications folder, then open it from Applications.
+   - On Windows, open the `.exe` file. It installs the app and opens it.
+   - On Linux, make the `.AppImage` file executable (in a terminal, `chmod +x` and the file name), then open it.
+3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**. The `fetchtv` README shows each step with pictures in [First open](https://github.com/furey/fetchtv#first-open).
+4. Press **Start**. The app searches your home network for the Fetch box. With one box, it lists the box's recordings; with more than one, choose your box.
+5. If the app finds no Fetch box, type the box's IP address (four numbers such as `192.168.1.50`) under **Or type its IP address**, and press **Connect**. The IP address is in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
+6. Choose the recordings to save (**Select all** chooses every one), and press **Next**.
+7. Check the folder. The app saves to a `Fetch recordings` folder inside your Videos folder (Movies on a Mac). Press **Change** to choose another folder. The app shows how much space the recordings need and how much is free.
+8. Turn on **Names for Plex, Jellyfin or Kodi** if the recordings will go into a media library (the folders of video files that Plex, Jellyfin, or Kodi reads). [Adding them to your media library](#adding-them-to-your-media-library) explains the names.
+9. Press **Save**.
+
+If the copy stops part way, press **Save again**. The app skips the recordings it already saved and carries on with the rest. With hundreds of recordings, expect to do this several times.
+
+The files play in VLC (a free video player).
+
+### Copy with the terminal
+
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="mLbXBfHPvsE" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
 
-The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a Fetch box over your home network. It does not need your Fetch account. It runs on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
-
-Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
+The [`fetchtv`](https://github.com/furey/fetchtv) tool is the manual way: you type its commands in a terminal. The app runs the same tool, so the files get the same names. Use the terminal to run it on a NAS or in Docker (the [`fetchtv` README](https://github.com/furey/fetchtv#installation) covers both), or for options the app does not have, such as leaving out shows by name. These steps run it on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up.
 
 1. Install Node.js, the free software that runs the tool. Download the LTS (long-term support) installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", Windows is blocking PowerShell scripts, which is its default setting. Use Command Prompt, or type `npx.cmd` wherever these steps say `npx`. Running PowerShell as administrator does not change this. (Some PCs already allow PowerShell scripts, e.g. with PowerShell 7, so `npx` works there unchanged.) If Windows says `npx` is not recognized, close the window and open a new one after installing Node.js.
@@ -241,9 +281,9 @@ The files play in VLC (a free video player).
 
 ### Adding them to your media library
 
-On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. With `--for-plex`, `fetchtv` names the files the way they expect: a folder for each show, a `Season` folder inside it, and file names that end with the season and episode (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). You do not rename anything.
+On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. With **Names for Plex, Jellyfin or Kodi** turned on in the app, or `--for-plex` in the terminal, the files get the names a media library expects: a folder for each show, a `Season` folder inside it, and file names that end with the season and episode (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). You do not rename anything.
 
-Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up)), open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac). Drag each folder out of `fetch-recordings` into one of the folders inside Freetvarr's `media` folder. The install script creates it at `freetvarr/data/media`, with a `tv` and a `one-offs` folder inside:
+Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up)), open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac). Drag each folder out of the folder you saved to (`Fetch recordings` from the app, or `fetch-recordings` from the terminal) into one of the folders inside Freetvarr's `media` folder. The install script creates it at `freetvarr/data/media`, with a `tv` and a `one-offs` folder inside:
 
 | Fetch folder                                                                                      | Goes into                                                                         |
 | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -253,11 +293,17 @@ Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up))
 
 Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex. When Plex has them, Freetvarr's [Recordings](/guide/recordings#library) lists them beside your new recordings, on the same show page (Settings → RECORDING → Plex → [YOUR WHOLE LIBRARY](/guide/plex#your-whole-library) turns this off).
 
-If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. Keep `--for-plex`, and put the path of the `tv` folder in `--save`. That folder is `freetvarr/data/media/tv`, inside the NAS shared folder where you installed Freetvarr. To get its path, open the `tv` folder from your computer. On Windows, click the File Explorer address bar and copy the path. On a Mac, hold Option, Control-click the folder in Finder, and choose **Copy as Pathname**. For example, with Freetvarr in a shared folder named `docker` on a NAS named `NAS`, use `--save=\\NAS\docker\freetvarr\data\media\tv` on Windows, or `--save=/Volumes/docker/freetvarr/data/media/tv` on a Mac. Use your own path in place of the example.
+If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. The folder for TV series is `freetvarr/data/media/tv`, inside the NAS shared folder where you installed Freetvarr.
 
-This is safe if the NAS already holds Freetvarr recordings: `fetchtv` never overwrites a file it did not save. If a file already has the name a recording would get, `fetchtv` saves the recording as `<name> - copy 2.ts` and prints that name. Plex and Freetvarr do not read the `.part` files that `fetchtv` writes during a copy. `fetchtv` also writes a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
+In the app, open the NAS's shared folder from your computer first, so the computer is connected to it. Then press **Change** on **Choose a folder**, choose the `tv` folder, and keep **Names for Plex, Jellyfin or Kodi** turned on.
 
-Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`. These lines use the example path from above:
+In the terminal, keep `--for-plex`, and put the path of the `tv` folder in `--save`. To get its path, open the `tv` folder from your computer. On Windows, click the File Explorer address bar and copy the path. On a Mac, hold Option, Control-click the folder in Finder, and choose **Copy as Pathname**. For example, with Freetvarr in a shared folder named `docker` on a NAS named `NAS`, use `--save=\\NAS\docker\freetvarr\data\media\tv` on Windows, or `--save=/Volumes/docker/freetvarr/data/media/tv` on a Mac. Use your own path in place of the example.
+
+This is safe if the NAS already holds Freetvarr recordings: the app and `fetchtv` never overwrite a file they did not save. If a file already has the name a recording would get, the recording is saved as `<name> - copy 2.ts` instead. While a recording copies, it is saved as a `.part` file, which Plex and Freetvarr do not read. The app and `fetchtv` also write a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
+
+Films and news shows belong in `movies` or `one-offs`, not `tv`. In the app, save in separate rounds: choose only the series and save them into `tv` with **Names for Plex, Jellyfin or Kodi** turned on, then press **Choose other recordings**, choose the films, and save them into `movies` or `one-offs` with it turned off.
+
+In the terminal, add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`. These lines use the example path from above:
 
 ```console
 npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/docker/freetvarr/data/media/tv
@@ -265,13 +311,13 @@ npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/dock
 npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/docker/freetvarr/data/media/one-offs
 ```
 
-Fetch numbers episodes from its own guide data, and the numbers can differ from the guide that Freetvarr and Plex use by one (e.g. The Block `S22 E34` on Fetch is `S22E35` in the guide). When a show has Fetch and Freetvarr recordings from the same weeks, compare the air dates and rename the Fetch files where the numbers differ. `fetchtv` cannot see the guide, so it cannot fix the numbers itself.
+Fetch numbers episodes from its own guide data, and the numbers can differ from the guide that Freetvarr and Plex use by one (e.g. The Block `S22 E34` on Fetch is `S22E35` in the guide). When a show has Fetch and Freetvarr recordings from the same weeks, compare the air dates and rename the Fetch files where the numbers differ. The app and `fetchtv` cannot see the guide, so they cannot fix the numbers themselves.
 
 ## Setting up
 
 Do these in order. The times are for someone doing it the first time.
 
-1. **[Save your Fetch recordings](#saving-your-fetch-recordings)**. `15 minutes`, plus a few hours of copying.
+1. **[Save your Fetch recordings](#saving-your-fetch-recordings)**. `10 minutes` with the app, plus a few hours of copying.
 2. **Order the tuner** ([Shopping list](#shopping-list)). `10 minutes`, then about a week for delivery.
 3. **Wire the tuner** ([Hardware](/guide/hardware)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
 4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch live TV. `10 minutes`.
@@ -290,7 +336,7 @@ Do these in order. The times are for someone doing it the first time.
 5. Choose **Yes, cancel my service**. This cancels every box on the account, so you do not need to remove the boxes one at a time first.
 6. Unplug the Fetch box.
 
-After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so `fetchtv` finds none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
+After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so Fetch My Recordings and `fetchtv` find none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
 
 Fetch pays any refund to the card on file. If Fetch owes you money, check your card under **Update Billing Details** before you cancel.
 

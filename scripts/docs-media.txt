@@ -7,11 +7,13 @@ public record-demo-1x.mp4
 public install-demo.mp4
 public home-screen-demo.mp4
 public home-screen-demo-1x.mp4
+public fetch-my-recordings-demo.mp4
 public demo-poster.jpg
 public wizard-demo-poster.jpg
 public record-demo-poster.jpg
 public install-demo-poster.jpg
 public home-screen-demo-poster.jpg
+public fetch-my-recordings-demo-poster.jpg
 public devices-light.mp4
 public devices-light-1x.mp4
 public devices-light-poster.jpg
