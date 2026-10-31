@@ -193,7 +193,7 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 ## Saving your Fetch recordings
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="H1zWepdwW6Y" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
+<YouTubeVideo id="mLbXBfHPvsE" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
 
 The [`fetchtv`](https://github.com/furey/fetchtv) tool copies recordings off a Fetch box over your home network. It does not need your Fetch account. It runs on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
 
