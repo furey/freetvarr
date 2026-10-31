@@ -10,9 +10,9 @@ description: >-
 > [!WARNING]<br>
 > Everything on this page is untested and theoretical. The author has no Windows PC and has never run Freetvarr on Windows. The steps come from the Microsoft and Docker documentation and from forum reports, not from a working install. Expect to troubleshoot, and expect some parts not to work. The supported route is a NAS or a mini PC that runs Linux (see [The computer](/guide/hardware#the-computer)).
 
-Freetvarr and TVHeadend are Linux programs in Docker containers. Windows runs Linux containers inside WSL (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
+Freetvarr and [TVHeadend](/guide/tvheadend) (the program that runs the tuner and records) are Linux programs in Docker containers. Windows runs Linux containers inside WSL (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
 
-The most likely route is Docker Engine inside an Ubuntu distribution in WSL, with WSL's mirrored networking turned on. Docker Desktop is simpler to install but has more network limits.
+The most likely route is Docker Engine inside an Ubuntu distribution in WSL, with WSL's mirrored networking turned on (Ubuntu then shares the PC's own network address). Docker Desktop is simpler to install but has more network limits.
 
 ## The Windows PC
 
@@ -80,17 +80,17 @@ With mirrored networking and the firewall setting in step 4, a phone or TV on yo
 
 ### Live TV conversion
 
-Freetvarr's hardware conversion uses VAAPI on `/dev/dri`. WSL shares the graphics chip in another way (through a Direct3D 12 driver), and Freetvarr does not set that up ([Microsoft: GPU video acceleration in WSL](https://devblogs.microsoft.com/commandline/d3d12-gpu-video-acceleration-in-the-windows-subsystem-for-linux-now-available/)). Plan for software conversion only, with the limits in [The computer](/guide/hardware#the-computer): live TV in the browser at `540` lines, and only as many live streams as the processor converts smoothly. Do not use the hardware override file from [Hardware transcoding](/guide/hardware#hardware-transcoding). Recording needs no conversion, so recordings are not affected.
+Freetvarr's hardware conversion uses VAAPI (the Linux interface to the graphics chip's video encoder) on `/dev/dri`, the Linux graphics device. WSL shares the graphics chip in another way (through a Direct3D 12 driver), and Freetvarr does not set that up ([Microsoft: GPU video acceleration in WSL](https://devblogs.microsoft.com/commandline/d3d12-gpu-video-acceleration-in-the-windows-subsystem-for-linux-now-available/)). Plan for software conversion only, with the limits in [The computer](/guide/hardware#the-computer): live TV in the browser at `540` lines, and only as many live streams as the processor converts smoothly. Do not use the hardware override file from [Hardware transcoding](/guide/hardware#hardware-transcoding). Recording needs no conversion, so recordings are not affected.
 
 ### USB tuners
 
-A USB tuner does not work. The usbipd-win tool connects a USB device to WSL, but the WSL kernel has no DVB drivers, so TVHeadend has no tuner to use. A custom WSL kernel is the only way around it ([usbipd-win: WSL support](https://github.com/dorssel/usbipd-win/wiki/WSL-support)), and a TVHeadend forum user reports that a DVB tuner still did not work in WSL with it ([TVHeadend forum](https://tvheadend.org/boards/5/topics/48148)). Use a network tuner.
+A USB tuner does not work. The usbipd-win tool connects a USB device to WSL, but the WSL kernel has no DVB drivers (the Linux drivers for TV tuners), so TVHeadend has no tuner to use. A custom WSL kernel is the only way around it ([usbipd-win: WSL support](https://github.com/dorssel/usbipd-win/wiki/WSL-support)), and a TVHeadend forum user reports that a DVB tuner still did not work in WSL with it ([TVHeadend forum](https://tvheadend.org/boards/5/topics/48148)). Use a network tuner.
 
 ### Storage
 
-Keep the `freetvarr` folder, and so the recordings, in the Ubuntu file system. Microsoft recommends the Linux file system for Linux programs, because files under `/mnt/c` are slower to reach ([Microsoft: Working across file systems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)). Windows drives also do not keep the Linux file owners that `PUID` and `PGID` set. The Ubuntu file system is one virtual disk file on the C: drive, `1TB` at most by default (`defaultVhdSize` in `.wslconfig`).
+Keep the `freetvarr` folder, and so the recordings, in the Ubuntu file system. Microsoft recommends the Linux file system for Linux programs, because files under `/mnt/c` are slower to reach ([Microsoft: Working across file systems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)). Windows drives also do not keep the Linux file owners that `PUID` and `PGID` (the user and group in Freetvarr's `.env`) set. The Ubuntu file system is one virtual disk file on the C: drive, `1TB` at most by default (`defaultVhdSize` in `.wslconfig`).
 
-To copy a recording to Windows, open `\\wsl$\Ubuntu\home\<linux username>\freetvarr\data` in File Explorer. To back up Freetvarr's settings, stop Freetvarr and copy the whole `config` folder out the same way (see [Backups](/guide/configuration#backups)).
+To copy a recording to Windows, open `\\wsl$\Ubuntu\home\<linux username>\freetvarr\data` in File Explorer. To back up Freetvarr's settings, stop Freetvarr and copy the whole `freetvarr\config` folder out the same way (see [Backups](/guide/configuration#backups)).
 
 ### Always on
 
@@ -116,4 +116,4 @@ Run the install command in the Ubuntu terminal, with Docker Desktop's WSL integr
 
 ## The supported route
 
-A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, Quick Sync converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.
+A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, Quick Sync (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.
