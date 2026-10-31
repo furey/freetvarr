@@ -18,7 +18,7 @@ export const SCENES = [
   { id: 'live', chapter: 'Live TV in the browser', lines: [
     'On a phone, tablet, or computer, open Live TV in {Freetvarr}, and press a channel.',
     'It plays right in the browser, with no app to install.',
-    'Each row shows what is on now, and what is on next.',
+    'Each channel shows what is on now, and what is on next.',
   ] },
   { id: 'rewind', chapter: 'Pause and rewind', lines: [
     'You can pause and rewind live TV, up to thirty minutes back.',

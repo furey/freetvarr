@@ -15,14 +15,14 @@ If you have a Fetch Mini Gen 3 or Mighty Gen 3 with no Fetch subscription, the l
 Chapters:
 0:00 Intro
 0:17 The Fetch levy
-0:40 What you need
+0:41 What you need
 1:08 Install and setup
 1:26 TV guide and recording
 1:42 Home and suggestions
-1:55 Recordings and Plex
-2:11 Watching on the TV
+1:56 Recordings and Plex
+2:12 Watching on the TV
 2:29 Save your Fetch recordings
-2:48 Get started
+2:49 Get started
 
 Links:
 - Leaving Fetch TV guide: https://furey.github.io/freetvarr/guide/leaving-fetch

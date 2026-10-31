@@ -21,8 +21,9 @@ export const buildScenes = (deps) => {
 
   const phone = (root, { x, y, w = 380 }) => {
     const h = Math.round(w * 2.165)
-    const frame = el(root, 'div', '', '', { position: 'absolute', left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, borderRadius: '56px', border: '14px solid #26323e', background: '#000', overflow: 'hidden' })
+    const frame = el(root, 'div', '', '', { position: 'absolute', left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, borderRadius: '22px', border: '5px solid #26323e', background: '#000', overflow: 'hidden' })
     const img = el(frame, 'img', '', '', { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' })
+    el(frame, 'div', '', '', { position: 'absolute', left: '50%', top: '7px', width: '26%', height: '18px', marginLeft: '-13%', borderRadius: '9px', background: '#000' })
     return { frame, img, show: (s, c) => footage(img, clips, c, s) }
   }
 
@@ -128,7 +129,7 @@ export const buildScenes = (deps) => {
       const k = [
         kicker(root, { label: 'Live TV', text: 'Press a channel' }),
         kicker(root, { label: 'In the browser', text: 'No app to install', tone: 'is-mint' }),
-        kicker(root, { label: 'Each row', text: 'On now, and on next' }),
+        kicker(root, { label: 'Each channel', text: 'On now, and on next' }),
       ]
       const map = piecewise([[0, 0.3], [c1 - 0.6, 5.9], [c1 - 0.59, 10.7], [c2 - 0.3, 10.7 + (c2 - c1 + 0.3)], [c2 - 0.29, 1.0], [scene.duration, 4.4]])
       return (t) => {
