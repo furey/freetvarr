@@ -168,11 +168,14 @@ docker compose up -d
 
 A Freetvarr browser tab left open during the update offers a card with **Reload** to load the new version.
 
+To back up first, go back to an older version, or see what changes in each release, read [Updating Freetvarr](/guide/updating).
+
 ## Where next
 
 - [Home and search](/guide/home): what to watch now, and how to find a show.
 - [Player](/guide/player): live TV and recordings, Start over, the Miniplayer, and Multiview.
 - [TV guide](/guide/tv-guide): schedule recordings from the browser.
 - [Series rules and folders](/guide/series): assign series folders and sync recordings into your library.
+- [Updating Freetvarr](/guide/updating): update, back up, and go back to an older version.
 - [Configuration](/guide/configuration): the full `.env` reference.
 - [Troubleshooting](/guide/troubleshooting): if the TVHeadend connection, an import, or Plex does not work.

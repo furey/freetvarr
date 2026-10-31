@@ -183,6 +183,8 @@ docker compose pull
 docker compose up -d
 ```
 
+To back up first, go back to an older version, or see what changes in each release, read [Updating Freetvarr](https://furey.github.io/freetvarr/guide/updating).
+
 ## Features
 
 - [Recording](#recording)
