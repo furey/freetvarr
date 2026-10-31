@@ -316,3 +316,26 @@ test('readSizedCache reads the sized key first and marks an older unsized entry 
   assert.deepEqual(await readSizedCache({ read, key: 'tmdb:bluey' }), { sources: ['new'], expiresAt: 9000 })
   assert.equal(await readSizedCache({ read: async () => { throw new Error('locked') }, key: 'x' }), null)
 })
+
+test('a film whose guide puts its description in the episode title matches on that description', () => {
+  const hints = programmeHintsOf([{
+    title: 'Die Hard',
+    synopsis: '',
+    episode_title: 'New York City police officer John McClane tries to save his estranged wife and her colleagues from terrorists.',
+  }])
+  assert.equal(hints.isEpisode, false)
+  assert.deepEqual(hints.episodeTitles, [])
+  assert.match(hints.synopsis, /John McClane/)
+  const evidence = matchEvidenceOf({
+    hints,
+    candidateYear: 1988,
+    text: 'Die Hard is a 1988 action film. New York City police detective John McClane fights terrorists in a Los Angeles skyscraper.',
+  })
+  assert.equal(evidence.accepted, true)
+})
+
+test('a short episode title still marks a programme as an episode', () => {
+  const hints = programmeHintsOf([{ title: 'Bluey', synopsis: 'Bluey and Bingo play.', episode_title: 'Keepy Uppy' }])
+  assert.equal(hints.isEpisode, true)
+  assert.deepEqual(hints.episodeTitles, ['keepy uppy'])
+})

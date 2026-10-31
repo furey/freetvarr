@@ -103,7 +103,7 @@ test('a TMDB key gets its own cache entries and is passed to the lookup', async 
 test('a film gets its own cache entry and film hints, so an old show miss does not hide it', async () => {
   const seen = []
   const cache = memoryCache()
-  cache.rows.set('wide-v1:tmdb:training day', { sources: [], reference: 'miss:guide-network-v1', expiresAt: 10_000 })
+  cache.rows.set('wide-v1:tmdb:training day', { sources: [], reference: 'miss:guide-network-v2', expiresAt: 10_000 })
   const { artwork } = fallbackWith({
     apiKey: 'k',
     cache,
