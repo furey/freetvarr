@@ -7,7 +7,7 @@ description: >-
 
 # Settings
 
-Settings groups its pages under four headings: **ABOUT**, **WATCHING**, **RECORDING**, and **SYSTEM**. On a phone, Settings opens on the list of pages; press a page to open it. On a tablet or computer, the list sits beside the open page, and Settings opens on **About Freetvarr**.
+Settings groups its pages under five headings: **ABOUT**, **WATCHING**, **RECORDING**, **SYSTEM**, and **DANGER ZONE**. On a phone, Settings opens on the list of pages; press a page to open it. On a tablet or computer, the list sits beside the open page, and Settings opens on **About Freetvarr**.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings">
@@ -21,7 +21,7 @@ When [Health](/guide/doctor) finds a problem, a dot shows on the Settings icon a
 
 Type in **Search settings**, under the Settings title, to find a page or a single setting. The list shows each match with its place, such as `Recording → Media library`. Old page names find the new pages too: `recording folders` finds **Media library**, and `library and plex` finds **Plex**.
 
-Press a match to open its page. Freetvarr scrolls to the setting and marks it for a moment; a setting inside **Token not found?** opens it first. On a keyboard, the arrow keys choose a match, **Enter** opens it, and **Esc** clears the search. The search stays when you go back to the list. It looks in Settings only; to find shows and programmes, use [search](/guide/home#search).
+Press a match to open its page. Freetvarr scrolls to the setting and marks it for a moment; a setting inside **Token not found?** (a folded section on the Plex page) opens that section first. On a keyboard, the arrow keys choose a match, **Enter** opens it, and **Esc** clears the search. The search stays when you go back to the list. It looks in Settings only; to find shows and programmes, use [search](/guide/home#search).
 
 ## About
 
