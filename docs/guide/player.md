@@ -42,7 +42,7 @@ Double-tap (phone or tablet) or double-click (computer) the left third of the pi
 For live TV, **Start over** does one of these:
 
 - **From the start**: plays the programme from its first minute, while TVHeadend keeps recording it. This is possible only when TVHeadend is recording that programme on that channel. Freetvarr plays the recording in progress, so you can watch a show you started late from the beginning.
-- **Back to when you tuned in**: jumps to the oldest part of the rewind buffer. This is possible a few seconds after you tune in.
+- **Back to when you tuned in**: jumps to the oldest part of the rewind buffer (the last `30` minutes of the channel, which Freetvarr keeps; see [Pause and rewind](/guide/live-tv#pause-and-rewind)). This is possible a few seconds after you tune in.
 
 When both are possible, **Start over** asks which one you want and shows the clock time for each. When only one is possible, **Start over** does it straight away. In Multiview, **Start over** always goes back to when you tuned in.
 
@@ -68,7 +68,7 @@ Press **Miniplayer** in the top bar (or in the **⋯** menu, when the bar has no
 
 - On a phone, the Miniplayer is a bar above the tab bar.
 - On a tablet or computer, it is a small card in a corner of the screen.
-- On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in Multiview **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
+- On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in [Multiview](#multiview) **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
 
 Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
 
@@ -145,9 +145,9 @@ Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, 
 
 **Live streams at once**, under **LIVE TV** in Settings → Watching → **Playback**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
 
-Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or ad scan runs.
+Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or [ad scan](/guide/ad-removal) runs.
 
-`LIVE_TV_MAX_SESSIONS` in the `.env` sets a hard limit that the setting cannot go above. While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env` in the `freetvarr` folder, then run `docker compose up -d` in that folder to restart Freetvarr. See [Configuration](/guide/configuration#compose-environment).
+`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's Docker compose file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then run `docker compose up -d` in the `freetvarr` folder to restart Freetvarr.
 
 ## Keyboard shortcuts
 
