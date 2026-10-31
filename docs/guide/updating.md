@@ -56,7 +56,7 @@ Watchtower is a container that checks for new Docker images on a schedule. When 
 
 Watchtower controls Docker through the Docker socket, `/var/run/docker.sock`, the file that takes commands for Docker. A container with the Docker socket has full control of the host: it can start, stop, and change every container, and through them read and change any file on the computer. Add Watchtower only if you accept that.
 
-The original Watchtower project (`containrrr/watchtower`) stopped on `2025-12-17` ([announcement](https://github.com/containrrr/watchtower/discussions/2135)), and its image fails on Docker Engine `29` with the error `client version 1.25 is too old` ([issue 2124](https://github.com/containrrr/watchtower/issues/2124)). The example below uses `nickfedor/watchtower`, a fork that is still maintained and takes the same settings ([fork documentation](https://watchtower.nickfedor.com/)).
+The original Watchtower project (`containrrr/watchtower`) stopped on `2025-12-17` ([announcement](https://github.com/containrrr/watchtower/discussions/2135)), and its image fails on Docker Engine `29` with the error `client version 1.25 is too old` ([issue 2124](https://github.com/containrrr/watchtower/issues/2124)). The example below uses the maintained fork by Nick Fedor ([fork documentation](https://watchtower.nickfedor.com/), [source](https://github.com/nicholas-fedor/watchtower)), which takes the same settings. Its images are built from the public source by GitHub Actions and signed, and its HTTP API, Git mode, and lifecycle hooks are off unless you turn them on. One person maintains it, so decide for yourself whether you trust it.
 
 1. In your `docker-compose.yml`, add a label to the `freetvarr` service. Watchtower then updates Freetvarr and leaves the other containers alone:
 
@@ -70,7 +70,7 @@ The original Watchtower project (`containrrr/watchtower`) stopped on `2025-12-17
 
    ```yaml
      watchtower:
-       image: nickfedor/watchtower:latest
+       image: ghcr.io/nicholas-fedor/watchtower:1.23.2
        container_name: watchtower
        restart: unless-stopped
        environment:
@@ -86,6 +86,7 @@ The original Watchtower project (`containrrr/watchtower`) stopped on `2025-12-17
 
 The settings, from the Watchtower [container selection](https://watchtower.nickfedor.com/v1.23.2/configuration/container-selection/), [scheduling](https://watchtower.nickfedor.com/v1.23.2/configuration/scheduling/), and [update behaviour](https://watchtower.nickfedor.com/v1.23.2/configuration/update-behavior/) pages:
 
+- **`image`**: a fixed version, so Watchtower never pulls a new Watchtower release that nobody reviewed. To update Watchtower, change the version by hand after you read its [release notes](https://github.com/nicholas-fedor/watchtower/releases).
 - **`WATCHTOWER_LABEL_ENABLE`**: Watchtower updates only the containers with the label `com.centurylinklabs.watchtower.enable=true`.
 - **`WATCHTOWER_SCHEDULE`**: when Watchtower checks, as a cron expression with 6 fields (seconds first). `0 0 4 * * *` checks every day at 4am, in the time zone that `/etc/localtime` gives it.
 - **`WATCHTOWER_CLEANUP`**: Watchtower deletes the old Freetvarr image after an update, to free disk space.
