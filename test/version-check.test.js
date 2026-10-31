@@ -1,7 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { compareVersions, isNewerRelease, latestReleaseTag, parseReleaseVersion } from '../src/web/version-check.js'
+import {
+  changesExistingInstalls,
+  compareVersions,
+  isNewerRelease,
+  latestReleaseTag,
+  parseReleaseVersion,
+  updateStepsOf,
+} from '../src/web/version-check.js'
 
 test('parseReleaseVersion: reads plain and v-prefixed release tags', () => {
   assert.deepEqual(parseReleaseVersion('1.3.6'), [1, 3, 6])
@@ -35,4 +42,23 @@ test('isNewerRelease: only a higher release counts', () => {
   assert.equal(isNewerRelease({ current: '1.3.6', latest: '1.3.5' }), false)
   assert.equal(isNewerRelease({ current: '1.3.6', latest: null }), false)
   assert.equal(isNewerRelease({ current: 'dev', latest: '1.3.7' }), false)
+})
+
+test('changesExistingInstalls: finds the heading at any level, in any case', () => {
+  assert.equal(changesExistingInstalls('Fixes.\n\n## What changes for existing installs\n\n- Database'), true)
+  assert.equal(changesExistingInstalls('### what changes for existing installs'), true)
+})
+
+test('changesExistingInstalls: prose, missing, and empty bodies give false', () => {
+  assert.equal(changesExistingInstalls('Nothing about what changes for existing installs here.'), false)
+  assert.equal(changesExistingInstalls(''), false)
+  assert.equal(changesExistingInstalls(null), false)
+})
+
+test('updateStepsOf: backs up into a folder named after the running version, then pulls and restarts', () => {
+  assert.deepEqual(updateStepsOf('2.0.11').map((step) => step.command), [
+    'docker compose stop freetvarr && cp -a config/freetvarr config/freetvarr-2.0.11',
+    'docker compose pull',
+    'docker compose up -d',
+  ])
 })

@@ -806,6 +806,58 @@ a.settings-row-link:hover {
   color: var(--color-primary);
 }
 
+.about-list button.about-update {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-primary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.about-list button.about-update:hover {
+  text-decoration: underline;
+}
+
+.update-drawer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.update-drawer-title {
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+
+.update-drawer-versions {
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--color-text-2);
+}
+
+.update-drawer-head a {
+  margin-inline-start: auto;
+}
+
+.setup-hint.update-drawer-changes {
+  color: var(--color-warning);
+}
+
+@media (max-width: 640px) {
+  .update-drawer .copy-row .field-label {
+    grid-column: 1;
+  }
+
+  .update-drawer .copy-row-value {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
 .settings-content .status-readout {
   font-size: 14px;
   line-height: 20px;
