@@ -36,7 +36,13 @@ Each check gets one of these results, shown as a dot beside the check:
 
 When every check passes, the page says `Everything's working`. Otherwise the checks are grouped as **Needs attention** (fails), **Needs a look** (warnings), and **Working**. The **Working** group folds into one row, such as `12 checks working`; press it to see each check. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
 
-From a source checkout (a clone of the Freetvarr repository), `npm run doctor` outputs the same checks in the terminal. It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
+From a source checkout (a clone of the Freetvarr repository), this command outputs the same checks in the terminal:
+
+```sh
+npm run doctor
+```
+
+It reads the settings from Freetvarr's database, so run it on the computer that runs Freetvarr.
 
 ## Connection {#tvh-reach}
 

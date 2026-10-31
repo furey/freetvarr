@@ -59,10 +59,26 @@ The script is the quickest way, but you have two other ways to install: [by hand
 
 Use this instead of the script if you prefer to run each command yourself in a terminal, or if you want to check the Docker compose file first.
 
-1. Create a folder and move into it: `mkdir freetvarr && cd freetvarr`.
-2. Download the Docker compose file: `curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml -o docker-compose.yml`.
+1. Create a folder and move into it:
+
+   ```sh
+   mkdir freetvarr && cd freetvarr
+   ```
+
+2. Download the Docker compose file:
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml -o docker-compose.yml
+   ```
+
 3. Optional: write a `.env` with `PUID` and `PGID` set to your user and group (`id -u` and `id -g`).
-4. Start both Docker containers: `docker compose up -d`. The first start downloads the Docker images, which takes a few minutes.
+4. Start both Docker containers:
+
+   ```sh
+   docker compose up -d
+   ```
+
+   The first start downloads the Docker images, which takes a few minutes.
 5. In a browser, open `http://<host-ip>:3733` and proceed to [step 2](#_2-run-setup).
 
 ### Install: NAS container app
@@ -134,7 +150,13 @@ DATA_PATH=./data
 FREETVARR_PORT=3733
 ```
 
-Set `PUID` and `PGID` to your own user (`id -u` and `id -g`). After a change, run `docker compose up -d` in a terminal in the `freetvarr` folder to restart the Docker containers with the new values. [Configuration](/guide/configuration) covers every variable, the folders under `DATA_PATH`, and the two recordings paths.
+Set `PUID` and `PGID` to your own user (`id -u` and `id -g`). After a change, restart the Docker containers with the new values. In a terminal in the `freetvarr` folder, run:
+
+```sh
+docker compose up -d
+```
+
+[Configuration](/guide/configuration) covers every variable, the folders under `DATA_PATH`, and the two recordings paths.
 
 ## An existing TVHeadend
 

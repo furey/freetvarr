@@ -8,7 +8,7 @@ description: >-
 # What Freetvarr is
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="oNzNmlOxSFs" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:03" />
+<YouTubeVideo id="b77jeOUO_IQ" title="Freetvarr: your own free-to-air TV recorder" duration="2:19" />
 
 Freetvarr records free-to-air TV and files each episode into your media library. Watch it on your TV in Plex, Jellyfin, Kodi, or another media player, with pause, rewind, and skip.
 

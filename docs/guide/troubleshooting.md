@@ -38,7 +38,12 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 **Save and next** on the TVHeadend step of setup tests the connection and stays on the step until it passes. The error shows under the TVHeadend address. **Finish later** opens a dialog: press **Finish later** again to leave setup and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open Settings → SYSTEM → Setup.
 
 - **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither Docker container is on a Docker bridge network, so container names don't resolve).
-- **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run `docker compose logs tvheadend` in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`).
+- **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run this in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`):
+
+  ```sh
+  docker compose logs tvheadend
+  ```
+
 - **`TVHeadend request failed: ENOTFOUND`**: the hostname in the URL doesn't resolve. Use the host's IP address.
 - **Auto-discover TVHeadend finds nothing**: no TVHeadend answered on port `9981` at any address of the host. Type the URL yourself, or set `TVH_URL` for the Freetvarr Docker container ([Configuration](/guide/configuration#compose-environment)).
 - **`Connected` with `0 channels`**: TVHeadend has no enabled channels yet. See [No channels](#no-channels).
@@ -52,8 +57,25 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 
 **Test path** in Settings → RECORDING → Media library checks a folder inside the Freetvarr Docker container, not on the host.
 
-- **"/data/recordings does not exist inside the container"**: the Docker compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then run `docker compose up -d freetvarr` in a terminal in the `freetvarr` folder to apply the change.
-- **"is not readable by the container user"** or **"is not writable by the container user"**: the host folder belongs to a different user from `PUID`/`PGID`. In a terminal on the host, run `ls -ln` on the host folder, then `chown` it to the `PUID:PGID` pair both containers run as. The `init` service of the Docker compose file (a one-shot container that runs before the others) gives the subfolders of `CONFIG_PATH` and `DATA_PATH` (the host folders set in `.env`) to `PUID:PGID` on every start, so this appears only when you change `PUID`/`PGID` or put other folders in the mount. Fix the folder the message names.
+- **"/data/recordings does not exist inside the container"**: the Docker compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then apply the change. In a terminal in the `freetvarr` folder, run:
+
+  ```sh
+  docker compose up -d freetvarr
+  ```
+
+- **"is not readable by the container user"** or **"is not writable by the container user"**: the host folder belongs to a different user from `PUID`/`PGID`. In a terminal on the host, show the owner of the folder the message names, with its host path in place of `<host-folder>`:
+
+  ```sh
+  ls -ldn <host-folder>
+  ```
+
+  Then give the folder and everything in it to the `PUID:PGID` pair both containers run as, with your values from `.env`:
+
+  ```sh
+  sudo chown -R <PUID>:<PGID> <host-folder>
+  ```
+
+  The `init` service of the Docker compose file (a one-shot container that runs before the others) gives the subfolders of `CONFIG_PATH` and `DATA_PATH` (the host folders set in `.env`) to `PUID:PGID` on every start, so this appears only when you change `PUID`/`PGID` or put other folders in the mount. Fix the folder the message names.
 - **"is on the same disk as the media root but in a separate mount, so imports copy each file"**: this is a notice, not a failure. Imports still work. Mount one folder that holds both `recordings/` and `media/`, as in [One shared mount](/guide/configuration#one-shared-mount), to make them hardlinks.
 - **"is on a different disk from the media root, so imports copy each file"**: this is a notice, not a failure. Imports still work. Move `recordings/` and `media/` onto one disk, then mount one folder that holds both.
 
@@ -88,10 +110,26 @@ Freetvarr reports `0 channels`, or the TV guide has no rows.
 The TV guide shows channels but no programmes, or only about a day of them.
 
 - Without an XMLTV feed you get only what the broadcast signal carries. In Australia that is about a day of thin data. UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
-- TVHeadend's log (`docker compose logs tvheadend`) says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. In TVHeadend's web interface, link them under **Configuration → Channel/EPG → EPG Grabber Channels**, then press **Re-run internal EPG grabbers**.
+- TVHeadend's log says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. To read the log, run:
+
+  ```sh
+  docker compose logs tvheadend
+  ```
+
+  In TVHeadend's web interface, link them under **Configuration → Channel/EPG → EPG Grabber Channels**, then press **Re-run internal EPG grabbers**.
 - With the feed loaded but one channel blank, that channel isn't linked to a feed channel. See [Wrong programmes on a channel](#wrong-programmes-on-a-channel).
-- After you install a grabber script, restart TVHeadend (`docker compose restart tvheadend`). TVHeadend looks for grabbers at startup only, so a running TVHeadend never loads a new one.
-- Freetvarr keeps a copy of the TV guide for an hour, or a minute when it has no programmes. Freetvarr loads the TV guide again after guide setup and after a guide link change. After you fix TVHeadend, restart Freetvarr (`docker compose restart freetvarr`) to load the TV guide at once, or wait up to an hour.
+- After you install a grabber script, restart TVHeadend:
+
+  ```sh
+  docker compose restart tvheadend
+  ```
+
+  TVHeadend looks for grabbers at startup only, so a running TVHeadend never loads a new one.
+- Freetvarr keeps a copy of the TV guide for an hour, or a minute when it has no programmes. Freetvarr loads the TV guide again after guide setup and after a guide link change. After you fix TVHeadend, restart Freetvarr to load the TV guide at once, or wait up to an hour:
+
+  ```sh
+  docker compose restart freetvarr
+  ```
 
 ## Wrong programmes on a channel
 
@@ -105,7 +143,13 @@ The TV guide shows another channel's programmes on a channel, or no programmes o
 Freetvarr takes each channel's logo from TVHeadend's own channel icon first, then from the icon the XMLTV guide feed lists for that channel (the XMLTV `<channel>` `<icon>`). A channel with neither shows its name only.
 
 - **TVHeadend prefers picons, but none are installed**: picons are channel logo image files that TVHeadend reads from a folder. With picons preferred and no picon files, TVHeadend reports no icon for any channel. In TVHeadend's web interface, open **Configuration → General → Base** and untick the preference for picons, or install picons and set the picon path. Switch the view level to Expert if the picon fields are hidden.
-- **The feed icon doesn't load**: feed icons are usually links to the internet, and the Freetvarr container fetches them itself. To check that the Freetvarr Docker container has outbound internet access, run `docker exec freetvarr node -e "fetch('https://example.com').then((r) => console.log(r.status))"` in a terminal on the host (it outputs `200` when it does).
+- **The feed icon doesn't load**: feed icons are usually links to the internet, and the Freetvarr container fetches them itself. To check that the Freetvarr Docker container has outbound internet access, run this in a terminal on the host:
+
+  ```sh
+  docker exec freetvarr node -e "fetch('https://example.com').then((r) => console.log(r.status))"
+  ```
+
+  It outputs `200` when it does.
 - **The Freetvarr user lacks Admin**: TVHeadend serves the guide feed's channel list to admin users only, so the feed fallback finds no icons.
 - **The feed channel is unlinked**: a feed icon only reaches a TVHeadend channel through the link in **EPG Grabber Channels**.
 
@@ -220,8 +264,18 @@ When the edit form says Sonarr also saves episodes in the folder, rename the ser
 ## Plex token auto-detect
 
 - Auto-detect needs Plex's `Preferences.xml` inside the Freetvarr Docker container. The `plex` profile (the Docker compose profile that runs Plex next to Freetvarr, see [No Plex yet?](/guide/plex#no-plex-yet)) mounts it for you. For another Plex on the same host, set `PLEX_PREFS_PATH` in the `.env`. [Plex](/guide/plex#the-token) lists where the file lives.
-- **"Preferences.xml not found at /plex/Library/…"**: the `plex` profile is not running, and `PLEX_PREFS_PATH` is unset. Start the profile, or set the path in `.env`, then run `docker compose up -d freetvarr`.
-- **"Preferences.xml not found at /plex-preferences.xml"**: `PLEX_PREFS_PATH` points at the wrong host file, so the mount is empty. Fix the path in `.env` and run `docker compose up -d freetvarr`.
+- **"Preferences.xml not found at /plex/Library/…"**: the `plex` profile is not running, and `PLEX_PREFS_PATH` is unset. Start the profile, or set the path in `.env`, then run:
+
+  ```sh
+  docker compose up -d freetvarr
+  ```
+
+- **"Preferences.xml not found at /plex-preferences.xml"**: `PLEX_PREFS_PATH` points at the wrong host file, so the mount is empty. Fix the path in `.env` and run:
+
+  ```sh
+  docker compose up -d freetvarr
+  ```
+
 - Or paste the Plex token into Settings → RECORDING → Plex yourself. Copy it from `app.plex.tv` (or follow Plex's own support article on finding your token).
 
 ## Container name lookups
@@ -251,7 +305,18 @@ The line ends with the reason:
 
 - **`LIVE_TV_TRANSCODE=copy`**: H.264 passes through untouched. Remove the setting or set it to `auto`.
 - **`not found; pass /dev/dri into the container`**: the container has no render device. Add [`docker-compose.override.yml`](/guide/hardware#hardware-transcoding). Without it, Freetvarr uses software, which plays but costs much more CPU.
-- **`permission denied for uid ...`**: the container user lacks the render group. Set `RENDER_GID` in `.env` to the output of `stat -c %g /dev/dri/renderD128`, then run `docker compose up -d freetvarr` to recreate the Freetvarr Docker container.
+- **`permission denied for uid ...`**: the container user lacks the render group. Set `RENDER_GID` in `.env` to the output of this command:
+
+  ```sh
+  stat -c %g /dev/dri/renderD128
+  ```
+
+  Then recreate the Freetvarr Docker container:
+
+  ```sh
+  docker compose up -d freetvarr
+  ```
+
 - **`VAAPI test encode failed`**: ffmpeg's error follows the reason. The graphics chip or its driver does not support the encode. Freetvarr uses software.
 - **`is not one of auto, hardware, software, copy`**: `LIVE_TV_TRANSCODE` has a typo. Freetvarr uses software.
 
@@ -276,7 +341,12 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 ## Wrong timestamps
 
 - Freetvarr uses the time zone you chose in setup. If Health warns that no zone is chosen and the system runs on `UTC`, or that the zone is not a known one, choose your zone in Settings → SYSTEM → Schedule. Freetvarr shows every time in that zone, on every device.
-- A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings → SYSTEM → Schedule, or correct `TZ` (e.g. `Australia/Sydney`) and run `docker compose up -d` to recreate the Docker containers.
+- A `TZ` in your `.env` only pre-fills the zone. The zone chosen in Settings wins. If `TZ` is wrong and no zone is chosen, choose one in Settings → SYSTEM → Schedule, or correct `TZ` (e.g. `Australia/Sydney`) and recreate the Docker containers:
+
+  ```sh
+  docker compose up -d
+  ```
+
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 
 ## CSRF secret
@@ -284,7 +354,13 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 Freetvarr signs its CSRF cookie (the cookie that protects browser requests from forgery) with a secret it keeps in a file ([CSRF secret](/guide/configuration#csrf-secret)).
 
 - **Exit on start with a message about `CONFIG_PATH`**: Freetvarr could not write its `csrf-secret` file. Check that `CONFIG_PATH` is owned by `PUID:PGID`.
-- **Reset the secret**: delete `${CONFIG_PATH}/freetvarr/csrf-secret` and restart Freetvarr (`docker compose restart freetvarr`). Freetvarr generates a new secret, and browsers get a fresh CSRF token automatically. Nothing else breaks.
+- **Reset the secret**: delete `${CONFIG_PATH}/freetvarr/csrf-secret` and restart Freetvarr:
+
+  ```sh
+  docker compose restart freetvarr
+  ```
+
+  Freetvarr generates a new secret, and browsers get a fresh CSRF token automatically. Nothing else breaks.
 
 ## Source install errors
 

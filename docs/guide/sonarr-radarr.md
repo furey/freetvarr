@@ -45,7 +45,11 @@ Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the sam
    RADARR_CONFIG_PATH=/path/to/radarr/config.xml
    ```
 
-2. In a terminal in the folder that holds your `docker-compose.yml` ([The compose folder](/guide/updating#the-compose-folder)), recreate the Freetvarr Docker container: `docker compose up -d freetvarr`.
+2. In a terminal in the folder that holds your `docker-compose.yml` ([The compose folder](/guide/updating#the-compose-folder)), recreate the Freetvarr Docker container:
+
+   ```sh
+   docker compose up -d freetvarr
+   ```
 
 Under each **API key** field, Settings then says `Read from Sonarr's config.xml.` or `Read from Radarr's config.xml.` A key you paste in Settings wins over the file. If you set the key with an environment variable in Sonarr or Radarr, the file does not hold it, so paste it in Settings.
 

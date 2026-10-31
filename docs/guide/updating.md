@@ -28,7 +28,12 @@ Each command on this page runs in the folder that holds your `docker-compose.yml
 Freetvarr keeps its database and settings in a folder called `freetvarr`, inside the `config` folder next to your `docker-compose.yml` (the setting `CONFIG_PATH` in the `.env` file beside `docker-compose.yml` can move the `config` folder). The database is the file `state.db`. Its most recent changes sit in two files beside it, `state.db-wal` and `state.db-shm`, so always copy the whole folder:
 
 1. Open a terminal in the [compose folder](#the-compose-folder).
-2. Stop Freetvarr: run `docker compose stop freetvarr`.
+2. Stop Freetvarr:
+
+   ```sh
+   docker compose stop freetvarr
+   ```
+
 3. Copy the whole `config/freetvarr` folder somewhere safe, such as `config/freetvarr-backup`.
 
 A backup matters most before an update that changes the database, because an older Freetvarr cannot always open a database that a newer one updated. [Backups](/guide/configuration#backups) also covers the TVHeadend settings folder.
@@ -82,7 +87,13 @@ The original Watchtower project (`containrrr/watchtower`) stopped on `2025-12-17
          - /etc/localtime:/etc/localtime:ro
    ```
 
-3. In a terminal in the [compose folder](#the-compose-folder), run `docker compose up -d`. In a NAS container app, add the same lines to the project and start it again.
+3. In a terminal in the [compose folder](#the-compose-folder), run:
+
+   ```sh
+   docker compose up -d
+   ```
+
+   In a NAS container app, add the same lines to the project and start it again.
 
 The settings, from the Watchtower [container selection](https://watchtower.nickfedor.com/v1.23.2/configuration/container-selection/), [scheduling](https://watchtower.nickfedor.com/v1.23.2/configuration/scheduling/), and [update behaviour](https://watchtower.nickfedor.com/v1.23.2/configuration/update-behavior/) pages:
 
@@ -117,16 +128,30 @@ This is the update from Freetvarr 1.x. Back up first: Freetvarr 1.x cannot open 
 - **Files move once**: about 3 minutes after the first start, Freetvarr sorts every title as a show, a one-off, or a movie, and moves the files once to match. A move never overwrites a file. Freetvarr skips that file and lists it in Settings → SYSTEM → Activity, under the **Library folders** job.
 - **Plex watched sync**: if Plex is set up, watched state syncs both ways (**From Plex** and **Back to Plex**). Turn either off in Settings → RECORDING → Plex.
 - **Your whole Plex library**: Recordings lists the episodes and films in your Plex TV and Movies libraries. Turn it off in Settings → RECORDING → Plex → **Show your whole Plex library**.
-- **Live streams at once**: a `docker-compose.yml` from before 2.0.0 caps live streams at `2`. To let Freetvarr choose the limit for your computer, change `${LIVE_TV_MAX_SESSIONS:-2}` to `${LIVE_TV_MAX_SESSIONS:-}` in your `docker-compose.yml`, then run `docker compose up -d`.
+- **Live streams at once**: a `docker-compose.yml` from before 2.0.0 caps live streams at `2`. To let Freetvarr choose the limit for your computer, change `${LIVE_TV_MAX_SESSIONS:-2}` to `${LIVE_TV_MAX_SESSIONS:-}` in your `docker-compose.yml`, then run:
+
+  ```sh
+  docker compose up -d
+  ```
+
 - **Sonarr and Radarr mounts (optional)**: to let Freetvarr read their API keys, add the lines from [`docker-compose.example.yml`](https://github.com/furey/freetvarr/blob/main/docker-compose.example.yml) to your `docker-compose.yml` ([Sonarr and Radarr](/guide/sonarr-radarr)).
 
 ## Go back to an older version
 
 To go back, restore the backup you made before the update:
 
-1. Stop Freetvarr: run `docker compose stop freetvarr`.
+1. Stop Freetvarr:
+
+   ```sh
+   docker compose stop freetvarr
+   ```
+
 2. Put the backup in place of the `config/freetvarr` folder.
 3. In your `docker-compose.yml`, change the image of the `freetvarr` service from `ghcr.io/furey/freetvarr:latest` to the version you backed up from, such as `ghcr.io/furey/freetvarr:2.0.1`.
-4. Start Freetvarr: run `docker compose up -d`.
+4. Start Freetvarr:
+
+   ```sh
+   docker compose up -d
+   ```
 
 To return to the newest release later, change the image back to `ghcr.io/furey/freetvarr:latest`, then [update](#update) as usual.

@@ -158,7 +158,11 @@ At startup Freetvarr reads `LIVE_TV_TRANSCODE` and picks one method:
 | `software`       | Always software: `yadif` and `libx264`, capped at `540` lines. Costs much more CPU                         |
 | `copy`           | The old behaviour: H.264 passes through untouched. Safari plays it; Chrome cannot play interlaced channels |
 
-Freetvarr logs the choice and the reason on a line that starts with `[live] video`. To read it, run `docker compose logs freetvarr | grep "\[live\] video"` in a terminal in the `freetvarr` folder (the folder that [the install](/guide/getting-started#_1-install) creates).
+Freetvarr logs the choice and the reason on a line that starts with `[live] video`. To read it, run this in a terminal in the `freetvarr` folder (the folder that [the install](/guide/getting-started#_1-install) creates):
+
+```sh
+docker compose logs freetvarr | grep "\[live\] video"
+```
 
 > [!NOTE]<br>
 > The author's NAS (Synology DS220+, Intel Celeron J4025 with two cores) re-encodes `1080i` to `720p` in hardware at about `6.5x` real time, using about `5%` of one core. Software at `720p` ran at only `1.36x` real time on both cores, which is why the software path caps at `540` lines.

@@ -34,7 +34,13 @@ Windows 10 has no mirrored networking. On Windows 10 only the [Docker Desktop](#
 These steps install Docker Engine inside Ubuntu in WSL. Each step links to the source it comes from.
 
 1. In the PC's BIOS or UEFI firmware, turn on virtualisation.
-2. In PowerShell (as administrator), run `wsl --install`. This installs WSL and Ubuntu ([Microsoft: Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)). Restart the PC when it asks, then open Ubuntu from the Start menu and create a Linux username and password.
+2. In PowerShell (as administrator), run:
+
+   ```powershell
+   wsl --install
+   ```
+
+   This installs WSL and Ubuntu ([Microsoft: Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)). Restart the PC when it asks, then open Ubuntu from the Start menu and create a Linux username and password.
 3. In File Explorer, create the file `.wslconfig` in your user folder (`C:\Users\<your name>`), with this content ([Microsoft: WSL settings](https://learn.microsoft.com/en-us/windows/wsl/wsl-config)):
 
    ```ini
@@ -53,17 +59,40 @@ These steps install Docker Engine inside Ubuntu in WSL. Each step links to the s
    Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow
    ```
 
-5. In PowerShell, run `wsl --shutdown`, wait `10` seconds, then open Ubuntu again so the new settings apply.
-6. In Ubuntu, check that `/etc/wsl.conf` has these lines, and add them if not (`sudo nano /etc/wsl.conf`). Docker Engine needs systemd to start by itself.
+5. In PowerShell, run:
+
+   ```powershell
+   wsl --shutdown
+   ```
+
+   Wait `10` seconds, then open Ubuntu again so the new settings apply.
+6. In Ubuntu, check that `/etc/wsl.conf` has these lines, and add them if not. Docker Engine needs systemd to start by itself.
 
    ```ini
    [boot]
    systemd=true
    ```
 
+   To edit the file, run:
+
+   ```sh
+   sudo nano /etc/wsl.conf
+   ```
+
 7. In Ubuntu, install Docker Engine and the Docker Compose plugin from Docker's own instructions ([Docker: Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)). Then add your user to the `docker` group ([Docker: Linux post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
-8. In Ubuntu, move to your home folder (`cd ~`) and run the install command from [Getting started](/guide/getting-started#_1-install). Keep the `freetvarr` folder in your Ubuntu home folder, not under `/mnt/c` (see [Storage](#storage)).
-9. On a phone or another computer, open `http://<windows-pc-ip>:3733` and run [setup](/guide/getting-started#_2-run-setup). To find the PC's address, run `ipconfig` in PowerShell and read the IPv4 address of the wired adapter.
+8. In Ubuntu, move to your home folder:
+
+   ```sh
+   cd ~
+   ```
+
+   Then run the install command from [Getting started](/guide/getting-started#_1-install). Keep the `freetvarr` folder in your Ubuntu home folder, not under `/mnt/c` (see [Storage](#storage)).
+9. On a phone or another computer, open `http://<windows-pc-ip>:3733` and run [setup](/guide/getting-started#_2-run-setup). To find the PC's address, run this in PowerShell and read the IPv4 address of the wired adapter:
+
+   ```powershell
+   ipconfig
+   ```
+
 10. In the **Channels** step of setup, if setup finds no tuner, press **Enter the tuner's address**. Enter the tuner's IP address and the Windows PC's IP address, then press **Use this address**.
 
 The install script stops in Git Bash and other Windows terminals. Run it only in the Ubuntu terminal.

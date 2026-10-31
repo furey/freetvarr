@@ -11,7 +11,13 @@ Freetvarr reads settings from two places. Freetvarr's `.env`, next to its Docker
 
 ## Compose environment
 
-Set these in the `.env` alongside `docker-compose.yml`. After a change, run `docker compose up -d` in a terminal in that folder to restart the Docker containers with the new values. Every value is optional:
+Set these in the `.env` alongside `docker-compose.yml`. After a change, restart the Docker containers with the new values. In a terminal in that folder, run:
+
+```sh
+docker compose up -d
+```
+
+Every value is optional:
 
 | Variable                 | Purpose                                                                                                                                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -39,9 +45,18 @@ Set these in the `.env` alongside `docker-compose.yml`. After a change, run `doc
 
 Freetvarr keeps its database, its CSRF secret, your uploaded pictures, and its caches in one folder: `${CONFIG_PATH}/freetvarr` on the host (`/config` in the Freetvarr Docker container). The database is `state.db`. Freetvarr writes it in SQLite's WAL mode, so recent changes sit in the files `state.db-wal` and `state.db-shm` beside it until SQLite folds them into `state.db`. A copy of `state.db` alone can miss those changes. Back up the whole folder:
 
-1. Stop Freetvarr: run `docker compose stop freetvarr` in a terminal in the `freetvarr` folder.
+1. Stop Freetvarr. In a terminal in the `freetvarr` folder, run:
+
+   ```sh
+   docker compose stop freetvarr
+   ```
+
 2. Copy the whole `${CONFIG_PATH}/freetvarr` folder, including `state.db-wal` and `state.db-shm`.
-3. Start Freetvarr again: run `docker compose start freetvarr`.
+3. Start Freetvarr again:
+
+   ```sh
+   docker compose start freetvarr
+   ```
 
 To restore, stop Freetvarr, put the copied folder back in place of `${CONFIG_PATH}/freetvarr`, and start Freetvarr. TVHeadend keeps its own settings and recording list in `${CONFIG_PATH}/tvheadend`, so back that folder up too.
 

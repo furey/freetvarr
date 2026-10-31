@@ -355,6 +355,33 @@ kbd {
   border-radius: 10px;
 }
 
+/* Commands to run: wrap instead of scroll, so the whole command shows; the copy button copies it exactly. */
+
+.vp-doc :is(div.language-sh, div.language-bash, div.language-shell, div.language-powershell, div.language-bat, div.language-cmd) pre {
+  padding-right: 56px;
+}
+
+.vp-doc :is(div.language-sh, div.language-bash, div.language-shell, div.language-powershell, div.language-bat, div.language-cmd) code {
+  width: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.vp-doc :is(div.language-sh, div.language-bash, div.language-shell, div.language-powershell, div.language-bat, div.language-cmd) .line > span {
+  display: inline-block;
+  max-width: 100%;
+}
+
+@media (hover: none) {
+  .vp-doc div[class*="language-"] > button.copy {
+    opacity: 1;
+  }
+
+  .vp-doc div[class*="language-"] > span.lang {
+    display: none;
+  }
+}
+
 /* Tables: the app's grouped list, with group-label column headers. */
 
 .vp-doc table {
@@ -1200,6 +1227,12 @@ kbd {
     margin-left: calc(var(--phone-gutter) * -1);
     margin-right: calc(var(--phone-gutter) * -1);
     border-radius: 0;
+  }
+
+  .vp-doc.vp-doc li div[class*="language-"] {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 10px;
   }
 
   .vp-doc > div > p,

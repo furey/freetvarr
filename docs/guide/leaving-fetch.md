@@ -14,6 +14,9 @@ imageAlt: 'A step-by-step guide: Leaving Fetch TV? Keep recording free-to-air TV
 
 Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
+<!-- markdownlint-disable-next-line MD033 -->
+<YouTubeVideo id="oNzNmlOxSFs" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:03" />
+
 ## What you'll need
 
 1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun, made by SiliconDust, is a good one. The HDHomeRun Flex Quatro has four tuners inside, so it receives four channels at once.
@@ -201,15 +204,38 @@ Save your recordings before you cancel and before Fetch suspends the box. After 
 
 1. Install Node.js, the free software that runs the tool. Download the LTS (long-term support) installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", Windows is blocking PowerShell scripts, which is its default setting. Use Command Prompt, or type `npx.cmd` wherever these steps say `npx`. Running PowerShell as administrator does not change this. (Some PCs already allow PowerShell scripts, e.g. with PowerShell 7, so `npx` works there unchanged.) If Windows says `npx` is not recognized, close the window and open a new one after installing Node.js.
-3. Find the box. In the terminal, type `npx fetchtv` and press Enter. If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
+3. Find the box. In the terminal, type this command and press Enter:
+
+   ```sh
+   npx fetchtv
+   ```
+
+   If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
-5. List your recordings. In the terminal, run `npx fetchtv shows --ip=192.168.1.50`, with your box's IP address in place of the example.
+5. List your recordings. Put your box's IP address in place of the example, and run:
+
+   ```sh
+   npx fetchtv shows --ip=192.168.1.50
+   ```
+
 6. Check that the computer has enough free disk space. Each hour of HD takes about `3–6GB`.
-7. Copy every recording. In the terminal, run `npx fetchtv recordings --ip=192.168.1.50 --for-plex --save=./fetch-recordings`, with your box's IP address in place of the example. The `--for-plex` option names each file the way Freetvarr, Plex, Jellyfin, and Kodi expect.
+7. Copy every recording. Put your box's IP address in place of the example, and run:
+
+   ```sh
+   npx fetchtv recordings --ip=192.168.1.50 --for-plex --save=./fetch-recordings
+   ```
+
+   The `--for-plex` option names each file the way Freetvarr, Plex, Jellyfin, and Kodi expect.
 
 The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show and a `Season` folder inside it (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). While a recording copies, the tool saves it as a `.part` file and renames it when the copy is complete, so a half-copied recording never looks finished. If the copy stops, run the same command again (the tool skips the files it already copied and resumes the one that was part-way). With hundreds of recordings, expect to run the command several times.
 
-To copy one show only, add `--show=` and part of its name: `npx fetchtv recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./fetch-recordings`. The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
+To copy one show only, add `--show=` and part of its name:
+
+```sh
+npx fetchtv recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./fetch-recordings
+```
+
+The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 
 The files play in VLC (a free video player).
 
