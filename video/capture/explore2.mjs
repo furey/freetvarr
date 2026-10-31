@@ -1,0 +1,21 @@
+import { chromium } from 'playwright'
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1440, height: 810 }, deviceScaleFactor: 4 / 3 })
+const dump = async (tag) => {
+  await page.screenshot({ path: `shots/x-${tag}.png` })
+  console.log(`--- ${tag}\n` + (await page.evaluate(() => document.body.innerText)).split('\n').filter(l => !/^(Africa|America|Asia|Europe|Pacific|Atlantic|Indian|Antarctica|Arctic|Australia\/)/.test(l)).join('\n').slice(0, 1500))
+  console.log(await page.evaluate(() => [...document.querySelectorAll('input,select,button')].filter(e => e.offsetParent).map(e => `${e.tagName}#${e.id} ${(e.innerText || e.value || '').trim().slice(0, 30)}`).join(' | ')))
+}
+await page.goto('http://127.0.0.1:3857/#/welcome')
+await page.waitForTimeout(2000)
+await page.getByRole('button', { name: 'Start setup' }).click(); await page.waitForTimeout(2500)
+await page.getByRole('button', { name: 'Save and next' }).click(); await page.waitForTimeout(4000)
+await page.getByRole('button', { name: 'Next' }).click(); await page.waitForTimeout(4000)
+await page.selectOption('#guide-feed', { label: 'Another address' }); await page.waitForTimeout(800)
+await dump('guide-other')
+const input = page.locator('input[type=url], input#guide-url, .setup-fields input').first()
+await input.fill('http://192.168.86.246:3890/xmltv.xml')
+await page.getByRole('button', { name: 'Set up guide' }).click()
+await page.waitForTimeout(45000)
+await dump('guide-done')
+await browser.close()

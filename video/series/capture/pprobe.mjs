@@ -1,0 +1,11 @@
+import { openBrowser, wait, BASE } from './lib.mjs'
+const { browser, page } = await openBrowser({})
+await page.goto(`${BASE}/#/live`); await wait(page, 3000)
+await page.locator('[aria-label^="Watch Coastline live"]').first().click()
+await wait(page, 9000)
+await page.mouse.move(640, 400); await wait(page, 300); await page.mouse.move(660, 420)
+await wait(page, 500)
+const list = await page.evaluate(() => [...document.querySelectorAll('button,[role=slider],[role=menuitem]')].filter((e) => e.getClientRects().length).map((e) => `${e.getAttribute('aria-label') || e.textContent.trim().slice(0, 30)}`))
+console.log(list.join(' | '))
+await page.screenshot({ path: 'peek/player.jpg', quality: 70, type: 'jpeg' })
+await browser.close()

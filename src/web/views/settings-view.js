@@ -536,7 +536,7 @@ export const SettingsView = {
           <div class="settings-group-head">
             <h3 class="ui-group-label">Versions</h3>
             <info-button title="Versions" doc="guide/troubleshooting#reporting-a-bug">
-              <p>The versions Freetvarr is running with. Include them when you report a bug. <strong>Copy</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser.</p>
+              <p>The versions Freetvarr is running with. Include them when you report a bug. <strong>Copy</strong> puts them on the clipboard as plain text. The update check asks GitHub for the newest Freetvarr release, from this browser. When one is out, press it for the update steps.</p>
             </info-button>
           </div>
           <div class="ui-group settings-versions">
