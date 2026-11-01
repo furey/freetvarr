@@ -75,7 +75,7 @@ export const SCENES = [
     id: 'plex',
     chapter: 'Plex',
     lines: [
-      'Plex is optional. If {Freetvarr} connects to Plex, check the TV library, and press Next.',
+      'Plex is optional. If {Freetvarr} connects to Plex, check the TV, movies, and one-off libraries, and press Next.',
       'If Plex has no library for your recordings yet, press Create libraries first.',
       'No Plex? Press Next. {Freetvarr} still files every recording into your media library.',
     ],

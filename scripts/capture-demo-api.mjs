@@ -683,7 +683,7 @@ const demoFixtures = ({ simNow, picks }) => {
     wholeLibrary: {
       enabled: true,
       sectionIds: ['2', '1'],
-      sections: [{ id: '1', title: 'Movies', type: 'movie' }, { id: '2', title: 'TV Shows', type: 'show' }, { id: '5', title: 'One-offs', type: 'movie' }],
+      sections: [{ id: '1', title: 'Movies', type: 'movie' }, { id: '2', title: 'TV Shows', type: 'show' }],
       itemCount: 1043,
     },
     watchSync: {

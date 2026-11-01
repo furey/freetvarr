@@ -294,10 +294,10 @@ Fetch TV, Fetch levy, leaving Fetch, cancel Fetch, Fetch recordings, Fetch Might
 **9. Plex, if you use it** (`plex`)
 
 - Voiceover:
-  1. Plex is optional. If Freetvarr connects to Plex, check the TV library, and press Next.
+  1. Plex is optional. If Freetvarr connects to Plex, check the TV, movies, and one-off libraries, and press Next.
   2. If Plex has no library for your recordings yet, press Create libraries first.
   3. No Plex? Press Skip Plex. Freetvarr still files every recording into your media library.
-- Visual: The Plex step, then the Skip Plex button. Text only for Plex, no logo.
+- Visual: The Plex step with the TV library, Movies library, and One-off library rows, then the Next button. Text only for Plex, no logo.
 - Kicker: Plex is optional
 
 **10. You're set** (`done`)
