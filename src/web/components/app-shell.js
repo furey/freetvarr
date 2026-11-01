@@ -6,7 +6,7 @@ import { health } from '/shared/health.js'
 import { route } from '/shared/router.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { ForYouNavIcon } from '/components/nav-icons.js'
-import { forYouReady, forYouShown, keepForYouAnimate, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
+import { forYouRailKnown, forYouReady, forYouShown, keepForYouAnimate, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
 import { FOR_YOU_URL, forYouReadyOf } from '/for-you.js'
 import { hashesMatch } from '/scroll-memory.js'
 import { cancelRouteHover, warmRouteOnHover, warmRouteOnPress } from '/shared/route-warmup.js'
@@ -19,6 +19,8 @@ const NAV_ICONS = {
   'for-you': 'for-you-nav-icon',
   settings: 'settings-nav-icon',
 }
+
+const RAIL_HOLD_MAX_MS = 1500
 
 const railActiveOf = ({ view, forYouInRail }) => (view === 'for-you' && forYouInRail ? 'for-you' : activeDestinationOf(view))
 
@@ -50,7 +52,7 @@ const scrollTopOnRepeatTap = (event) => {
 
 export const AppNav = {
   template: `
-    <nav class="app-rail" aria-label="Main">
+    <nav :class="['app-rail', { 'is-holding': holding }]" aria-label="Main">
       <a href="#/home" class="app-brand-link" aria-label="Freetvarr home" @click="scrollTopOnRepeatTap"><brand-mark /></a>
       <template v-for="item in railItems" :key="item.key">
         <span v-if="item.key === 'settings'" class="app-rail-spacer"></span>
@@ -84,7 +86,16 @@ export const AppNav = {
     const active = computed(() => activeDestinationOf(route.value))
     const railActive = computed(() => railActiveOf({ view: route.value, forYouInRail: forYouInRail.value }))
     watch(() => route.value, (view) => { if (view === 'home' || view === 'for-you') refreshForYouShown() })
-    refreshForYouShown().then(() => setTimeout(() => { animated.value = true }, 100))
+    const holding = ref(!forYouRailKnown.value)
+    const showRailAnimated = () => {
+      holding.value = false
+      animated.value = true
+    }
+    if (holding.value) setTimeout(showRailAnimated, RAIL_HOLD_MAX_MS)
+    refreshForYouShown().then(() => {
+      holding.value = false
+      setTimeout(() => { animated.value = true }, 100)
+    })
     const settingsBadge = computed(() => healthBadgeOf(health.value))
     const badgeOf = (item) => (item.key === 'settings' ? settingsBadge.value : null)
     const nameOf = (item) => (badgeOf(item) ? badgedNameOf({ label: item.label, badge: badgeOf(item) }) : null)
@@ -92,6 +103,7 @@ export const AppNav = {
       tabItems,
       railItems,
       animated,
+      holding,
       active,
       railActive,
       badgeOf,

@@ -26,7 +26,7 @@ export const ChannelsButton = {
 }
 
 export const ClockLabel = {
-  template: `<span class="ui-clock ui-only-wide">{{ clock }}</span>`,
+  template: `<span class="ui-clock ui-only-wide"><span class="ui-clock-time">{{ clock }}</span></span>`,
   setup: () => ({ clock: computed(() => fmtClockTz(now.value.getTime())) }),
 }
 

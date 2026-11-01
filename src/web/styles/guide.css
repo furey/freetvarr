@@ -67,7 +67,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 48px;
+  height: var(--control-compact-h);
   padding: 0 14px;
   border-radius: var(--radius-button);
   background: var(--color-surface-1);
@@ -255,8 +255,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 28px;
-  margin: 18px 0 -8px;
+  height: var(--control-compact-h);
+  margin: 0 0 -8px;
 }
 
 .guide-label-row .ui-group-label {
@@ -266,18 +266,23 @@
 
 .guide-filter {
   display: flex;
-  flex: 0 1 180px;
+  flex: 0 1 220px;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  height: 36px;
-  margin: -6px 0 -2px;
-  padding: 0 12px;
+  height: var(--control-compact-h);
+  padding: 0 14px;
   border: 1px solid var(--color-field-edge);
   border-radius: var(--radius-button);
   background: var(--color-well);
   color: var(--color-text-3);
-  font-size: 14px;
+  font-size: 15px;
+}
+
+@media (pointer: coarse) {
+  .guide-filter {
+    font-size: 16px;
+  }
 }
 
 .guide-filter:focus-within {
@@ -287,8 +292,8 @@
 
 .guide-filter svg {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .guide-filter input {
@@ -2415,6 +2420,10 @@
 }
 
 @media (min-width: 768px) and (min-height: 501px) {
+  .guide-page {
+    margin-bottom: -16px;
+  }
+
   .guide-page .guide-card .epg-scroll {
     max-height: max(320px, calc(100dvh - var(--guide-grid-top, 240px) - 58px));
   }

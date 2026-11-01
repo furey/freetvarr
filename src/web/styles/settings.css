@@ -273,7 +273,7 @@
     width: 240px;
     height: 100dvh;
     margin: calc(-1 * (env(safe-area-inset-top, 0px) + 28px)) 0 -40px calc(-1 * var(--gutter));
-    padding: calc(env(safe-area-inset-top, 0px) + 28px) 12px calc(40px + var(--settings-save-bar-h)) 24px;
+    padding: calc(env(safe-area-inset-top, 0px) + 28px) 12px calc(40px + var(--settings-save-bar-h)) calc(var(--gutter) - 12px);
     overflow-y: auto;
     border-right: 1px solid var(--color-hairline-soft);
     scrollbar-width: thin;
@@ -281,10 +281,6 @@
 
   .settings-nav-title {
     margin: 0 12px 8px;
-  }
-
-  .settings-search-field {
-    height: 40px;
   }
 
   .settings-search-result[aria-selected="true"] {

@@ -164,7 +164,7 @@ export const ScheduledView = {
       <div class="library-toolbar">
         <recordings-tabs current="scheduled" :scheduled-count="loaded ? count : null" />
         <div class="library-filters">
-          <span v-if="repeatsChip.kind === 'loading'" class="ui-chip scheduled-repeats-chip" aria-hidden="true"><span class="ui-skeleton is-text" style="--skeleton-w: 6.4em"></span></span>
+          <span v-if="repeatsChip.kind === 'loading'" class="ui-chip scheduled-repeats-chip" aria-hidden="true"><span class="ui-skeleton is-text" style="--skeleton-w: 5em"></span></span>
           <button v-else type="button" class="ui-chip scheduled-repeats-chip" :aria-pressed="repeatsChip.pressed" :aria-label="repeatsChip.label"
             :disabled="repeatsChip.disabled" @click="showRepeats = !showRepeats">{{ repeatsChip.text }}<span v-if="repeatsChip.countText" class="scheduled-repeats-count">{{ repeatsChip.countText }}</span></button>
         </div>
