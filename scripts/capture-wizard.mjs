@@ -150,8 +150,11 @@ const tourStorage = async (page) => {
 const tourPlex = async (page) => {
   await page.getByText('Connected').first().waitFor({ timeout: 15_000 })
   await page.waitForTimeout(700)
-  await cursorToBox(page, page.locator('select:visible').first())
-  await page.waitForTimeout(1300)
+  for (const kind of ['tv', 'movies', 'oneoff']) {
+    await cursorToBox(page, page.locator(`#wizard-plex-${kind}-section`))
+    await page.waitForTimeout(900)
+  }
+  await page.waitForTimeout(400)
   await pressButton(page, 'Next')
 }
 
