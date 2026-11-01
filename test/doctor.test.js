@@ -254,7 +254,7 @@ test('runDoctor: a tuner on a link-local address warns', async () => {
   const tuners = byId(report)['tvh.tuners']
   assert.equal(tuners.status, 'warn')
   assert.match(tuners.fix, /link-local/)
-  assert.equal(tuners.doc, 'guide/hardware#direct-to-a-spare-nas-port')
+  assert.equal(tuners.doc, 'guide/requirements#direct-to-a-spare-nas-port')
 })
 
 test('runDoctor: preferred picons with no picon path warns on logos', async () => {

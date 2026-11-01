@@ -14,8 +14,8 @@ description: >-
 
 ## Prerequisites
 
-- A **TVHeadend-compatible tuner**. [Requirements](/guide/hardware) covers the choice.
-- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of [setup](#_2-run-setup) instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows; [Windows](/guide/windows) describes a theoretical route through WSL. [The computer](/guide/hardware#the-computer) gives minimum and recommended specs.
+- A **TVHeadend-compatible tuner**. [Requirements](/guide/requirements) covers the choice.
+- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of [setup](#_2-run-setup) instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows; [Windows](/guide/windows) describes a theoretical route through WSL. [The computer](/guide/requirements#the-computer) gives minimum and recommended specs.
 
 Freetvarr's Docker compose file, which the install downloads, runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the Docker compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
 
@@ -177,7 +177,7 @@ The Freetvarr host's address must fall inside the allowed networks of the TVHead
 - Sign in over SSH before you run the install script or `docker compose`, so Docker is on the `PATH`.
 - Create the `config` and `data` folders before the first start. Some NAS Docker builds refuse to mount a folder that does not exist. The install script creates them (with a container app, create them in the NAS file manager).
 - Set `PUID` and `PGID` in the `.env` to your NAS user's values from `id`.
-- Use a network tuner. Most NAS operating systems have no USB DVB drivers ([Requirements](/guide/hardware)).
+- Use a network tuner. Most NAS operating systems have no USB DVB drivers ([Requirements](/guide/requirements)).
 
 ## Updating
 

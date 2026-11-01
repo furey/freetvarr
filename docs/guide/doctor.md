@@ -106,7 +106,7 @@ Reads the last finished sync and the sync schedule. It warns when the last sync 
 
 ## Live TV encoder {#live-encoder}
 
-Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/hardware#hardware-transcoding).
+Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/requirements#hardware-transcoding).
 
 ## Live streams {#live-streams}
 

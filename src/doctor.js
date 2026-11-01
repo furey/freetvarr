@@ -244,7 +244,7 @@ const LATER_CHECKS = [
           status: 'warn',
           detail,
           fix: 'The tuner has a link-local address (169.254.x.x), so it may change if you move it.',
-          doc: 'guide/hardware#direct-to-a-spare-nas-port',
+          doc: 'guide/requirements#direct-to-a-spare-nas-port',
         }
       }
       return { status: 'pass', detail }
@@ -536,7 +536,7 @@ const LATER_CHECKS = [
     id: 'live.encoder',
     group: 'live',
     title: 'Live TV encoder',
-    doc: 'guide/hardware#hardware-transcoding',
+    doc: 'guide/requirements#hardware-transcoding',
     run: async (ctx) => {
       const [encoder, ffmpeg] = await Promise.all([ctx.deps.liveEncoder(), ctx.deps.which('ffmpeg')])
       if (!ffmpeg) {
@@ -564,7 +564,7 @@ const LATER_CHECKS = [
     id: 'live.streams',
     group: 'live',
     title: 'Live streams',
-    doc: 'guide/hardware#hardware-transcoding',
+    doc: 'guide/requirements#hardware-transcoding',
     run: async (ctx) => liveStreamsCheck(await ctx.deps.liveStreams()),
   },
   {

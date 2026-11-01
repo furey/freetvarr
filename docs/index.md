@@ -38,7 +38,7 @@ features:
     details: >-
       A tuner you own and a free XMLTV guide. No subscription, no levy, no
       vendor who can retire your recorder.
-    link: /guide/hardware
+    link: /guide/requirements
     linkText: What to buy
   - title: TV guide
     illustration: tv-guide
