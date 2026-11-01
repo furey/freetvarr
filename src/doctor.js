@@ -496,7 +496,7 @@ const LATER_CHECKS = [
   {
     id: 'plex.oneoffs',
     group: 'plex',
-    title: 'Plex One-offs library',
+    title: 'Plex one-off library',
     doc: 'guide/troubleshooting#one-offs-that-stay-in-plex',
     run: async (ctx) => {
       const { plexUrl, plexToken, plexOneOffSectionId, oneOffRoot } = ctx.settings
@@ -504,10 +504,10 @@ const LATER_CHECKS = [
         return { status: 'skip', detail: 'No Plex library is chosen for one-offs.', action: SETTINGS_PLEX }
       }
       const folder = await ctx.deps.oneOffFolder(oneOffRoot)
-      if (folder.hasFiles) return { status: 'pass', detail: 'The One-offs folder has recordings.' }
+      if (folder.hasFiles) return { status: 'pass', detail: 'The one-off folder has recordings.' }
       const items = await ctx.deps.plexSectionSize({ url: plexUrl, token: plexToken, sectionId: plexOneOffSectionId }).catch(() => null)
-      if (items == null) return { status: 'skip', detail: 'Plex did not answer, so the One-offs library was not counted.' }
-      if (!items) return { status: 'pass', detail: 'The One-offs folder and the Plex One-offs library are both empty.' }
+      if (items == null) return { status: 'skip', detail: 'Plex did not answer, so the one-off library was not counted.' }
+      if (!items) return { status: 'pass', detail: 'The one-off folder and the Plex one-off library are both empty.' }
       return oneOffGhosts({ items, hasPlaceholder: folder.hasPlaceholder })
     },
   },
@@ -657,9 +657,9 @@ const liveStreamsFix = (estimated) => estimated
   : 'Pictures may stutter even with 1 live stream.'
 
 export const oneOffGhosts = ({ items, hasPlaceholder }) => {
-  const detail = `The Plex One-offs library has ${plural(items, 'item')} while the One-offs folder has no files.`
+  const detail = `The Plex one-off library has ${plural(items, 'item')} while the one-off folder has no files.`
   if (hasPlaceholder) {
-    return { status: 'warn', detail, fix: 'In Plex, scan the One-offs library, then use Empty Trash on it.' }
+    return { status: 'warn', detail, fix: 'In Plex, scan the one-off library, then use Empty Trash on it.' }
   }
   return {
     status: 'warn',

@@ -39,7 +39,7 @@ Freetvarr decides between Shows and One-offs the same way for the shelf, for the
 
 1. Your choice wins. **Move to Shows** or **Move to One-offs**, a [series recording](/guide/series#how-a-series-recording-works) (TVHeadend records every new episode), and a series folder or [title match](/guide/series#title-matches) that you made all keep a title where you put it.
 2. A film goes to Movies (see [Films](/guide/series#films)).
-3. Sport with no entry on TheTVDB or TMDB (the online databases that Plex uses to name TV shows) is a one-off. Freetvarr counts a title as sport when the TV guide marks most of its recordings as sport. It asks TVmaze (an online TV database) once per title and remembers the answer. A sport title with a year in it, such as `Rugby League World Cup 2026`, is a one-off before the answer comes back. Plex cannot match these titles as TV shows, so it shows each game as an unnamed episode.
+3. Sport with no entry on TheTVDB or TMDB (the online databases that Plex uses to name TV shows) is a one-off. Freetvarr counts a title as sport when the TV guide marks most of its recordings as sport. It asks TVmaze (an online TV database) once per title and remembers the answer. When the answer is no entry, it asks again after 30 days, and moves the title back to Shows if an entry has appeared. A sport title with a year in it, such as `Rugby League World Cup 2026`, is a one-off before the answer comes back. Plex cannot match these titles as TV shows, so it shows each game as an unnamed episode.
 4. Everything else counts as a series when any of these is true:
    - It has a series folder that Freetvarr made at an earlier import, or Plex lists it as a TV show.
    - You recorded it on two or more days.
@@ -70,7 +70,7 @@ An empty library says `Nothing recorded yet` and offers **Find a show in the TV 
 Freetvarr moves a recorded file when its shelf and its folder do not match:
 
 - Once, 3 minutes after Freetvarr first starts (after an update from 1.x, the first start of 2.0.0 or later). A recording in the wrong folder, such as the episodes of a weekly series in the one-off folder, moves to the matching folder.
-- After each [sync](/guide/syncs), for a title that changed shelf. When a title moves to One-offs, Freetvarr switches off the title match it made for that title at an earlier import, and removes its TV folder when the folder is empty.
+- After each [sync](/guide/syncs), for a title that changed shelf. When Freetvarr cannot read the series recordings from TVHeadend, it moves nothing until a later sync can. When a title moves to One-offs, Freetvarr switches off the title match it made for that title at an earlier import, and removes its TV folder when the folder is empty.
 - At once, after you choose **Move to Shows** or **Move to One-offs**, or undo that choice.
 
 Files move only between the TV folder and the one-off folder; films stay where they are. Freetvarr skips a file when a file with the same name is already in the new place, or while [ad removal](/guide/ad-removal) works on it, and tries again after the next sync. Each run shows in Settings → SYSTEM → [Activity](/guide/syncs) as **Library folders**, with each file and its result.

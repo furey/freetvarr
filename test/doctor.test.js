@@ -560,17 +560,17 @@ const oneOffCheck = async ({ oneOffRoot, items }) => {
   return byId(await runAgainst({ routes: healthyRoutes({ now }), now, settings, plexSectionSize, plexSections }))['plex.oneoffs']
 }
 
-test('plex.oneoffs: Plex items with no files in the One-offs folder warn and offer the placeholder file', async () => {
+test('plex.oneoffs: Plex items with no files in the one-off folder warn and offer the placeholder file', async () => {
   const { keepOneOffFolder, ONE_OFF_PLACEHOLDER } = await import('../src/one-off-placeholder.js')
   const oneOffRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-doctor-oneoffs-'))
   try {
     const empty = await oneOffCheck({ oneOffRoot, items: 5 })
     assert.equal(empty.status, 'warn')
-    assert.equal(empty.detail, 'The Plex One-offs library has 5 items while the One-offs folder has no files.')
+    assert.equal(empty.detail, 'The Plex one-off library has 5 items while the one-off folder has no files.')
     assert.deepEqual(empty.action, { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' })
 
-    assert.equal(await keepOneOffFolder(oneOffRoot), true)
-    assert.equal(await keepOneOffFolder(oneOffRoot), true)
+    assert.equal(await keepOneOffFolder(oneOffRoot), 'kept')
+    assert.equal(await keepOneOffFolder(oneOffRoot), 'kept')
     assert.equal(await fs.readFile(path.join(oneOffRoot, ONE_OFF_PLACEHOLDER), 'utf8'), '')
     const placed = await oneOffCheck({ oneOffRoot, items: 5 })
     assert.equal(placed.status, 'warn')
@@ -586,9 +586,9 @@ test('plex.oneoffs: Plex items with no files in the One-offs folder warn and off
   }
 })
 
-test('keepOneOffFolder: leaves a missing one-offs folder alone', async () => {
+test('keepOneOffFolder: leaves a missing one-off folder alone', async () => {
   const { keepOneOffFolder } = await import('../src/one-off-placeholder.js')
   const missing = path.join(os.tmpdir(), 'freetvarr-no-such-folder', 'one-offs')
-  assert.equal(await keepOneOffFolder(missing), false)
+  assert.equal(await keepOneOffFolder(missing), 'missing')
   assert.equal(await fs.access(missing).then(() => true, () => false), false)
 })

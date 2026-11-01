@@ -109,7 +109,7 @@ test('sync: a sport title with a TVDB id is filed in TV under a new automatic ti
 
 test('sync: a disabled automatic title match does not pull the next game back into TV', async () => {
   await db('shows').insert({ show_pattern: 'AFLW', dest_folder: 'AFLW', origin: 'auto', enabled: false })
-  await db('series_evidence').insert({ show_key: 'aflw', facts_json: '{}', database_ids: 'none', updated_at: Date.now() })
+  await db('series_evidence').insert({ show_key: 'aflw', facts_json: '{}', database_ids: 'none', database_ids_at: Date.now(), updated_at: Date.now() })
   await recordGame('aflw-126', { disp_subtitle: 'Rnd 12: Carlton v Essendon', episode_disp: 'Season 26.Episode 126' })
   let lookups = 0
   await runSync(async () => {
@@ -128,4 +128,26 @@ test('sync: a lookup that is still running keeps the old filing', async () => {
   const row = await db('recordings').where({ recording_id: 'aflw-127' }).first()
   assert.ok(row.file_path.startsWith(`${MEDIA_ROOT}${path.sep}`))
   assert.equal((await db('shows').first()).origin, 'auto')
+})
+
+test('sync: a no-id answer older than 30 days is asked again, and a new TVDB id files the game in TV', async () => {
+  const longAgo = Date.now() - 31 * 24 * 60 * 60 * 1000
+  await db('series_evidence').insert({ show_key: 'aflw', facts_json: '{}', database_ids: 'none', database_ids_at: longAgo, updated_at: longAgo })
+  await recordGame('aflw-128', { episode_disp: 'Season 26.Episode 128' })
+  await runSync(async () => ({ state: 'matched', identity: { tvmazeId: '9', name: 'AFLW', tvdbId: '412345', tmdbId: null }, candidates: [] }))
+  const row = await db('recordings').where({ recording_id: 'aflw-128' }).first()
+  assert.ok(row.file_path.startsWith(`${MEDIA_ROOT}${path.sep}`))
+  const fact = await db('series_evidence').where({ show_key: 'aflw' }).first()
+  assert.equal(fact.database_ids, 'found')
+  assert.ok(Number(fact.database_ids_at) > longAgo)
+})
+
+test('sync: the women\'s World Cup gets its own folder beside the men\'s automatic title match', async () => {
+  const [menId] = await db('shows').insert({ show_pattern: 'Rugby League World Cup 2026', dest_folder: 'Rugby League World Cup 2026', origin: 'auto' })
+  await db('series_evidence').insert({ show_key: 'women-s-rugby-league-world-cup-2026', facts_json: '{}', database_ids: 'found', database_ids_at: Date.now(), updated_at: Date.now() })
+  await recordGame('wrlwc-1', { disp_title: 'Women\'s Rugby League World Cup 2026', episode_disp: 'Season 26.Episode 3' })
+  await runSync(async () => ({ state: 'none', identity: null, candidates: [] }))
+  const row = await db('recordings').where({ recording_id: 'wrlwc-1' }).first()
+  assert.notEqual(row.show_id, menId)
+  assert.ok(row.file_path.includes(`${path.sep}Women's Rugby League World Cup 2026${path.sep}`))
 })

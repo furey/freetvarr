@@ -139,7 +139,7 @@ const fileOf = async (file) => {
 
 const exists = (file) => fs.access(file).then(() => true, () => false)
 
-test('runReclassification: a moved-in series leaves the placeholder file in the one-offs folder', async () => {
+test('runReclassification: a moved-in series leaves the placeholder file in the one-off folder', async () => {
   assert.equal(await exists(path.join(roots.oneOffRoot, ONE_OFF_PLACEHOLDER)), true)
 })
 
@@ -232,4 +232,32 @@ test('runReclassification: a sport title you added a title match for stays in TV
   const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
   assert.equal(result.moved, 0)
   assert.equal((await db('shows').where({ id: showId }).first()).enabled, 1)
+})
+
+test('runReclassification: when TVHeadend series recordings cannot be read, nothing moves and no title match is switched off', async () => {
+  const [showId] = await db('shows').insert({ show_pattern: 'NBL', dest_folder: 'NBL', origin: 'auto' })
+  const game = row({
+    recording_id: 'nbl-1',
+    title: 'NBL',
+    season: 26,
+    episode: 4,
+    show_id: showId,
+    genres_json: '[64]',
+    file_path: path.join(roots.mediaRoot, 'NBL', 'Season 26', 'NBL - S26E04.ts'),
+  })
+  await fileOf(game.file_path)
+  await db('recordings').insert(game)
+  await saveDatabaseIds({ key: 'nbl', databaseIds: 'none' })
+  await db('settings').where({ key: RECLASSIFY_DONE_KEY }).delete()
+  const failing = { loadSeries: async () => ({ series: [], error: 'TVHeadend request failed: ECONNREFUSED' }), identityFor: async () => null }
+
+  assert.equal((await runReclassification(failing)).moved, 0)
+  assert.equal((await runReclassificationOnce(failing)).moved, 0)
+  assert.equal(await db('settings').where({ key: RECLASSIFY_DONE_KEY }).first(), undefined)
+  assert.equal((await db('recordings').where({ recording_id: 'nbl-1' }).first()).file_path, game.file_path)
+  assert.equal((await db('shows').where({ id: showId }).first()).enabled, 1)
+
+  const thrown = await runReclassification({ loadSeries: async () => { throw new Error('offline') }, identityFor: async () => null })
+  assert.equal(thrown.moved, 0)
+  assert.equal((await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })).moved, 1)
 })

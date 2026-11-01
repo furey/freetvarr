@@ -254,8 +254,8 @@ Episodes import, but Plex doesn't show them.
 
 Plex still lists one-offs after Freetvarr moved their files out of the one-off folder. Plex reads an empty library folder as a missing drive, so it keeps the old items. Freetvarr keeps an empty hidden file, `.freetvarr-keep`, in the one-off folder for this reason. It makes the file at each start and after it moves files out of the folder.
 
-- **Doctor warns `The Plex One-offs library has 5 items while the One-offs folder has no files.`**: the file is missing. Press **Create placeholder file** on the [Doctor](/guide/doctor#plex-oneoffs) check, then scan the One-offs library in Plex.
-- **The file is there and the items stay**: in Plex, scan the One-offs library, then use **Empty Trash** on it.
+- **Doctor warns `The Plex one-off library has 5 items while the one-off folder has no files.`**: the file is missing. Press **Create placeholder file** on the [Doctor](/guide/doctor#plex-oneoffs) check, then scan the one-off library in Plex.
+- **The file is there and the items stay**: in Plex, scan the one-off library, then use **Empty Trash** on it.
 
 ## Wrong country in Plex
 

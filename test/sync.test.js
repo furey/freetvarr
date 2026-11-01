@@ -238,12 +238,21 @@ test('matchShow: a title match you made matches at word boundaries only', () => 
   assert.equal(matchShow(shows, 'Unrlisted'), undefined)
 })
 
-test('matchShow: an automatic title match matches the whole title only', () => {
+test('matchShow: for sport, an automatic title match matches the whole title only', () => {
   const shows = [{ id: 13, show_pattern: 'Rugby League World Cup 2026', origin: 'auto' }]
-  assert.equal(matchShow(shows, 'Rugby League World Cup 2026').id, 13)
-  assert.equal(matchShow(shows, 'rugby league world cup 2026').id, 13)
-  assert.equal(matchShow(shows, 'Women\'s Rugby League World Cup 2026'), undefined)
-  assert.equal(matchShow(shows, 'Rugby League World Cup 2026: Pre-Game'), undefined)
+  assert.equal(matchShow(shows, 'Rugby League World Cup 2026', { sport: true }).id, 13)
+  assert.equal(matchShow(shows, 'rugby league world cup 2026', { sport: true }).id, 13)
+  assert.equal(matchShow(shows, 'Women\'s Rugby League World Cup 2026', { sport: true }), undefined)
+  assert.equal(matchShow(shows, 'Rugby League World Cup 2026: Pre-Game', { sport: true }), undefined)
+  const userRule = [{ ...shows[0], origin: 'user' }]
+  assert.equal(matchShow(userRule, 'Women\'s Rugby League World Cup 2026', { sport: true }).id, 13)
+})
+
+test('matchShow: outside sport, an automatic title match still finds its words inside a longer title', () => {
+  const shows = [{ id: 5, show_pattern: 'Chefs Ahoy', origin: 'auto' }]
+  assert.equal(matchShow(shows, 'Chefs Ahoy: Christmas').id, 5)
+  assert.equal(matchShow(shows, 'Chefs Ahoy').id, 5)
+  assert.equal(matchShow(shows, 'Chefs Ahoyhoy'), undefined)
 })
 
 test('libraryKind: an automatic title match does not hold a sport title with no database id in TV', () => {

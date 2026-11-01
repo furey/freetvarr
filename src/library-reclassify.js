@@ -17,6 +17,7 @@ import { notifyPlexSectionRefresh } from './plex.js'
 import { groupKeyOf, groupTitleOf, isInsideFolder, kindOf, seriesByKey } from './library.js'
 import { loadKindOverrides } from './programme-kind.js'
 import { loadSeriesEvidence } from './series-evidence.js'
+import { isMostlySport, rowAiringOf } from './series-kind.js'
 import { ensureShowFolder, existingFolderFor } from './show-folders.js'
 import { showIdentityFor } from './show-identity.js'
 import { listShowFolders } from './folder-matcher.js'
@@ -29,6 +30,7 @@ import { settleDatabaseIds } from './database-ids.js'
 import { keepOneOffFolder } from './one-off-placeholder.js'
 
 export const RECLASSIFY_DONE_KEY = 'library_reclassify_v1'
+const SERIES_UNKNOWN = 'TVHeadend series recordings could not be read'
 
 let running = null
 
@@ -74,6 +76,10 @@ export const runReclassification = ({ trigger = 'startup', loadSeries = getSerie
 
 const reclassify = async ({ trigger, loadSeries, identityFor }) => {
   const inputs = await loadReclassifyInputs({ loadSeries, identityFor })
+  if (!inputs.seriesKnown) {
+    console.warn(`[library] folder moves wait for the next pass: ${SERIES_UNKNOWN}`)
+    return { moved: 0, skipped: 0, planned: 0, waiting: SERIES_UNKNOWN }
+  }
   const plan = planReclassification(inputs)
   const result = plan.length
     ? await trackJob(
@@ -108,7 +114,7 @@ export const isReclassifying = () => running != null
 export const runReclassificationOnce = async (options = {}) => {
   if (await getSetting(RECLASSIFY_DONE_KEY)) return null
   const result = await runReclassification({ trigger: 'startup', ...options })
-  if (!result.skipped) await setSetting(RECLASSIFY_DONE_KEY, new Date().toISOString())
+  if (!result.skipped && !result.waiting) await setSetting(RECLASSIFY_DONE_KEY, new Date().toISOString())
   return result
 }
 
@@ -127,30 +133,32 @@ export const loadReclassifyInputs = async ({ loadSeries = getSeries, identityFor
       .select('recordings.*', 'shows.origin as show_origin'),
     db('shows').where({ enabled: true }),
     listShowFolders(roots.mediaRoot).catch(() => []),
-    loadSeries().catch(() => ({ series: [] })),
+    loadSeries().catch((err) => ({ series: [], error: err.message })),
     loadKindOverrides().catch(() => new Map()),
     loadSeriesEvidence().catch(() => new Map()),
   ])
   const ruleKeys = new Set(seriesByKey(seriesData.series || []).keys())
-  const inputs = { rows, shows, folders, ruleKeys, overrides, evidence, roots }
-  if (identityFor) await settleDatabaseIds({ inputs, identityFor })
+  const seriesKnown = !seriesData.error
+  const inputs = { rows, shows, folders, ruleKeys, overrides, evidence, roots, seriesKnown }
+  if (identityFor && seriesKnown) await settleDatabaseIds({ inputs, identityFor })
   return inputs
 }
 
 const toShowMoves = ({ group, shows, folders, roots }) => {
   const title = groupTitleOf(group[0])
-  const folder = folderFor({ title, shows, folders })
+  const sport = isMostlySport(group.map(rowAiringOf))
+  const folder = folderFor({ title, shows, folders, sport })
   return group
     .filter((row) => !isInsideFolder({ filePath: row.file_path, folder: roots.mediaRoot }))
     .filter((row) => isInsideFolder({ filePath: row.file_path, folder: roots.oneOffRoot }))
-    .map((row) => moveOf({ row, item: itemOf(row), to: buildDestPath({ item: itemOf(row), show: folder, mediaRoot: roots.mediaRoot }), folder, title }))
+    .map((row) => ({ ...moveOf({ row, item: itemOf(row), to: buildDestPath({ item: itemOf(row), show: folder, mediaRoot: roots.mediaRoot }), folder, title }), sport }))
 }
 
 const toOneOffMoves = ({ group, roots }) => group
   .filter((row) => isInsideFolder({ filePath: row.file_path, folder: roots.mediaRoot }))
   .map((row) => moveOf({ row, to: buildOneOffPath({ item: itemOf(row), oneOffRoot: roots.oneOffRoot }), folder: null, title: groupTitleOf(row) }))
 
-const folderFor = ({ title, shows, folders }) => matchShow(shows, title) ?? {
+const folderFor = ({ title, shows, folders, sport }) => matchShow(shows, title, { sport }) ?? {
   id: null,
   show_pattern: title.trim(),
   dest_folder: existingFolderFor({ title, folders }) || createValidFilename(title) || 'Recordings',
@@ -212,7 +220,7 @@ const applyMove = async ({ move, shows, roots, identityFor }) => {
 
 const showFor = async ({ move, shows, identityFor }) => {
   if (move.showId != null) return { id: move.showId }
-  const show = await ensureShowFolder({ title: move.showPattern, shows, airing: move.item ? airingOf(move.item) : {}, identityFor, origin: AUTO_ORIGIN })
+  const show = await ensureShowFolder({ title: move.showPattern, shows, airing: move.item ? airingOf(move.item) : {}, identityFor, origin: AUTO_ORIGIN, sport: move.sport })
   if (!shows.some((known) => known.id === show.id)) shows.push(show)
   return show
 }

@@ -20,7 +20,7 @@ import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { currentJob, trackJob } from './activity.js'
-import { rowAiringOf, seriesKindOf } from './series-kind.js'
+import { isMostlySport, rowAiringOf, seriesKindOf } from './series-kind.js'
 import { loadSeriesEvidence } from './series-evidence.js'
 import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { ensureShowFolder } from './show-folders.js'
@@ -77,14 +77,14 @@ const notifySyncFinished = ({ listener, syncId, trigger }) => {
 const syncFinishedListeners = new Set()
 let starting = null
 
-export const matchShow = (shows, showTitle) => {
+export const matchShow = (shows, showTitle, { sport = false } = {}) => {
   const title = String(showTitle ?? '')
   return shows
-    .filter((show) => titleMatchesShow({ show, title }))
+    .filter((show) => titleMatchesShow({ show, title, sport }))
     .sort((a, b) => b.show_pattern.length - a.show_pattern.length)[0]
 }
 
-const titleMatchesShow = ({ show, title }) => (isAutoTitleMatch(show)
+const titleMatchesShow = ({ show, title, sport }) => (sport && isAutoTitleMatch(show)
   ? showKeyOf(show.show_pattern) === showKeyOf(title)
   : wordPatternOf(show.show_pattern)?.test(title) ?? false)
 
@@ -368,7 +368,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
   currentJob()?.step(SYNC_STEP_LABELS.imports).total(finished.length, 'recordings')
   for (const entry of finished) {
     currentJob()?.advance()
-    const show = matchShow(shows, entry.name)
+    const show = matchShow(shows, entry.name, { sport: isMostlySport([{ genres: entry.genres }]) })
     if (showId != null && show?.id !== showId) continue
     const item = { ...toItem({ entry, tvhRecordingsPath, recordingsRoot }), classification: classificationOf(entry) }
     try {
@@ -467,7 +467,8 @@ const rowsByShowKey = (rows) => {
 const folderForSeries = async ({ item, shows, autorecNames, identityFor }) => {
   const title = (item.autorecId && autorecNames.get(item.autorecId)) || item.title
   const origin = item.autorecId ? USER_ORIGIN : AUTO_ORIGIN
-  const created = await ensureShowFolder({ title, shows, airing: airingOf(item), identityFor, origin })
+  const sport = isMostlySport([importAiringOf(item)])
+  const created = await ensureShowFolder({ title, shows, airing: airingOf(item), identityFor, origin, sport })
   if (!shows.some((show) => show.id === created.id)) shows.push(created)
   return created
 }

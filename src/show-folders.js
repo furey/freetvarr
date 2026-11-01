@@ -11,9 +11,9 @@ import { databaseIdsOf } from './series-kind.js'
 import { saveDatabaseIds } from './series-evidence.js'
 import { showKeyOf } from './web/show-key.js'
 
-export const ensureShowFolder = async ({ title, shows = null, airing = {}, identityFor = showIdentityFor, inBackground = false, origin = AUTO_ORIGIN }) => {
+export const ensureShowFolder = async ({ title, shows = null, airing = {}, identityFor = showIdentityFor, inBackground = false, origin = AUTO_ORIGIN, sport = false }) => {
   const enabled = shows ?? await db('shows').where({ enabled: true })
-  const existing = matchShow(enabled, title)
+  const existing = matchShow(enabled, title, { sport })
   if (existing) return { ...await claimedBy({ show: existing, origin }), created: false }
   const [folders, match] = await Promise.all([
     getMediaRoot().then(listShowFolders).catch(() => []),

@@ -17,7 +17,7 @@ import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone,
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { USER_ORIGIN } from './show-origin.js'
-import { keepOneOffFolder } from './one-off-placeholder.js'
+import { FOLDER_UNWRITABLE, PLACEHOLDER_KEPT, keepOneOffFolder } from './one-off-placeholder.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
 import { chooseShowIdentity, declineShowIdentity, showIdentityStatus } from './show-identity-choice.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
@@ -1328,9 +1328,10 @@ app.get('/api/doctor', doctorLimiter, async (req, res) => {
 })
 
 app.post('/api/doctor/one-off-placeholder', doctorLimiter, doubleCsrfProtection, async (req, res) => {
-  const created = await keepOneOffFolder(await getOneOffRoot())
-  if (!created) return res.status(409).json({ error: 'The One-offs folder is not there. Check the one-off folder in Settings.' })
-  res.json({ ok: true })
+  const oneOffRoot = await getOneOffRoot()
+  const outcome = await keepOneOffFolder(oneOffRoot)
+  if (outcome === PLACEHOLDER_KEPT) return res.json({ ok: true })
+  res.status(409).json({ error: placeholderErrorOf({ outcome, oneOffRoot }) })
 })
 
 app.get('/api/series', async (req, res) => {
@@ -2486,6 +2487,10 @@ const safeJson = (s) => {
   if (!s) return null
   try { return JSON.parse(s) } catch { return null }
 }
+
+const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWRITABLE
+  ? `Freetvarr cannot write to ${oneOffRoot}. Freetvarr runs as uid ${process.getuid?.() ?? 'unknown'}; set PUID and PGID in .env to the user and group that own the folder, then recreate the Freetvarr container.`
+  : `${oneOffRoot} is not there. Check the one-off folder in Settings.`)
 
 const escapesMediaRoot = (value) =>
   value.startsWith('/')
