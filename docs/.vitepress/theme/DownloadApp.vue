@@ -128,6 +128,11 @@ const chipFromGraphicsRenderer = () => {
         </li>
       </ul>
     </div>
+
+    <p class="download-app__note download-app__requirements">
+      Needs macOS 13 or later, Windows 10 or later (64-bit, x64), or 64-bit Linux. On macOS 11 or 12, use the
+      <a href="https://github.com/furey/fetchtv">fetchtv command-line tool</a>.
+    </p>
   </section>
 </template>
 
@@ -180,6 +185,12 @@ const chipFromGraphicsRenderer = () => {
   font-size: 16px;
   line-height: 24px;
   text-wrap: pretty;
+}
+
+.vp-doc .download-app__requirements {
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .vp-doc .download-app__device {
