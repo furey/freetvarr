@@ -70,9 +70,13 @@ Questions or problems? Ask here and I'll help where I can. Cheers!
 
 Add this line at the top of the old video's description, then set the old video to Unlisted (as with the 2.1.3 re-uploads):
 
-Newer version, with the free Fetch My Recordings app: https://youtu.be/O-B4YzO4jCI
+Newer version, with the free Fetch My Recordings app: https://youtu.be/jRE5bA6uw7s
 
 Then:
 
 1. Swap the old video for the new one in the playlist `PLTogPclOLQls`, in the same position.
 2. Change the embed on the Leaving Fetch page (`docs/guide/leaving-fetch.md`, line `199`): `id`, `title`, and `duration` (`2:36`).
+
+## Uploads
+
+- `2026-11-01`: jRE5bA6uw7s (Public), smooth 60 fps app footage with an ease-in-out cursor. It replaces O-B4YzO4jCI, now Unlisted with the line "Newer version, with smoother app footage: https://youtu.be/jRE5bA6uw7s".
