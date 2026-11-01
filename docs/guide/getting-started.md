@@ -10,7 +10,7 @@ description: >-
 <Illustration name="getting-started" />
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="3v_R5MZkYOA" title="Install Freetvarr and run setup on a NAS or mini PC" duration="2:48" />
+<YouTubeVideo id="3Gpb-4VRgIE" title="Install Freetvarr and run setup on a NAS or mini PC" duration="2:52" />
 
 ## Prerequisites
 

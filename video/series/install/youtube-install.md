@@ -48,3 +48,7 @@ Upload `video-install.srt` as English (Australia) subtitles.
 ## Duration
 
 2:51
+
+## Uploads
+
+- `2026-11-01`: 3Gpb-4VRgIE (Public), with the three Plex libraries and the NAS and router voice fixes. It replaces 3v_R5MZkYOA, now Unlisted with the line "Newer version, with the new Plex step: https://youtu.be/3Gpb-4VRgIE". Captions still to upload (Studio returned HTTP 400).
