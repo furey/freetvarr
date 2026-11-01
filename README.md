@@ -80,7 +80,7 @@ The one-line install, from the `curl` command to the address of the setup wizard
 
 The setup wizard, from the time zone to the ready step.
 
-<https://github.com/user-attachments/assets/a38c1fb6-ee34-4db8-b992-73a3e2af5026>
+<https://github.com/user-attachments/assets/e2b57008-4032-4439-8550-5e562ed45f30>
 
 ## Screenshots
 
