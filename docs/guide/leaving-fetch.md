@@ -68,7 +68,7 @@ The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-e
 - **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that. Members report that some Fetch support replies give "at least 31 October 2027" instead, so check the date in your own Fetch email or account.
 - **Free trials**: levy payers can claim one month of the Ultimate Pack and Movie Box at `$0`. Each trial continues at the full monthly price unless you cancel it before the month ends.
 - **If you do nothing**: Fetch suspends the box in November 2026, then deactivates it permanently. A Mighty loses its recordings for good. While the account is suspended, Fetch can still restore it on request.
-- **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else". The box stops working completely, free-to-air TV included.
+- **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else". The box still turns on, but it restarts at Fetch's setup screen and asks for an activation code, which needs an active Fetch account, so it shows no TV and lists no recordings.
 - **Used boxes**: Fetch says Gen 3 boxes "should not be re-sold", because Fetch does not reactivate a cancelled box. Members report that a Gen 3 box bought secondhand was deactivated and factory reset remotely when its original account was unknown. Do not buy or sell a used Gen 3 box.
 - **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay the levy or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
 
