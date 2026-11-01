@@ -42,11 +42,14 @@ if ! curl -fsS "$FREETVARR_URL/healthz" >/dev/null; then
   exit 1
 fi
 
+"$REPO_ROOT/scripts/capture-live-clip.sh"
+
 echo "[record] recording in host Chromium"
 FREETVARR_URL="$FREETVARR_URL" \
 TZ="$HOST_TZ" \
 SIMULATED_NOW="${SIMULATED_NOW:-}" \
 RECORD_FRAMES="$FRAMES_DIR" \
+LIVE_DEMO_DIR="${REPO_ROOT}/scripts/.cache/live-demo" \
   "$REPO_ROOT/scripts/run-capture-tour.sh" capture-record.mjs \
   2>&1 | tee "$TOUR_LOG"
 

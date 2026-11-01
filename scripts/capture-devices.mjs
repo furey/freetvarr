@@ -51,7 +51,8 @@ const recordDevice = async ({ browser, device }) => {
     bypassCSP: true,
     timezoneId: TIMEZONE,
   })
-  await prepareDemoContext({ context, base, simNow: simulatedNow() })
+  const picks = await prepareDemoContext({ context, base, simNow: simulatedNow() })
+  tourPicks.programme = picks.upNext?.program.title
   const page = await context.newPage()
   await page.goto(`${base}/${device.start}`, { waitUntil: 'networkidle' })
   await page.addStyleTag({ content: '::-webkit-scrollbar{width:0!important;height:0!important}html,body,*{scrollbar-width:none!important}' })
@@ -207,13 +208,15 @@ html,body{margin:0;background:#000}
 div{width:${screen.width}px;height:${screen.height}px;border-radius:${screen.radius}px;background:#fff}
 </style><div></div>`
 
+const tourPicks = {}
+
 const IPAD_TIMELINE = [
   { at: 1.0, run: (page) => scrollDownAndBack(page, { dy: 520, downMs: 1600, holdMs: 800, upMs: 1400 }) },
   { at: 5.8, run: (page) => goTo(page, '#/live') },
   { at: 6.9, run: playLiveDemo },
   { at: 13.0, run: closePlayer },
   { at: 13.4, run: (page) => goTo(page, '#/guide') },
-  { at: 18.2, run: (page) => openProgramme(page, 'Civil War') },
+  { at: 18.2, run: (page) => openProgramme(page, tourPicks.programme) },
 ]
 
 const IPAD_DEVICE = { name: 'ipad', viewport: { width: 1024, height: 768 }, screen: IPAD.screen, mobile: false, start: '#/home', timeline: IPAD_TIMELINE }

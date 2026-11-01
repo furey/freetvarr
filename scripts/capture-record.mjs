@@ -37,6 +37,19 @@ const showMarker = async (page, cell) => {
   await page.waitForTimeout(MARKER_HOLD_MS)
 }
 
+const warmGuide = async (page, titles) => {
+  await page.goto(`${BASE}/#/guide`, { waitUntil: 'networkidle' })
+  await page.waitForSelector('.epg-cell', { timeout: 8000 })
+  await waitForImages(page, '.epg-cell img')
+  for (const title of titles) {
+    await cellFor(page, title).click()
+    await page.waitForSelector(SHEET, { timeout: 8000 })
+    if (await page.locator('.programme-sheet img').count()) await waitForImages(page, '.programme-sheet img')
+    await page.keyboard.press('Escape')
+    await page.locator(SHEET).first().waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {})
+  }
+}
+
 const cellFor = (page, title) => page.locator('.epg-cell').filter({ hasText: title }).first()
 
 const recordButton = (page) => page.locator('[role="dialog"] button').filter({ hasText: /^\s*Record( series| every episode)?\s*$/ }).last()
@@ -60,6 +73,7 @@ const run = async () => {
   const page = await context.newPage()
   await page.goto(`${BASE}/#/home`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(2000)
+  await warmGuide(page, [RECORDED_PROGRAMME, picks.upNext.program.title])
   const screencast = await startScreencast({ page, dir: FRAMES_DIR })
   const { startedAt } = screencast
   await page.goto(`${BASE}/#/home`, { waitUntil: 'domcontentloaded' })

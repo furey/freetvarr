@@ -22,6 +22,7 @@ const LAST_SYNC_AGO_MIN = 16
 const BYTES_PER_SECOND = 920_000
 const SPORT_TITLE = /sport|football|rugby|league|\bAFL\b|\bNRL\b|cricket|tennis|golf|racing|indycar|supercars|netball|soccer|motogp|formula|grand prix/i
 const NEWSY_TITLE = /news|today|sunrise|weather|update|bundle|offer|skincare|shopping|infomercial|religious|church|paid|programming|close|hour of power|lotto|gemporia|live shop|judge/i
+const UNSUITABLE_ONE_OFF = /\bsale\b|% off|penis/i
 const LIVE_DEMO_CHANNEL = /^7mate\b/i
 const PRIME_HOURS = [18, 19, 20, 21, 22]
 const AD_FREE_NETWORKS = ['ABC', 'SBS', 'NITV']
@@ -178,7 +179,7 @@ const pickPlexFilms = ({ airings, shows, films, oneOffs }) => {
 const pickOneOffs = ({ airings, shows, films }) => {
   const taken = new Set([...shows.map((s) => s.title), ...films.map((f) => f.program.title)])
   const candidates = airings.filter(({ program }) => !taken.has(program.title) && program.kind !== 'movie'
-    && program.series_no == null && !NEWSY_TITLE.test(program.title || '')
+    && program.series_no == null && !NEWSY_TITLE.test(program.title || '') && !UNSUITABLE_ONE_OFF.test(program.title || '')
     && program.end - program.start >= 55 * MINUTE_MS && isPrimeTime(program))
   return uniqueTitles(candidates).slice(0, ONE_OFF_COUNT)
 }
