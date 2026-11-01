@@ -1,15 +1,21 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { promisify } from 'node:util'
 import { chromium } from 'playwright'
 import { openStage } from '../stage/open-stage.mjs'
 
 const SERIES = new URL('../', import.meta.url).pathname
+const VIDEO = new URL('../../', import.meta.url).pathname
 const SLUG = process.argv[2]
+const CUT = !existsSync(`${SERIES}${SLUG}/timeline.json`) && existsSync(`${VIDEO}${SLUG}/timeline.json`)
+const TARGET = CUT
+  ? { timeline: `${VIDEO}${SLUG}/timeline.json`, mp4: `${VIDEO}freetvarr-${SLUG}.mp4`, stage: { root: `${VIDEO}stage/`, path: 'stage.html' } }
+  : { timeline: `${SERIES}${SLUG}/timeline.json`, mp4: `${SERIES}${SLUG}/video-${SLUG}.mp4`, stage: { video: SLUG } }
 const args = Object.fromEntries(process.argv.slice(3).map((a) => a.replace(/^--/, '').split('=')))
 const FPS = 30
-const WORKERS = Number(args.workers || process.env.WORKERS || 6)
+const WORKERS = Number(args.workers || process.env.WORKERS || (CUT ? 4 : 6))
 const COLD_FRAMES = Number(args.coldFrames || 15)
 const MP4_EVERY = Number(args.every || 1)
 const MP4_MIN_PSNR = Number(args.minPsnr || 47)
@@ -18,7 +24,8 @@ const TOLERANCE = 0.5
 const run = promisify(execFile)
 
 const main = async () => {
-  const timeline = JSON.parse(await readFile(`${SERIES}${SLUG}/timeline.json`, 'utf8'))
+  const timeline = JSON.parse(await readFile(TARGET.timeline, 'utf8'))
+  if (CUT) await writeFile(`${VIDEO}stage/timeline.js`, `export const TIMELINE = ${JSON.stringify(timeline)}\n`)
   const total = Math.round(timeline.duration * FPS)
   const browser = await chromium.launch()
   try {
@@ -37,11 +44,11 @@ const checkStage = async (browser, total) => {
 }
 
 const checkMp4 = async (browser, total) => {
-  const file = args.mp4 && args.mp4 !== 'true' ? args.mp4 : `${SERIES}${SLUG}/video-${SLUG}.mp4`
+  const file = args.mp4 && args.mp4 !== 'true' ? args.mp4 : TARGET.mp4
   const dir = await mkdtemp(`${tmpdir()}/layout-shift-`)
   try {
     const frames = await extractFrames({ file, dir, total })
-    const page = await openStage(browser, { video: SLUG })
+    const page = await openStage(browser, TARGET.stage)
     const findings = []
     for (const [frame, published] of frames) {
       await page.evaluate((t) => window.renderAt(t), frame / FPS)
@@ -59,7 +66,7 @@ const checkMp4 = async (browser, total) => {
 }
 
 const warmPass = async (browser, total) => {
-  const page = await openStage(browser, { video: SLUG })
+  const page = await openStage(browser, TARGET.stage)
   const frames = new Map()
   for (let f = 0; f < total; f++) frames.set(f, await measureAt(page, f))
   await page.close()
@@ -70,7 +77,7 @@ const coldStarts = async (browser, total) => {
   const chunk = Math.ceil(total / WORKERS)
   const starts = Array.from({ length: WORKERS }, (_, i) => i * chunk).filter((f) => f < total)
   const runs = await Promise.all(starts.map(async (start) => {
-    const page = await openStage(browser, { video: SLUG, prepare: dropFirstFontRequest })
+    const page = await openStage(browser, { ...TARGET.stage, prepare: dropFirstFontRequest })
     const end = Math.min(total, start + COLD_FRAMES)
     const frames = []
     for (let f = start; f < end; f++) frames.push([f, await measureAt(page, f)])
