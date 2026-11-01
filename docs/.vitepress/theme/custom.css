@@ -1285,3 +1285,70 @@ kbd {
 .vp-doc figcaption {
   text-wrap: balance;
 }
+
+/* Mermaid diagrams: the plugin forces Mermaid's stock dark theme in dark mode, so the brand colours are applied to the rendered SVG instead. */
+
+.vp-doc .mermaid svg .node rect,
+.vp-doc .mermaid svg .node circle,
+.vp-doc .mermaid svg .node ellipse,
+.vp-doc .mermaid svg .node path {
+  fill: var(--ftv-surface-1) !important;
+  stroke: var(--ftv-text-3) !important;
+  stroke-width: 1.25px !important;
+}
+
+.vp-doc .mermaid svg .node polygon {
+  fill: var(--ftv-primary-tint) !important;
+  stroke: var(--ftv-primary-text) !important;
+  stroke-width: 1.5px !important;
+}
+
+.vp-doc .mermaid svg .cluster rect {
+  fill: var(--ftv-rail) !important;
+  stroke: var(--ftv-surface-4) !important;
+  stroke-width: 1.25px !important;
+}
+
+.vp-doc .mermaid svg .flowchart-link,
+.vp-doc .mermaid svg .edgePath .path {
+  stroke: var(--ftv-text-2) !important;
+  stroke-width: 1.5px !important;
+}
+
+.vp-doc .mermaid svg .marker,
+.vp-doc .mermaid svg .arrowheadPath,
+.vp-doc .mermaid svg .arrowMarkerPath {
+  fill: var(--ftv-text-2) !important;
+  stroke: var(--ftv-text-2) !important;
+  stroke-width: 1.5px !important;
+}
+
+.vp-doc .mermaid svg .node .label,
+.vp-doc .mermaid svg .node .label span,
+.vp-doc .mermaid svg .node .label p,
+.vp-doc .mermaid svg .node .label text {
+  color: var(--ftv-text-soft) !important;
+  fill: var(--ftv-text-soft) !important;
+}
+
+.vp-doc .mermaid svg .cluster-label span,
+.vp-doc .mermaid svg .cluster-label p,
+.vp-doc .mermaid svg .cluster-label text,
+.vp-doc .mermaid svg .cluster text,
+.vp-doc .mermaid svg .cluster span {
+  color: var(--ftv-primary-text) !important;
+  fill: var(--ftv-primary-text) !important;
+}
+
+.vp-doc .mermaid svg .edgeLabel,
+.vp-doc .mermaid svg .edgeLabel p,
+.vp-doc .mermaid svg .edgeLabel span,
+.vp-doc .mermaid svg .labelBkg {
+  background-color: var(--ftv-bg) !important;
+  color: var(--ftv-text-2) !important;
+}
+
+.vp-doc .mermaid svg .edgeLabel rect {
+  fill: var(--ftv-bg) !important;
+  opacity: 1 !important;
+}
