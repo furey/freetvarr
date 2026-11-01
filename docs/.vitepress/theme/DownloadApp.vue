@@ -130,7 +130,7 @@ const chipFromGraphicsRenderer = () => {
     </div>
 
     <p class="download-app__note download-app__requirements">
-      Needs macOS 13 or later, Windows 10 or later (64-bit, x64), or 64-bit Linux. On macOS 11 or 12, use the
+      Needs macOS 13 or later, Windows 10 or later (64-bit, x64), or 64-bit Linux. On other computers, such as a Mac on macOS 11 or 12, use the
       <a href="https://github.com/furey/fetchtv">fetchtv command-line tool</a>.
     </p>
   </section>
