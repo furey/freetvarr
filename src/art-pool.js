@@ -9,9 +9,11 @@ import { db } from './db.js'
 import { findArtSourceThumbnail } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { imageRouteOf, serveImageRoute } from './image-routes.js'
-import { groupKeyOf, isLibraryMember, ruleTitleOf } from './library.js'
+import { groupKeyOf, isLibraryMember, ruleTitleOf, withPlexRows } from './library.js'
 import { matchPlexItem } from './library-actions.js'
 import { getPlexConnection, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
+import { isPlexRow } from './plex-library.js'
+import { loadLibraryItemRows } from './plex-library-store.js'
 import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled, widestFirst } from './show-artwork.js'
 import { currentTimeZone } from './time-zone.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
@@ -100,6 +102,7 @@ export const recordingImageRoute = ({
 export const createArtPool = ({
   loadShowRows = libraryShowRows,
   loadRuleTitle = ruleTitleOf,
+  loadPlexRows = libraryPlexRows,
   loadRecordingRow = recordingRow,
   plexConnection = () => getPlexConnection(),
   plexSections = plexSectionsToSearch,
@@ -146,11 +149,17 @@ export const createArtPool = ({
     return { match, partial: !match && listings.includes(null) }
   }
 
-  const plexShowPart = (key, filePaths) => plexMemo.get(`show:${key}`, async () => {
+  const plexShowFor = async ({ filePaths, ratingKey }) => {
+    if (ratingKey) return { connection: await plexConnection().catch(() => null), ratingKey, partial: false }
     const { match, partial } = await plexMatchFor(filePaths)
-    const ratingKey = match?.section.type === 'show' ? match.item.grandparentRatingKey : match?.item.ratingKey
-    if (!ratingKey) return { found: false, entries: [], partial }
-    const arts = await plexArts({ ...match.connection, ratingKey }).catch(() => null)
+    const matchedKey = match?.section.type === 'show' ? match.item.grandparentRatingKey : match?.item.ratingKey
+    return { connection: match?.connection, ratingKey: matchedKey, partial }
+  }
+
+  const plexShowPart = (key, plexShow) => plexMemo.get(`show:${key}`, async () => {
+    const { connection, ratingKey, partial } = await plexShowFor(plexShow)
+    if (!connection || !ratingKey) return { found: false, entries: [], partial }
+    const arts = await plexArts({ ...connection, ratingKey }).catch(() => null)
     return { found: true, entries: plexArtsPoolOf(arts || []), partial: !arts }
   }, { found: false, entries: [] })
 
@@ -175,13 +184,19 @@ export const createArtPool = ({
     return entries
   }
 
+  const showRowsOf = async (key) => {
+    const recorded = await loadShowRows(key)
+    return recorded.length ? recorded : Promise.resolve().then(() => loadPlexRows(key)).catch(() => [])
+  }
+
   const showSources = async (key) => {
-    const rows = await loadShowRows(key)
+    const rows = await showRowsOf(key)
     const title = rows.length ? newestTitleOf(rows) : await Promise.resolve().then(() => loadRuleTitle(key)).catch(() => null)
     if (!title) return null
     const filePaths = rows.map((row) => row.file_path).filter(Boolean)
+    const plexShow = { filePaths, ratingKey: plexShowRatingKeyOf(rows) }
     const [plex, tvmaze] = await Promise.all([
-      plexShowPart(key, filePaths).catch(() => ({ found: false, entries: [] })),
+      plexShowPart(key, plexShow).catch(() => ({ found: false, entries: [] })),
       tvmazeMemo.get(showTitleKey(title), () => tvmazePart(title).catch(() => [])),
     ])
     return { title, rows, plex, tvmaze }
@@ -365,6 +380,11 @@ const uniqueByOrigin = (entries) => {
   })
 }
 
+const plexShowRatingKeyOf = (rows) => rows
+  .filter(isPlexRow)
+  .map((row) => (row.plex_kind === 'episode' ? row.plex_show_rating_key : row.rating_key))
+  .find(Boolean) ?? null
+
 const newestTitleOf = (rows) => [...rows]
   .sort((a, b) => Number(b.aired_at ?? 0) - Number(a.aired_at ?? 0))[0].title
 
@@ -447,6 +467,9 @@ const plexArtsFor = async ({ url, token, ratingKey }) => {
 
 const libraryShowRows = async (key) => (await db('recordings').whereNull('purged_at'))
   .filter((row) => isLibraryMember(row) && row.status !== 'failed' && groupKeyOf(row) === key)
+
+const libraryPlexRows = async (key) => withPlexRows({ rows: [], itemRows: await loadLibraryItemRows() })
+  .filter((row) => groupKeyOf(row) === key)
 
 const recordingRow = (recordingId) => db('recordings').where({ recording_id: recordingId }).first()
 
