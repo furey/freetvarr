@@ -7,6 +7,18 @@ export const LIBRARY_SORTS = [
   { key: 'az', label: 'A–Z' },
 ]
 
+export const LIBRARY_SECTION_TITLES = {
+  shows: 'Shows',
+  movies: 'Movies',
+  oneoffs: 'Specials and one-offs',
+}
+
+export const sectionJumpsOf = (shelves) => {
+  const filled = Object.keys(LIBRARY_SECTION_TITLES).filter((key) => shelves?.[key]?.length)
+  if (filled.length < 2) return []
+  return filled.map((key) => ({ key, label: LIBRARY_SECTION_TITLES[key] }))
+}
+
 export const FAILURE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
 export const shelvesOf = ({ shows = [], sort = 'recent', unwatchedOnly = false }) => {

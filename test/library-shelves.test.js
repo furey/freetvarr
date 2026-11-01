@@ -9,6 +9,7 @@ import {
   posterMetaOf,
   scheduledShelfMetaOf,
   scheduledWhenOf,
+  sectionJumpsOf,
   shelvesOf,
   showsCountText,
 } from '../src/web/library-shelves.js'
@@ -284,3 +285,29 @@ test('scheduled episodes: pill, meta, hero line, and status card for a show that
   assert.equal(ruleStatusOf({ show: { ...detail, seasons: [{ season: 8, episodes: [seriesTimer] }] }, timeZone: TZ, nowMs }).detail, 'Part of a series recording in TVHeadend.')
 })
 
+
+test('sectionJumpsOf: lists filled sections in page order, and none when only one section has content', () => {
+  const shelf = (count) => Array.from({ length: count }, (_, index) => show({ key: String(index) }))
+  const keysOf = (shelves) => sectionJumpsOf(shelves).map((jump) => jump.key)
+  assert.deepEqual(sectionJumpsOf({ shows: shelf(120), movies: shelf(8), oneoffs: shelf(6) }), [
+    { key: 'shows', label: 'Shows' },
+    { key: 'movies', label: 'Movies' },
+    { key: 'oneoffs', label: 'Specials and one-offs' },
+  ])
+  assert.deepEqual(keysOf({ shows: shelf(3), movies: shelf(1), oneoffs: [] }), ['shows', 'movies'])
+  assert.deepEqual(keysOf({ shows: [], movies: shelf(2), oneoffs: shelf(2) }), ['movies', 'oneoffs'])
+  assert.deepEqual(keysOf({ shows: shelf(3), movies: [], oneoffs: shelf(1) }), ['shows', 'oneoffs'])
+  assert.deepEqual(keysOf({ shows: shelf(120), movies: [], oneoffs: [] }), [])
+  assert.deepEqual(keysOf({ shows: [], movies: shelf(4), oneoffs: [] }), [])
+  assert.deepEqual(keysOf({ shows: [], movies: [], oneoffs: [] }), [])
+})
+
+test('sectionJumpsOf: follows the unwatched filter, so a section with nothing left drops out', () => {
+  const shows = [
+    show({ key: 'a', title: 'Master Cook' }),
+    show({ key: 'b', title: 'Space Wars', kind: 'movie', counts: { total: 1, new: 0, unwatched: 0, failed: 0 } }),
+    show({ key: 'c', title: 'The Sports Show', kind: 'oneoff' }),
+  ]
+  assert.deepEqual(sectionJumpsOf(shelvesOf({ shows })).map((jump) => jump.key), ['shows', 'movies', 'oneoffs'])
+  assert.deepEqual(sectionJumpsOf(shelvesOf({ shows, unwatchedOnly: true })).map((jump) => jump.key), ['shows', 'oneoffs'])
+})
