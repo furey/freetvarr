@@ -233,3 +233,27 @@ test('artworkCandidatesOf offers every TMDB background and poster the lookup fou
   assert.deepEqual(candidates.filter((c) => c.kind === 'poster').map((c) => c.origin), posters)
   assert.ok(candidates.every((c) => c.source === 'tmdb'))
 })
+
+test('createArtworkCandidates offers Plex art for a film that only Plex has and looks it up as a film', async () => {
+  const asked = []
+  const film = {
+    title: 'Dune',
+    rows: [{ recording_id: 'plex-77', source: 'plex', plex_kind: 'movie', rating_key: '77', title: 'Dune', status: 'done' }],
+    plex: { found: true, entries: [{ origin: 'plex:/photo/dune', kind: 'background', source: 'plex' }] },
+    tvmaze: [],
+  }
+  const candidates = createArtworkCandidates({
+    showSources: async (key) => (key === 'dune' ? film : null),
+    automaticSources: async ({ title, kind }) => {
+      asked.push({ title, kind })
+      return { library: [], fallback: [], guide: [] }
+    },
+    plexUrl: async () => PLEX,
+    hasTmdbKey: async () => false,
+  })
+  const found = await candidates.candidatesFor('dune')
+  assert.equal(found.title, 'Dune')
+  assert.deepEqual(found.candidates.map((entry) => [entry.origin, entry.source]), [['plex:/photo/dune', 'plex']])
+  assert.deepEqual(asked, [{ title: 'Dune', kind: 'movie' }])
+  assert.equal(await candidates.candidatesFor('nothing'), null)
+})

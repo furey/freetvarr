@@ -159,6 +159,7 @@ const virtualRowOf = ({ parts, shownTitle, nowMs }) => {
     section_id: first.section_id,
     title: isEpisode ? shownTitle || first.show_title || first.title : first.title,
     plex_show_title: first.show_title ?? null,
+    plex_show_rating_key: first.show_rating_key ?? null,
     episode_title: isEpisode ? first.title ?? null : null,
     season: isEpisode ? first.season ?? null : null,
     episode: isEpisode ? first.episode ?? null : null,
