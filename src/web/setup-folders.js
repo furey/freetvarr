@@ -44,9 +44,25 @@ export const folderRows = ({ folders, library, recordings, tvh }) => [
   },
 ]
 
-export const guessPlexTvSection = ({ sections, mediaRoot }) => sections
-  .find((sec) => sec.type === 'show' && (sec.locations || []).some((folder) => sameFolder(folder, mediaRoot)))
-  ?.key || ''
+export const PLEX_SECTION_ROWS = [
+  { kind: 'tv', label: 'TV section', setting: 'plex_tv_section_id', type: 'show', empty: 'Pick a section' },
+  { kind: 'oneoff', label: 'One-off section', setting: 'plex_oneoff_section_id', type: 'movie', empty: 'None' },
+  { kind: 'movies', label: 'Movies section', setting: 'plex_movies_section_id', type: 'movie', empty: 'None' },
+]
+
+export const prefillPlexSections = ({ picks, plan }) => Object.fromEntries(
+  PLEX_SECTION_ROWS.map(({ kind }) => [kind, picks[kind] || existingSectionKey({ plan, kind })]),
+)
+
+export const visiblePlexSectionRows = ({ picks, plan }) => PLEX_SECTION_ROWS
+  .filter(({ kind }) => kind === 'tv' || picks[kind] || plan?.some((lib) => lib.kind === kind))
+
+export const plexSectionOptions = ({ sections, type, pick }) => sections
+  .filter((sec) => sec.type === type || String(sec.key) === String(pick))
+
+export const plexSectionSettings = (picks) => Object.fromEntries(
+  PLEX_SECTION_ROWS.map(({ kind, setting }) => [setting, picks[kind] || '']),
+)
 
 export const plexServerUrl = (server) => `http://${server.ip}:${server.port}`
 
@@ -114,7 +130,7 @@ const isInsideFolder = ({ folder, root }) => {
   return path === root || path.startsWith(`${root}/`)
 }
 
-const sameFolder = (a, b) => withoutTrailingSlash(a) === withoutTrailingSlash(b)
+const existingSectionKey = ({ plan, kind }) => String(plan?.find((lib) => lib.kind === kind)?.existing?.key || '')
 
 const withoutTrailingSlash = (path) => String(path || '').trim().replace(/(.)\/+$/, '$1')
 

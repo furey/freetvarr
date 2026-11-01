@@ -28,7 +28,11 @@ import {
   storageSummaryText,
   storageCheckOutcome,
   folderRows,
-  guessPlexTvSection,
+  PLEX_SECTION_ROWS,
+  prefillPlexSections,
+  visiblePlexSectionRows,
+  plexSectionOptions,
+  plexSectionSettings,
   plexServerUrl,
   plexNoTokenProblem,
   plexUnreachableProblem,
@@ -281,13 +285,15 @@ export const WelcomeView = {
                   <span class="ui-group-row-main"><span class="ui-group-row-title">Plex</span><span class="ui-group-row-meta setup-mono">{{ plexUrl }}</span></span>
                   <span class="ui-group-row-value">Connected</span>
                 </div>
-                <div v-if="plexShowSections.length" class="setup-select-row">
-                  <label class="ui-group-row-main" for="wizard-plex-tv-library"><span class="ui-group-row-title">TV library</span></label>
-                  <select id="wizard-plex-tv-library" class="field-input" v-model="plexSectionId">
-                    <option value="">Pick a library</option>
-                    <option v-for="sec in plexShowSections" :key="sec.key" :value="sec.key">{{ sec.title }}</option>
-                  </select>
-                </div>
+                <template v-if="plexSections.length">
+                  <div v-for="row in plexSectionRows" :key="row.kind" class="setup-select-row">
+                    <label class="ui-group-row-main" :for="'wizard-plex-' + row.kind + '-section'"><span class="ui-group-row-title">{{ row.label }}</span></label>
+                    <select :id="'wizard-plex-' + row.kind + '-section'" class="field-input" v-model="plexPicks[row.kind]">
+                      <option value="">{{ row.empty }}</option>
+                      <option v-for="sec in row.options" :key="sec.key" :value="sec.key">{{ sec.title }}</option>
+                    </select>
+                  </div>
+                </template>
               </div>
               <div v-else-if="plexCandidates.length > 1" class="ui-group">
                 <button v-for="c in plexCandidates" :key="c.ip + ':' + c.port" type="button" class="ui-group-row" @click="usePlexCandidate(c)">
@@ -325,9 +331,9 @@ export const WelcomeView = {
                   <input v-no-autofill id="setup-plex-prefs" type="text" class="field-input setup-mono-input" v-model="plexPrefsPath"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
-                <div v-if="!plexShowSections.length" class="field-row">
-                  <label class="field-label" for="setup-plex-section">TV library number</label>
-                  <input v-no-autofill id="setup-plex-section" type="text" class="field-input" v-model="plexSectionId" placeholder="Connect lists your libraries" />
+                <div v-if="!plexSections.length" class="field-row">
+                  <label class="field-label" for="setup-plex-section">TV section number</label>
+                  <input v-no-autofill id="setup-plex-section" type="text" class="field-input" v-model="plexPicks.tv" placeholder="Connect lists your libraries" />
                 </div>
               </div>
               <p v-if="plexSectionsText" :class="['setup-hint', { 'is-error': plexSectionsKind === 'err' }]">{{ plexSectionsText }}</p>
@@ -421,7 +427,8 @@ export const WelcomeView = {
 
     const plexUrl = ref('')
     const plexToken = ref('')
-    const plexSectionId = ref('')
+    const plexPicks = reactive({ tv: '', oneoff: '', movies: '' })
+    const plexLibraryPlan = ref(null)
     const plexSections = ref([])
     const plexProbing = ref(false)
     const plexCandidates = ref([])
@@ -468,14 +475,18 @@ export const WelcomeView = {
       mediaRoot.value = s.media_root || ''
       plexUrl.value = s.plex_url || ''
       plexTokenSet.value = Boolean(s.plex_token_set)
-      plexSectionId.value = s.plex_tv_section_id || ''
+      Object.assign(plexPicks, {
+        tv: s.plex_tv_section_id || '',
+        oneoff: s.plex_oneoff_section_id || '',
+        movies: s.plex_movies_section_id || '',
+      })
       plexPrefsPath.value = s.plex_prefs_path || ''
       Object.assign(saved, {
         mediaRoot: mediaRoot.value,
         recordingsRoot: recordingsRoot.value,
         tvhRecordingsPath: tvhRecordingsPath.value,
         plexUrl: plexUrl.value,
-        plexSectionId: plexSectionId.value,
+        plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
       })
     })
@@ -556,9 +567,10 @@ export const WelcomeView = {
     const plexProblem = ref(null)
     const plexAdvancedOpen = ref(false)
     const plexEditedByHand = computed(() =>
-      [plexUrl.value, plexToken.value, plexSectionId.value].some((field) => String(field ?? '').trim()))
+      [plexUrl.value, plexToken.value, plexPicks.tv].some((field) => String(field ?? '').trim()))
     const plexDocsUrl = `${DOCS_BASE}guide/plex`
-    const plexShowSections = computed(() => plexSections.value.filter((sec) => sec.type === 'show'))
+    const plexSectionRows = computed(() => visiblePlexSectionRows({ picks: plexPicks, plan: plexLibraryPlan.value })
+      .map((row) => ({ ...row, options: plexSectionOptions({ sections: plexSections.value, type: row.type, pick: plexPicks[row.kind] }) })))
     const hasPlexToken = () => Boolean(plexToken.value || plexTokenSet.value)
 
     let sectionAutoLoadTimer = null
@@ -583,7 +595,7 @@ export const WelcomeView = {
 
     const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
     const plexIsSetUp = computed(() => plexWillSave.value || Boolean(saved.plexUrl))
-    const plexLibrary = computed(() => plexShowSections.value.find((sec) => String(sec.key) === String(plexSectionId.value))?.title || '')
+    const plexLibrary = computed(() => plexSections.value.find((sec) => String(sec.key) === String(plexPicks.tv))?.title || '')
 
     const nextLabel = computed(() => {
       if (step.value === 2) return tvhKind.value === 'err' ? 'Try again' : 'Save and next'
@@ -607,7 +619,7 @@ export const WelcomeView = {
       if (step.value === 3) return channelState.value.intro
       if (step.value === 4) return guideState.value.intro
       if (step.value === 5) return storageSummary.value
-      if (step.value === 6) return 'Optional. Freetvarr asks Plex to refresh after each sync, so new recordings show up there.'
+      if (step.value === 6) return 'Optional. Pick the Plex library for TV episodes, one\u2011off recordings, and movies. After each sync, Freetvarr asks Plex to refresh them, so new recordings show up there.'
       return complete.value
         ? 'Freetvarr is ready to record. Open the TV guide, pick a programme, and press Record.'
         : 'Freetvarr needs channels and a guide before it can record a show by name.'
@@ -776,14 +788,14 @@ export const WelcomeView = {
       if (!plexWillSave.value) return
       const body = {
         plex_url: plexUrl.value,
-        plex_tv_section_id: plexSectionId.value,
+        ...plexSectionSettings(plexPicks),
         ...changedSettings([['plex_prefs_path', plexPrefsPath.value, saved.plexPrefsPath]]),
         ...(plexToken.value ? { plex_token: plexToken.value } : {}),
       }
       await api('POST', '/api/settings', body)
       Object.assign(saved, {
         plexUrl: plexUrl.value,
-        plexSectionId: plexSectionId.value,
+        plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
       })
     }
@@ -819,12 +831,16 @@ export const WelcomeView = {
     const fetchPlexSections = async () => {
       const body = { plex_url: plexUrl.value }
       if (plexToken.value) body.plex_token = plexToken.value
-      const { sections = [] } = await api('POST', '/api/plex-sections', body)
+      const [{ sections = [] }, plan] = await Promise.all([
+        api('POST', '/api/plex-sections', body),
+        api('POST', '/api/plex-libraries', body).then((r) => r.libraries || null).catch(() => null),
+      ])
       plexSections.value = sections
+      plexLibraryPlan.value = plan
+      Object.assign(plexPicks, prefillPlexSections({ picks: plexPicks, plan }))
       plexSectionLoads.value++
       plexConnected.value = true
       plexProblem.value = null
-      if (!plexSectionId.value) plexSectionId.value = guessPlexTvSection({ sections, mediaRoot: mediaRoot.value })
       return sections
     }
 
@@ -842,7 +858,7 @@ export const WelcomeView = {
     }
 
     const usePlexLibraries = (selected) => {
-      if (selected.tv) plexSectionId.value = selected.tv
+      for (const { kind } of PLEX_SECTION_ROWS) if (selected[kind]) plexPicks[kind] = selected[kind]
       loadPlexSections({ silent: true })
     }
 
@@ -1127,9 +1143,9 @@ export const WelcomeView = {
       timeZone, tzSource, zones, zoneClock, zoneSourceText,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
-      plexUrl, plexToken, plexTokenSet, plexSectionId, plexSections, plexProbing,
+      plexUrl, plexToken, plexTokenSet, plexPicks, plexSections, plexSectionRows, plexProbing,
       plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
-      plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, plexShowSections, findPlex,
+      plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, findPlex,
       storageChecking, storageChecked, storageProblems, storageNotes, storageRows, storageAdvancedOpen, storageSummary, checkStorage, clearStaleLibraryStatus,
       manualLogin, canSecureAgain,
       plexTokenStatus, plexTokenStatusKind,

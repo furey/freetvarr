@@ -165,6 +165,7 @@ const wizardApi = (sim) => {
     'POST /api/discover-plex': () => delay(PLEX_DISCOVER_DELAY_MS).then(() => ({ servers: [plexServer()] })),
     'POST /api/plex-detect-token': () => detectPlexToken(sim),
     'POST /api/plex-sections': () => delay(PLEX_SECTIONS_DELAY_MS).then(() => ({ sections: plexSections() })),
+    'POST /api/plex-libraries': () => ({ libraries: plexLibraryPlan(sim) }),
   }
   return async (route) => {
     const request = route.request()
@@ -498,7 +499,19 @@ const detectPlexToken = (sim) => {
 const plexSections = () => [
   { key: '1', title: 'Movies', type: 'movie', locations: ['/media/movies'] },
   { key: '2', title: 'TV Shows', type: 'show', locations: ['/data/media/tv'] },
+  { key: '3', title: 'One-offs', type: 'movie', locations: ['/data/media/one-offs'] },
 ]
+
+const plexLibraryPlan = (sim) => Object.entries({
+  tv: sim.settings.media_root,
+  oneoff: sim.settings.oneoff_root,
+  movies: sim.settings.movies_root,
+})
+  .filter(([, location]) => location)
+  .map(([kind, location]) => {
+    const existing = plexSections().find((sec) => sec.locations.includes(location))
+    return { kind, location, existing: existing ? { key: existing.key, title: existing.title } : null }
+  })
 
 const startJob = ({ steps, phases, result = () => null }) => ({ steps, phases, result, startedAt: Date.now() })
 
