@@ -197,9 +197,11 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
-The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) app. The [terminal commands](#copy-with-the-terminal) do the same job by hand, and also run on a NAS or in Docker.
+The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) desktop app. The [command line](#save-via-command-line) does the same job by hand, and also runs on a NAS or in Docker.
 
-### Copy with the app
+<a id="copy-with-the-app"></a>
+
+### Save via desktop app
 
 [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) is a free desktop app that copies the recordings on a Fetch box to your computer over your home network. It needs no Fetch account, and it deletes nothing from the box. It is open source and not made by Fetch TV: Freetvarr's author built it on the [`fetchtv`](https://github.com/furey/fetchtv) tool. Allow `10 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
 
@@ -232,7 +234,9 @@ If the copy stops part way, or some recordings show as not saved, press **Save a
 
 The files play in VLC (a free video player). For other ways to watch them, press **How to watch your recordings** in the **I have my files, but now what?** card on the finished screen.
 
-### Copy with the terminal
+<a id="copy-with-the-terminal"></a>
+
+### Save via command line
 
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="mLbXBfHPvsE" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
