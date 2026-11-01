@@ -37,7 +37,7 @@ The sources for the Freetvarr YouTube videos: the overview, the guide series (on
 - `series/<slug>/script.mjs`: the voiceover lines, timing overrides, and the YouTube title, description, and tags
 - `series/<slug>/scenes.js`: the motion design for each scene
 - `series/<slug>/takes.json`: picks a new ElevenLabs take for a line that read badly
-- `series/tools/`: the voice, timeline, audio, and description steps, plus `check-vo.mjs` (speech-to-text and end-of-sentence pitch check), `stills.sh`, `check.sh`, `dense.sh`, and `review.sh` (contact sheets for review)
+- `series/tools/`: the voice, timeline, audio, and description steps, plus `check-vo.mjs` (speech-to-text and end-of-sentence pitch check), `check-layout-shift.mjs` (text boxes that move, resize, wrap, or render in a fallback font), `stills.sh`, `check.sh`, `dense.sh`, and `review.sh` (contact sheets for review)
 - `series/stage/`: the shared stage page; `lib.js` holds the shared parts (app window, terminal, kicker, end card)
 
 The slugs are `leaving-fetch`, `install`, `recording`, `watching`, `library`, and `home-settings`.
@@ -83,10 +83,10 @@ The frames cost the most to remake: they need the demo stack running and a full 
 
 ## Rebuild
 
-Stop any old stage server first. The overview uses port `3895` and the series uses `3896`; a build reuses a server that already answers on its port, even one that serves another folder.
+Stop any old stage server first. The overview uses port `3895`; a build reuses a server that already answers on its port, even one that serves another folder. The series render reads the stage files from disk and needs no server.
 
 ```sh
-lsof -nP -iTCP:3895 -iTCP:3896 -sTCP:LISTEN
+lsof -nP -iTCP:3895 -sTCP:LISTEN
 ```
 
 Overview (`WORKERS` sets the number of parallel render workers, default `4`):
@@ -111,6 +111,18 @@ Stills only, at chosen seconds, with no audio and no full render:
 
 ```sh
 video/series/build.sh library --stills=5,20,60
+```
+
+Layout check on the stage, every frame plus a cold start at each render worker's first frame (exits `1` on a problem):
+
+```sh
+node video/series/tools/check-layout-shift.mjs library
+```
+
+The same check against a finished mp4, one sampled frame per second compared with the stage:
+
+```sh
+node video/series/tools/check-layout-shift.mjs library --mp4
 ```
 
 Thumbnails from the saved renders:
