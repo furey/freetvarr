@@ -106,12 +106,9 @@ export default withMermaid(defineConfig({
         text: 'Start here',
         items: [
           { text: 'What Freetvarr is', link: '/guide/' },
-          { text: 'Plex DVR instead', link: '/guide/plex-dvr' },
-          { text: 'Hardware', link: '/guide/hardware' },
-          { text: 'Windows (untested)', link: '/guide/windows' },
-          { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Getting started', link: '/guide/getting-started' },
-          { text: 'Updating Freetvarr', link: '/guide/updating' }
+          { text: 'Updating Freetvarr', link: '/guide/updating' },
+          { text: 'Hardware', link: '/guide/hardware' }
         ]
       },
       {
@@ -137,6 +134,7 @@ export default withMermaid(defineConfig({
       {
         text: 'Connect it up',
         items: [
+          { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Plex', link: '/guide/plex' },
           { text: 'Sonarr and Radarr', link: '/guide/sonarr-radarr' },
           { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
@@ -148,6 +146,7 @@ export default withMermaid(defineConfig({
         text: 'Coming from Fetch',
         items: [
           { text: 'Leaving Fetch TV', link: '/guide/leaving-fetch' },
+          { text: 'Plex DVR instead', link: '/guide/plex-dvr' },
           { text: 'From Fetcharr', link: '/guide/from-fetcharr' }
         ]
       },
@@ -155,7 +154,8 @@ export default withMermaid(defineConfig({
         text: 'Help',
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
-          { text: 'Troubleshooting', link: '/guide/troubleshooting' }
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+          { text: 'Windows (untested)', link: '/guide/windows' }
         ]
       },
       {
