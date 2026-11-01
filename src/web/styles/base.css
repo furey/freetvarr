@@ -31,6 +31,12 @@ html {
   }
 }
 
+@media (max-width: 767px), (max-height: 500px) {
+  :root {
+    --control-compact-h: 44px;
+  }
+}
+
 @media (min-width: 1280px) {
   :root {
     --gutter: 40px;

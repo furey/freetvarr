@@ -222,6 +222,10 @@
 }
 
 @media (max-width: 767px), (max-height: 500px) {
+  .settings-nav-title {
+    margin-bottom: 14px;
+  }
+
   .settings-nav-list {
     overflow: hidden;
     border-radius: var(--radius-card);
