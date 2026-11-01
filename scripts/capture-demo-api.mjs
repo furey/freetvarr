@@ -63,6 +63,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await route('**/api/doctor**', (route) => fulfillJson(route, fixtures.doctor))
   await route(/\/api\/plex\/whole-library(\?|$)/, (route) => fulfillJson(route, fixtures.wholeLibrary))
   await route(/\/api\/plex\/watch-sync(\?|$)/, (route) => fulfillJson(route, fixtures.watchSync))
+  await route(/\/api\/plex-sections(\?|$)/, (route) => fulfillJson(route, { sections: PLEX_SECTIONS }))
   await route(/\/api\/arr(\?|$)/, (route) => fulfillJson(route, fixtures.arr))
   await route('**/api/arr/*/test', (route) => fulfillJson(route, fixtures.arrTest(route.request().url())))
   await route('**/api/live/tuner-status', (route) => fulfillJson(route, fixtures.tunerStatus))
@@ -382,7 +383,7 @@ const HERO_SHOWCASE = (process.env.HERO_SHOWCASE ?? 'Big Brother|The Witches Of 
   .map((title) => title.trim())
   .filter(Boolean)
 const GUIDE_PICK_TYPES = ['for-you', 'top-rated']
-const HIDDEN_TITLES = new Set((process.env.HIDDEN_TITLES ?? 'Manuka Honey Spring Renewal|Pawn Stars|Summer In The Isles Of Scilly|Millionaire Hot Seat|Millionaire Hot Seat Encore|Rugby League World Cup 2026|Jeopardy!|Anthony Bourdain: A Cook\'s Tour|Bargain Hunt|Bargain Block|Bargain Mansions')
+const HIDDEN_TITLES = new Set((process.env.HIDDEN_TITLES ?? 'Manuka Honey Spring Renewal|Pawn Stars|Summer In The Isles Of Scilly|Millionaire Hot Seat|Millionaire Hot Seat Encore|Rugby League World Cup 2026|Jeopardy!|Anthony Bourdain: A Cook\'s Tour|Bargain Hunt|Bargain Block|Bargain Mansions|Flower & Flour|Go!|Scrapper|Interview With The Vampire|Bring Her Home')
   .split('|')
   .map((title) => title.trim().toLowerCase())
   .filter(Boolean))
@@ -396,6 +397,12 @@ const DEMO_PREFS = {
   'freetvarr.liveFavouritesOnly': '0',
 }
 const DEMO_SESSION_PREFS = { 'freetvarr.introPlayed': '1' }
+const PLEX_SECTIONS = [
+  { key: '1', title: 'Movies', type: 'movie' },
+  { key: '2', title: 'TV Shows', type: 'show' },
+  { key: '5', title: 'One-offs', type: 'movie' },
+]
+
 const SANITISED_SETTINGS = {
   tvh_url: 'http://192.168.1.50:9981',
   tvh_username: 'freetvarr',
@@ -425,19 +432,23 @@ const pickShowcase = async ({ request, base, guide, simNow }) => {
     programme,
     recording: recording ?? null,
     upNext: upNextOf({ guide, simNow, fits: (p) => p.kind === 'series' && p.series_no != null && p.episode_no != null }),
-    upNextFilm: upNextOf({ guide, simNow, fits: (p) => p.kind === 'movie' && p.movieChoice }),
+    upNextFilm: (await withServedImage({ request, base, entries: upNextAll({ guide, simNow, fits: isFilmChoice }) }))[0] ?? null,
     searchTerm: upNextTitle({ guide, simNow }),
     guide,
   }
 }
 
-const upNextOf = ({ guide, simNow, fits }) => {
+const isFilmChoice = (p) => p.kind === 'movie' && p.movieChoice
+
+const upNextOf = ({ guide, simNow, fits }) => upNextAll({ guide, simNow, fits })[0] ?? null
+
+const upNextAll = ({ guide, simNow, fits }) => {
   const channels = visibleChannels(guide)
   return [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
     .flatMap((channel) => programsOf(guide, channel)
       .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && p.has_image && !isHiddenEntry(p) && fits(p))
       .slice(0, 1)
-      .map((program) => ({ channel, program })))[0] ?? null
+      .map((program) => ({ channel, program })))
 }
 
 const onAirWithImage = ({ guide, simNow }) => visibleChannels(guide).flatMap((channel) => {
@@ -664,7 +675,7 @@ const demoFixtures = ({ simNow, picks }) => {
       level: 'ok',
       sentence: null,
       sources: {
-        doctor: { ranAt: new Date(simNow - 2 * HOUR_MS).toISOString(), summary: { pass: 19, warn: 0, fail: 0, skip: 0 } },
+        doctor: { ranAt: new Date(simNow - 2 * HOUR_MS).toISOString(), summary: { pass: 20, warn: 0, fail: 0, skip: 0 } },
         tvheadend: 'ok',
         lastSync: {
           id: 336,
@@ -739,7 +750,7 @@ const demoActivity = ({ simNow, active, picks }) => {
     done({ id: 'for-you-demo-1', kind: 'for-you', title: 'For you rebuild', minutesAgo: LAST_SYNC_AGO_MIN - 2, seconds: 1 }),
     done({ id: 'hero-demo-1', kind: 'hero', title: 'Home hero rebuild', minutesAgo: LAST_SYNC_AGO_MIN - 2, seconds: 1 }),
     done({ id: 'focus-demo-1', kind: 'focus', title: 'Picture focus', minutesAgo: LAST_SYNC_AGO_MIN - 3, seconds: 2, progress: { done: 6, total: 6, unit: 'pictures' } }),
-    done({ id: 'health-demo-1', kind: 'health', title: 'Health checks', minutesAgo: 120, seconds: 2, outcome: '19 passed' }),
+    done({ id: 'health-demo-1', kind: 'health', title: 'Health checks', minutesAgo: 120, seconds: 2, outcome: '20 passed' }),
     done({ id: 'ratings-demo-1', kind: 'ratings', title: 'Ratings warm-up', minutesAgo: 45, seconds: 3, trigger: 'schedule' }),
   ]
   const liveChannel = (picks.guide.channels || []).find((c) => c.name === LIVE_DEMO_CHANNEL_NAME) ?? picks.programme.channel
@@ -810,6 +821,7 @@ const doctorReport = (simNow) => {
     doctorCheck('paths.hardlink', 'storage', 'Hardlinks', `Imports from ${SANITISED_SETTINGS.recordings_root} into ${SANITISED_SETTINGS.media_root} and ${SANITISED_SETTINGS.oneoff_root} and ${SANITISED_SETTINGS.movies_root} hardlink.`),
     doctorCheck('disk.free', 'storage', 'Free space', `2.1TB free on ${SANITISED_SETTINGS.recordings_root} (54% of the disk); 2.1TB free on ${SANITISED_SETTINGS.media_root} (54% of the disk).`),
     doctorCheck('plex.reach', 'plex', 'Plex library', `Section TV Shows reads ${SANITISED_SETTINGS.media_root}.`),
+    doctorCheck('plex.oneoffs', 'plex', 'Plex One-offs library', 'The One-offs folder has recordings.', 'guide/troubleshooting#one-offs-that-stay-in-plex'),
     doctorCheck('sync.health', 'syncs', 'Syncs', `Last sync finished ${doctorStamp(simNow - (LAST_SYNC_AGO_MIN - 1) * MINUTE_MS)}. Runs every 30 minutes.`, 'guide/syncs'),
     doctorCheck('live.encoder', 'live', 'Live TV encoder', 'Hardware encoding. VAAPI test encode passed on /dev/dri/renderD128.'),
     doctorCheck('live.streams', 'live', 'Live streams', 'Hardware transcoding measured smooth for 4 live streams at once, each at 1.4× real time or better. Freetvarr plays up to 2 at once, one per free tuner.'),

@@ -78,6 +78,15 @@ const openShow = async (page, title, settle) => {
   await page.waitForTimeout(VIEW_SETTLE_MS)
 }
 
+const jumpToSection = async (page, label, settle) => {
+  const chip = page.locator('.library-jumps .ui-chip', { hasText: new RegExp(`^${label}$`) }).first()
+  if (!(await chip.count())) return console.log(`  no ${label} jump chip`)
+  if (!(await clickWithCursor(page, chip))) return
+  await page.waitForTimeout(900)
+  await settle(page)
+  await page.waitForTimeout(1100)
+}
+
 const openSettingsWithoutAbout = async (page) => {
   const link = page.locator('a.app-nav-item[href="#/settings"]:visible').first()
   await cursorToBox(page, link)
@@ -160,6 +169,8 @@ const tour = async (page, { picks, settle }) => {
   await settle(page)
   await page.waitForTimeout(1200)
   await openShow(page, 'My Kitchen Rules', settle)
+  await jumpToSection(page, 'Movies', settle)
+  await jumpToSection(page, 'Shows', settle)
   await clickWithCursor(page, page.getByRole('tab', { name: /Scheduled/ }).or(page.getByRole('link', { name: /Scheduled/ })).or(page.locator('a, button', { hasText: /^Scheduled/ })).first()).catch(() => {})
   await settle(page)
   await page.waitForTimeout(2400)

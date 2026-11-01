@@ -19,7 +19,7 @@ const DESKTOP_SHOTS = [
   { hash: '#/settings/system/activity', file: 'screenshot-syncs.png', wait: '.settings-page' },
   { hash: '#/recordings', file: 'screenshot-recordings.png', wait: '.library-shelf, .library-grid' },
   { hash: '#/settings/storage', file: 'screenshot-settings.png', wait: '.settings-page' },
-  { hash: '#/settings/plex', file: 'screenshot-plex.png', wait: '.settings-page', prepare: (page) => scrollToText(page, 'Watched state') },
+  { hash: '#/settings/plex', file: 'screenshot-plex.png', wait: '.settings-page', prepare: (page) => showPlexLibraryNames(page) },
   { hash: '#/settings/arr', file: 'screenshot-arr.png', wait: '.settings-page' },
   { hash: '#/guide', file: 'screenshot-guide.png', wait: '.epg-cell' },
   { hash: '#/guide', file: 'screenshot-programme.png', wait: '.epg-cell', prepare: (page, picks) => openProgramme(page, picks.upNext ?? picks.programme) },
@@ -69,13 +69,39 @@ const scrollToText = async (page, text) => {
   }).catch(() => {})
 }
 
+const showPlexLibraryNames = async (page) => {
+  await page.getByRole('button', { name: 'Load libraries' }).first().click()
+  await page.locator('#settings-plex-oneoff option', { hasText: 'One-offs' }).first().waitFor({ state: 'attached', timeout: 10_000 })
+  await scrollToText(page, 'Watched state')
+}
+
 const openProgramme = async (page, { program }) => {
   const cell = page.locator('.epg-cell', { hasText: program.title }).first()
+  await scrollGuideUntilShown(page, cell)
   await cell.scrollIntoViewIfNeeded().catch(() => {})
-  await cell.click()
+  await cell.click({ timeout: 5_000 }).catch(() => clickCentred(cell))
   await page.waitForSelector('.programme-sheet, .ui-sheet', { timeout: 15_000 })
   await page.waitForTimeout(1200)
   await waitForProgrammeImages(page)
+}
+
+const GUIDE_SCROLL_STEPS = 24
+
+const scrollGuideUntilShown = async (page, cell) => {
+  for (let step = 0; step < GUIDE_SCROLL_STEPS && !(await cell.count()); step++) {
+    await page.evaluate((across) => {
+      const scroller = document.querySelector('.epg-scroll')
+      if (!scroller) return
+      if (across) scroller.scrollBy({ left: scroller.clientWidth * 0.6, behavior: 'instant' })
+      else scroller.scrollBy({ top: scroller.clientHeight * 0.7, behavior: 'instant' })
+    }, step >= GUIDE_SCROLL_STEPS / 2)
+    await page.waitForTimeout(300)
+  }
+}
+
+const clickCentred = async (cell) => {
+  await cell.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }))
+  await cell.click({ timeout: 5_000 }).catch(() => cell.evaluate((el) => el.click()))
 }
 
 const openChannelSettings = async (page) => {
