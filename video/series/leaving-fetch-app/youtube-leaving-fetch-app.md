@@ -1,0 +1,55 @@
+# YouTube: Save your Fetch TV recordings before you cancel, with the free Fetch My Recordings app
+
+## Title
+
+Save your Fetch TV recordings before you cancel, with the free Fetch My Recordings app
+
+## Description
+
+Before you cancel Fetch TV, copy your recordings off the box. Fetch My Recordings is a free app for Mac, Windows, and Linux. It finds your Fetch box on your home network and copies the recordings you choose to a folder on your computer. No Fetch account needed.
+
+Download for Mac, Windows PC, or Linux. The download page picks the right file for your computer: https://furey.github.io/freetvarr/guide/leaving-fetch
+All files and versions: https://github.com/furey/fetch-my-recordings#download
+
+The first time you open the app, your computer shows a warning. That is expected: the app is free and unsigned. Step-by-step help for Mac, Windows, and Linux: https://github.com/furey/fetch-my-recordings#first-open
+
+Why now: Fetch's Gen 3 Extended Service Levy applies to Mini Gen 3 and Mighty Gen 3 boxes from 1 November 2026. A box whose Fetch account is cancelled lists no recordings, and you cannot copy recordings off a suspended box. So save first, then cancel.
+
+If the save stops part way, click Save again. It skips the recordings that are already saved and carries on. If the app says the box has no recordings, check the TV: a cancelled box shows Fetch's setup screen.
+
+If your internet provider supplied your Fetch box, cancel through the provider instead.
+
+Prefer the terminal? The free fetchtv command-line tool does the same job: https://github.com/furey/fetchtv#usage
+
+Chapters:
+0:00 Intro
+0:11 Copy before you cancel
+0:26 Download the app
+0:38 The first-open warning
+1:01 Find your Fetch box
+1:13 Choose recordings and a folder
+1:36 Save your recordings
+1:58 Cancel Fetch
+2:18 What next
+
+Links:
+- Fetch My Recordings: https://github.com/furey/fetch-my-recordings
+- fetchtv (command line): https://github.com/furey/fetchtv
+- Leaving Fetch TV guide: https://furey.github.io/freetvarr/guide/leaving-fetch
+- Freetvarr (record free-to-air TV without Fetch): https://furey.github.io/freetvarr/
+
+Fetch My Recordings is an independent, free tool made by a Fetch customer. It is not made, endorsed, or supported by Fetch TV. Fetch is a trademark of its owner. The warning messages in this video are illustrations, not screenshots.
+
+The channels, shows, and pictures in this video are made up for the demo. Stock footage from Mixkit (Mixkit free licence). Music: "Curiosity" by Diego Nava, from Mixkit. Voice: ElevenLabs.
+
+## Tags
+
+Fetch TV, Fetch levy, leaving Fetch, cancel Fetch, Fetch recordings, save Fetch recordings, Fetch Mighty, Fetch Mini, Fetch My Recordings, fetchtv, free app, Mac, Windows, free-to-air TV, Freetvarr
+
+## Captions
+
+Upload `video-leaving-fetch-app.srt` as English (Australia) subtitles.
+
+## Duration
+
+2:36

@@ -98,18 +98,11 @@ const chipFromGraphicsRenderer = () => {
   <section class="download-app" aria-label="Download Fetch My Recordings">
     <div v-if="primary" class="download-app__primary">
       <a class="download-app__button" :href="downloadUrl(primary)">{{ buttonLabel }}</a>
-      <p class="download-app__note">
-        <template v-if="macChipName">For Macs with {{ macChipName }}. </template>
-        <template v-else-if="primary === 'mac'">Works on any Mac. </template>
-        Free. The file, <code>{{ downloads[primary].file }}</code>, goes to your Downloads folder.
-      </p>
       <p v-if="macChipName" class="download-app__note">
-        Not sure? <a :href="downloadUrl('mac')">Download the version for any Mac</a>.
+        For Macs with {{ macChipName }}. Not sure? <a :href="downloadUrl('mac')">Download the version for any Mac</a>.
       </p>
       <p v-else-if="primary === 'mac'" class="download-app__note">
-        Smaller versions for each kind of Mac are in the list below. To see which one you have, choose
-        Apple menu → About This Mac. A <strong>Chip</strong> line (Apple M1, M2, and so on) means an Apple chip;
-        a <strong>Processor</strong> line means an Intel chip.
+        Works on any Mac. Smaller files for each kind of Mac are in the list below.
       </p>
       <p v-if="primary === 'linux'" class="download-app__note">
         On a Raspberry Pi or other ARM computer,
