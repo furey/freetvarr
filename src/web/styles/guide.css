@@ -114,6 +114,8 @@
 .guide-day-chips {
   flex: 1;
   min-width: 0;
+  margin: -4px;
+  padding: 4px;
 }
 
 .guide-jumps {

@@ -5,6 +5,7 @@ import { MoveToShowSheet } from '/components/move-to-show-sheet.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { ArtworkPicker } from '/components/artwork-picker.js'
 import {
+  LIBRARY_SECTION_TITLES,
   LIBRARY_SORTS,
   failedRecordingsOf,
   failureBannerOf,
@@ -12,6 +13,7 @@ import {
   movieMetaOf,
   oneOffMetaOf,
   posterMetaOf,
+  sectionJumpsOf,
   shelvesOf,
   showsCountText,
 } from '/library-shelves.js'
@@ -19,6 +21,7 @@ import { diagnoseRecordingError } from '/recording-error.js'
 import { scheduledCountOfState } from '/scheduled-groups.js'
 import { showHrefOf } from '/show-key.js'
 import { api } from '/shared/api.js'
+import { prefersReducedMotion } from '/shared/utils.js'
 import { useLongPress } from '/shared/long-press.js'
 import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
 import { inProgressCardMetaOf, isRecordingPhase, recordedPercentOf } from '/in-progress-display.js'
@@ -77,6 +80,9 @@ export const RecordingsLibraryView = {
             <chevron-glyph class="library-sort-chevron" aria-hidden="true" />
           </span>
         </div>
+        <nav v-if="sectionJumps.length" class="ui-chip-row library-jumps" aria-label="Library sections">
+          <button v-for="jump in sectionJumps" :key="jump.key" type="button" class="ui-chip" @click="jumpToSection(jump.key)">{{ jump.label }}</button>
+        </nav>
       </div>
 
       <a v-if="failureBanner" :href="FAILED_LOG_HREF" class="ui-banner is-error library-failures">
@@ -117,9 +123,9 @@ export const RecordingsLibraryView = {
       </section>
 
       <template v-else>
-        <section v-if="shelves.shows.length" class="ui-section" aria-labelledby="library-shows-title">
+        <section v-if="shelves.shows.length" id="library-shows" class="ui-section library-section" aria-labelledby="library-shows-title">
           <div class="ui-row-header">
-            <h2 id="library-shows-title" class="ui-section-title">Shows</h2>
+            <h2 id="library-shows-title" class="ui-section-title" tabindex="-1">{{ LIBRARY_SECTION_TITLES.shows }}</h2>
             <span class="ui-row-meta">{{ showsCountText(shelves.shows) }}</span>
           </div>
           <div class="ui-poster-grid">
@@ -141,9 +147,9 @@ export const RecordingsLibraryView = {
           </div>
         </section>
 
-        <section v-if="shelves.movies.length" class="ui-section" aria-labelledby="library-movies-title">
+        <section v-if="shelves.movies.length" id="library-movies" class="ui-section library-section" aria-labelledby="library-movies-title">
           <div class="ui-row-header">
-            <h2 id="library-movies-title" class="ui-section-title">Movies</h2>
+            <h2 id="library-movies-title" class="ui-section-title" tabindex="-1">{{ LIBRARY_SECTION_TITLES.movies }}</h2>
             <span class="ui-row-meta">{{ shelves.movies.length }}</span>
           </div>
           <div class="ui-scroller">
@@ -158,9 +164,9 @@ export const RecordingsLibraryView = {
           </div>
         </section>
 
-        <section v-if="shelves.oneoffs.length" class="ui-section" aria-labelledby="library-oneoffs-title">
+        <section v-if="shelves.oneoffs.length" id="library-oneoffs" class="ui-section library-section" aria-labelledby="library-oneoffs-title">
           <div class="ui-row-header">
-            <h2 id="library-oneoffs-title" class="ui-section-title">Specials and one-offs</h2>
+            <h2 id="library-oneoffs-title" class="ui-section-title" tabindex="-1">{{ LIBRARY_SECTION_TITLES.oneoffs }}</h2>
             <span class="ui-row-meta">{{ shelves.oneoffs.length }}</span>
           </div>
           <div class="ui-scroller">
@@ -200,6 +206,7 @@ export const RecordingsLibraryView = {
     const unwatchedOnly = storedFlag({ key: LIBRARY_UNWATCHED_KEY, fallback: false })
 
     const shelves = computed(() => shelvesOf({ shows: shows.value, sort: sortKey.value, unwatchedOnly: unwatchedOnly.value }))
+    const sectionJumps = computed(() => (loaded.value ? sectionJumpsOf(shelves.value) : []))
     const nothingShown = computed(() => !shelves.value.shows.length && !shelves.value.movies.length && !shelves.value.oneoffs.length)
 
     const failureBanner = computed(() => failureBannerOf({
@@ -290,6 +297,13 @@ export const RecordingsLibraryView = {
 
     const posterPress = useLongPress(openPosterMenu)
 
+    const jumpToSection = (key) => {
+      const section = document.getElementById(`library-${key}`)
+      if (!section) return
+      section.querySelector('.ui-section-title')?.focus({ preventScroll: true })
+      section.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    }
+
     const onStopped = async (message) => {
       optionsOpen.value = false
       showToast({ title: message })
@@ -317,8 +331,8 @@ export const RecordingsLibraryView = {
     return {
       ...actions,
       menuShow, menuLoadingKey, optionsOpen, openPosterMenu, posterPress, onStopped, onOptionsFlash, reloadMenuShow,
-      shows, stale, loaded, error, shelves, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
-      LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
+      shows, stale, loaded, error, shelves, sectionJumps, jumpToSection, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
+      LIBRARY_SECTION_TITLES, LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
       posterMeta, posterLabel, inProgressMeta, recordingPercent, posterSrc, cardSrc, isScheduledOnly, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
     }
   },
