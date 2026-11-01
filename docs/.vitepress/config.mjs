@@ -109,7 +109,7 @@ export default withMermaid(defineConfig({
           { text: 'What Freetvarr is', link: '/guide/' },
           { text: 'Getting started', link: '/guide/getting-started' },
           { text: 'Updating Freetvarr', link: '/guide/updating' },
-          { text: 'Requirements', link: '/guide/requirements' }
+          { text: 'Hardware requirements', link: '/guide/hardware-requirements' }
         ]
       },
       {

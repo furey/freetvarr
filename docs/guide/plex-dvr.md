@@ -91,4 +91,4 @@ Plex's own guide is [Live TV & DVR](https://support.plex.tv/articles/225877347-l
 > [!WARNING]<br>
 > Plex expects to have the tuner to itself ([Supported tuners](https://support.plex.tv/articles/225877427-supported-dvr-tuners-and-antennas/)). Don't record from Plex DVR and TVHeadend on the same tuner at the same time. To try Plex DVR, pause TVHeadend's recordings first.
 
-If Plex DVR does the job, you need nothing else on this site. If you later want a free recorder, browser live TV, or captions in your recordings, [Requirements](/guide/requirements) and [TVHeadend](/guide/tvheadend) are the next steps.
+If Plex DVR does the job, you need nothing else on this site. If you later want a free recorder, browser live TV, or captions in your recordings, [Hardware requirements](/guide/hardware-requirements) and [TVHeadend](/guide/tvheadend) are the next steps.

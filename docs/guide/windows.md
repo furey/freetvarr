@@ -8,7 +8,7 @@ description: >-
 # Windows (untested)
 
 > [!WARNING]<br>
-> Everything on this page is untested and theoretical. The author has no Windows PC and has never run Freetvarr on Windows. The steps come from the Microsoft and Docker documentation and from forum reports, not from a working install. Expect to troubleshoot, and expect some parts not to work. The supported route is a NAS or a mini PC that runs Linux (see [The computer](/guide/requirements#the-computer)).
+> Everything on this page is untested and theoretical. The author has no Windows PC and has never run Freetvarr on Windows. The steps come from the Microsoft and Docker documentation and from forum reports, not from a working install. Expect to troubleshoot, and expect some parts not to work. The supported route is a NAS or a mini PC that runs Linux (see [The computer](/guide/hardware-requirements#the-computer)).
 
 Freetvarr and [TVHeadend](/guide/tvheadend) (the program that runs the tuner and records) are Linux programs in Docker containers. Windows runs Linux containers inside WSL (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
 
@@ -109,7 +109,7 @@ With mirrored networking and the firewall setting in step 4, a phone or TV on yo
 
 ### Live TV conversion
 
-Freetvarr's hardware conversion uses VAAPI (the Linux interface to the graphics chip's video encoder) on `/dev/dri`, the Linux graphics device. WSL shares the graphics chip in another way (through a Direct3D 12 driver), and Freetvarr does not set that up ([Microsoft: GPU video acceleration in WSL](https://devblogs.microsoft.com/commandline/d3d12-gpu-video-acceleration-in-the-windows-subsystem-for-linux-now-available/)). Plan for software conversion only, with the limits in [The computer](/guide/requirements#the-computer): live TV in the browser at `540` lines, and only as many live streams as the processor converts smoothly. Do not use the hardware override file from [Hardware transcoding](/guide/requirements#hardware-transcoding). Recording needs no conversion, so recordings are not affected.
+Freetvarr's hardware conversion uses VAAPI (the Linux interface to the graphics chip's video encoder) on `/dev/dri`, the Linux graphics device. WSL shares the graphics chip in another way (through a Direct3D 12 driver), and Freetvarr does not set that up ([Microsoft: GPU video acceleration in WSL](https://devblogs.microsoft.com/commandline/d3d12-gpu-video-acceleration-in-the-windows-subsystem-for-linux-now-available/)). Plan for software conversion only, with the limits in [The computer](/guide/hardware-requirements#the-computer): live TV in the browser at `540` lines, and only as many live streams as the processor converts smoothly. Do not use the hardware override file from [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding). Recording needs no conversion, so recordings are not affected.
 
 ### USB tuners
 
@@ -145,4 +145,4 @@ Run the install command in the Ubuntu terminal, with Docker Desktop's WSL integr
 
 ## The supported route
 
-A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, Quick Sync (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/requirements#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.
+A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, Quick Sync (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware-requirements#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.
