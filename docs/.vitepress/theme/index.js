@@ -1,5 +1,5 @@
 import DefaultTheme from 'vitepress/theme'
-import { useData } from 'vitepress'
+import { useData, useRoute } from 'vitepress'
 import { h, onMounted, watch } from 'vue'
 import BrowserFrame from './BrowserFrame.vue'
 import DevicesHero from './DevicesHero.vue'
@@ -8,6 +8,7 @@ import FetchBanner from './FetchBanner.vue'
 import Illustration from './Illustration.vue'
 import NavWordmark from './NavWordmark.vue'
 import YouTubeVideo from './YouTubeVideo.vue'
+import { realignHashAfterReflow } from './hashRealign.js'
 import './custom.css'
 import './illustrations.css'
 
@@ -28,8 +29,11 @@ export default {
   },
   setup: () => {
     const { isDark } = useData()
+    const route = useRoute()
     onMounted(() => {
       watch(isDark, syncThemeColour, { immediate: true })
+      watch(() => route.path, () => realignHashAfterReflow(location.hash))
+      realignHashAfterReflow(location.hash)
     })
   },
   Layout: () =>
