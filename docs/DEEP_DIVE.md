@@ -483,7 +483,7 @@ When an episode has other copies from the [whole Plex library](#whole-plex-libra
 
 ## Plex watched sync
 
-`src/plex-watch-sync.js` copies watched marks and resume points between Freetvarr and Plex in both directions. It reads the Plex TV, one-off, and movies sections chosen in Settings → RECORDING → Plex, and needs the Plex URL and token.
+`src/plex-watch-sync.js` copies watched marks and resume points between Freetvarr and Plex in both directions. It reads the Plex TV, movies, and one-off libraries chosen in Settings → RECORDING → Plex, and needs the Plex URL and token.
 
 - **Matching**: each imported recording is matched to a Plex item by its file path, compared from the file name upward (`matchPlexItem` in `src/library-actions.js`), so Plex and Freetvarr can mount the library at different paths. A recording that matches two Plex items, or a Plex item that two recordings match, is left out and counted as ambiguous.
 - **Changes only**: `plex_watch_state` (migration `0034`) keeps a snapshot of both sides after each run. The next run compares each side with its snapshot, so only the side that changed is copied. When both changed, the watched mark set in Freetvarr wins; for two changed resume points, the newer one wins. Resume points within `15 s` count as equal, and a Plex resume point within `30 s` of the end marks the episode watched. The first run for a recording, with no snapshot, keeps any watched mark from either side.

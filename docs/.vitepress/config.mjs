@@ -68,6 +68,7 @@ export default withMermaid(defineConfig({
   lastUpdated: true,
   metaChunk: true,
   sitemap: { hostname: site },
+  scrollOffset: { selector: '.ftv-bar-ruler', padding: 16 },
 
   rewrites: {
     'DEEP_DIVE.md': 'deep-dive.md'

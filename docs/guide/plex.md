@@ -66,13 +66,13 @@ docker compose up -d
 
 ## Point Freetvarr at Plex
 
-The **Plex** step of setup looks for Plex servers on your network and reads the token from Plex's settings file. When setup connects to Plex, it picks the TV library that reads Freetvarr's TV folder. Check that library, or pick another. If setup finds no Plex server, press **Next**. If it finds Plex but no token, press **Connect Plex by hand** and paste the token ([The token](#the-token)).
+The **Plex** step of setup looks for Plex servers on your network and reads the token from Plex's settings file. When setup connects to Plex, it lists your Plex libraries under **TV library**, **Movies library**, and **One-off library**. For each, setup picks the library that reads the matching Freetvarr folder: the TV folder, the movies folder, or the one-off folder. Check each pick, or pick another library. **None** leaves the movies or one-off library out. **Movies library** shows only when you set a movies folder. Setup saves all three, and Freetvarr refreshes each library after an import. If setup finds no Plex server, press **Next**. If it finds Plex but no token, press **Connect Plex by hand** and paste the token ([The token](#the-token)). When Freetvarr cannot list the Plex libraries, **Connect Plex by hand** also has a number box for each library; leave the movies or one-off box blank to leave that library out.
 
-In Settings → RECORDING → Plex, set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
+In Settings → RECORDING → Plex, set your Plex server URL and token, then pick the **TV library**, **Movies library**, and **One-off library** from the lists. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
 
 ## Create the libraries
 
-When Plex has no library for a Freetvarr folder, the **Plex** step of setup and Settings → RECORDING → Plex show **Create libraries**. The button needs the Plex URL and token. To check for missing libraries, press **Load sections** in Settings → RECORDING → Plex.
+When Plex has no library for a Freetvarr folder, the **Plex** step of setup and Settings → RECORDING → Plex show **Create libraries**. The button needs the Plex URL and token. To check for missing libraries, press **Load libraries** in Settings → RECORDING → Plex.
 
 Each library has a name and a folder. The folder is the path as Plex sees it. With the Plex from the Docker compose file, that path is the same as Freetvarr's. For a Plex installed some other way, enter the path that Plex shows when you add a folder to a library. Freetvarr refuses a folder that Plex cannot see.
 
@@ -80,11 +80,13 @@ Each library has a name and a folder. The folder is the path as Plex sees it. Wi
 
 Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/tv` inside its Docker container), where `DATA_PATH` is the host data folder set in the `.env`. The Plex TV library you pick has to include that same host folder, or Plex refreshes the section and finds nothing new. If Plex runs in a Docker container, mount `${DATA_PATH}/media/tv` into it, then edit the library in Plex and add the path Plex sees under **Add folders**. The two Docker containers can use different paths for the folder. Only the host folder has to be the same.
 
+## The movies library
+
+If you set a [movies folder](/guide/configuration#the-one-off-folder), Freetvarr saves films with no series folder there. Point a Plex library of the **Movies** type at that folder, then choose it as the **Movies library** in the **Plex** step of setup or in Settings → RECORDING → Plex. Without a movies folder, films go to the one-off folder and the one-off library.
+
 ## The one-off library
 
-Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off section** in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
-
-If you set a movies folder, point a **Movies** library at it and choose that library as the **Movies section**.
+Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off library** in the **Plex** step of setup or in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
 
 ## The token
 
@@ -140,7 +142,7 @@ Recordings can list everything in your Plex TV and Movies libraries, not only wh
 The **YOUR WHOLE LIBRARY** group in Settings → RECORDING → Plex has these controls:
 
 - **Show your whole Plex library**: on by default once Plex is connected.
-- **Libraries to show**: the Plex TV and movie libraries it lists. At first these are your **TV section** and **Movies section**. The one-off library is never listed, because it holds only Freetvarr's own recordings.
+- **Libraries to show**: the Plex TV and movie libraries it lists. At first these are your **TV library** and **Movies library**. The one-off library is never listed, because it holds only Freetvarr's own recordings.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/plex">
