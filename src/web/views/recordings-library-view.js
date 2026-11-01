@@ -81,10 +81,10 @@ export const RecordingsLibraryView = {
             <chevron-glyph class="library-sort-chevron" aria-hidden="true" />
           </span>
         </div>
-        <nav v-if="sectionJumps.length" class="ui-chip-row library-jumps" aria-label="Library sections">
+        <nav v-if="sectionJumps.length" v-scroll-fade class="ui-chip-row ui-scroll-fade library-jumps" aria-label="Library sections">
           <button v-for="jump in sectionJumps" :key="jump.key" type="button" class="ui-chip" @click="jumpToSection(jump.key)">{{ jump.label }}</button>
         </nav>
-        <div v-else-if="!loaded" class="ui-chip-row library-jumps" aria-hidden="true">
+        <div v-else-if="!loaded" v-scroll-fade class="ui-chip-row ui-scroll-fade library-jumps" aria-hidden="true">
           <span v-for="width in SKELETON_JUMP_WIDTHS" :key="width" class="ui-chip"><span class="ui-skeleton is-text" :style="{ '--skeleton-w': width }"></span></span>
         </div>
       </div>

@@ -133,7 +133,7 @@ export const EpgView = {
           </label>
         </div>
         <div class="guide-days">
-          <div class="ui-chip-row is-scroll guide-day-chips" role="group" aria-label="Day">
+          <div v-scroll-fade class="ui-chip-row is-scroll ui-scroll-fade guide-day-chips" role="group" aria-label="Day">
             <button v-for="d in dayChips" :key="d.day" type="button" class="ui-chip"
               :aria-pressed="String(day === d.day && !searchActive)" @click="pickDay(d.day)">{{ d.label }}</button>
           </div>

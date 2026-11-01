@@ -23,11 +23,13 @@ const readRememberedHealth = () => {
   }
 }
 
+const readPageHealth = () => rememberedHealthOf(document.querySelector('meta[name="freetvarr-health"]')?.content)
+
 const rememberHealth = ({ level, sentence }) => {
   try { localStorage.setItem(LAST_HEALTH_KEY, JSON.stringify({ level, sentence })) } catch {}
 }
 
-export const health = ref(readRememberedHealth() ?? { level: 'ok', sentence: null, known: false })
+export const health = ref(readPageHealth() ?? readRememberedHealth() ?? { level: 'ok', sentence: null, known: false })
 
 export const healthSummary = ref(null)
 
