@@ -17,8 +17,6 @@ description: >-
 
 Freetvarr's Docker compose file, which the install downloads, runs TVHeadend next to Freetvarr. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). Plex is optional. With no media server yet, the Docker compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
 
-<Illustration name="getting-started" />
-
 ## 1. Install
 
 In a terminal, run this command in the folder where you want a `freetvarr` folder to appear:
