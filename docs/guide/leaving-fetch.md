@@ -206,24 +206,19 @@ The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/fetch-my-recordings-demo.mp4" poster="/fetch-my-recordings-demo-poster.jpg" ratio="1600 / 1268" label="Fetch My Recordings" single aria-label="Fetch My Recordings finds a Fetch box, lists its recordings, and saves the chosen ones to a folder with names for Plex, Jellyfin or Kodi turned on" />
 
-Download the app for the computer you will copy to. It must be on the same home network as the Fetch box.
+Download the app on the computer you will copy to. It must be on the same home network as the Fetch box.
 
-| Computer                             | Download                                                                                                                                                     |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Mac with an Apple chip (M1 or later) | [Fetch-My-Recordings-mac-arm64.dmg](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-mac-arm64.dmg)                 |
-| Mac with an Intel chip               | [Fetch-My-Recordings-mac-x64.dmg](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-mac-x64.dmg)                     |
-| Windows PC                           | [Fetch-My-Recordings-win-x64.exe](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-win-x64.exe)                     |
-| Linux PC                             | [Fetch-My-Recordings-linux-x86_64.AppImage](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-linux-x86_64.AppImage) |
-| Linux computer with an ARM chip      | [Fetch-My-Recordings-linux-arm64.AppImage](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-linux-arm64.AppImage)   |
+<!-- markdownlint-disable-next-line MD033 -->
+<DownloadApp />
 
-To see which chip a Mac has, choose Apple menu → About This Mac. The **Chip** line names an Apple chip; an Intel Mac has a **Processor** line instead.
+The first time you open the app, your computer warns that it cannot check it. [First open](https://github.com/furey/fetch-my-recordings#first-open) in the Fetch My Recordings README shows what to press, with pictures.
 
-1. Download the file for your computer from the table.
+1. Download the app for your computer from the download box above.
 2. Install the app:
    - On a Mac, open the `.dmg` file, drag Fetch My Recordings into the Applications folder, then open it from Applications.
    - On Windows, open the `.exe` file. It installs the app and opens it.
    - On Linux, make the `.AppImage` file executable (in a terminal, `chmod +x` and the file name), then open it.
-3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**. The Fetch My Recordings README shows each step with pictures in [First open](https://github.com/furey/fetch-my-recordings#first-open).
+3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**.
 4. Press **Start**. The app searches your home network for the Fetch box. With one box, it lists the box's recordings; with more than one, choose your box.
 5. If the app finds no Fetch box, type the box's IP address (four numbers such as `192.168.1.50`) under **Or type its IP address**, and press **Connect**. The IP address is in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 6. Choose the recordings to save (**Select all** chooses every one), and press **Next**.

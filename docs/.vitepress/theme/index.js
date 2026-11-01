@@ -3,6 +3,7 @@ import { useData } from 'vitepress'
 import { h, onMounted, watch } from 'vue'
 import BrowserFrame from './BrowserFrame.vue'
 import DevicesHero from './DevicesHero.vue'
+import DownloadApp from './DownloadApp.vue'
 import FetchBanner from './FetchBanner.vue'
 import Illustration from './Illustration.vue'
 import NavWordmark from './NavWordmark.vue'
@@ -21,6 +22,7 @@ export default {
   extends: DefaultTheme,
   enhanceApp: ({ app }) => {
     app.component('BrowserFrame', BrowserFrame)
+    app.component('DownloadApp', DownloadApp)
     app.component('Illustration', Illustration)
     app.component('YouTubeVideo', YouTubeVideo)
   },
