@@ -1,8 +1,8 @@
-# YouTube: Save your Fetch TV recordings before you cancel, with the free Fetch My Recordings app
+# YouTube: Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box
 
 ## Title
 
-Save your Fetch TV recordings before you cancel, with the free Fetch My Recordings app
+Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box
 
 ## Description
 
@@ -53,3 +53,26 @@ Upload `video-leaving-fetch-app.srt` as English (Australia) subtitles.
 ## Duration
 
 2:36
+
+## Pinned comment
+
+Download for Mac, Windows PC, or Linux from the Leaving Fetch page; it picks the right file for your computer: https://furey.github.io/freetvarr/guide/leaving-fetch
+
+If your Mac or PC shows a warning the first time you open the app, that is expected. These steps have pictures: https://github.com/furey/fetch-my-recordings#first-open
+
+If the app finds no box, type the box's IP address instead. Your router's list of connected devices shows it.
+
+Already using the terminal version? Run npx fetchtv@latest so you get the newest fixes.
+
+Questions or problems? Ask here and I'll help where I can. Cheers!
+
+## Old video (mLbXBfHPvsE)
+
+Add this line at the top of the old video's description, then set the old video to Unlisted (as with the 2.1.3 re-uploads):
+
+Newer version, with the free Fetch My Recordings app: https://youtu.be/O-B4YzO4jCI
+
+Then:
+
+1. Swap the old video for the new one in the playlist `PLTogPclOLQls`, in the same position.
+2. Change the embed on the Leaving Fetch page (`docs/guide/leaving-fetch.md`, line `199`): `id`, `title`, and `duration` (`2:36`).
