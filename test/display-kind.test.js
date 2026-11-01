@@ -108,3 +108,12 @@ test('withDisplayKinds: adds movieChoice only when there is one', () => {
   assert.equal(film.movieChoice, 'not-movie')
   assert.equal('movieChoice' in short, false)
 })
+
+test('displayKindOf: a sport airing whose title has no TVDB or TMDB id shows as a one-off in the guide', () => {
+  const game = airing({ title: 'AFLW', minutes: 150, genre: 0x40, series_no: 26, episode_no: 125, episode_title: 'Rnd 12: GWS v Gold Coast' })
+  assert.equal(displayKindOf({ programme: game, airingsInWeek: 4 }), 'series')
+  assert.equal(displayKindOf({ programme: game, airingsInWeek: 4, evidence: { databaseIds: 'none' } }), 'one-off')
+  assert.equal(displayKindOf({ programme: game, airingsInWeek: 4, evidence: { databaseIds: 'found' } }), 'series')
+  const kindOf = createDisplayKinds({ programmes: [game], evidence: new Map([['aflw', { databaseIds: 'none' }]]) })
+  assert.equal(kindOf(game), 'one-off')
+})

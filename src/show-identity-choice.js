@@ -1,4 +1,5 @@
 import { db } from './db.js'
+import { USER_ORIGIN } from './show-origin.js'
 import { showTitleKey } from './show-artwork.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
 import { networkFamilyOf } from './show-match.js'
@@ -33,7 +34,7 @@ export const chooseShowIdentity = async ({ showId, tvmazeId, database = db, iden
   const channelName = await channelNameOfShow({ showId, database })
   const identity = { ...candidate.identity, needsConfirm: false }
   await database.transaction(async (trx) => {
-    await trx('shows').where({ id: showId }).update({ ...identityColumnsOf({ identity, state: 'chosen' }), kept_folder: null })
+    await trx('shows').where({ id: showId }).update({ ...identityColumnsOf({ identity, state: 'chosen' }), kept_folder: null, origin: USER_ORIGIN })
     await saveIdentityPick({ titleKey: showTitleKey(show.show_pattern), family: networkFamilyOf(channelName), identity, database: trx })
   })
   return { ...identity, folder: identityFolderOf(identity) }

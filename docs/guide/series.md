@@ -212,7 +212,7 @@ The other file stays as it is. This happens, for example, when Sonarr already do
 
 ## Title matches
 
-A recording whose title contains this text saves to its folder, even without a series recording. Settings → RECORDING → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text as whole words saves to its folder, even without a series recording. `NRL` matches `NRL Friday Night Football`, but not `NRLW`. For a sport recording, a title match that Freetvarr made by itself at an import matches only that exact title, so `Rugby League World Cup 2026` does not catch `Women's Rugby League World Cup 2026`. Settings → RECORDING → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 
@@ -223,7 +223,7 @@ To add a title:
 
 ## Recordings with no series
 
-A programme that airs once, such as a sports final or a special, goes to the one-off folder (`/data/media/one-offs` in the Docker compose file that the install script downloads). Each title gets its own folder, and the file name carries the air date and start time:
+A programme that airs once, such as a sports final or a special, goes to the one-off folder. So does sport with no entry on TheTVDB or TMDB, such as each game of a tournament. The one-off folder is `/data/media/one-offs` in the Docker compose file that the install script downloads. Each title gets its own folder, and the file name carries the air date and start time:
 
 ```text
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts

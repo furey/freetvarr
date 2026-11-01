@@ -1101,13 +1101,30 @@ a.settings-row-link:hover {
   margin-top: 4px;
 }
 
-.health-check-links a {
+.health-check-links :is(a, .health-check-action) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   min-height: 32px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.health-check-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.health-check-action:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .health-check-links svg {

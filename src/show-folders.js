@@ -6,19 +6,25 @@ import { listShowFolders } from './folder-matcher.js'
 import { createValidFilename, getMediaRoot, matchShow, withoutIdHint } from './sync.js'
 import { identityFolderOf, showIdentityFor } from './show-identity.js'
 import { identityColumnsOf } from './show-identity-store.js'
+import { AUTO_ORIGIN, USER_ORIGIN } from './show-origin.js'
+import { databaseIdsOf } from './series-kind.js'
+import { saveDatabaseIds } from './series-evidence.js'
+import { showKeyOf } from './web/show-key.js'
 
-export const ensureShowFolder = async ({ title, shows = null, airing = {}, identityFor = showIdentityFor, inBackground = false }) => {
+export const ensureShowFolder = async ({ title, shows = null, airing = {}, identityFor = showIdentityFor, inBackground = false, origin = AUTO_ORIGIN, sport = false }) => {
   const enabled = shows ?? await db('shows').where({ enabled: true })
-  const existing = matchShow(enabled, title)
-  if (existing) return { ...existing, created: false }
+  const existing = matchShow(enabled, title, { sport })
+  if (existing) return { ...await claimedBy({ show: existing, origin }), created: false }
   const [folders, match] = await Promise.all([
     getMediaRoot().then(listShowFolders).catch(() => []),
     inBackground ? null : Promise.resolve().then(() => identityFor({ ...airing, title, wait: INLINE_WAIT_MS })).catch(() => null),
   ])
   const identity = match?.identity ?? null
+  await rememberDatabaseIds({ title, match })
   const rule = {
     show_pattern: title.trim(),
     dest_folder: newShowFolderOf({ title, folders, identity }),
+    origin,
     ...identityColumnsOf({ identity, state: isSettled(match) ? match.state : null }),
   }
   const [id] = await db('shows').insert(rule)
@@ -27,8 +33,21 @@ export const ensureShowFolder = async ({ title, shows = null, airing = {}, ident
   return { ...(await db('shows').where({ id }).first()), created: true }
 }
 
+const rememberDatabaseIds = async ({ title, match }) => {
+  const databaseIds = databaseIdsOf(match)
+  if (databaseIds) await saveDatabaseIds({ key: showKeyOf(title), databaseIds }).catch(() => false)
+}
+
+const claimedBy = async ({ show, origin }) => {
+  if (origin !== USER_ORIGIN || show.origin !== AUTO_ORIGIN) return show
+  await db('shows').where({ id: show.id }).update({ origin: USER_ORIGIN })
+  show.origin = USER_ORIGIN
+  return show
+}
+
 export const settleShowIdentity = async ({ showId, title, airing = {}, identityFor = showIdentityFor, wait = BACKGROUND_WAIT_MS, renameIfEmpty = true }) => {
   const match = await Promise.resolve().then(() => identityFor({ ...airing, title, wait })).catch(() => null)
+  await rememberDatabaseIds({ title, match })
   if (!isSettled(match) || match.state === 'none') return null
   const show = await db('shows').where({ id: showId }).first()
   if (!show || OWNER_STATES.has(show.identity_state)) return null

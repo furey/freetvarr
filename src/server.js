@@ -16,6 +16,8 @@ import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
+import { USER_ORIGIN } from './show-origin.js'
+import { FOLDER_UNWRITABLE, PLACEHOLDER_KEPT, keepOneOffFolder } from './one-off-placeholder.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
 import { chooseShowIdentity, declineShowIdentity, showIdentityStatus } from './show-identity-choice.js'
 import { runReclassification, runReclassificationOnce } from './library-reclassify.js'
@@ -901,7 +903,7 @@ const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
 }
 
 const ensureShowRule = async (title, airing = null) => {
-  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true, airing: airing ? airingOf(airing) : {} })
+  const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true, airing: airing ? airingOf(airing) : {}, origin: USER_ORIGIN })
   return { created, show_pattern, dest_folder }
 }
 
@@ -1325,6 +1327,13 @@ app.get('/api/doctor', doctorLimiter, async (req, res) => {
   }
 })
 
+app.post('/api/doctor/one-off-placeholder', doctorLimiter, doubleCsrfProtection, async (req, res) => {
+  const oneOffRoot = await getOneOffRoot()
+  const outcome = await keepOneOffFolder(oneOffRoot)
+  if (outcome === PLACEHOLDER_KEPT) return res.json({ ok: true })
+  res.status(409).json({ error: placeholderErrorOf({ outcome, oneOffRoot }) })
+})
+
 app.get('/api/series', async (req, res) => {
   res.json(await getSeries())
 })
@@ -1505,6 +1514,7 @@ app.post('/api/shows', doubleCsrfProtection, async (req, res) => {
     enabled: enabled !== false,
     delete_after_import: delete_after_import === true,
     ad_removal: ad_removal || 'off',
+    origin: USER_ORIGIN,
   }).returning('id')
   const row = inserted[0]
   const id = typeof row === 'object' ? row.id : row
@@ -1537,7 +1547,7 @@ app.patch('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   }
   const current = await db('shows').where({ id }).first()
   if (!current) return res.status(404).json({ error: 'not found' })
-  await db('shows').where({ id }).update({ ...patch, ...keptFolderPatchOf({ show: current, patch }) })
+  await db('shows').where({ id }).update({ ...patch, ...keptFolderPatchOf({ show: current, patch }), origin: USER_ORIGIN })
   res.json({ ok: true })
 })
 
@@ -2478,6 +2488,10 @@ const safeJson = (s) => {
   try { return JSON.parse(s) } catch { return null }
 }
 
+const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWRITABLE
+  ? `Freetvarr cannot write to ${oneOffRoot}. Freetvarr runs as uid ${process.getuid?.() ?? 'unknown'}; set PUID and PGID in .env to the user and group that own the folder, then recreate the Freetvarr container.`
+  : `${oneOffRoot} is not there. Check the one-off folder in Settings.`)
+
 const escapesMediaRoot = (value) =>
   value.startsWith('/')
   || value.startsWith('\\')
@@ -2490,6 +2504,7 @@ const server = app.listen(PORT, async () => {
   scheduleDoctorChecks()
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
+    await keepOneOffFolder(await getOneOffRoot())
     const moved = await rebaseFilePaths()
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
     await resetInterruptedImports()

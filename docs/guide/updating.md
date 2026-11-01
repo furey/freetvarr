@@ -108,6 +108,15 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.4.0
+
+[Release notes for `2.4.0`](https://github.com/furey/freetvarr/releases/tag/2.4.0)
+
+- **Sport with no TVDB or TMDB entry moves to One-offs**: after the first sync, Freetvarr moves the files of a sport title that has no entry on TheTVDB or TMDB, such as `Rugby League World Cup 2026` or `AFLW`, from the TV folder to the one-off folder. It switches off the title match it made for that title and removes the empty TV folder. Sport titles that you record with **Record series**, or that you moved with **Move to Shows**, stay in Shows ([Library](/guide/recordings#library)).
+- **Title matches match whole words**: `NRL` no longer matches `NRLW` ([Title matches](/guide/series#title-matches)).
+- **Placeholder file**: Freetvarr adds an empty hidden file, `.freetvarr-keep`, to the one-off folder ([One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex)).
+- **Database**: the first start adds one database change (migration `0039`).
+
 ### 2.0.2
 
 [Release notes for `2.0.2`](https://github.com/furey/freetvarr/releases/tag/2.0.2)
