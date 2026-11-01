@@ -331,7 +331,7 @@ Chapters:
 Links:
 
 - Getting started: <https://furey.github.io/freetvarr/guide/getting-started>
-- Requirements: <https://furey.github.io/freetvarr/guide/requirements>
+- Hardware requirements: <https://furey.github.io/freetvarr/guide/hardware-requirements>
 - Leaving Fetch TV guide: <https://furey.github.io/freetvarr/guide/leaving-fetch>
 - Source code: <https://github.com/furey/freetvarr>
 

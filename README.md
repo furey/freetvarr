@@ -138,7 +138,7 @@ The setup wizard, from the time zone to the ready step.
 
 ## Prerequisites
 
-- A **TVHeadend-compatible tuner**. The [Requirements](https://furey.github.io/freetvarr/guide/requirements) page covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
+- A **TVHeadend-compatible tuner**. The [Hardware requirements](https://furey.github.io/freetvarr/guide/hardware-requirements) page covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
 - **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's IP address in the Channels step of setup instead. Freetvarr is untested on Windows, and the install script does not run there.
 - **Plex Media Server** is optional. Sonarr and Radarr are optional too.
 

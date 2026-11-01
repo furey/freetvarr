@@ -191,7 +191,7 @@ Everything in Path 1, plus an always-on computer and somewhere to store recordin
 An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that. Plex is free for watching your own media library at home; see [Plex's plans](https://www.plex.tv/en-au/plans/) for what its paid tier adds.
 
 > [!NOTE]<br>
-> The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. The author also added a `16GB` memory module to the DS220+ (see [Memory upgrade](/guide/requirements#the-computer-memory-upgrade)); it is optional. Any always-on computer that runs Docker works; [The computer](/guide/requirements#the-computer) gives minimum and recommended specs.
+> The author's own hardware: an HDHomeRun Flex Quatro bought direct from SiliconDust (`A$281.56` with GST, September 2026), a Synology DS220+ NAS that was already at home, and a TP-Link `TL-SG105` switch. The DS220+ is no longer sold; the DS225+ above is the current model with a similar Intel chip. The author also added a `16GB` memory module to the DS220+ (see [Memory upgrade](/guide/hardware-requirements#the-computer-memory-upgrade)); it is optional. Any always-on computer that runs Docker works; [The computer](/guide/hardware-requirements#the-computer) gives minimum and recommended specs.
 
 ## Saving your Fetch recordings
 
@@ -322,7 +322,7 @@ Do these in order. The times are for someone doing it the first time.
 
 1. **[Save your Fetch recordings](#saving-your-fetch-recordings)**. `10 minutes` with the app, plus a few hours of copying.
 2. **Order the tuner** ([Shopping list](#shopping-list)). `10 minutes`, then about a week for delivery.
-3. **Wire the tuner** ([Requirements](/guide/requirements)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
+3. **Wire the tuner** ([Hardware requirements](/guide/hardware-requirements)). Move the aerial lead from the Fetch box to the tuner, through the adapter, and plug the tuner into your router. `15 minutes`.
 4. **Path 1 stops here**: install a player app (e.g. the HDHomeRun app) and watch live TV. `10 minutes`.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Install Freetvarr** ([Getting started](/guide/getting-started)). The install script also installs TVHeadend. To get Plex as well, add your Plex claim code before you run it ([No Plex yet?](/guide/plex#no-plex-yet)). If you already run TVHeadend or Plex, Freetvarr connects to them instead ([An existing TVHeadend](/guide/getting-started#an-existing-tvheadend)). `15–30 minutes`.
@@ -389,7 +389,7 @@ Australian channels send captions in an older format called Teletext. Freetvarr'
 
 ### Your aerial
 
-If the Fetch box gets a clear picture now, the tuner will too: it uses the same aerial lead. After setup, the tuner's status page shows signal strength for each channel ([Checking the signal](/guide/requirements#checking-the-signal) explains how to open and read it).
+If the Fetch box gets a clear picture now, the tuner will too: it uses the same aerial lead. After setup, the tuner's status page shows signal strength for each channel ([Checking the signal](/guide/hardware-requirements#checking-the-signal) explains how to open and read it).
 
 ### Staying with Fetch
 

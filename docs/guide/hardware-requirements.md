@@ -1,11 +1,11 @@
 ---
-title: Requirements
+title: Hardware requirements
 description: >-
   What tuner and computer to buy for free-to-air, how to match the tuner to
   your broadcast standard, and how it wires into the aerial you already have.
 ---
 
-# Requirements
+# Hardware requirements
 
 <Illustration name="hardware" />
 

@@ -129,7 +129,7 @@ If a channel takes longer than about `15` seconds to start, the player says it i
 Freetvarr gets the channel from TVHeadend and converts it with ffmpeg into a stream that any browser can play:
 
 - **H.264 video** is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
-- **MPEG-2, HEVC, or VC-1 video** is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are re-encoded in software and stay at `576` lines. With [hardware transcoding](/guide/requirements#hardware-transcoding), HD video in those formats is decoded and re-encoded on the GPU at up to `720` lines, and 4K video drops to `1080` lines. Without it, HD and 4K video is re-encoded in software at `540` lines to keep the CPU load down. If the GPU cannot decode a recording or a Plex file, Freetvarr starts its playback again in software.
+- **MPEG-2, HEVC, or VC-1 video** is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are re-encoded in software and stay at `576` lines. With [hardware transcoding](/guide/hardware-requirements#hardware-transcoding), HD video in those formats is decoded and re-encoded on the GPU at up to `720` lines, and 4K video drops to `1080` lines. Without it, HD and 4K video is re-encoded in software at `540` lines to keep the CPU load down. If the GPU cannot decode a recording or a Plex file, Freetvarr starts its playback again in software.
 - **Audio** becomes stereo, in TVHeadend's default language, without the audio-description track.
 
 Each channel needs a tuner, unless a tuner already carries its multiplex (the group of channels that one broadcast frequency carries), in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you. When the recording starts, the recording takes the tuner and the live stream stops.
@@ -147,7 +147,7 @@ Stream limits:
 
 Many broadcasters send HD as interlaced H.264 (Australian 1080i, for example). Chrome cannot play interlaced H.264; Safari can. So Freetvarr deinterlaces H.264 and re-encodes it to progressive H.264.
 
-The hardware method uses VAAPI (the Linux interface to the graphics chip's video engine) on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/requirements#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` in the `.env` to use another. NVIDIA (NVENC) is not supported, so an NVIDIA host uses software.
+The hardware method uses VAAPI (the Linux interface to the graphics chip's video engine) on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` in the `.env` to use another. NVIDIA (NVENC) is not supported, so an NVIDIA host uses software.
 
 At startup Freetvarr reads `LIVE_TV_TRANSCODE` and picks one method:
 
