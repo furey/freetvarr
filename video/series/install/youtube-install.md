@@ -22,12 +22,12 @@ Chapters:
 0:00 Intro
 0:10 Before you start
 0:34 One command
-1:11 Secure TVHeadend
-1:30 Find channels
-1:46 TV guide
-2:03 Folders
-2:15 Plex
-2:34 You're set
+1:12 Secure TVHeadend
+1:31 Find channels
+1:47 TV guide
+2:04 Folders
+2:17 Plex
+2:36 You're set
 
 Links:
 - Getting started: https://furey.github.io/freetvarr/guide/getting-started
@@ -47,4 +47,8 @@ Upload `video-install.srt` as English (Australia) subtitles.
 
 ## Duration
 
-2:48
+2:51
+
+## Uploads
+
+- `2026-11-01`: 3Gpb-4VRgIE (Public), with the three Plex libraries and the NAS and router voice fixes. It replaces 3v_R5MZkYOA, now Unlisted with the line "Newer version, with the new Plex step: https://youtu.be/3Gpb-4VRgIE". Captions still to upload (Studio returned HTTP 400).

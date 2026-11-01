@@ -227,23 +227,27 @@ export const buildScenes = (deps) => {
     },
 
     plex: (root, scene) => {
-      const { app, tick } = appScene(root, scene, { chapter: 'Plex', clip: 'wizdone' })
+      const { app, tick } = appScene(root, scene, { chapter: 'Plex', clip: 'wizplex' })
       const [c0, c1, c2] = cueTimes(scene)
-      const mock = card(root, `<div style="font-size:24px;color:#8d9aa7;font-weight:700;letter-spacing:.08em;text-transform:uppercase">If Freetvarr connects to Plex</div>
-        <div style="display:flex;align-items:center;gap:18px;margin-top:22px;font-size:34px;font-weight:700"><span style="color:#5ce1c6">${ICONS.check(40)}</span>Connected to your Plex server</div>
-        <div style="margin-top:22px;font-size:26px;color:#a9b4be">TV library</div>
-        <div style="margin-top:8px;padding:16px 22px;border-radius:12px;background:#070b0f;border:2px solid rgba(92,225,198,0.6);font-size:30px">TV Shows</div>
-        <div class="missing" style="margin-top:26px;font-size:28px;color:#a9b4be">No library for your recordings yet?</div>
-        <div class="create" style="margin-top:12px;display:inline-block;padding:14px 30px;border-radius:12px;background:#5ce1c6;color:#04201a;font-size:28px;font-weight:800">+ Create libraries</div>`, { left: '660px', top: '260px', width: '820px', padding: '36px 44px', background: 'rgba(20,28,36,0.98)', borderColor: 'rgba(255,255,255,0.18)' })
-      const missing = [mock.querySelector('.missing'), mock.querySelector('.create')]
-      const k = kicker(root, { label: 'No Plex?', text: 'Press Next. Recordings still go into your library', tone: 'is-mint' })
-      const map = piecewise([[0, 0.3], [c2 + 1.2, 1.2], [c2 + 2.6, 3.9], [scene.duration, 4.0]])
+      const wp = (key) => mark('wizplex', key)
+      const k = [
+        kicker(root, { label: 'Plex libraries', text: 'TV, movies, and one-off' }),
+        kicker(root, { label: 'No Plex?', text: 'Press Next. Recordings still go into your library', tone: 'is-mint' }),
+      ]
+      const create = card(root, `<div style="font-size:28px;color:#a9b4be">No library for your recordings yet?</div>
+        <div style="margin-top:14px;display:inline-block;padding:14px 30px;border-radius:12px;background:#5ce1c6;color:#04201a;font-size:28px;font-weight:800">+ Create libraries</div>`, { left: '1180px', top: '690px', width: '600px', padding: '30px 36px', background: 'rgba(20,28,36,0.98)', borderColor: 'rgba(255,255,255,0.18)' })
+      const hovered = wp('rows') + 4.9
+      const clicked = wp('done') - 0.75
+      const map = piecewise([
+        [0, wp('plex') + 0.3], [c0 + 2.4, wp('rows')], [c0 + 7.3, hovered],
+        [scene.duration - 1.5, hovered + 0.5], [scene.duration - 0.1, clicked], [scene.duration, clicked],
+      ])
       return (t) => {
         tick(t)
         app.show(map(t))
-        place(mock, { opacity: window01(t, c0 - 0.1, c2 - 0.1), y: 30 * (1 - ramp(t, c0 - 0.1, 0.6)) })
-        missing.forEach((m) => { m.style.opacity = String(ramp(t, c1 - 0.1, 0.5)) })
-        k(t, c2 + 0.2, scene.duration)
+        k[0](t, c0 + 0.3, c1 - 0.1)
+        place(create, { opacity: window01(t, c1 - 0.1, c2 - 0.1), y: 30 * (1 - ramp(t, c1 - 0.1, 0.6)) })
+        k[1](t, c2 + 0.2, scene.duration)
       }
     },
 
@@ -255,7 +259,8 @@ export const buildScenes = (deps) => {
         kicker(root, { label: 'Change it later', text: 'Settings → System → Setup' }),
       ]
       const wd = (key) => mark('wizdone', key)
-      const map = piecewise([[0, wd('done') + 0.2], [3.0, wd('done') + 5.0], [3.01, 14.0], [c1 - 0.3, 15.0]])
+      const wp = (key) => mark('wizplex', key)
+      const map = piecewise([[0, wp('done') + 0.2], [3.0, wp('done') + 5.0], [3.01, 14.0], [c1 - 0.3, 15.0]])
       const endLayer = el(root, 'div', 'layer', '', { background: '#0b1117' })
       const showEnd = endCard(endLayer, {
         links: [['Getting started', 'furey.github.io/freetvarr/guide/getting-started', true]],
@@ -264,8 +269,8 @@ export const buildScenes = (deps) => {
       return (t) => {
         tick(t)
         if (t < c1 - 0.3) {
-          app.setUrl(map(t) < wd('home') ? `${URL}/#/welcome` : `${URL}/#/home`)
-          app.show(map(t))
+          app.setUrl(t < 3.0 || map(t) < wd('home') ? `${URL}/#/welcome` : `${URL}/#/home`)
+          app.show(map(t), t < 3.0 ? 'wizplex' : 'wizdone')
         } else {
           app.setUrl(`${URL}/#/settings/system/setup`)
           app.show(1 + (t - c1), 'setup')
