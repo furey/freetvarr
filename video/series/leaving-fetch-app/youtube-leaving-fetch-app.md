@@ -80,3 +80,4 @@ Then:
 ## Uploads
 
 - `2026-11-01`: jRE5bA6uw7s (Public), smooth 60 fps app footage with an ease-in-out cursor. It replaces O-B4YzO4jCI, now Unlisted with the line "Newer version, with smoother app footage: https://youtu.be/jRE5bA6uw7s".
+- `2026-11-01`: F1yCHcC4i9M (Public), re-rendered after the render fix (correct fonts 26–52 s and 78–104 s, macOS picture restored). It replaces jRE5bA6uw7s, now Unlisted with "Newer version: https://youtu.be/F1yCHcC4i9M". Captions still to upload (Studio returned an error).
