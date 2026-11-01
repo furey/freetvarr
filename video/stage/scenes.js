@@ -236,6 +236,7 @@ export const buildScenes = ({ clips, marks }) => {
       return (t) => {
         bg(t, scene.duration)
         label(t)
+        const lift = ramp(t, c4 - 0.1, 0.8)
         cards.forEach((card, i) => {
           const start = c0 - 0.2 + i * 0.3
           const p = ramp(t, start, 0.6)
@@ -244,14 +245,12 @@ export const buildScenes = ({ clips, marks }) => {
           card.style.borderColor = lit ? 'rgba(92,225,198,0.75)' : 'rgba(255,255,255,0.08)'
           card.style.background = lit ? 'rgba(92,225,198,0.08)' : '#141c24'
           card.querySelector('.ic').style.color = lit ? '#5ce1c6' : '#a9b4be'
-          place(card, { y: 40 * (1 - p), opacity: p })
+          place(card, { y: 40 * (1 - p) - 120 * lift, opacity: p })
           void cueFor
         })
         paths[0].style.strokeDashoffset = String(80 * (1 - ramp(t, c1 + 3.4, 0.8)))
         paths[1].style.strokeDashoffset = String(80 * (1 - ramp(t, c2 + 0.5, 0.8)))
         paths[2].style.strokeDashoffset = String(80 * (1 - ramp(t, c3 + 0.3, 0.8)))
-        const lift = ramp(t, c4 - 0.1, 0.8)
-        cards.forEach((card) => { card.style.top = `${300 - 120 * lift}px` })
         svg.style.transform = `translateY(${-120 * lift}px)`
         rise(stack, t, c4 + 0.2, { dy: 50 })
       }

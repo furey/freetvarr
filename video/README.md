@@ -83,11 +83,7 @@ The frames cost the most to remake: they need the demo stack running and a full 
 
 ## Rebuild
 
-Stop any old stage server first. The overview uses port `3895`; a build reuses a server that already answers on its port, even one that serves another folder. The series render reads the stage files from disk and needs no server.
-
-```sh
-lsof -nP -iTCP:3895 -sTCP:LISTEN
-```
+The renders read the stage files from disk and need no server.
 
 Overview (`WORKERS` sets the number of parallel render workers, default `4`):
 

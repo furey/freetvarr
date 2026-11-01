@@ -37,5 +37,5 @@ window.renderAt = async (t) => {
   return true
 }
 
-window.stageReady = document.fonts.ready.then(() => true)
+window.stageReady = Promise.all([...document.fonts].map((face) => face.load())).then(() => true)
 window.TOTAL = TIMELINE.duration
