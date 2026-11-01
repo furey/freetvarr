@@ -24,9 +24,22 @@
   }
 }
 
-.library-filters .ui-chip {
+.library-filters .ui-chip,
+.library-jumps .ui-chip {
   min-height: 44px;
   height: 44px;
+}
+
+.library-jumps {
+  flex-basis: 100%;
+}
+
+.library-section {
+  scroll-margin-top: calc(var(--app-header-h) + 16px);
+}
+
+.library-section .ui-section-title:focus {
+  outline: none;
 }
 
 .library-sort {
