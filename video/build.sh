@@ -25,13 +25,6 @@ node "$Y/overview/build-audio.mjs"
 node "$Y/$CUT/build-youtube-md.mjs" > /dev/null
 node "$Y/stage/make-clips.mjs" > /dev/null
 
-if ! curl -fsS -o /dev/null http://127.0.0.1:3895/stage.html; then
-  python3 -m http.server 3895 --bind 127.0.0.1 --directory "$Y/stage" > "$Y/stage-server.log" 2>&1 &
-  SERVER=$!
-  trap 'kill $SERVER' EXIT
-  sleep 1
-fi
-
 DURATION=$(node -e "console.log(require('$Y/$CUT/timeline.json').duration)")
 rm -rf "$Y/render"
 (cd "$Y/stage" && node render.mjs --duration="$DURATION" --workers="$WORKERS" --out="$Y/render")

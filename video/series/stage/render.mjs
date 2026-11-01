@@ -1,23 +1,13 @@
 import { spawn } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
+import { openStage } from './open-stage.mjs'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')))
 const FPS = 30
-const PORT = args.port || 3896
-const URL_ = `http://127.0.0.1:${PORT}/stage/stage.html?v=${args.video}`
-
-const openStage = async (browser) => {
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 })
-  page.on('pageerror', (e) => console.error('pageerror', e.message))
-  await page.goto(URL_, { timeout: 180000 })
-  await page.waitForFunction(() => window.renderAt && window.stageReady, null, { timeout: 180000 })
-  await page.evaluate(() => window.stageReady)
-  return page
-}
 
 const renderStills = async (browser, times, outDir) => {
-  const page = await openStage(browser)
+  const page = await openStage(browser, { video: args.video })
   await mkdir(outDir, { recursive: true })
   for (const t of times) {
     await page.evaluate((t) => window.renderAt(t), t)
@@ -26,7 +16,7 @@ const renderStills = async (browser, times, outDir) => {
 }
 
 const renderRange = async (browser, { from, to, out }) => {
-  const page = await openStage(browser)
+  const page = await openStage(browser, { video: args.video })
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-r', String(FPS), out], { stdio: ['pipe', 'inherit', 'inherit'] })
   for (let f = from; f < to; f++) {

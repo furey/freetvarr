@@ -197,7 +197,7 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
-<YouTubeVideo id="jRE5bA6uw7s" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:36" />
+<YouTubeVideo id="F1yCHcC4i9M" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:36" />
 
 The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) desktop app. The [command line](#save-via-command-line) does the same job by hand, and also runs on a NAS or in Docker.
 
