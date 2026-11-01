@@ -77,6 +77,19 @@ export const listPlexSections = async (connection = {}) => {
   }))
 }
 
+export const countPlexSectionItems = async ({ url, token, sectionId }) => {
+  const res = await axios.get(`${url}/library/sections/${encodeURIComponent(sectionId)}/all`, {
+    params: { 'X-Plex-Token': token, 'X-Plex-Container-Start': 0, 'X-Plex-Container-Size': 0 },
+    headers: { Accept: 'application/json' },
+    timeout: 5000,
+    validateStatus: () => true,
+  })
+  if (res.status === 401) throw new Error('Plex rejected the token (401)')
+  if (res.status >= 400) throw new Error(`Plex HTTP ${res.status}`)
+  const container = res.data?.MediaContainer || {}
+  return Number(container.totalSize ?? container.size ?? 0) || 0
+}
+
 export const getPlexConnection = (connection) => resolveConnection(connection)
 
 export const getPlexMachineIdentifier = async ({ url, token }) => {

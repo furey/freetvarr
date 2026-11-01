@@ -1,17 +1,24 @@
 import { isFilmAiring, movieChoiceOf } from './genre-enrichment.js'
 import { showKeyOf } from './web/show-key.js'
+import { isSportOneOff } from './series-kind.js'
 
-export const displayKindOf = ({ programme, record = null, airingsInWeek = 1 }) => {
+export const displayKindOf = ({ programme, record = null, airingsInWeek = 1, evidence = null }) => {
   if (isFilmAiring({ programme, record, airingsInWeek })) return 'movie'
+  if (isSportOneOff({ title: programme?.title, recordings: [{ genre: programme?.genre ?? null }], evidence })) return 'one-off'
   if (isKnownTvShow(record) || hasEpisodeDetails(programme)) return 'series'
   return airingsInWeek >= SERIES_MIN_AIRINGS ? 'series' : 'one-off'
 }
 
-export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map() }) => {
+export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map(), evidence = new Map() }) => {
   const airings = airingsByTitleOf(programmes)
   return (programme) => {
     const key = showKeyOf(programme?.title)
-    return displayKindOf({ programme, record: recordsByKey.get(key) || null, airingsInWeek: airings.get(key) || 1 })
+    return displayKindOf({
+      programme,
+      record: recordsByKey.get(key) || null,
+      airingsInWeek: airings.get(key) || 1,
+      evidence: evidence.get(key) ?? null,
+    })
   }
 }
 

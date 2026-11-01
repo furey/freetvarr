@@ -13,6 +13,7 @@ import { rowAiringOf, seriesKindOf } from './series-kind.js'
 import { getMoviesRoot, matchShow } from './sync.js'
 import { looksLikeFilm } from './film-rule.js'
 import { showKeyOf } from './web/show-key.js'
+import { isUserFolderRow } from './show-origin.js'
 import { artworkChoices } from './artwork-choices.js'
 import { backupKeptUntil, originalRetentionDays } from './commercials.js'
 import { snapshotProgress } from './progress.js'
@@ -235,7 +236,8 @@ export const isFailed = (row) => row.status === 'failed'
 export const kindOf = ({ rows, hasRule = false, moviesRoot = '', override = null, evidence = null, scheduled = null }) => seriesKindOf({
   title: (rows[0] && groupTitleOf(rows[0])) || scheduled?.name || '',
   override,
-  hasRule: hasRule || Boolean(scheduled?.seriesLinkId) || rows.some((r) => r.show_id != null || isPlexEpisodeRow(r)),
+  hasRule: hasRule || Boolean(scheduled?.seriesLinkId) || rows.some(isUserFolderRow),
+  hasTitleMatch: rows.some((r) => r.show_id != null || isPlexEpisodeRow(r)),
   isFilm: isFilmGroup({ rows, moviesRoot, scheduled }),
   recordings: [...rows.map(rowAiringOf), ...(scheduled ? [scheduledAiringFactsOf(scheduled)] : [])],
   evidence,
@@ -698,7 +700,7 @@ const loadLibraryRows = async () => {
       .whereNull('recordings.purged_at')
       .where((q) => q.whereNull('recordings.library_state').orWhereNot('recordings.library_state', 'not_in_library'))
       .where((q) => q.whereIn('recordings.status', ['done', 'partial']).orWhereNull('recordings.deleted_from_tvh_at'))
-      .select('recordings.*', 'shows.ad_removal as show_ad_removal'),
+      .select('recordings.*', 'shows.ad_removal as show_ad_removal', 'shows.origin as show_origin'),
     originalRetentionDays().catch(() => DEFAULT_RETENTION_DAYS),
   ])
   const progress = snapshotProgress(rows.filter((row) => row.ad_status === 'scanning').map((row) => row.recording_id))
@@ -729,7 +731,7 @@ const loadUpcomingRecordings = async () => {
 
 const loadPlexItems = () => loadLibraryItemRows()
 
-const loadShowFolders = () => db('shows').select('id', 'show_pattern', 'enabled')
+const loadShowFolders = () => db('shows').select('id', 'show_pattern', 'enabled', 'origin')
 
 const DEFAULT_RETENTION_DAYS = 7
 const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }

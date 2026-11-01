@@ -130,11 +130,11 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 17, warn: 0, fail: 0, skip: 2 })
+  assert.deepEqual(report.summary, { pass: 17, warn: 0, fail: 0, skip: 3 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
-  assert.deepEqual(['plex.reach', 'ads.comskip', 'live.encoder'].map((id) => checks[id].status), ['skip', 'skip', 'pass'])
+  assert.deepEqual(['plex.reach', 'plex.oneoffs', 'ads.comskip', 'live.encoder'].map((id) => checks[id].status), ['skip', 'skip', 'skip', 'pass'])
   for (const c of report.checks) {
     assert.deepEqual(Object.keys(c).filter((k) => k !== 'action').sort(), ['detail', 'doc', 'fix', 'group', 'id', 'status', 'title'])
   }
@@ -538,4 +538,57 @@ test('live.streams: warns when the limit is above the estimate, skips before the
   assert.equal(tooSlow.status, 'warn')
   assert.equal(tooSlow.fix, 'Pictures may stutter even with 1 live stream.')
   assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
+})
+
+const oneOffCheck = async ({ oneOffRoot, items }) => {
+  const now = Date.now()
+  const settings = async () => ({
+    mediaRoot: '/media/tv',
+    recordingsRoot: '/recordings',
+    tvhRecordingsPath: '/recordings',
+    plexUrl: 'http://plex.test:32400',
+    plexToken: 'token',
+    plexSectionId: '2',
+    plexOneOffSectionId: '5',
+    oneOffRoot,
+    syncCron: '',
+    adRemovalEnabled: false,
+    timeZone: '',
+  })
+  const plexSectionSize = async ({ sectionId }) => (sectionId === '5' ? items : 0)
+  const plexSections = async () => []
+  return byId(await runAgainst({ routes: healthyRoutes({ now }), now, settings, plexSectionSize, plexSections }))['plex.oneoffs']
+}
+
+test('plex.oneoffs: Plex items with no files in the One-offs folder warn and offer the placeholder file', async () => {
+  const { keepOneOffFolder, ONE_OFF_PLACEHOLDER } = await import('../src/one-off-placeholder.js')
+  const oneOffRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-doctor-oneoffs-'))
+  try {
+    const empty = await oneOffCheck({ oneOffRoot, items: 5 })
+    assert.equal(empty.status, 'warn')
+    assert.equal(empty.detail, 'The Plex One-offs library has 5 items while the One-offs folder has no files.')
+    assert.deepEqual(empty.action, { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' })
+
+    assert.equal(await keepOneOffFolder(oneOffRoot), true)
+    assert.equal(await keepOneOffFolder(oneOffRoot), true)
+    assert.equal(await fs.readFile(path.join(oneOffRoot, ONE_OFF_PLACEHOLDER), 'utf8'), '')
+    const placed = await oneOffCheck({ oneOffRoot, items: 5 })
+    assert.equal(placed.status, 'warn')
+    assert.equal(placed.action, undefined)
+    assert.match(placed.fix, /Empty Trash/)
+    assert.equal((await oneOffCheck({ oneOffRoot, items: 0 })).status, 'pass')
+
+    await fs.mkdir(path.join(oneOffRoot, 'Melbourne Cup'))
+    await fs.writeFile(path.join(oneOffRoot, 'Melbourne Cup', 'Melbourne Cup - 2026-11-03 1500.ts'), 'video')
+    assert.equal((await oneOffCheck({ oneOffRoot, items: 1 })).status, 'pass')
+  } finally {
+    await fs.rm(oneOffRoot, { recursive: true, force: true })
+  }
+})
+
+test('keepOneOffFolder: leaves a missing one-offs folder alone', async () => {
+  const { keepOneOffFolder } = await import('../src/one-off-placeholder.js')
+  const missing = path.join(os.tmpdir(), 'freetvarr-no-such-folder', 'one-offs')
+  assert.equal(await keepOneOffFolder(missing), false)
+  assert.equal(await fs.access(missing).then(() => true, () => false), false)
 })

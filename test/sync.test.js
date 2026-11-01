@@ -36,7 +36,7 @@ test('matchShow: empty shows list returns undefined', () => {
   assert.equal(matchShow([], 'Anything'), undefined)
 })
 
-test('matchShow: pattern is substring, not whole-word', () => {
+test('matchShow: a title match finds its words inside a longer title', () => {
   const shows = [{ id: 1, show_pattern: 'Survivor' }]
   assert.equal(matchShow(shows, 'Australian Survivor').id, 1)
 })
@@ -228,4 +228,29 @@ test('classifyImport: unknown actual size trusts the expected size', () => {
   const o = classifyImport({ expectedSize: 1000, actualSize: null })
   assert.equal(o.dbStatus, 'done')
   assert.equal(o.sizeToStore, 1000)
+})
+
+test('matchShow: a title match you made matches at word boundaries only', () => {
+  const shows = [{ id: 1, show_pattern: 'NRL', origin: 'user' }]
+  assert.equal(matchShow(shows, 'NRL Friday Night Football').id, 1)
+  assert.equal(matchShow(shows, 'Women\'s NRL').id, 1)
+  assert.equal(matchShow(shows, 'NRLW Premiership'), undefined)
+  assert.equal(matchShow(shows, 'Unrlisted'), undefined)
+})
+
+test('matchShow: an automatic title match matches the whole title only', () => {
+  const shows = [{ id: 13, show_pattern: 'Rugby League World Cup 2026', origin: 'auto' }]
+  assert.equal(matchShow(shows, 'Rugby League World Cup 2026').id, 13)
+  assert.equal(matchShow(shows, 'rugby league world cup 2026').id, 13)
+  assert.equal(matchShow(shows, 'Women\'s Rugby League World Cup 2026'), undefined)
+  assert.equal(matchShow(shows, 'Rugby League World Cup 2026: Pre-Game'), undefined)
+})
+
+test('libraryKind: an automatic title match does not hold a sport title with no database id in TV', () => {
+  const game = { title: 'AFLW', season: 26, episode: 9, genres: [0x40], start: Date.UTC(2026, 9, 30, 9) }
+  const evidence = { databaseIds: 'none' }
+  assert.equal(libraryKind({ show: { id: 1, origin: 'auto' }, item: game, moviesRoot: '/m', evidence }), 'oneOff')
+  assert.equal(libraryKind({ show: { id: 1, origin: 'user' }, item: game, moviesRoot: '/m', evidence }), 'tv')
+  assert.equal(libraryKind({ show: null, item: { ...game, autorecId: 'a1' }, moviesRoot: '/m', evidence }), 'tv')
+  assert.equal(libraryKind({ show: { id: 1, origin: 'auto' }, item: game, moviesRoot: '/m' }), 'tv')
 })

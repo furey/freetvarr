@@ -6,7 +6,8 @@ import path from 'path'
 import { db, getSetting } from './db.js'
 import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
-import { listPlexSections } from './plex.js'
+import { countPlexSectionItems, listPlexSections } from './plex.js'
+import { hasOneOffPlaceholder, hasRecordingFiles } from './one-off-placeholder.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
@@ -493,6 +494,24 @@ const LATER_CHECKS = [
     },
   },
   {
+    id: 'plex.oneoffs',
+    group: 'plex',
+    title: 'Plex One-offs library',
+    doc: 'guide/troubleshooting#one-offs-that-stay-in-plex',
+    run: async (ctx) => {
+      const { plexUrl, plexToken, plexOneOffSectionId, oneOffRoot } = ctx.settings
+      if (!plexUrl || !plexToken || !plexOneOffSectionId) {
+        return { status: 'skip', detail: 'No Plex library is chosen for one-offs.', action: SETTINGS_PLEX }
+      }
+      const folder = await ctx.deps.oneOffFolder(oneOffRoot)
+      if (folder.hasFiles) return { status: 'pass', detail: 'The One-offs folder has recordings.' }
+      const items = await ctx.deps.plexSectionSize({ url: plexUrl, token: plexToken, sectionId: plexOneOffSectionId }).catch(() => null)
+      if (items == null) return { status: 'skip', detail: 'Plex did not answer, so the One-offs library was not counted.' }
+      if (!items) return { status: 'pass', detail: 'The One-offs folder and the Plex One-offs library are both empty.' }
+      return oneOffGhosts({ items, hasPlaceholder: folder.hasPlaceholder })
+    },
+  },
+  {
     id: 'sync.health',
     group: 'syncs',
     title: 'Syncs',
@@ -636,6 +655,24 @@ export const liveStreamsCheck = (streams) => {
 const liveStreamsFix = (estimated) => estimated
   ? `Pictures may stutter. Set Live streams at once to ${estimated}.`
   : 'Pictures may stutter even with 1 live stream.'
+
+export const oneOffGhosts = ({ items, hasPlaceholder }) => {
+  const detail = `The Plex One-offs library has ${plural(items, 'item')} while the One-offs folder has no files.`
+  if (hasPlaceholder) {
+    return { status: 'warn', detail, fix: 'In Plex, scan the One-offs library, then use Empty Trash on it.' }
+  }
+  return {
+    status: 'warn',
+    detail,
+    fix: 'Plex reads an empty folder as a missing drive and keeps the old items. Create the placeholder file so Plex can clear them at its next scan.',
+    action: CREATE_ONE_OFF_PLACEHOLDER,
+  }
+}
+
+const readOneOffFolder = async (oneOffRoot) => ({
+  hasFiles: await hasRecordingFiles(oneOffRoot),
+  hasPlaceholder: await hasOneOffPlaceholder(oneOffRoot),
+})
 
 const runCheck = async ({ spec, ctx }) => {
   const base = { id: spec.id, group: spec.group, title: spec.title, doc: spec.doc, fix: '' }
@@ -781,7 +818,7 @@ const networkProblem = (interfaces) => {
 }
 
 const readSettings = async () => {
-  const [mediaRoot, recordingsRoot, tvhRecordingsPath, plexUrl, plexToken, plexSectionId, syncCron, adRemoval, oneOffRoot, moviesRoot] =
+  const [mediaRoot, recordingsRoot, tvhRecordingsPath, plexUrl, plexToken, plexSectionId, plexOneOffSectionId, syncCron, adRemoval, oneOffRoot, moviesRoot] =
     await Promise.all([
       getMediaRoot(),
       getRecordingsRoot(),
@@ -789,6 +826,7 @@ const readSettings = async () => {
       getSetting('plex_url'),
       getSetting('plex_token'),
       getSetting('plex_tv_section_id'),
+      getSetting('plex_oneoff_section_id'),
       getSetting('sync_cron'),
       getSetting('ad_removal_enabled'),
       getOneOffRoot(),
@@ -803,6 +841,7 @@ const readSettings = async () => {
     plexUrl: plexUrl || '',
     plexToken: plexToken || '',
     plexSectionId: plexSectionId || '',
+    plexOneOffSectionId: plexOneOffSectionId || '',
     syncCron: syncCron || '',
     adRemovalEnabled: adRemoval === 'true',
     timeZone: (await getSetting('time_zone')) || '',
@@ -829,6 +868,8 @@ const defaultDeps = () => ({
   walkTuners,
   guide: getGuideSnapshot,
   plexSections: listPlexSections,
+  plexSectionSize: countPlexSectionItems,
+  oneOffFolder: readOneOffFolder,
   checkRecordingsFolder,
   checkMediaRoot,
   probeHardlink,
@@ -957,4 +998,5 @@ const SETTINGS_PLEX = { label: 'Open settings', href: '#/settings/plex' }
 const SETTINGS_SCHEDULE = { label: 'Open settings', href: '#/settings/schedule' }
 const SETTINGS_PLAYER = { label: 'Open settings', href: '#/settings/player' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity/syncs' }
+const CREATE_ONE_OFF_PLACEHOLDER = { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' }
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }

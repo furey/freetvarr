@@ -25,6 +25,9 @@ import { loadSeriesEvidence } from './series-evidence.js'
 import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
+import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
+import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
+import { showIdentityFor } from './show-identity.js'
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -40,13 +43,13 @@ export const startSync = async (options = {}) => {
   }
 }
 
-const beginSync = async ({ trigger = 'manual', showId = null }) => {
+const beginSync = async ({ trigger = 'manual', showId = null, identityFor = showIdentityFor }) => {
   const missingUrl = await tvheadendUrlMissing()
   if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
   if (missingUrl) throw missingUrl
 
   const syncId = await createSync(trigger, showId)
-  const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId }))
+  const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId, identityFor }))
     .catch((err) => {
       console.error('[sync] unhandled error:', err)
     })
@@ -75,11 +78,32 @@ const syncFinishedListeners = new Set()
 let starting = null
 
 export const matchShow = (shows, showTitle) => {
-  const t = showTitle.toLowerCase()
+  const title = String(showTitle ?? '')
   return shows
-    .filter((s) => t.includes(s.show_pattern.toLowerCase()))
+    .filter((show) => titleMatchesShow({ show, title }))
     .sort((a, b) => b.show_pattern.length - a.show_pattern.length)[0]
 }
+
+const titleMatchesShow = ({ show, title }) => (isAutoTitleMatch(show)
+  ? showKeyOf(show.show_pattern) === showKeyOf(title)
+  : wordPatternOf(show.show_pattern)?.test(title) ?? false)
+
+const wordPatternOf = (pattern) => {
+  const text = String(pattern ?? '').trim()
+  if (!text) return null
+  if (!wordPatterns.has(text)) wordPatterns.set(text, wordBoundedPattern(text))
+  return wordPatterns.get(text)
+}
+
+const wordBoundedPattern = (text) => {
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const start = WORD_CHAR.test(text.at(0)) ? '(?<![\\p{L}\\p{N}])' : ''
+  const end = WORD_CHAR.test(text.at(-1)) ? '(?![\\p{L}\\p{N}])' : ''
+  return new RegExp(`${start}${escaped}${end}`, 'iu')
+}
+
+const wordPatterns = new Map()
+const WORD_CHAR = /[\p{L}\p{N}]/u
 
 export const libraryDecision = ({ existing, libraryChoice, show, importUnmatched }) => {
   if (existing?.library_choice === 'exclude') return { action: 'hold', reason: HOLD_REASONS.excluded }
@@ -163,7 +187,8 @@ export const libraryKind = ({ show, item, moviesRoot, override = null, evidence 
   const kind = IMPORT_KINDS[seriesKindOf({
     title: item.title,
     override,
-    hasRule: Boolean(show) || Boolean(item.autorecId),
+    hasRule: hasUserRule({ show, item }),
+    hasTitleMatch: Boolean(show),
     isFilm: Boolean(moviesRoot) && looksLikeFilm(item),
     recordings: [...keyRows, importAiringOf(item)],
     evidence,
@@ -178,6 +203,10 @@ export const importAiringOf = (item) => ({
   episodeTitle: item.episode_title ?? null,
   genres: item.genres || [],
 })
+
+export const hasUserRule = ({ show, item }) => Boolean(item?.autorecId) || (Boolean(show) && !isAutoTitleMatch(show))
+
+const isFiled = (existing) => existing?.status === 'done' || Boolean(existing?.deleted_from_tvh_at)
 
 const IMPORT_KINDS = { show: 'tv', movie: 'film', oneoff: 'oneOff' }
 
@@ -301,7 +330,7 @@ export const classifyImport = ({ expectedSize, actualSize, tolerance = SIZE_TOLE
 const tvheadendUrlMissing = () =>
   resolveConnection().then(() => null, (err) => (err.code === 'no-url' ? err : Promise.reject(err)))
 
-const doSync = async ({ syncId, trigger, showId = null }) => {
+const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
   const summary = { trigger, imported: 0, skipped: 0, failed: 0, errors: [], items: [], steps: {} }
   const timeStep = startStepTimer(summary.steps)
   if (showId != null) summary.showId = showId
@@ -349,17 +378,28 @@ const doSync = async ({ syncId, trigger, showId = null }) => {
         await holdRecording({ item, existing, reason: decision.reason })
         continue
       }
-      const keyOfItem = showKeyOf(existing?.show_title_override ?? item.title)
+      const titleOfItem = existing?.show_title_override ?? item.title
+      const keyOfItem = showKeyOf(titleOfItem)
       const override = context.overrides.get(keyOfItem) ?? null
+      const rule = override === ONE_OFF_KIND ? null : show
+      const keyRows = (context.rowsByKey.get(keyOfItem) || []).filter((row) => row.recording_id !== item.id).map(rowAiringOf)
+      if (!isFiled(existing) && needsDatabaseIds({
+        recordings: [...keyRows, importAiringOf(item)],
+        evidence: context.evidence.get(keyOfItem) ?? null,
+        override,
+        hasRule: hasUserRule({ show: rule, item }),
+      })) {
+        await lookUpDatabaseIds({ key: keyOfItem, request: { ...airingOf(item), title: titleOfItem }, identityFor, evidence: context.evidence })
+      }
       const kind = libraryKind({
-        show: override === ONE_OFF_KIND ? null : show,
+        show: rule,
         item,
         moviesRoot: roots.moviesRoot,
         override,
         evidence: context.evidence.get(keyOfItem) ?? null,
-        keyRows: (context.rowsByKey.get(keyOfItem) || []).filter((row) => row.recording_id !== item.id).map(rowAiringOf),
+        keyRows,
       })
-      const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames }) : null
+      const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames, identityFor }) : null
       const itemStartedAt = Date.now()
       const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, roots })
       summary[summaryKey]++
@@ -424,9 +464,10 @@ const rowsByShowKey = (rows) => {
   return groups
 }
 
-const folderForSeries = async ({ item, shows, autorecNames }) => {
+const folderForSeries = async ({ item, shows, autorecNames, identityFor }) => {
   const title = (item.autorecId && autorecNames.get(item.autorecId)) || item.title
-  const created = await ensureShowFolder({ title, shows, airing: airingOf(item) })
+  const origin = item.autorecId ? USER_ORIGIN : AUTO_ORIGIN
+  const created = await ensureShowFolder({ title, shows, airing: airingOf(item), identityFor, origin })
   if (!shows.some((show) => show.id === created.id)) shows.push(created)
   return created
 }

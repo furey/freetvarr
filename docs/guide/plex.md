@@ -86,7 +86,7 @@ If you set a [movies folder](/guide/configuration#the-one-off-folder), Freetvarr
 
 ## The one-off library
 
-Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off library** in the **Plex** step of setup or in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
+Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off library** in the **Plex** step of setup or in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title. Freetvarr keeps an empty hidden file, `.freetvarr-keep`, in the one-off folder, so that Plex never sees the folder as empty ([One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex)).
 
 ## The token
 

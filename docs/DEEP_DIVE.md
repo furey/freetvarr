@@ -145,7 +145,7 @@ Errors come back as a `TvheadendError` carrying a `stage` (the API path) and a `
 
 ## Import state machine
 
-The sync engine lists `dvr/entry/grid_finished` and saves each entry's details (channel, air time, synopsis) on its row in the `recordings` table. It matches the entry to a series folder (a row in the `shows` table) by case-insensitive substring, longest pattern first, and runs it through this decision tree:
+The sync engine lists `dvr/entry/grid_finished` and saves each entry's details (channel, air time, synopsis) on its row in the `recordings` table. It matches the entry to a series folder (a row in the `shows` table), longest pattern first. A row the user made (`shows.origin` is `user`) matches its pattern as whole words anywhere in the title, case-insensitive. A row the import made by itself (`origin` is `auto`) matches only the same show key, so `Rugby League World Cup 2026` does not catch `Women's Rugby League World Cup 2026`. Then the entry runs through this decision tree:
 
 ```mermaid
 flowchart TD
@@ -191,19 +191,23 @@ An import never overwrites a file that is not its own. `freeDestination` in `src
 One rule decides whether a title is a show, a one-off, or a movie: `seriesKindOf` in `src/series-kind.js`. The import uses it (`libraryKind` in `src/sync.js`) to pick a folder, and the [Library](/guide/recordings#library) in Recordings uses it (`kindOf` in `src/library.js`) to pick a shelf, so the two always agree. The first rule that matches wins:
 
 1. A choice the user made (**Move to Shows**, **Move to One-offs**, **This is a movie**, or **Not a movie**), stored in `programme_kind_overrides` (migrations `0028` and `0029`).
-2. A series rule or a series folder for the title gives a show.
-3. A film, by the guide's film rules, gives a movie when a movies folder is set.
-4. Recordings on two or more local days give a show.
-5. Evidence gives a show: the title recurs in the guide on two or more days with different episodes, or it has a real season number (not a year, such as `2026` or `26`).
-6. An event title (for example a grand final, an awards night, a telethon, or a title that starts `Live:`) or a TVmaze award show gives a one-off.
-7. An episode number on a year season gives a show, except for sport, where only episode `2` or above does.
-8. Anything else is a one-off.
+2. A series rule, or a series folder or title match the user made (`shows.origin` is `user`, migration `0039`), gives a show. **Record series**, **Add title**, a saved edit, and a picked show identity mark a row `user`; a row that a sync or a folder move made by itself is `auto`. Migration `0039` marks the existing rows with `identity_state` `none` as `auto` (only the import path writes that state) and every other row as `user`.
+3. An `auto` series folder for the title, or a Plex episode, gives a show, unless rule 5 gives a one-off.
+4. A film, by the guide's film rules, gives a movie when a movies folder is set.
+5. Sport with no TVDB or TMDB id gives a one-off. Sport means more than half of the title's own recordings carry a DVB sport genre (`0x40`–`0x4F`); the merged `sports` flag in `series_evidence` is too broad for this (quiz shows carry it). The id fact is `series_evidence.database_ids` (`none` or `found`, migration `0039`): an identity lookup that settles as `none` or `choose`, or as a match without a TVDB or TMDB id, stores `none`. While the fact is unknown, a sport title with a four-digit year in it is a one-off; any other sport title goes on to the next rules.
+6. Recordings on two or more local days give a show.
+7. Evidence gives a show: the title recurs in the guide on two or more days with different episodes, or it has a real season number (not a year, such as `2026` or `26`).
+8. An event title (for example a grand final, an awards night, a telethon, or a title that starts `Live:`) or a TVmaze award show gives a one-off.
+9. An episode number on a year season gives a show, except for sport, where only episode `2` or above does.
+10. Anything else is a one-off.
 
 Guide evidence is saved per show key in `series_evidence` (migration `0033`) as the guide loads, because TVHeadend drops each event once it ends. The saved facts only ever add to what is known.
 
+The sync asks for the id fact before it picks the folder: for a sport recording with no user rule, no override, and no stored fact, it calls the shared show identity lookup (TVmaze, with TMDB when a key is set) and waits up to `5 s`. A lookup still running after that keeps today's filing and saves the fact when it settles. The folder-move pass fills missing facts too, from the identity of the title's `auto` series folder or with up to `5` lookups per pass. The TV guide's labels (`src/display-kind.js`) read the same fact, so a sport airing with no id shows as a one-off there.
+
 ### Folder moves
 
-When a title changes shelf, its recorded files move to match. `src/library-reclassify.js` plans the moves: a show's files in the one-off folder move into its TV folder (creating the folder and its `shows` row when needed), and a one-off's files in the TV folder move into the one-off folder. Each move is a `rename`, or a copy, size check, and delete across filesystems (`EXDEV`). The `.edl` skip file and any `.orig` ad-removal backup move with the video. A move is skipped, and tried again next time, when ad removal is running on that recording, the row changed since the plan, or a file already exists at the target. After any move, Freetvarr refreshes the Plex TV and one-off sections.
+When a title changes shelf, its recorded files move to match. `src/library-reclassify.js` plans the moves: a show's files in the one-off folder move into its TV folder (creating the folder and its `shows` row when needed), and a one-off's files in the TV folder move into the one-off folder. Each move is a `rename`, or a copy, size check, and delete across filesystems (`EXDEV`). The `.edl` skip file and any `.orig` ad-removal backup move with the video. A move is skipped, and tried again next time, when ad removal is running on that recording, the row changed since the plan, or a file already exists at the target. After any move, Freetvarr refreshes the Plex TV and one-off sections. For each title that is now a one-off, by the rules or by **Move to One-offs**, the pass switches off its `auto` series folder and removes that folder from the TV folder when it holds no files. After it moves files out of the one-off folder, and at each start, Freetvarr writes an empty `.freetvarr-keep` file to the one-off folder, because Plex keeps the items of a library whose folder is empty.
 
 The moves run in these cases:
 

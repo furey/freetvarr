@@ -23,34 +23,49 @@ import { listShowFolders } from './folder-matcher.js'
 import { getSeries } from './series.js'
 import { backupPathOf, isAdJobRunning, skipMarkerPath } from './commercials.js'
 import { trackJob } from './activity.js'
+import { showKeyOf } from './web/show-key.js'
+import { AUTO_ORIGIN } from './show-origin.js'
+import { settleDatabaseIds } from './database-ids.js'
+import { keepOneOffFolder } from './one-off-placeholder.js'
 
 export const RECLASSIFY_DONE_KEY = 'library_reclassify_v1'
 
 let running = null
 
-export const planReclassification = ({
+export const planReclassification = (inputs) => {
+  const moves = []
+  for (const { group, kind } of groupKindsOf(inputs)) {
+    if (kind === 'show') moves.push(...toShowMoves({ group, shows: inputs.shows ?? [], folders: inputs.folders ?? [], roots: inputs.roots }))
+    if (kind === 'oneoff') moves.push(...toOneOffMoves({ group, roots: inputs.roots }))
+  }
+  return moves
+}
+
+export const planRetiredTitleMatches = (inputs) => {
+  const groups = groupKindsOf(inputs)
+  const oneOffKeys = new Set(groups.filter(({ kind }) => kind === 'oneoff').map(({ key }) => key))
+  const staysInTv = new Set(groups.filter(({ kind }) => kind !== 'oneoff').flatMap(({ group }) => group.map((row) => row.show_id)))
+  return (inputs.shows ?? []).filter((show) => show.enabled && show.origin === AUTO_ORIGIN
+    && oneOffKeys.has(showKeyOf(show.show_pattern)) && !staysInTv.has(show.id))
+}
+
+const groupKindsOf = ({
   rows,
-  shows = [],
-  folders = [],
   ruleKeys = new Set(),
   overrides = new Map(),
   evidence = new Map(),
   roots,
-}) => {
-  const moves = []
-  for (const [key, group] of groupBy(rows.filter(isMovable), groupKeyOf)) {
-    const kind = kindOf({
-      rows: group,
-      hasRule: ruleKeys.has(key),
-      moviesRoot: roots.moviesRoot,
-      override: overrides.get(key) ?? null,
-      evidence: evidence.get(key) ?? null,
-    })
-    if (kind === 'show') moves.push(...toShowMoves({ group, shows, folders, roots }))
-    if (kind === 'oneoff') moves.push(...toOneOffMoves({ group, roots }))
-  }
-  return moves
-}
+}) => [...groupBy(rows.filter(isMovable), groupKeyOf)].map(([key, group]) => ({
+  key,
+  group,
+  kind: kindOf({
+    rows: group,
+    hasRule: ruleKeys.has(key),
+    moviesRoot: roots.moviesRoot,
+    override: overrides.get(key) ?? null,
+    evidence: evidence.get(key) ?? null,
+  }),
+}))
 
 export const runReclassification = ({ trigger = 'startup', loadSeries = getSeries, identityFor = showIdentityFor } = {}) => {
   running ??= reclassify({ trigger, loadSeries, identityFor }).finally(() => { running = null })
@@ -58,13 +73,34 @@ export const runReclassification = ({ trigger = 'startup', loadSeries = getSerie
 }
 
 const reclassify = async ({ trigger, loadSeries, identityFor }) => {
-  const inputs = await loadReclassifyInputs({ loadSeries })
+  const inputs = await loadReclassifyInputs({ loadSeries, identityFor })
   const plan = planReclassification(inputs)
-  if (!plan.length) return { moved: 0, skipped: 0, planned: 0 }
-  return trackJob(
-    { kind: 'reclassify', title: 'Library folders', trigger, total: plan.length, unit: 'recordings' },
-    (job) => applyPlan({ plan, shows: inputs.shows, roots: inputs.roots, identityFor, job }),
-  )
+  const result = plan.length
+    ? await trackJob(
+      { kind: 'reclassify', title: 'Library folders', trigger, total: plan.length, unit: 'recordings' },
+      (job) => applyPlan({ plan, shows: inputs.shows, roots: inputs.roots, identityFor, job }),
+    )
+    : { moved: 0, skipped: 0, planned: 0 }
+  const retired = await retireTitleMatches({ shows: planRetiredTitleMatches(inputs), roots: inputs.roots })
+  return retired ? { ...result, retired } : result
+}
+
+const retireTitleMatches = async ({ shows, roots }) => {
+  for (const show of shows) {
+    await db('shows').where({ id: show.id, origin: AUTO_ORIGIN }).update({ enabled: false })
+    const folder = path.join(roots.mediaRoot, show.dest_folder)
+    if (isInsideFolder({ filePath: folder, folder: roots.mediaRoot })) await removeEmptyTree(folder)
+  }
+  return shows.length
+}
+
+const removeEmptyTree = async (folder) => {
+  const entries = await fs.readdir(folder, { withFileTypes: true }).catch(() => null)
+  if (!entries) return false
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !(await removeEmptyTree(path.join(folder, entry.name)))) return false
+  }
+  return fs.rmdir(folder).then(() => true, () => false)
 }
 
 export const isReclassifying = () => running != null
@@ -76,14 +112,19 @@ export const runReclassificationOnce = async (options = {}) => {
   return result
 }
 
-export const loadReclassifyInputs = async ({ loadSeries = getSeries } = {}) => {
+export const loadReclassifyInputs = async ({ loadSeries = getSeries, identityFor = null } = {}) => {
   const roots = {
     mediaRoot: await getMediaRoot(),
     oneOffRoot: await getOneOffRoot(),
     moviesRoot: await getMoviesRoot(),
   }
   const [rows, shows, folders, seriesData, overrides, evidence] = await Promise.all([
-    db('recordings').whereNull('purged_at').whereIn('status', ['done', 'partial']).whereNotNull('file_path'),
+    db('recordings')
+      .leftJoin('shows', 'recordings.show_id', 'shows.id')
+      .whereNull('recordings.purged_at')
+      .whereIn('recordings.status', ['done', 'partial'])
+      .whereNotNull('recordings.file_path')
+      .select('recordings.*', 'shows.origin as show_origin'),
     db('shows').where({ enabled: true }),
     listShowFolders(roots.mediaRoot).catch(() => []),
     loadSeries().catch(() => ({ series: [] })),
@@ -91,7 +132,9 @@ export const loadReclassifyInputs = async ({ loadSeries = getSeries } = {}) => {
     loadSeriesEvidence().catch(() => new Map()),
   ])
   const ruleKeys = new Set(seriesByKey(seriesData.series || []).keys())
-  return { rows, shows, folders, ruleKeys, overrides, evidence, roots }
+  const inputs = { rows, shows, folders, ruleKeys, overrides, evidence, roots }
+  if (identityFor) await settleDatabaseIds({ inputs, identityFor })
+  return inputs
 }
 
 const toShowMoves = ({ group, shows, folders, roots }) => {
@@ -133,6 +176,7 @@ const applyPlan = async ({ plan, shows, roots, identityFor, job }) => {
     job.item({ label: `${move.title}: ${path.basename(move.to)}`, state: outcome.state, detail: outcome.detail ?? null })
     if (outcome.state === 'done') {
       result.moved++
+      if (move.toShows) await keepOneOffFolder(roots.oneOffRoot)
       movedKinds.add(move.toShows ? 'tv' : 'oneOff')
       await removeEmptyFolder({ filePath: move.from, roots })
     } else {
@@ -168,7 +212,7 @@ const applyMove = async ({ move, shows, roots, identityFor }) => {
 
 const showFor = async ({ move, shows, identityFor }) => {
   if (move.showId != null) return { id: move.showId }
-  const show = await ensureShowFolder({ title: move.showPattern, shows, airing: move.item ? airingOf(move.item) : {}, identityFor })
+  const show = await ensureShowFolder({ title: move.showPattern, shows, airing: move.item ? airingOf(move.item) : {}, identityFor, origin: AUTO_ORIGIN })
   if (!shows.some((known) => known.id === show.id)) shows.push(show)
   return show
 }

@@ -128,3 +128,108 @@ test('runReclassification: a new series folder follows the matched show name and
   assert.equal((await db('recordings').where({ recording_id: 'r3' }).first()).file_path, target)
   assert.equal((await db('shows').where({ show_pattern: 'Gruen' }).first()).dest_folder, 'Gruen {tvdb-83281}')
 })
+
+const { saveDatabaseIds } = await import('../src/series-evidence.js')
+const { ONE_OFF_PLACEHOLDER } = await import('../src/one-off-placeholder.js')
+
+const fileOf = async (file) => {
+  await fs.mkdir(path.dirname(file), { recursive: true })
+  await fs.writeFile(file, 'video')
+}
+
+const exists = (file) => fs.access(file).then(() => true, () => false)
+
+test('runReclassification: a moved-in series leaves the placeholder file in the one-offs folder', async () => {
+  assert.equal(await exists(path.join(roots.oneOffRoot, ONE_OFF_PLACEHOLDER)), true)
+})
+
+test('runReclassification: the World Cup filed under an automatic title match moves to One-offs and stays there', async () => {
+  const [showId] = await db('shows').insert({ show_pattern: 'Rugby League World Cup 2026', dest_folder: 'Rugby League World Cup 2026', identity_state: 'none', origin: 'auto' })
+  const game = row({
+    recording_id: 'rlwc-15',
+    title: 'Rugby League World Cup 2026',
+    season: 26,
+    episode: 15,
+    episode_title: 'Tonga v Samoa',
+    show_id: showId,
+    genres_json: '[64]',
+    file_path: path.join(roots.mediaRoot, 'Rugby League World Cup 2026', 'Season 26', 'Rugby League World Cup 2026 - S26E15 - Tonga v Samoa.ts'),
+  })
+  await fileOf(game.file_path)
+  await db('recordings').insert(game)
+  await saveDatabaseIds({ key: 'rugby-league-world-cup-2026', databaseIds: 'none' })
+
+  const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
+  assert.equal(result.moved, 1)
+  assert.equal(result.retired, 1)
+  const moved = await db('recordings').where({ recording_id: 'rlwc-15' }).first()
+  assert.equal(path.dirname(path.dirname(moved.file_path)), roots.oneOffRoot)
+  assert.equal(moved.show_id, null)
+  assert.equal((await db('shows').where({ id: showId }).first()).enabled, 0)
+  assert.equal(await exists(path.join(roots.mediaRoot, 'Rugby League World Cup 2026')), false)
+
+  const again = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
+  assert.deepEqual(again, { moved: 0, skipped: 0, planned: 0 })
+  assert.equal((await db('recordings').where({ recording_id: 'rlwc-15' }).first()).file_path, moved.file_path)
+})
+
+test('runReclassification: a title moved to One-offs by hand retires its automatic title match and empty folder', async () => {
+  const [showId] = await db('shows').insert({ show_pattern: 'NRLW', dest_folder: 'NRLW', origin: 'auto' })
+  await fs.mkdir(path.join(roots.mediaRoot, 'NRLW', 'Season 26'), { recursive: true })
+  const game = row({ recording_id: 'nrlw-1', title: 'NRLW', season: 26, episode: 3, file_path: path.join(roots.oneOffRoot, 'NRLW', 'NRLW - 2026-10-28 1930.ts') })
+  await fileOf(game.file_path)
+  await db('recordings').insert(game)
+  await db('programme_kind_overrides').insert({ show_key: 'nrlw', kind: 'one-off', title: 'NRLW', updated_at: Date.now() })
+
+  const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
+  assert.equal(result.retired, 1)
+  assert.equal((await db('shows').where({ id: showId }).first()).enabled, 0)
+  assert.equal(await exists(path.join(roots.mediaRoot, 'NRLW')), false)
+  assert.equal((await db('recordings').where({ recording_id: 'nrlw-1' }).first()).file_path, game.file_path)
+})
+
+test('runReclassification: a sport title with no stored answer is looked up once, and no id sends it to One-offs', async () => {
+  const [showId] = await db('shows').insert({ show_pattern: 'AFLW', dest_folder: 'AFLW', origin: 'auto' })
+  const games = [3, 4].map((episode) => row({
+    recording_id: `aflw-${episode}`,
+    title: 'AFLW',
+    season: 26,
+    episode,
+    aired_at: AIRED + episode * 7 * 24 * 60 * 60 * 1000,
+    show_id: showId,
+    genres_json: '[64]',
+    file_path: path.join(roots.mediaRoot, 'AFLW', 'Season 26', `AFLW - S26E0${episode}.ts`),
+  }))
+  for (const game of games) await fileOf(game.file_path)
+  await db('recordings').insert(games)
+  const asked = []
+  const identityFor = async (request) => {
+    asked.push(request)
+    return { state: 'matched', identity: { tvmazeId: '9', name: 'AFLW', tvdbId: null, tmdbId: null }, candidates: [] }
+  }
+
+  const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor })
+  assert.equal(result.moved, 2)
+  assert.deepEqual(asked.map(({ title, wait }) => [title, wait]), [['AFLW', 5000]])
+  assert.equal((await db('series_evidence').where({ show_key: 'aflw' }).first()).database_ids, 'none')
+  assert.equal((await db('shows').where({ id: showId }).first()).enabled, 0)
+})
+
+test('runReclassification: a sport title you added a title match for stays in TV', async () => {
+  const [showId] = await db('shows').insert({ show_pattern: 'Super Netball', dest_folder: 'Super Netball', origin: 'user' })
+  const game = row({
+    recording_id: 'netball-1',
+    title: 'Super Netball',
+    season: 26,
+    episode: 1,
+    show_id: showId,
+    genres_json: '[64]',
+    file_path: path.join(roots.mediaRoot, 'Super Netball', 'Season 26', 'Super Netball - S26E01.ts'),
+  })
+  await fileOf(game.file_path)
+  await db('recordings').insert(game)
+  await saveDatabaseIds({ key: 'super-netball', databaseIds: 'none' })
+  const result = await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })
+  assert.equal(result.moved, 0)
+  assert.equal((await db('shows').where({ id: showId }).first()).enabled, 1)
+})

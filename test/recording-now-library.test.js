@@ -151,12 +151,20 @@ test('seriesFolderIdOf: names the series folder the import will use, as the sync
   assert.equal(seriesFolderIdOf({ recording: { name: 'The Block' } }), null)
 })
 
-test('a guide-numbered recording with no series folder: the import and the shelf both say show', async () => {
+test('a guide-numbered sport recording with a year in its title: the import and the shelf both say one-off', async () => {
   const item = { title: 'Rugby League World Cup 2026', season: 26, episode: 6, genres: [0x40], start: NOW - 60 * MIN, end: NOW + 90 * MIN }
+  assert.equal(libraryKind({ show: null, item, moviesRoot: '/media/movies' }), 'oneOff')
+  const { shows } = await getLibraryShows(deps({ recording: [active({ genres: [0x40] })] }))
+  assert.equal(shows[0].kind, 'oneoff')
+  const imported = row({ recording_id: 'c53af306', episode: 6, genres_json: '[64]', file_path: '/media/one-offs/Rugby League World Cup 2026/x.ts' })
+  const after = await getLibraryShows(deps({ rows: [imported], recording: [] }))
+  assert.equal(after.shows[0].kind, 'oneoff')
+})
+
+test('a guide-numbered sport recording before the database answers: the import and the shelf both say show', async () => {
+  const item = { title: 'Rugby League World Cup', season: 26, episode: 6, genres: [0x40], start: NOW - 60 * MIN, end: NOW + 90 * MIN }
   assert.equal(libraryKind({ show: null, item, moviesRoot: '/media/movies' }), 'tv')
-  const { shows } = await getLibraryShows(deps({ recording: [active()] }))
-  assert.equal(shows[0].kind, 'show')
-  const imported = row({ recording_id: 'c53af306', episode: 6, file_path: '/media/tv/Rugby League World Cup 2026/x.ts' })
+  const imported = row({ title: 'Rugby League World Cup', recording_id: 'c53af306', episode: 6, genres_json: '[64]', file_path: '/media/tv/Rugby League World Cup/x.ts' })
   const after = await getLibraryShows(deps({ rows: [imported], recording: [] }))
   assert.equal(after.shows[0].kind, 'show')
 })
