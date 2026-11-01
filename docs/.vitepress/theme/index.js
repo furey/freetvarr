@@ -34,7 +34,7 @@ export default {
   },
   Layout: () =>
     h(DefaultTheme.Layout, null, {
-      'layout-top': () => h(FetchBanner),
+      'layout-top': () => [h(FetchBanner), h('div', { class: 'ftv-bar-ruler', 'aria-hidden': 'true' })],
       'nav-bar-title-after': () => h(NavWordmark),
       'home-hero-image': () => h(DevicesHero)
     })
