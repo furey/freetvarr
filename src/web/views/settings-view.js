@@ -284,7 +284,7 @@ export const SettingsView = {
                   </option>
                 </select>
                 <input v-no-autofill v-else id="settings-plex-tv" type="text" class="field-input" v-model="plexSectionId"
-                  placeholder="library number; Load sections lists them" />
+                  placeholder="library number; Load libraries lists them" />
               </div>
               <div class="settings-row" data-setting="plex-movies-section">
                 <label class="field-label" for="settings-plex-movies">Movies library</label>
@@ -310,7 +310,7 @@ export const SettingsView = {
               </div>
               <div class="settings-row settings-row-actions">
                 <button type="button" class="ui-button ui-button-sm" @click="loadPlexSections" :disabled="plexProbing">
-                  <template v-if="plexProbing">Loading…</template><template v-else><download-icon /> Load sections</template>
+                  <template v-if="plexProbing">Loading…</template><template v-else><download-icon /> Load libraries</template>
                 </button>
                 <button type="button" class="ui-button ui-button-sm" @click="refreshPlexNow" :disabled="plexRefreshing">
                   <template v-if="plexRefreshing">Refreshing…</template><template v-else><refresh-icon /> Refresh Plex now</template>

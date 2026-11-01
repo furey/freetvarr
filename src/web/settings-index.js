@@ -95,7 +95,7 @@ const ENTRIES = [
   { label: 'When you delete', page: 'arr', setting: 'arr-unmonitor', description: 'What Sonarr and Radarr do when you delete their files here.', tags: ['unmonitor', 'recycle bin'] },
   { label: 'Stop downloading it again', page: 'arr', setting: 'arr-unmonitor', description: 'Sonarr and Radarr stop monitoring what you delete here.', tags: ['unmonitor', 'delete', 'download again'] },
   { label: 'Preferences.xml path', page: 'plex', setting: 'plex-prefs', description: 'Where Freetvarr reads the Plex token from.', tags: ['token not found'] },
-  { label: 'Plex libraries', page: 'plex', setting: 'plex-libraries', description: 'The Plex sections Freetvarr refreshes.', tags: ['sections', 'load sections', 'refresh plex now', 'create libraries'] },
+  { label: 'Plex libraries', page: 'plex', setting: 'plex-libraries', description: 'The Plex sections Freetvarr refreshes.', tags: ['sections', 'load libraries', 'load sections', 'refresh plex now', 'create libraries'] },
   { label: 'Create libraries', page: 'plex', setting: 'plex-libraries', description: 'Makes the Plex libraries that are missing.', tags: ['sections'] },
   { label: 'TV library', page: 'plex', setting: 'plex-tv-section', description: 'The Plex library for TV episodes.', tags: ['tv section', 'section'] },
   { label: 'Movies library', page: 'plex', setting: 'plex-movies-section', description: 'The Plex library for films.', tags: ['movies section', 'section', 'films'] },

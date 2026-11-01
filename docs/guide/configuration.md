@@ -85,7 +85,7 @@ The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in t
 
 When a title moves between the Shows and One-offs shelves of [Recordings](/guide/recordings), Freetvarr moves its files between the TV library and the one-off folder.
 
-**Import every recording**, under **WHAT TO IMPORT** in Settings → RECORDING → Media library, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the TV guide. To have Plex refresh the one-off library after an import, choose it as the **One-off library** in Settings → RECORDING → Plex ([The one-off library](/guide/plex#the-one-off-library)); for films, choose the **Movies library**.
+**Import every recording**, under **WHAT TO IMPORT** in Settings → RECORDING → Media library, turns the one-off folder on or off. With it off, Freetvarr imports only recordings that match a series folder, or that you recorded with **Add to library** on. **Add to library by default** in the same group sets the starting choice for new recordings in the TV guide. To have Plex refresh the one-off library after an import, choose it as the **One-off library** in Settings → RECORDING → Plex ([The one-off library](/guide/plex#the-one-off-library)); for films, choose the **Movies library** ([The movies library](/guide/plex#the-movies-library)).
 
 ## One shared mount
 
