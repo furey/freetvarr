@@ -63,7 +63,7 @@ export const PIECES = [
     id: 'library', row: 5, kind: 'main', icon: 'library', title: 'TV library', meta: 'Renamed episodes',
     need: 'Required', source: 'Created by the install script',
     job: 'Episode files named Show/Season 01/Show - S01E02.ts, the format that media players match.',
-    more: 'One-off programmes go to a separate one-offs folder.',
+    more: 'One-off programmes go to a separate one-off folder.',
     own: 'The TV folder that an existing media player reads.',
     links: [{ label: 'Media library', href: '#/settings/storage' }],
   },

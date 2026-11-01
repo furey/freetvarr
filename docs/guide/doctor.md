@@ -100,6 +100,10 @@ Reads the free space on the recordings and media folders. It warns under `20GB` 
 
 Lists Plex's library sections. It skips when Plex is not set up. It fails when Plex rejects the token or does not answer, or when the chosen section is missing or is not a TV library. It warns when no folder of that section ends in the same two folder names as the media folder. See [Plex not refreshing](/guide/troubleshooting#plex-not-refreshing) and [the library folder](/guide/plex#the-library-folder).
 
+## Plex one-off library {#plex-oneoffs}
+
+Counts the items in the Plex library chosen as the **One-off library**. It skips when Plex or that library is not set up. It warns when Plex lists items but the one-off folder has no files, because Plex then keeps items whose files are gone. When the `.freetvarr-keep` file is missing, the check offers **Create placeholder file**. See [One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex).
+
 ## Syncs {#sync-health}
 
 Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex. See [Activity](/guide/syncs).

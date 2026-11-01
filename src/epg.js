@@ -49,7 +49,7 @@ import { orderChannels } from './channel-order.js'
 import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
 import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
-import { saveGuideEvidence } from './series-evidence.js'
+import { loadSeriesEvidence, saveGuideEvidence } from './series-evidence.js'
 import {
   addPendingSkip,
   entriesToSkip,
@@ -1008,12 +1008,13 @@ const announceGuideLoaded = (guide) => {
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
   const endMs = guideDayWindow({ startMs, day: GUIDE_DAYS - 1 }).dayEnd
-  const [channels, listed, recordsByKey] = await Promise.all([
+  const [channels, listed, recordsByKey, evidence] = await Promise.all([
     listChannels(conn),
     listEvents({ startMs, endMs, conn }),
     loadTitleGenres().catch(() => new Map()),
+    loadSeriesEvidence().catch(() => new Map()),
   ])
-  const kindOf = createDisplayKinds({ programmes: listed, recordsByKey })
+  const kindOf = createDisplayKinds({ programmes: listed, recordsByKey, evidence })
   const events = withDisplayKinds({ programmes: listed, kindOf })
   if (channels.length === 0) {
     throw new TvheadendError(

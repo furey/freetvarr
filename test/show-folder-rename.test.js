@@ -170,6 +170,16 @@ test('ensureShowFolder: a failed lookup keeps the bare title', async () => {
   assert.equal(show.tvdb_id, null)
 })
 
+test('ensureShowFolder: a sync makes an automatic title match; Record series claims it as yours', async () => {
+  await setSetting('media_root', mediaRoot)
+  const identityFor = async () => ({ state: 'none', identity: null, candidates: [] })
+  const made = await ensureShowFolder({ title: 'Offsiders', shows: [], identityFor })
+  assert.equal(made.origin, 'auto')
+  const claimed = await ensureShowFolder({ title: 'Offsiders', shows: [made], identityFor, origin: 'user' })
+  assert.equal(claimed.created, false)
+  assert.equal((await db('shows').where({ id: made.id }).first()).origin, 'user')
+})
+
 const OFFICE_CHOICES = {
   state: 'choose',
   identity: null,

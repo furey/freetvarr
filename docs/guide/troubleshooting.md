@@ -185,7 +185,7 @@ TVHeadend finished a recording, but nothing appears in Recordings or in your med
 
 - **No series folder matches it, and Import every recording is off.** With **Import every recording** off (Settings → RECORDING → Media library), Freetvarr imports only recordings whose title contains the title of a series folder ([Series rules](/guide/series)), and recordings made with **Add to library** on. Pick **Every episode** and press **Record series** in the TV guide, use **Add title** in Settings → RECORDING → [Title matches](/guide/series#title-matches), or turn on **Import every recording**. The [recording log](/guide/recordings#recording-log) row says `No series folder for this title, and Import every recording is off`.
 - **It was recorded with Add to library off.** The recording log row shows **NOT IMPORTED** and says `Recorded with Add to library off`. Press **Import** on the row to import it.
-- **The Sync button on its row is dimmed.** The series folder or title match is switched off, and syncs skip it. Freetvarr's pages have no switch for this; only a call to Freetvarr's API turns a folder off. Open the row in Settings → RECORDING → [Series rules](/guide/series) or Title matches and press **Save**; saving switches it back on.
+- **The Sync button on its row is dimmed.** The series folder or title match is switched off, and syncs skip it. Freetvarr's pages have no switch for this. Freetvarr switches off a title match that it made by itself when the title moves to One-offs ([Library](/guide/recordings#library)); otherwise only a call to Freetvarr's API turns a folder off. Open the row in Settings → RECORDING → [Series rules](/guide/series) or Title matches and press **Save**; saving switches it back on.
 - **The sync hasn't run yet.** Freetvarr syncs about a minute after a recording finishes, and on the **Sync schedule** in Settings → SYSTEM → Schedule (default `Every 30 minutes`). To run one at once, open the **Syncs** tab in Settings → SYSTEM → [Activity](/guide/syncs) and press **Sync now**.
 - **It came in as SKIPPED or PARTIAL.** See the next two sections.
 
@@ -249,6 +249,13 @@ Episodes import, but Plex doesn't show them.
 - **`Plex HTTP 404`**: the section ID doesn't exist. In Settings → RECORDING → Plex, pick the **TV library** again from the list.
 - **`ECONNREFUSED` or `ECONNABORTED`**: the Plex URL is wrong, or Plex isn't running. Use `http://<plex-host-ip>:32400`.
 - **The refresh succeeds but nothing appears**: the Plex library doesn't include the folder Freetvarr writes to. Add the host folder `${DATA_PATH}/media/tv` to the library ([Plex](/guide/plex#the-library-folder)).
+
+## One-offs that stay in Plex
+
+Plex still lists one-offs after Freetvarr moved their files out of the one-off folder. Plex reads an empty library folder as a missing drive, so it keeps the old items. Freetvarr keeps an empty hidden file, `.freetvarr-keep`, in the one-off folder for this reason. It makes the file at each start and after it moves files out of the folder.
+
+- **Doctor warns `The Plex one-off library has 5 items while the one-off folder has no files.`**: the file is missing. Press **Create placeholder file** on the [Doctor](/guide/doctor#plex-oneoffs) check, then scan the one-off library in Plex.
+- **The file is there and the items stay**: in Plex, scan the one-off library, then use **Empty Trash** on it.
 
 ## Wrong country in Plex
 

@@ -6,6 +6,7 @@ export const seriesKindOf = ({
   title = '',
   override = null,
   hasRule = false,
+  hasTitleMatch = false,
   isFilm = false,
   recordings = [],
   evidence = null,
@@ -14,7 +15,9 @@ export const seriesKindOf = ({
   if (override === 'one-off') return ONE_OFF
   if (override === 'movie') return FILM
   if (hasRule) return SHOW
+  if (hasTitleMatch) return isSportOneOff({ title, recordings, evidence }) ? ONE_OFF : SHOW
   if (isFilm && override !== 'not-movie') return FILM
+  if (isSportOneOff({ title, recordings, evidence })) return ONE_OFF
   if (localDaysOf(recordings) >= MIN_DAYS) return SHOW
   const facts = mergeSeriesFacts(evidence, seriesFactsOf(recordings))
   if (facts.recurs || facts.realSeason) return SHOW
@@ -23,6 +26,28 @@ export const seriesKindOf = ({
   if (facts.minDatedEpisode != null && !facts.sports) return SHOW
   return ONE_OFF
 }
+
+export const isSportOneOff = ({ title = '', recordings = [], evidence = null }) => {
+  if (!isMostlySport(recordings)) return false
+  const databaseIds = evidence?.databaseIds ?? null
+  if (databaseIds === NO_DATABASE_IDS) return true
+  return databaseIds == null && hasYearInTitle(title)
+}
+
+export const isMostlySport = (recordings = []) => {
+  const sportCoded = recordings.filter(isSportsGenre).length
+  return sportCoded > 0 && sportCoded * 2 > recordings.length
+}
+
+export const databaseIdsOf = (match) => {
+  if (!match || !SETTLED_LOOKUPS.has(match.state)) return null
+  return match.identity?.tvdbId || match.identity?.tmdbId ? FOUND_DATABASE_IDS : NO_DATABASE_IDS
+}
+
+export const isSportGenre = (code) => Number.isInteger(Number(code)) && code !== null && Number(code) >> 4 === SPORTS_GROUP
+
+export const NO_DATABASE_IDS = 'none'
+export const FOUND_DATABASE_IDS = 'found'
 
 export const seriesFactsOf = (airings = []) => {
   const firstDayByKey = new Map()
@@ -84,8 +109,9 @@ const episodeKeyOf = ({ season, episode, episodeTitle }) => {
   return subtitle ? `t:${subtitle}` : null
 }
 
-const isSportsGenre = ({ genre, genres }) => [genre, ...(genres || [])]
-  .some((code) => Number.isInteger(Number(code)) && Number(code) >> 4 === SPORTS_GROUP)
+const isSportsGenre = ({ genre, genres }) => [genre, ...(genres || [])].some(isSportGenre)
+
+const hasYearInTitle = (title) => YEAR_IN_TITLE.test(String(title || ''))
 
 const parseGenres = (json) => {
   try {
@@ -104,6 +130,8 @@ const minOf = (a, b) => {
 
 const NO_FACTS = { recurs: false, realSeason: false, sports: false, awardShow: false, minDatedEpisode: null }
 const MIN_DAYS = 2
+const SETTLED_LOOKUPS = new Set(['none', 'choose', 'matched', 'confirm', 'chosen'])
+const YEAR_IN_TITLE = /\b(19|20)\d{2}\b/
 const SPORTS_GROUP = 0x4
 const EVENT_TITLE = new RegExp([
   '\\bgrand final\\b',

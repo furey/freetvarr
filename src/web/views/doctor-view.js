@@ -127,7 +127,9 @@ export const DoctorView = {
                     <span class="ui-group-row-meta health-check-detail">{{ c.detail }}</span>
                     <span v-if="needsFix(c) && c.fix" class="health-check-fix">{{ c.fix }}</span>
                     <span v-if="(needsFix(c) && c.doc) || c.action" class="health-check-links">
-                      <a v-if="c.action" :href="c.action.href">{{ c.action.label }}</a>
+                      <button v-if="c.action && c.action.post" type="button" class="health-check-action"
+                        :disabled="runningAction === c.id" @click="runAction(c)">{{ c.action.label }}</button>
+                      <a v-else-if="c.action" :href="c.action.href">{{ c.action.label }}</a>
                       <a v-if="needsFix(c) && c.doc" :href="docsUrl(c.doc)" target="_blank" rel="noopener noreferrer">Read more <external-link-icon /></a>
                     </span>
                   </template>
@@ -238,6 +240,20 @@ export const DoctorView = {
 
     const runChecks = () => load({ fresh: true })
 
+    const runningAction = ref('')
+    const runAction = async (check) => {
+      runningAction.value = check.id
+      try {
+        await holdAtLeast({ task: () => api('POST', check.action.post) })
+        flash({ msg: check.action.done || 'Done.', kind: 'info' })
+        await load({ fresh: true })
+      } catch (err) {
+        flash({ msg: err.message, kind: 'error' })
+      } finally {
+        runningAction.value = ''
+      }
+    }
+
     const syncRunning = computed(() => Boolean(syncStatus.value.activeSyncId))
 
     const syncNow = async () => {
@@ -326,7 +342,7 @@ export const DoctorView = {
     })
 
     return {
-      report, checking, error, phase, runChecks, orderedChecks, checkGroups, allWorking, workingExpanded,
+      report, checking, error, phase, runChecks, runningAction, runAction, orderedChecks, checkGroups, allWorking, workingExpanded,
       workingSummaryOf, rowState, countsLabel,
       progressPercent, progressText, ranLabel, durationLabel, needsFix, docsUrl,
       headlineLine, lastSyncLabel, nextSyncLabel, importedLabel, syncCountLabel, drives,
