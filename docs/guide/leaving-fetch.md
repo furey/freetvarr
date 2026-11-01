@@ -197,24 +197,24 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
-The simplest way is the Fetch My Recordings app. The [terminal commands](#copy-with-the-terminal) do the same job by hand, and also run on a NAS or in Docker.
+The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) app. The [terminal commands](#copy-with-the-terminal) do the same job by hand, and also run on a NAS or in Docker.
 
 ### Copy with the app
 
-Fetch My Recordings is a free desktop app that copies the recordings on a Fetch box to your computer over your home network. It needs no Fetch account, and it deletes nothing from the box. It is open source and not made by Fetch TV: Freetvarr's author built it on the [`fetchtv`](https://github.com/furey/fetchtv) tool. Allow `10 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
+[Fetch My Recordings](https://github.com/furey/fetch-my-recordings) is a free desktop app that copies the recordings on a Fetch box to your computer over your home network. It needs no Fetch account, and it deletes nothing from the box. It is open source and not made by Fetch TV: Freetvarr's author built it on the [`fetchtv`](https://github.com/furey/fetchtv) tool. Allow `10 minutes` to set it up, then a few hours of copying, depending on how many recordings you have.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/fetch-my-recordings-demo.mp4" poster="/fetch-my-recordings-demo-poster.jpg" ratio="1600 / 1268" label="Fetch My Recordings" single aria-label="Fetch My Recordings finds a Fetch box, lists its recordings, and saves the chosen ones to a folder with names for Plex, Jellyfin or Kodi turned on" />
 
 Download the app for the computer you will copy to. It must be on the same home network as the Fetch box.
 
-| Computer                             | Download                                                                                                                                         |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Mac with an Apple chip (M1 or later) | [Fetch-My-Recordings-mac-arm64.dmg](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-mac-arm64.dmg)                 |
-| Mac with an Intel chip               | [Fetch-My-Recordings-mac-x64.dmg](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-mac-x64.dmg)                     |
-| Windows PC                           | [Fetch-My-Recordings-win-x64.exe](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-win-x64.exe)                     |
-| Linux PC                             | [Fetch-My-Recordings-linux-x86_64.AppImage](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-linux-x86_64.AppImage) |
-| Linux computer with an ARM chip      | [Fetch-My-Recordings-linux-arm64.AppImage](https://github.com/furey/fetchtv/releases/latest/download/Fetch-My-Recordings-linux-arm64.AppImage)   |
+| Computer                             | Download                                                                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Mac with an Apple chip (M1 or later) | [Fetch-My-Recordings-mac-arm64.dmg](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-mac-arm64.dmg)                 |
+| Mac with an Intel chip               | [Fetch-My-Recordings-mac-x64.dmg](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-mac-x64.dmg)                     |
+| Windows PC                           | [Fetch-My-Recordings-win-x64.exe](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-win-x64.exe)                     |
+| Linux PC                             | [Fetch-My-Recordings-linux-x86_64.AppImage](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-linux-x86_64.AppImage) |
+| Linux computer with an ARM chip      | [Fetch-My-Recordings-linux-arm64.AppImage](https://github.com/furey/fetch-my-recordings/releases/latest/download/Fetch-My-Recordings-linux-arm64.AppImage)   |
 
 To see which chip a Mac has, choose Apple menu → About This Mac. The **Chip** line names an Apple chip; an Intel Mac has a **Processor** line instead.
 
@@ -223,7 +223,7 @@ To see which chip a Mac has, choose Apple menu → About This Mac. The **Chip** 
    - On a Mac, open the `.dmg` file, drag Fetch My Recordings into the Applications folder, then open it from Applications.
    - On Windows, open the `.exe` file. It installs the app and opens it.
    - On Linux, make the `.AppImage` file executable (in a terminal, `chmod +x` and the file name), then open it.
-3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**. The `fetchtv` README shows each step with pictures in [First open](https://github.com/furey/fetchtv#first-open).
+3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**. The Fetch My Recordings README shows each step with pictures in [First open](https://github.com/furey/fetch-my-recordings#first-open).
 4. Press **Start**. The app searches your home network for the Fetch box. With one box, it lists the box's recordings; with more than one, choose your box.
 5. If the app finds no Fetch box, type the box's IP address (four numbers such as `192.168.1.50`) under **Or type its IP address**, and press **Connect**. The IP address is in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 6. Choose the recordings to save (**Select all** chooses every one), and press **Next**.
@@ -231,9 +231,11 @@ To see which chip a Mac has, choose Apple menu → About This Mac. The **Chip** 
 8. Turn on **Names for Plex, Jellyfin or Kodi** if the recordings will go into a media library (the folders of video files that Plex, Jellyfin, or Kodi reads). [Adding them to your media library](#adding-them-to-your-media-library) explains the names.
 9. Press **Save**.
 
-If the copy stops part way, press **Save again**. The app skips the recordings it already saved and carries on with the rest. With hundreds of recordings, expect to do this several times.
+When the copy ends, the app shows tiles for **Saved**, **Already saved**, and **Not saved**. Press a tile (or its **Show list**) to see those recordings in a list.
 
-The files play in VLC (a free video player).
+If the copy stops part way, or some recordings show as not saved, press **Save again**. It is the main button while anything is unsaved. The app skips the recordings it already saved and carries on with the rest. With hundreds of recordings, expect to do this several times.
+
+The files play in VLC (a free video player). For other ways to watch them, press **How to watch your recordings** in the **I have my files, but now what?** card on the finished screen.
 
 ### Copy with the terminal
 
