@@ -315,8 +315,8 @@ const SECTION_ITEM_TTL_MS = 60 * 1000
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 const PLEX_LIBRARY_KINDS = {
   tv: { name: 'TV Shows', type: 'show', agent: 'tv.plex.agents.series', scanner: 'Plex TV Series' },
-  oneoff: { name: 'One-offs', type: 'movie', agent: 'tv.plex.agents.none', scanner: 'Plex Video Files' },
   movies: { name: 'Movies', type: 'movie', agent: 'tv.plex.agents.movie', scanner: 'Plex Movie' },
+  oneoff: { name: 'One-offs', type: 'movie', agent: 'tv.plex.agents.none', scanner: 'Plex Video Files' },
 }
 const DEFAULT_PLEX_LIBRARY_LANGUAGE = 'en-US'
 const PLEX_LIBRARY_LANGUAGES = { AU: 'en-AU', NZ: 'en-AU', CA: 'en-CA', GB: 'en-GB', IE: 'en-GB' }
