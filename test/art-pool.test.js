@@ -97,6 +97,7 @@ const memoryCache = () => {
 const poolWith = (over = {}) => createArtPool({
   loadShowRows: async (key) => (key === 'the-block' ? [{ recording_id: 'r1', title: 'The Block', file_path: '/tv/The Block/s01e01.ts' }] : []),
   loadRuleTitle: async (key) => (key === 'big-brother' ? 'Big Brother' : null),
+  loadPlexRows: async () => [],
   loadRecordingRow: async (id) => (id === 'r1' ? { recording_id: 'r1', file_path: '/tv/The Block/s01e01.ts', image_path: 'x' } : null),
   plexConnection: async () => ({ url: 'http://plex', token: 't' }),
   plexSections: async () => [{ id: '2', type: 'show' }],
@@ -130,6 +131,59 @@ test('showSources falls back to the series rule title for a show with no recordi
   assert.deepEqual(sources.rows, [])
   assert.ok(sources.tvmaze.length > 0)
   assert.equal(await poolWith({ loadRuleTitle: async () => { throw new Error('tvheadend down') } }).showSources('big-brother'), null)
+})
+
+const plexOnlyRows = async (key) => ({
+  'house-of-the-dragon': [{
+    recording_id: 'plex-5407', source: 'plex', plex_kind: 'episode', rating_key: '5407', plex_show_rating_key: '5400',
+    title: 'House of the Dragon', file_path: '/tv/House of the Dragon/s02e01.mkv',
+  }],
+  dune: [{ recording_id: 'plex-77', source: 'plex', plex_kind: 'movie', rating_key: '77', title: 'Dune', file_path: '/films/Dune.mkv' }],
+}[key] ?? [])
+
+const plexOnlyArts = async ({ ratingKey }) => ({ 5400: [{ key: '/hotd', selected: true }], 77: [{ key: '/dune' }] }[ratingKey] ?? [])
+
+test('showSources finds a show that only Plex has and reads its Plex art by the show rating key', async () => {
+  let listed = 0
+  const pool = poolWith({
+    loadPlexRows: plexOnlyRows,
+    plexArts: plexOnlyArts,
+    plexItems: async () => { listed += 1; return [] },
+    searchTvmaze: async () => [{ show: { id: 3, name: 'House of the Dragon', image: { original: 'https://tvmaze/hotd.jpg' } } }],
+  })
+  const sources = await pool.showSources('house-of-the-dragon')
+  assert.equal(sources.title, 'House of the Dragon')
+  assert.equal(sources.rows[0].recording_id, 'plex-5407')
+  assert.equal(sources.plex.found, true)
+  assert.deepEqual(sources.plex.entries.map((entry) => entry.origin), [plexTranscodeOrigin('/hotd')])
+  assert.ok(sources.tvmaze.length > 0)
+  assert.equal(listed, 0)
+})
+
+test('showSources reads Plex art for a film that only Plex has by its own rating key', async () => {
+  const sources = await poolWith({ loadPlexRows: plexOnlyRows, plexArts: plexOnlyArts }).showSources('dune')
+  assert.equal(sources.title, 'Dune')
+  assert.deepEqual(sources.plex.entries.map((entry) => entry.origin), [plexTranscodeOrigin('/dune')])
+})
+
+test('showPool serves a Plex-only show and returns null only when neither Freetvarr nor Plex knows the key', async () => {
+  const pool = poolWith({
+    loadPlexRows: plexOnlyRows,
+    plexArts: plexOnlyArts,
+    searchTvmaze: async () => [{ show: { id: 3, name: 'House of the Dragon', image: { original: 'https://tvmaze/hotd.jpg' } } }],
+  })
+  const hotd = await pool.showPool('house-of-the-dragon')
+  assert.deepEqual(hotd.entries.map((entry) => entry.source), ['library', 'tvmaze', 'tvmaze'])
+  assert.equal(await pool.showPool('missing'), null)
+  assert.equal(await poolWith({ loadPlexRows: async () => { throw new Error('db down') } }).showSources('missing'), null)
+})
+
+test('showSources keeps the recordings path when Freetvarr has the show', async () => {
+  let asked = false
+  const sources = await poolWith({ loadPlexRows: async () => { asked = true; return [] } }).showSources('the-block')
+  assert.equal(sources.title, 'The Block')
+  assert.equal(asked, false)
+  assert.equal(sources.plex.found, true)
 })
 
 test('showPool skips TVmaze when the artwork lookup setting is off and Plex when unset', async () => {
