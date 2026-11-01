@@ -1281,6 +1281,26 @@ body.sheet-open .app-tabbar {
   scrollbar-width: none;
 }
 
+.ui-scroll-fade {
+  --scroll-fade: 28px;
+  scroll-padding-inline: var(--scroll-fade);
+}
+
+.ui-scroll-fade.is-fade-end {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--scroll-fade)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--scroll-fade)), transparent);
+}
+
+.ui-scroll-fade.is-fade-start {
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - var(--scroll-fade)), transparent);
+  mask-image: linear-gradient(to left, #000 calc(100% - var(--scroll-fade)), transparent);
+}
+
+.ui-scroll-fade.is-fade-start.is-fade-end {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--scroll-fade), #000 calc(100% - var(--scroll-fade)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--scroll-fade), #000 calc(100% - var(--scroll-fade)), transparent);
+}
+
 .ui-chip {
   display: inline-flex;
   align-items: center;
