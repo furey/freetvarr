@@ -78,8 +78,8 @@ export const PlexLibrarySetup = {
   },
 }
 
-const PLEX_LIBRARY_LABELS = { tv: 'TV', oneoff: 'One-off', movies: 'Movies' }
-const PLEX_LIBRARY_SUMMARIES = { tv: 'TV shows', oneoff: 'one-off recordings', movies: 'movies' }
+const PLEX_LIBRARY_LABELS = { tv: 'TV', movies: 'Movies', oneoff: 'One-off' }
+const PLEX_LIBRARY_SUMMARIES = { tv: 'TV shows', movies: 'movies', oneoff: 'one-off recordings' }
 
 const listInWords = (items) => {
   if (items.length < 2) return items[0] || ''

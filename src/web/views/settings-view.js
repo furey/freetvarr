@@ -276,29 +276,18 @@ export const SettingsView = {
             <h3 class="ui-group-label">Plex libraries</h3>
             <div class="ui-group">
               <div class="settings-row" data-setting="plex-tv-section">
-                <label class="field-label" for="settings-plex-tv">TV section</label>
+                <label class="field-label" for="settings-plex-tv">TV library</label>
                 <select v-if="plexSections.length" id="settings-plex-tv" class="field-input" v-model="plexSectionId">
-                  <option value="">Pick a section</option>
+                  <option value="">Pick a library</option>
                   <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
                     {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
                   </option>
                 </select>
                 <input v-no-autofill v-else id="settings-plex-tv" type="text" class="field-input" v-model="plexSectionId"
-                  placeholder="section number; Load sections lists them" />
-              </div>
-              <div class="settings-row" data-setting="plex-oneoff-section">
-                <label class="field-label" for="settings-plex-oneoff">One-off section</label>
-                <select v-if="plexSections.length" id="settings-plex-oneoff" class="field-input" v-model="plexOneOffSectionId">
-                  <option value="">None</option>
-                  <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
-                    {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
-                  </option>
-                </select>
-                <input v-no-autofill v-else id="settings-plex-oneoff" type="text" class="field-input" v-model="plexOneOffSectionId"
-                  placeholder="section number of the one-off library" />
+                  placeholder="library number; Load sections lists them" />
               </div>
               <div class="settings-row" data-setting="plex-movies-section">
-                <label class="field-label" for="settings-plex-movies">Movies section</label>
+                <label class="field-label" for="settings-plex-movies">Movies library</label>
                 <select v-if="plexSections.length" id="settings-plex-movies" class="field-input" v-model="plexMoviesSectionId">
                   <option value="">None</option>
                   <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
@@ -306,7 +295,18 @@ export const SettingsView = {
                   </option>
                 </select>
                 <input v-no-autofill v-else id="settings-plex-movies" type="text" class="field-input" v-model="plexMoviesSectionId"
-                  placeholder="section number of the movies library" />
+                  placeholder="number of the movies library" />
+              </div>
+              <div class="settings-row" data-setting="plex-oneoff-section">
+                <label class="field-label" for="settings-plex-oneoff">One-off library</label>
+                <select v-if="plexSections.length" id="settings-plex-oneoff" class="field-input" v-model="plexOneOffSectionId">
+                  <option value="">None</option>
+                  <option v-for="sec in plexSections" :key="sec.key" :value="sec.key">
+                    {{ sec.title }} (#{{ sec.key }}, {{ sec.type }})
+                  </option>
+                </select>
+                <input v-no-autofill v-else id="settings-plex-oneoff" type="text" class="field-input" v-model="plexOneOffSectionId"
+                  placeholder="number of the one-off library" />
               </div>
               <div class="settings-row settings-row-actions">
                 <button type="button" class="ui-button ui-button-sm" @click="loadPlexSections" :disabled="plexProbing">

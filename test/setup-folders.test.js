@@ -82,8 +82,8 @@ test('prefillPlexSections: keeps picks when Plex has no plan', () => {
 test('visiblePlexSectionRows: hides a kind with no folder and no saved pick', () => {
   const plan = PLAN.filter((lib) => lib.kind !== 'movies')
   const labels = (picks) => visiblePlexSectionRows({ picks, plan }).map((row) => row.label)
-  assert.deepEqual(labels(NO_PICKS), ['TV section', 'One-off section'])
-  assert.deepEqual(labels({ ...NO_PICKS, movies: '7' }), ['TV section', 'One-off section', 'Movies section'])
+  assert.deepEqual(labels(NO_PICKS), ['TV library', 'One-off library'])
+  assert.deepEqual(labels({ ...NO_PICKS, movies: '7' }), ['TV library', 'Movies library', 'One-off library'])
   assert.deepEqual(visiblePlexSectionRows({ picks: NO_PICKS, plan: null }).map((row) => row.kind), ['tv'])
 })
 

@@ -331,10 +331,12 @@ export const WelcomeView = {
                   <input v-no-autofill id="setup-plex-prefs" type="text" class="field-input setup-mono-input" v-model="plexPrefsPath"
                     placeholder="/plex/Library/Application Support/Plex Media Server/Preferences.xml" />
                 </div>
-                <div v-if="!plexSections.length" class="field-row">
-                  <label class="field-label" for="setup-plex-section">TV section number</label>
-                  <input v-no-autofill id="setup-plex-section" type="text" class="field-input" v-model="plexPicks.tv" placeholder="Connect lists your libraries" />
-                </div>
+                <template v-if="!plexSections.length">
+                  <div v-for="row in PLEX_SECTION_ROWS" :key="row.kind" class="field-row">
+                    <label class="field-label" :for="'setup-plex-' + row.kind + '-number'">{{ row.label }} number</label>
+                    <input v-no-autofill :id="'setup-plex-' + row.kind + '-number'" type="text" class="field-input" v-model="plexPicks[row.kind]" placeholder="Connect lists your libraries" />
+                  </div>
+                </template>
               </div>
               <p v-if="plexSectionsText" :class="['setup-hint', { 'is-error': plexSectionsKind === 'err' }]">{{ plexSectionsText }}</p>
               <button type="button" class="setup-quiet-link" @click="loadPlexSections()" :disabled="plexProbing || !plexUrl.trim()">Connect</button>
@@ -567,7 +569,7 @@ export const WelcomeView = {
     const plexProblem = ref(null)
     const plexAdvancedOpen = ref(false)
     const plexEditedByHand = computed(() =>
-      [plexUrl.value, plexToken.value, plexPicks.tv].some((field) => String(field ?? '').trim()))
+      [plexUrl.value, plexToken.value, plexPicks.tv, plexPicks.movies, plexPicks.oneoff].some((field) => String(field ?? '').trim()))
     const plexDocsUrl = `${DOCS_BASE}guide/plex`
     const plexSectionRows = computed(() => visiblePlexSectionRows({ picks: plexPicks, plan: plexLibraryPlan.value })
       .map((row) => ({ ...row, options: plexSectionOptions({ sections: plexSections.value, type: row.type, pick: plexPicks[row.kind] }) })))
@@ -619,7 +621,7 @@ export const WelcomeView = {
       if (step.value === 3) return channelState.value.intro
       if (step.value === 4) return guideState.value.intro
       if (step.value === 5) return storageSummary.value
-      if (step.value === 6) return 'Optional. Pick the Plex library for TV episodes, one\u2011off recordings, and movies. After each sync, Freetvarr asks Plex to refresh them, so new recordings show up there.'
+      if (step.value === 6) return 'Optional. Pick the Plex library for TV episodes, movies, and one\u2011off recordings. After each sync, Freetvarr asks Plex to refresh them, so new recordings show up there.'
       return complete.value
         ? 'Freetvarr is ready to record. Open the TV guide, pick a programme, and press Record.'
         : 'Freetvarr needs channels and a guide before it can record a show by name.'
@@ -1143,7 +1145,7 @@ export const WelcomeView = {
       timeZone, tzSource, zones, zoneClock, zoneSourceText,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
       recordingsRoot, tvhRecordingsPath, recordingsCheck, tvhPathCheck,
-      plexUrl, plexToken, plexTokenSet, plexPicks, plexSections, plexSectionRows, plexProbing,
+      plexUrl, plexToken, plexTokenSet, plexPicks, plexSections, plexSectionRows, PLEX_SECTION_ROWS, plexProbing,
       plexCandidates, plexDetectingToken, plexPrefsPath, plexSectionLoads, usePlexLibraries,
       plexChecking, plexConnected, plexProblem, plexAdvancedOpen, plexEditedByHand, plexDocsUrl, findPlex,
       storageChecking, storageChecked, storageProblems, storageNotes, storageRows, storageAdvancedOpen, storageSummary, checkStorage, clearStaleLibraryStatus,

@@ -246,7 +246,7 @@ Episodes import, but Plex doesn't show them.
 
 - Press **Refresh Plex now** in Settings → RECORDING → Plex. Freetvarr reports `Plex refresh sent (HTTP 200).` or the error.
 - **`Plex HTTP 401`**: the Plex token is wrong or expired. In Settings → RECORDING → Plex, detect or paste the Plex token again ([Plex](/guide/plex#the-token)).
-- **`Plex HTTP 404`**: the section ID doesn't exist. In Settings → RECORDING → Plex, pick the TV section again from the list.
+- **`Plex HTTP 404`**: the section ID doesn't exist. In Settings → RECORDING → Plex, pick the **TV library** again from the list.
 - **`ECONNREFUSED` or `ECONNABORTED`**: the Plex URL is wrong, or Plex isn't running. Use `http://<plex-host-ip>:32400`.
 - **The refresh succeeds but nothing appears**: the Plex library doesn't include the folder Freetvarr writes to. Add the host folder `${DATA_PATH}/media/tv` to the library ([Plex](/guide/plex#the-library-folder)).
 

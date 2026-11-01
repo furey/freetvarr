@@ -66,9 +66,9 @@ docker compose up -d
 
 ## Point Freetvarr at Plex
 
-The **Plex** step of setup looks for Plex servers on your network and reads the token from Plex's settings file. When setup connects to Plex, it lists your Plex libraries under **TV section**, **One-off section**, and **Movies section**. For each, setup picks the library that reads the matching Freetvarr folder: the TV folder, the one-off folder, or the movies folder. Check each pick, or pick another library. **None** leaves the one-off or movies library out. **Movies section** shows only when you set a movies folder. Setup saves all three, and Freetvarr refreshes each library after an import. If setup finds no Plex server, press **Next**. If it finds Plex but no token, press **Connect Plex by hand** and paste the token ([The token](#the-token)).
+The **Plex** step of setup looks for Plex servers on your network and reads the token from Plex's settings file. When setup connects to Plex, it lists your Plex libraries under **TV library**, **Movies library**, and **One-off library**. For each, setup picks the library that reads the matching Freetvarr folder: the TV folder, the movies folder, or the one-off folder. Check each pick, or pick another library. **None** leaves the movies or one-off library out. **Movies library** shows only when you set a movies folder. Setup saves all three, and Freetvarr refreshes each library after an import. If setup finds no Plex server, press **Next**. If it finds Plex but no token, press **Connect Plex by hand** and paste the token ([The token](#the-token)). When Freetvarr cannot list the Plex libraries, **Connect Plex by hand** also has a number box for each library; leave the movies or one-off box blank to leave that library out.
 
-In Settings → RECORDING → Plex, set your Plex server URL and token, then pick the TV library section from the list. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
+In Settings → RECORDING → Plex, set your Plex server URL and token, then pick the **TV library**, **Movies library**, and **One-off library** from the lists. The URL is `http://<plex-host-ip>:32400`. **Auto-discover Plex** finds Plex servers on your network.
 
 ## Create the libraries
 
@@ -82,9 +82,9 @@ Freetvarr writes episodes to `${DATA_PATH}/media/tv` on the host (`/data/media/t
 
 ## The one-off library
 
-Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off section** in the **Plex** step of setup or in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
+Recordings with no series folder go to the [one-off folder](/guide/configuration#the-one-off-folder), `${DATA_PATH}/media/one-offs` on the host (`/data/media/one-offs` inside the Freetvarr Docker container). Add a second Plex library of the **Other Videos** type that reads that folder, then choose it as the **One-off library** in the **Plex** step of setup or in Settings → RECORDING → Plex. Other Videos does no online matching, so a sports final or a special keeps its own title.
 
-If you set a movies folder, point a **Movies** library at it and choose that library as the **Movies section**.
+If you set a movies folder, point a **Movies** library at it and choose that library as the **Movies library**.
 
 ## The token
 
@@ -140,7 +140,7 @@ Recordings can list everything in your Plex TV and Movies libraries, not only wh
 The **YOUR WHOLE LIBRARY** group in Settings → RECORDING → Plex has these controls:
 
 - **Show your whole Plex library**: on by default once Plex is connected.
-- **Libraries to show**: the Plex TV and movie libraries it lists. At first these are your **TV section** and **Movies section**. The one-off library is never listed, because it holds only Freetvarr's own recordings.
+- **Libraries to show**: the Plex TV and movie libraries it lists. At first these are your **TV library** and **Movies library**. The one-off library is never listed, because it holds only Freetvarr's own recordings.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/plex">

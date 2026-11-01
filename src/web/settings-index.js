@@ -97,9 +97,9 @@ const ENTRIES = [
   { label: 'Preferences.xml path', page: 'plex', setting: 'plex-prefs', description: 'Where Freetvarr reads the Plex token from.', tags: ['token not found'] },
   { label: 'Plex libraries', page: 'plex', setting: 'plex-libraries', description: 'The Plex sections Freetvarr refreshes.', tags: ['sections', 'load sections', 'refresh plex now', 'create libraries'] },
   { label: 'Create libraries', page: 'plex', setting: 'plex-libraries', description: 'Makes the Plex libraries that are missing.', tags: ['sections'] },
-  { label: 'TV section', page: 'plex', setting: 'plex-tv-section', description: 'The Plex library for TV episodes.', tags: ['library'] },
-  { label: 'One-off section', page: 'plex', setting: 'plex-oneoff-section', description: 'The Plex library for one-offs.', tags: ['library'] },
-  { label: 'Movies section', page: 'plex', setting: 'plex-movies-section', description: 'The Plex library for films.', tags: ['library', 'films'] },
+  { label: 'TV library', page: 'plex', setting: 'plex-tv-section', description: 'The Plex library for TV episodes.', tags: ['tv section', 'section'] },
+  { label: 'Movies library', page: 'plex', setting: 'plex-movies-section', description: 'The Plex library for films.', tags: ['movies section', 'section', 'films'] },
+  { label: 'One-off library', page: 'plex', setting: 'plex-oneoff-section', description: 'The Plex library for one-offs.', tags: ['one-off section', 'section'] },
   { label: 'Wait for Plex before removing recordings from TVHeadend', page: 'plex', setting: 'plex-wait', description: 'Keeps a recording in TVHeadend if Plex does not answer.', tags: ['delete', 'remove'] },
 
   { page: 'health', description: 'Checks every part of the system and says what to fix.', tags: ['doctor', 'checks', 'problems', 'diagnose'] },

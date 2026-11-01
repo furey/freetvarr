@@ -504,8 +504,8 @@ const plexSections = () => [
 
 const plexLibraryPlan = (sim) => Object.entries({
   tv: sim.settings.media_root,
-  oneoff: sim.settings.oneoff_root,
   movies: sim.settings.movies_root,
+  oneoff: sim.settings.oneoff_root,
 })
   .filter(([, location]) => location)
   .map(([kind, location]) => {

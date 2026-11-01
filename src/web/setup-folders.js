@@ -45,9 +45,9 @@ export const folderRows = ({ folders, library, recordings, tvh }) => [
 ]
 
 export const PLEX_SECTION_ROWS = [
-  { kind: 'tv', label: 'TV section', setting: 'plex_tv_section_id', type: 'show', empty: 'Pick a section' },
-  { kind: 'oneoff', label: 'One-off section', setting: 'plex_oneoff_section_id', type: 'movie', empty: 'None' },
-  { kind: 'movies', label: 'Movies section', setting: 'plex_movies_section_id', type: 'movie', empty: 'None' },
+  { kind: 'tv', label: 'TV library', setting: 'plex_tv_section_id', type: 'show', empty: 'Pick a library' },
+  { kind: 'movies', label: 'Movies library', setting: 'plex_movies_section_id', type: 'movie', empty: 'None' },
+  { kind: 'oneoff', label: 'One-off library', setting: 'plex_oneoff_section_id', type: 'movie', empty: 'None' },
 ]
 
 export const prefillPlexSections = ({ picks, plan }) => Object.fromEntries(
