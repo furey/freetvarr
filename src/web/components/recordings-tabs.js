@@ -20,4 +20,4 @@ export const RecordingsTabs = {
   },
 }
 
-const SCHEDULED_COUNT_ROOM = 'Scheduled · 00'
+const SCHEDULED_COUNT_ROOM = 'Scheduled · 000'

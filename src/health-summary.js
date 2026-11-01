@@ -47,15 +47,21 @@ export const getHealthSummary = async ({ nowMs = Date.now(), fresh = false } = {
 }
 
 export const pageHealthOf = async ({ waitMs = PAGE_HEALTH_WAIT_MS } = {}) => {
+  if (summaryCache) {
+    getHealthSummary().catch(() => null)
+    return levelAndSentenceOf(summaryCache.value)
+  }
   let timer = null
   const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(null), waitMs) })
-  const summary = getHealthSummary().then(({ level, sentence }) => ({ level, sentence }), () => null)
+  const summary = getHealthSummary().then(levelAndSentenceOf, () => null)
   const health = await Promise.race([summary, timeout])
   clearTimeout(timer)
   return health
 }
 
-export const healthSummaryRoute =async (req, res) => {
+const levelAndSentenceOf = ({ level, sentence }) => ({ level, sentence })
+
+export const healthSummaryRoute = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
     res.json(await getHealthSummary({ fresh: req.query.fresh === '1' }))

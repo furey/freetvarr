@@ -47,10 +47,10 @@ export const staticImportGraph = async ({ webRoot, entry }) => {
 }
 
 export const withHealthMeta = ({ html, health }) => (health
-  ? html.replace(CHARSET_META, `${CHARSET_META}\n    <meta name="freetvarr-health" content="${attributeOf(JSON.stringify(health))}" />`)
+  ? html.replace(CHARSET_META, () => `${CHARSET_META}\n    <meta name="freetvarr-health" content="${attributeOf(JSON.stringify(health))}" />`)
   : html)
 
-export const staticImportsOf =(source) => [...source.matchAll(STATIC_IMPORT)].map(([, specifier]) => specifier)
+export const staticImportsOf = (source) => [...source.matchAll(STATIC_IMPORT)].map(([, specifier]) => specifier)
 
 const resolveSpecifier = ({ specifier, from }) => specifier.startsWith('/')
   ? specifier

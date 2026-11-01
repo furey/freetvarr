@@ -35,6 +35,7 @@ const markHiddenEdges = (el) => {
 
 const revealFocused = (event) => {
   if (event.target === event.currentTarget) return
+  if (!event.target.matches(':focus-visible')) return
   event.target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
