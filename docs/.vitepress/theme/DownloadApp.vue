@@ -184,8 +184,8 @@ const chipFromGraphicsRenderer = () => {
   max-width: 560px;
   margin: 0;
   color: var(--ftv-text-2);
-  font-size: 15px;
-  line-height: 22px;
+  font-size: 16px;
+  line-height: 24px;
   text-wrap: pretty;
 }
 
