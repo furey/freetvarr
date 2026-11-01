@@ -46,6 +46,21 @@ export const getHealthSummary = async ({ nowMs = Date.now(), fresh = false } = {
   return summaryInflight
 }
 
+export const pageHealthOf = async ({ waitMs = PAGE_HEALTH_WAIT_MS } = {}) => {
+  if (summaryCache) {
+    getHealthSummary().catch(() => null)
+    return levelAndSentenceOf(summaryCache.value)
+  }
+  let timer = null
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(null), waitMs) })
+  const summary = getHealthSummary().then(levelAndSentenceOf, () => null)
+  const health = await Promise.race([summary, timeout])
+  clearTimeout(timer)
+  return health
+}
+
+const levelAndSentenceOf = ({ level, sentence }) => ({ level, sentence })
+
 export const healthSummaryRoute = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
@@ -178,6 +193,7 @@ let summaryCache = null
 let summaryInflight = null
 
 const SUMMARY_TTL_MS = 10_000
+const PAGE_HEALTH_WAIT_MS = 300
 const TVHEADEND_WAIT_MS = 2500
 const DAY_MS = 24 * 60 * 60 * 1000
 const DOCTOR_MAX_AGE_MS = 6 * 60 * 60 * 1000

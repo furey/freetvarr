@@ -24,6 +24,22 @@
   min-height: 0;
 }
 
+.recordings-tab-label[data-room] {
+  display: inline-grid;
+  justify-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.recordings-tab-label[data-room]::before {
+  content: attr(data-room);
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.recordings-tab-label[data-room] > span {
+  grid-area: 1 / 1;
+}
+
 @media (min-width: 768px) and (min-height: 501px) {
   .library-filters {
     margin-left: auto;
@@ -46,10 +62,17 @@
   flex-basis: 100%;
 }
 
-@media (min-width: 1100px) and (min-height: 501px) {
+@media (min-width: 800px) and (min-height: 501px) {
   .library-jumps {
-    flex-basis: auto;
+    flex: 1 1 0;
+    flex-wrap: nowrap;
+    min-width: 0;
     order: 1;
+    margin: -4px;
+    padding: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
   }
 
   .library-filters {

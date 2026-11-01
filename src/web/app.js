@@ -95,6 +95,7 @@ import { installImageFocus } from '/shared/image-focus.js'
 import { installVisibleViewport } from '/shared/visible-viewport.js'
 import { loadArtworkStamps } from '/shared/artwork-stamps.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
+import { scrollFade } from '/shared/scroll-fade.js'
 import { pageReveal } from '/shared/page-reveal.js'
 import { route, routeParams } from '/shared/router.js'
 import { refreshTick } from '/shared/store.js'
@@ -264,6 +265,7 @@ app.component('play-glyph', PlayGlyph)
 app.component('more-glyph', MoreGlyph)
 app.directive('no-autofill', noAutofill)
 app.directive('page-reveal', pageReveal)
+app.directive('scroll-fade', scrollFade)
 app.component('error-diagnosis', ErrorDiagnosis)
 app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
