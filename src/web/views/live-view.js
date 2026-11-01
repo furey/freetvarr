@@ -65,7 +65,7 @@ export const LiveView = {
             <span :class="narrow ? 'sort-edit-order' : 'sort-edit-toggle'"><span class="ui-skeleton is-text" style="--skeleton-w: 5em"></span></span>
           </div>
           <ul class="live-list ui-skeleton-surface">
-            <li v-for="n in 8" :key="n" class="live-row">
+            <li v-for="n in 12" :key="n" class="live-row">
               <div class="live-row-lead">
                 <span class="live-star"></span>
                 <span class="live-logo"></span>

@@ -33,6 +33,14 @@ const readCachedReady = () => {
   }
 }
 
+const hasCachedReady = () => {
+  try {
+    return localStorage.getItem(READY_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 const readCachedAnimate = () => {
   try {
     return localStorage.getItem(ANIMATE_KEY) !== '0'
@@ -46,6 +54,8 @@ export const forYouAnimate = ref(readCachedAnimate())
 export const forYouReady = ref(readCachedReady())
 
 export const forYouShown = ref(readCachedReady() ? true : null)
+
+export const forYouRailKnown = ref(hasCachedReady())
 
 const TWINKLE_MS = 2100
 
@@ -97,6 +107,7 @@ export const keepForYouAnimate = (animate) => {
 export const keepForYouRail = ({ shown, ready }) => {
   forYouShown.value = shown
   forYouReady.value = ready
+  forYouRailKnown.value = true
   try { localStorage.setItem(READY_KEY, shown && ready ? '1' : '0') } catch {}
 }
 

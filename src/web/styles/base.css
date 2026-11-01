@@ -3,7 +3,7 @@
   --tracking-caps: 0.04em;
   --app-rail-w: 0px;
   --z-toast: 900;
-  --control-compact-h: 40px;
+  --control-compact-h: 44px;
   --app-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-tabbar-h: calc(64px + var(--app-tabbar-safe-bottom));
   --app-header-h: env(safe-area-inset-top, 0px);
@@ -19,6 +19,7 @@
 
 html {
   touch-action: pan-x pan-y;
+  scrollbar-gutter: stable;
 }
 
 @media (min-width: 768px) and (min-height: 501px) {
@@ -28,12 +29,6 @@ html {
     --gutter: 32px;
     --card-w: 280px;
     --poster-w: 150px;
-  }
-}
-
-@media (max-width: 767px), (max-height: 500px) {
-  :root {
-    --control-compact-h: 44px;
   }
 }
 
@@ -2195,11 +2190,23 @@ a.ui-banner:hover {
 }
 
 .ui-clock {
+  display: inline-grid;
+  justify-items: end;
   padding: 0 6px;
   font-size: 15px;
   color: var(--color-text-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.ui-clock::before {
+  content: "00:00am";
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.ui-clock-time {
+  grid-area: 1 / 1;
 }
 
 .ui-search-backdrop {
@@ -2555,7 +2562,15 @@ html :is(.ui-button, .ui-icon-button, .pl-round, .pl-pill, .pl-control, .ui-chip
   overflow: hidden;
 }
 
+.app-rail.is-holding .app-rail-slot {
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .app-rail-slot {
+    transition: opacity 160ms var(--ease-standard);
+  }
+
   .app-rail-slot.is-animated {
     transition: opacity 160ms var(--ease-standard), grid-template-rows 160ms var(--ease-standard), margin-bottom 160ms var(--ease-standard);
   }
