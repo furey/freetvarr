@@ -754,7 +754,7 @@ export const EpgView = {
     const skeletonRows = computed(() => guideSkeletonRows({ zoom: zoom.value }))
     const measureGridTop = () => {
       const card = scrollEl.value?.closest('.guide-card') ?? skeletonCardEl.value
-      if (card) card.style.setProperty('--guide-grid-top', `${card.getBoundingClientRect().top + window.scrollY}px`)
+      if (card) card.style.setProperty('--guide-grid-top', `${documentTopOf(card)}px`)
     }
     watch([scrollEl, skeletonCardEl, guide, () => guide.value?.stale, narrow], measureGridTop, { flush: 'post' })
 
@@ -1449,4 +1449,10 @@ export const EpgView = {
       channelById, channelName, hasChannelLogo, fmtClock, fmtDayTime, seLabel,
     }
   },
+}
+
+const documentTopOf = (el) => {
+  let top = 0
+  for (let node = el; node; node = node.offsetParent) top += node.offsetTop
+  return top
 }

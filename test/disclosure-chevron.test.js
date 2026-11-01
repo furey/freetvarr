@@ -61,5 +61,5 @@ test('list rows that open a drawer show no chevron', async () => {
 test('the Settings nav keeps room above the save bar', async () => {
   const css = await read('styles/settings.css')
   assert.match(css, /--settings-save-bar-h: 72px/)
-  assert.match(css, /calc\(40px \+ var\(--settings-save-bar-h\)\) 24px/)
+  assert.match(css, /calc\(40px \+ var\(--settings-save-bar-h\)\) calc\(var\(--gutter\) - 12px\)/)
 })

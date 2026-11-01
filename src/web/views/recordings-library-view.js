@@ -37,6 +37,7 @@ const LIBRARY_UNWATCHED_KEY = 'freetvarr.libraryUnwatched'
 const FAILED_LOG_HREF = '#/settings/system/log?status=failed'
 const LIBRARY_POLL_MS = 60_000
 const SKELETON_POSTERS = 6
+const SKELETON_JUMP_WIDTHS = ['3em', '3.4em', '9.6em']
 const FAILED_RECORDINGS_URL = '/api/recordings?status=failed&sort=aired_at&dir=desc&pageSize=10'
 
 const libraryStore = viewStoreOf(LIBRARY_CACHE)
@@ -83,6 +84,9 @@ export const RecordingsLibraryView = {
         <nav v-if="sectionJumps.length" class="ui-chip-row library-jumps" aria-label="Library sections">
           <button v-for="jump in sectionJumps" :key="jump.key" type="button" class="ui-chip" @click="jumpToSection(jump.key)">{{ jump.label }}</button>
         </nav>
+        <div v-else-if="!loaded" class="ui-chip-row library-jumps" aria-hidden="true">
+          <span v-for="width in SKELETON_JUMP_WIDTHS" :key="width" class="ui-chip"><span class="ui-skeleton is-text" :style="{ '--skeleton-w': width }"></span></span>
+        </div>
       </div>
 
       <a v-if="failureBanner" :href="FAILED_LOG_HREF" class="ui-banner is-error library-failures">
@@ -332,7 +336,7 @@ export const RecordingsLibraryView = {
       ...actions,
       menuShow, menuLoadingKey, optionsOpen, openPosterMenu, posterPress, onStopped, onOptionsFlash, reloadMenuShow,
       shows, stale, loaded, error, shelves, sectionJumps, jumpToSection, nothingShown, failureBanner, scheduledCount, sortKey, unwatchedOnly,
-      LIBRARY_SECTION_TITLES, LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, tz,
+      LIBRARY_SECTION_TITLES, LIBRARY_SORTS, FAILED_LOG_HREF, SKELETON_POSTERS, SKELETON_JUMP_WIDTHS, tz,
       posterMeta, posterLabel, inProgressMeta, recordingPercent, posterSrc, cardSrc, isScheduledOnly, movieMetaOf, oneOffMetaOf, showsCountText, showHrefOf,
     }
   },
