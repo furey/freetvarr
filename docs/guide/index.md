@@ -25,7 +25,7 @@ With it, you can:
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
+Freetvarr runs in Docker next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Requirements](/guide/hardware) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
 
 ## Plex DVR
 
@@ -39,10 +39,10 @@ TVHeadend names each recording after the programme title only, for example `The 
 
 Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the recordings folder, so the broadcast standard is TVHeadend's problem: DVB-T/T2 (Australia, New Zealand, UK, Europe), DVB-C and DVB-S, ATSC (United States and Canada), ISDB-T. The tuner model, the TV guide source, and the mux scan list (the broadcast frequencies TVHeadend scans for channels) differ by country, and all of them are TVHeadend settings.
 
-Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Hardware](/guide/hardware) covers the choice.
+Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV. [Requirements](/guide/hardware) covers the choice.
 
 > [!NOTE]<br>
-> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
+> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney XMLTV feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Requirements](/guide/hardware) and [TVHeadend](/guide/tvheadend) say what to pick instead.
 
 ## What Freetvarr isn't
 
@@ -61,7 +61,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 
 ## Where next
 
-- **[Hardware](/guide/hardware)**: what tuner and computer to buy, and how the tuner wires into the aerial you already have.
+- **[Requirements](/guide/hardware)**: what tuner and computer to buy, and how the tuner wires into the aerial you already have.
 - **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup](/guide/getting-started#_2-run-setup) in a browser.
 - **[TVHeadend](/guide/tvheadend)**: what setup changes in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
 - **[Home and search](/guide/home)** and **[For you](/guide/for-you)**: what to watch now, and suggestions.
