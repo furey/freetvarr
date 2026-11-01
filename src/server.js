@@ -175,7 +175,7 @@ import {
 import { BUILD_HEADER, readBuildId } from './build-id.js'
 import { webAssets } from './web-assets.js'
 import { getDoctorReport, scheduleDoctorChecks } from './doctor.js'
-import { healthSummaryRoute } from './health-summary.js'
+import { getHealthSummary, healthSummaryRoute, pageHealthOf } from './health-summary.js'
 import {
   isTvheadendUnconfigured,
   unconfiguredGuideDay,
@@ -2472,6 +2472,7 @@ app.use(await webAssets({
   webRoot: WEB_ROOT,
   build: BUILD_ID,
   nodeModules: path.join(__dirname, '..', 'node_modules'),
+  pageHealth: pageHealthOf,
 }))
 
 // Terminal error handler: return the message only, never a stack trace, and never
@@ -2524,6 +2525,7 @@ const server = app.listen(PORT, async () => {
     console.error('[ads] failed to reconcile interrupted ad processing:', err.message)
   }
   keepGuideWarm()
+  getHealthSummary().catch((err) => console.warn(`[health] warm-up: ${err.message}`))
   watchPendingSkips()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())

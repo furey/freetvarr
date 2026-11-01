@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import express from 'express'
 
 import { stampAssetUrls } from '../src/build-id.js'
-import { staticImportGraph, staticImportsOf, webAssets } from '../src/web-assets.js'
+import { staticImportGraph, staticImportsOf, webAssets, withHealthMeta } from '../src/web-assets.js'
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WEB_ROOT = path.join(REPO_ROOT, 'src', 'web')
@@ -111,4 +111,34 @@ test('fonts: the stamped url is immutable and the bare url revalidates', async (
   assert.equal(stamped.headers.get('cache-control'), 'public, max-age=31536000, immutable')
   const bare = await fetch(`${baseUrl}/fonts/figtree-latin-variable.woff2`)
   assert.equal(bare.headers.get('cache-control'), 'no-cache')
+})
+
+test('withHealthMeta: puts the escaped health in a meta tag so the first paint shows the banner', () => {
+  const html = '<head>\n    <meta charset="utf-8" />\n</head>'
+  const stamped = withHealthMeta({ html, health: { level: 'fail', sentence: 'The "TV <tuner> & disk" check failed.' } })
+  const content = stamped.match(/<meta name="freetvarr-health" content="([^"]*)" \/>/)[1]
+  assert.equal(content, '{&quot;level&quot;:&quot;fail&quot;,&quot;sentence&quot;:&quot;The \\&quot;TV &lt;tuner&gt; &amp; disk\\&quot; check failed.&quot;}')
+})
+
+test('withHealthMeta: leaves the page alone when the health is not known yet', () => {
+  const html = '<head>\n    <meta charset="utf-8" />\n</head>'
+  assert.equal(withHealthMeta({ html, health: null }), html)
+})
+
+test('index.html: carries the health the server knows', async () => {
+  const app = express()
+  app.use(await webAssets({
+    webRoot: WEB_ROOT,
+    build: BUILD,
+    nodeModules: path.join(REPO_ROOT, 'node_modules'),
+    pageHealth: async () => ({ level: 'ok', sentence: null }),
+  }))
+  const server = app.listen(0, '127.0.0.1')
+  await new Promise((resolve) => server.once('listening', resolve))
+  try {
+    const html = await (await fetch(`http://127.0.0.1:${server.address().port}/`)).text()
+    assert.match(html, /<meta name="freetvarr-health" content="\{&quot;level&quot;:&quot;ok&quot;,&quot;sentence&quot;:null\}" \/>/)
+  } finally {
+    server.close()
+  }
 })
