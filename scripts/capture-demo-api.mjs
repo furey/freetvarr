@@ -44,6 +44,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await route('**/api/epg/guide**', rewriteJson(withLiveDemoSlot(simNow)))
   await route('**/api/epg/image/**', liveDemoPoster)
   await route('**/api/epg/show-image**', liveDemoPoster)
+  await route(/\/api\/for-you(\?|$)/, rewriteJson(withoutArtlessItems({ base })))
   await route('**/api/epg/now**', rewriteJson(withLiveDemoNow(simNow)))
   await route('**/api/epg/channel-now**', rewriteJson(withLiveDemoChannelNow({ guide, simNow })))
   await route('**/api/epg/state**', rewriteJson((data) => desk.applyTo(withActiveRecording({ data, simNow, recording: picks.recording }))))
@@ -890,6 +891,27 @@ const rememberImage = ({ url, response, body }) => {
   return reply
 }
 
+const EPG_IMAGE_PATH = /^\/api\/epg\/image\/[^"]+$/
+
+const epgImagePathsOf = (value) => {
+  if (typeof value === 'string') return EPG_IMAGE_PATH.test(value) ? [value] : []
+  if (!value || typeof value !== 'object') return []
+  return Object.values(value).flatMap(epgImagePathsOf)
+}
+
+const withoutArtlessItems = ({ base }) => async (data) => {
+  const paths = [...new Set(epgImagePathsOf(data))]
+  const statuses = await Promise.all(paths.map(async (path) => [path, (await fetch(`${base}${path}`)).ok]))
+  const missing = new Set(statuses.filter(([, ok]) => !ok).map(([path]) => path))
+  if (!missing.size) return data
+  const prune = (value) => {
+    if (Array.isArray(value)) return value.filter((entry) => !missing.has(entry?.image)).map(prune)
+    if (!value || typeof value !== 'object') return value
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, prune(entry)]))
+  }
+  return prune(data)
+}
+
 const withoutHiddenTitles = (data, url) => {
   if (!HIDDEN_TITLES.size || KEEPS_EVERY_TITLE.test(url.pathname)) return data
   const prune = (value) => {
@@ -916,7 +938,7 @@ const rewriteJson = (transform) => ignoreClosed(async (route) => {
   } catch {
     return route.fulfill({ response })
   }
-  return fulfillJson(route, withoutHiddenTitles(transform(data, url), url))
+  return fulfillJson(route, withoutHiddenTitles(await transform(data, url), url))
 })
 
 const withHeroShowcase = ({ guide, upcoming, simNow }) => (data) => {
