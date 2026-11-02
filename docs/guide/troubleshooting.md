@@ -377,4 +377,4 @@ Running Freetvarr from source (`npm start`) rather than in Docker fails at `bett
 
 ## Reporting a bug
 
-Open an issue on [GitHub](https://github.com/furey/freetvarr/issues) with what you did, what you expected, and what happened. Include your versions: **VERSIONS** in Settings → ABOUT → About Freetvarr lists the Freetvarr, TVHeadend, and Node versions and the **Uptime** of Freetvarr (how long it has been running), and **Copy** puts them on the clipboard. It also says whether a newer Freetvarr release is out; press the new version for the update steps ([Updating Freetvarr](/guide/updating#update)).
+Start a thread in [Discussions](https://github.com/furey/freetvarr/discussions) with what you did, what you expected, and what happened. Include your versions: **VERSIONS** in Settings → ABOUT → About Freetvarr lists the Freetvarr, TVHeadend, and Node versions and the **Uptime** of Freetvarr (how long it has been running), and **Copy** puts them on the clipboard. It also says whether a newer Freetvarr release is out; press the new version for the update steps ([Updating Freetvarr](/guide/updating#update)).

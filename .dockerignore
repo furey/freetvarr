@@ -4,7 +4,6 @@ tmp
 docs
 test
 scripts
-video
 .github
 *.db
 *.db-journal
