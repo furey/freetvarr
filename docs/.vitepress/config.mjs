@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { illustrations } from './theme/illustrations.js'
+import { keepLastWordsTogether } from './keepLastWordsTogether.js'
 
 const repo = 'https://github.com/furey/freetvarr'
 const site = 'https://furey.github.io/freetvarr/'
@@ -19,7 +20,8 @@ const withFeatureIllustrations = (pageData) => {
   if (!features) return
   pageData.frontmatter.features = features.map((feature) => {
     const illustration = illustrations[feature.illustration]
-    return illustration ? { ...feature, icon: illustration.svg } : feature
+    const details = feature.details?.replace(/ (\S+)$/, '\u00a0$1')
+    return { ...feature, details, ...(illustration && { icon: illustration.svg }) }
   })
 }
 
@@ -76,6 +78,7 @@ export default withMermaid(defineConfig({
 
   markdown: {
     config: (md) => {
+      md.use(keepLastWordsTogether)
       md.core.ruler.before('normalize', 'strip-alert-title-br', (state) => {
         state.src = state.src.replace(
           /(\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\])<br\s*\/?>/g,
