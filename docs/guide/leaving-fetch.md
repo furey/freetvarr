@@ -323,15 +323,13 @@ The saved recordings are `.ts` files: the broadcast exactly as the Fetch box rec
 You may not need to convert anything. VLC (a free video player), Plex, Jellyfin, and Kodi play `.ts` files as they are. Convert only the recordings that a device or app you use will not open.
 
 > [!WARNING]<br>
-> Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and ffmpeg through Homebrew, `winget`, or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can come with unwanted software or malware.
+> Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and ffmpeg through Homebrew, `winget`, or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can install unwanted software or malware on your computer.
 
 The ways below go from least to most work:
 
-| Way                                                   | What it does                                        | Time for an hour of HD                                        |
-| ----------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
-| [Play them as they are](#play-them-as-they-are)       | Nothing to convert                                  | None                                                          |
-| [Convert via HandBrake](#convert-via-handbrake)       | A free app with buttons; a full convert             | Several minutes to an hour or more, depending on the computer |
-| [Convert via command line](#convert-via-command-line) | A fast copy into MP4, or a full convert, by command | Under a minute for a fast copy                                |
+- [Play them as they are](#play-them-as-they-are): nothing to convert.
+- [Convert via HandBrake](#convert-via-handbrake): a free app with buttons. It does a full convert, which takes several minutes to an hour or more for each hour of recording.
+- [Convert via command line](#convert-via-command-line): a fast copy into MP4, which takes under a minute for an hour of HD from a local drive, or a full convert.
 
 ### Play them as they are
 
@@ -343,6 +341,8 @@ On a TV, add the recordings to your media library (see [Adding them to your medi
 
 HandBrake is a free, open-source app for Windows, Mac, and Linux that converts video files. It does a full convert: it makes a new picture and new sound, so it takes a while. The new file plays on almost any device.
 
+These steps follow HandBrake's own [documentation](https://handbrake.fr/docs/en/latest/). They were not tried on every computer, and a few labels differ between Windows, Mac, and Linux.
+
 1. Download HandBrake from [handbrake.fr](https://handbrake.fr) and install it.
 2. Open HandBrake and press **Open Source**. Choose one `.ts` recording.
 3. Choose a preset (a saved set of settings) from the **Preset** list, under **General**:
@@ -353,21 +353,21 @@ HandBrake is a free, open-source app for Windows, Mac, and Linux that converts v
 4. Check the file name in **Save As** and the folder in **To**. Press **Browse** to choose another folder.
 5. Press **Start**. A full convert takes several minutes to an hour or more for each hour of recording, depending on the computer.
 
-To convert many recordings, choose a folder in **Open Source** instead of one file, and add every recording to HandBrake's queue (a list of files to convert one after another). HandBrake's [queue guide](https://handbrake.fr/docs/en/latest/advanced/queue.html) shows how on each computer. HandBrake reads only the files directly inside the folder you choose, not the folders inside it, so open each `Season` folder in turn.
+To convert many recordings, choose a folder in **Open Source** instead of one file, and add every recording to HandBrake's queue (a list of files to convert one after another). HandBrake's [queue guide](https://handbrake.fr/docs/en/latest/advanced/queue.html) shows how on each computer. HandBrake's queue guide says it ignores the folders inside the folder you choose, so open each `Season` folder in turn.
 
 ### Convert via command line
 
 ffmpeg is a free command-line tool that converts video. You type its commands in a terminal (a window where you type commands). It has two ways to convert:
 
-- **Fast copy**: puts the recording's picture and sound unchanged into an MP4 file. An hour of HD takes seconds to a minute, with no loss of quality. It suits HD recordings.
+- **Fast copy**: puts the recording's picture and sound unchanged into an MP4 file, with no loss of quality. It suits HD recordings.
 - **Full convert**: makes a new picture and new sound, like HandBrake. It takes much longer, and the file plays on almost any device. Use it for SD recordings, and for any device that will not play a fast copy.
 
-On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `100` times the speed of playback, so an hour of HD took under a minute. A full convert of HD ran at about `2` times the speed of playback, so an hour of HD took about `30–40 minutes`.
+On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `100` times the speed of playback, so an hour of HD took under a minute. That was with the recordings on the computer's own drive. Over Wi-Fi to a NAS it takes longer, because the whole recording travels over the network twice (once to read it and once to write the MP4). A full convert of HD ran at about `2` times the speed of playback, so an hour of HD took about `30–40 minutes`.
 
-#### Installing ffmpeg
+#### Getting ready
 
 1. Install ffmpeg on your computer:
-   - **Mac**: install Homebrew, a free tool that installs command-line software. Copy the install command from [brew.sh](https://brew.sh), paste it into **Terminal**, and press Enter. Then run:
+   - **Mac**: install Homebrew, a free tool that installs command-line software. Copy the install command from [brew.sh](https://brew.sh), paste it into **Terminal**, and press Enter. Homebrew supports macOS 15 (Sequoia) and later. On macOS 11 to 14 it may work without support, and it does not run on macOS 10.15 or earlier. On an older Mac, use VLC or HandBrake instead. Then run:
 
      ```sh
      brew install ffmpeg
@@ -379,7 +379,7 @@ On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `
      winget install Gyan.FFmpeg
      ```
 
-     `winget` is the Windows Package Manager, built into Windows 10 and 11. When it finishes, close the window and open a new one, so that Windows finds `ffmpeg`.
+     `winget` is the Windows Package Manager, built into Windows 10 and 11. The first time you use it, it asks you to agree to the terms of its download source: type `Y` and press Enter. When it finishes, close the window and open a new one, so that Windows finds `ffmpeg`.
    - **Linux**: on Debian or Ubuntu, run `sudo apt install ffmpeg`. On Fedora, Fedora's own ffmpeg package leaves out the H.264 encoder that the full convert uses. Turn on [RPM Fusion](https://rpmfusion.org/Configuration) first, then run `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`.
 2. Check that ffmpeg works. In the terminal, run:
 
@@ -411,30 +411,36 @@ Both keep the picture and every sound track. Both leave out the captions and the
 Try a fast copy first. Use a full convert instead when:
 
 - The MP4 will not open, or plays sound with no picture. Australian SD channels broadcast an older kind of picture (MPEG-2) that Apple devices and many apps do not play inside an MP4 file.
-- The MP4 plays a picture with no sound. To keep the picture as it is and convert only the sound, use `-c:v copy -c:a aac -b:a 192k -ac 2` in place of `-c copy` in the fast copy.
+- The MP4 plays a picture with no sound, or a sound track is missing (such as audio description). Some channels send a sound track in an older format (MP2) that Apple devices do not play inside an MP4 file.
+
+For the second case, this command keeps the picture as it is and converts only the sound, so it runs much faster than a full convert:
+
+```sh
+ffmpeg -fflags +genpts -i "Gogglebox Australia - S20E08.ts" -map 0:v:0 -map 0:a -c:v copy -c:a aac -b:a 192k -ac 2 -sn -dn -ignore_unknown -movflags +faststart "Gogglebox Australia - S20E08.mp4"
+```
 
 > [!TIP]<br>
-> On a Mac, a full convert runs about `4` times faster on the Mac's video chip: use `-c:v h264_videotoolbox -b:v 6M` in place of `-c:v libx264 -crf 20 -preset medium`. Every hour then takes about `2.8GB`, whatever the recording.
+> On a Mac, a full convert runs about `4` times faster on the Mac's video chip: in the full convert, use `-c:v h264_videotoolbox` and `-b:v 6M` in place of `-c:v libx264`, `-crf 20`, and `-preset medium`. Every hour then takes about `2.8GB`, whatever the recording.
 
 #### A whole folder
 
-These commands convert every `.ts` file in the folder the terminal is in, and in every folder inside it (such as the show and `Season` folders that Fetch My Recordings and `fetchtv` create). Each MP4 file goes next to its `.ts` file, with the same name. The `.ts` files stay as they are. If an MP4 file already exists, the command skips that recording, so you can run it again after a stop. If you stop a command part way, delete the last MP4 file it wrote before you run it again, because that file is incomplete.
+These commands convert every `.ts` file in the folder the terminal is in, and in every folder inside it (such as the show and `Season` folders that Fetch My Recordings and `fetchtv` create). Each MP4 file goes next to its `.ts` file, with the same name. The `.ts` files stay as they are. If an MP4 file already exists, the command skips that recording, so you can run it again after a stop. To stop a command, press Control-⁠C (Ctrl+C on Windows). In bash, the usual Linux terminal, press it again for each recording that starts, or close the window. After a stop, delete the last MP4 file the command wrote before you run it again, because that file is incomplete.
 
-Choose the tab for your terminal. On a Mac, use **Terminal**.
+Choose the tab for your terminal. On a Mac, use **Terminal**. On Windows, use PowerShell or Command Prompt.
 
 A fast copy of every recording:
 
 ::: code-group
 
-```sh [Mac or Linux]
-find . -name '*.ts' -print0 | while IFS= read -r -d '' f; do ffmpeg -nostdin -n -fflags +genpts -i "$f" -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart "${f%.ts}.mp4"; done
+```sh [Mac/Linux]
+find . -type f -name '*.ts' -print0 | while IFS= read -r -d '' f; do ffmpeg -nostdin -n -fflags +genpts -i "$f" -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart "${f%.ts}.mp4"; done
 ```
 
-```powershell [Windows PowerShell]
-Get-ChildItem -Recurse -Filter *.ts | ForEach-Object { ffmpeg -nostdin -n -fflags +genpts -i $_.FullName -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart ([IO.Path]::ChangeExtension($_.FullName, 'mp4')) }
+```powershell [PowerShell]
+Get-ChildItem -Recurse -File -Filter *.ts | ForEach-Object { ffmpeg -nostdin -n -fflags +genpts -i $_.FullName -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart ([IO.Path]::ChangeExtension($_.FullName, 'mp4')) }
 ```
 
-```cmd [Windows Command Prompt]
+```cmd [Command Prompt]
 for /r %I in (*.ts) do ffmpeg -nostdin -n -fflags +genpts -i "%I" -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart "%~dpnI.mp4"
 ```
 
@@ -444,15 +450,15 @@ A full convert of every recording:
 
 ::: code-group
 
-```sh [Mac or Linux]
-find . -name '*.ts' -print0 | while IFS= read -r -d '' f; do ffmpeg -nostdin -n -fflags +genpts -i "$f" -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart "${f%.ts}.mp4"; done
+```sh [Mac/Linux]
+find . -type f -name '*.ts' -print0 | while IFS= read -r -d '' f; do ffmpeg -nostdin -n -fflags +genpts -i "$f" -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart "${f%.ts}.mp4"; done
 ```
 
-```powershell [Windows PowerShell]
-Get-ChildItem -Recurse -Filter *.ts | ForEach-Object { ffmpeg -nostdin -n -fflags +genpts -i $_.FullName -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart ([IO.Path]::ChangeExtension($_.FullName, 'mp4')) }
+```powershell [PowerShell]
+Get-ChildItem -Recurse -File -Filter *.ts | ForEach-Object { ffmpeg -nostdin -n -fflags +genpts -i $_.FullName -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart ([IO.Path]::ChangeExtension($_.FullName, 'mp4')) }
 ```
 
-```cmd [Windows Command Prompt]
+```cmd [Command Prompt]
 for /r %I in (*.ts) do ffmpeg -nostdin -n -fflags +genpts -i "%I" -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart "%~dpnI.mp4"
 ```
 
