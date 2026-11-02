@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createScrollMemory, entryStateWithKey, hashesMatch, canReachTop } from '../src/web/scroll-memory.js'
+import { createScrollMemory, entryStateWithKey, hashesMatch, canReachTop, restoreScrollTop } from '../src/web/scroll-memory.js'
 
 const keysFrom = (...keys) => () => keys.shift()
 
@@ -65,4 +65,62 @@ test('hashesMatch: an empty or missing hash never matches', () => {
 test('canReachTop: waits until the page is tall enough for the remembered position', () => {
   assert.equal(canReachTop({ top: 1200, maxScrollY: 300 }), false)
   assert.equal(canReachTop({ top: 1200, maxScrollY: 1200 }), true)
+})
+
+const restoreHarness = ({ heights, limitMs = 1500 }) => {
+  const scrolls = []
+  const queued = []
+  let clock = 0
+  let measured = 0
+  const restore = (top) => restoreScrollTop({
+    top,
+    maxScrollY: () => heights[Math.min(measured++, heights.length - 1)],
+    scrollTo: (target) => scrolls.push(target),
+    nextAttempt: (run) => queued.push(run),
+    now: () => clock,
+    limitMs,
+  })
+  const tick = (ms) => {
+    clock += ms
+    queued.splice(0).forEach((run) => run())
+  }
+  return { restore, scrolls, queued, tick }
+}
+
+test('restoreScrollTop: scrolls at once when the page is already tall enough, without waiting for a frame', () => {
+  const { restore, scrolls, queued } = restoreHarness({ heights: [1500] })
+  assert.equal(restore(800).isDone(), true)
+  assert.deepEqual(scrolls, [800])
+  assert.equal(queued.length, 0)
+})
+
+test('restoreScrollTop: waits for the page to grow, then scrolls once', () => {
+  const { restore, scrolls, tick } = restoreHarness({ heights: [200, 200, 1500] })
+  restore(800)
+  tick(16)
+  assert.deepEqual(scrolls, [])
+  tick(16)
+  assert.deepEqual(scrolls, [800])
+})
+
+test('restoreScrollTop: gives up after the time limit and scrolls as far as the page allows', () => {
+  const { restore, scrolls, tick } = restoreHarness({ heights: [200], limitMs: 100 })
+  restore(800)
+  tick(50)
+  assert.deepEqual(scrolls, [])
+  tick(60)
+  assert.deepEqual(scrolls, [800])
+})
+
+test('restoreScrollTop: a cancel before the page grows leaves the scroll alone', () => {
+  const { restore, scrolls, tick } = restoreHarness({ heights: [200, 1500] })
+  restore(800).cancel()
+  tick(16)
+  assert.deepEqual(scrolls, [])
+})
+
+test('restoreScrollTop: a new entry goes to the top at once', () => {
+  const { restore, scrolls } = restoreHarness({ heights: [0] })
+  restore(0)
+  assert.deepEqual(scrolls, [0])
 })

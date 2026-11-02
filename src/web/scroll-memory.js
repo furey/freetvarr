@@ -22,6 +22,26 @@ export const hashesMatch = (first, second) => {
 
 export const canReachTop = ({ top, maxScrollY }) => maxScrollY >= top
 
+export const restoreScrollTop = ({ top, maxScrollY, scrollTo, nextAttempt, now, limitMs, onDone = () => {} }) => {
+  const startedAt = now()
+  let finished = false
+  const finish = () => {
+    finished = true
+    onDone()
+  }
+  const attempt = () => {
+    if (finished) return
+    const reachable = top <= 0 || canReachTop({ top, maxScrollY: maxScrollY() })
+    if (reachable || now() - startedAt > limitMs) {
+      scrollTo(Math.max(0, top))
+      return finish()
+    }
+    nextAttempt(attempt)
+  }
+  attempt()
+  return { cancel: () => { if (!finished) finish() }, isDone: () => finished }
+}
+
 const normalisedHash = (hash = '') => String(hash || '').replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase()
 
 const defaultKeyMaker = () => {
