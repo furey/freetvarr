@@ -27,11 +27,15 @@ Freetvarr saves each programme image while the recording is still scheduled, bec
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="ZkVVYPSEmuA" title="Freetvarr recordings library, with Plex, Sonarr, and Radarr" duration="2:38" />
 
-The library groups your recordings in shelves:
+The library groups your recordings in three shelves:
 
 - **Shows**: a poster for each TV series, even when you recorded only one episode. A number badge counts the episodes you have not started. A `REC` badge means an episode is recording now, and a red bar on the picture shows how much of the programme has aired.
 - **Movies**: films that Freetvarr filed in the [movies folder](/guide/series#films), and films in your Plex movie library when [Plex](/guide/plex) is connected.
 - **Specials and one-offs**: programmes that air once, such as a grand final, an awards night, or a special. The import puts them in the [one-off folder](/guide/configuration#the-one-off-folder).
+
+Library shows each shelf as a row of its 12 most recently added or updated titles, newest first. Swipe or scroll a row sideways to see more. The last tile in each row says **See all** and how many the shelf holds, such as `60 movies`; it opens the same page as **See all** at the right of the row title. A shelf with nothing in it has no row.
+
+**See all** opens one shelf on its own page, such as `#/recordings/movies`, with every title in a grid: posters for Shows and Movies, and wide pictures for Specials and one-offs. A switch at the top of the page moves between **Shows**, **Movies**, and **One-offs** without adding a step to Back. **‹ Library** at the top, or the browser's Back, returns to Library at the same place, with each row scrolled where you left it.
 
 A show that has no recordings yet but has an episode scheduled in TVHeadend also gets a poster on its shelf. The day and time of the recording show under the poster, such as `Tue 8:30pm`.
 
@@ -57,11 +61,11 @@ A recording appears on its shelf as soon as it starts, even before it is in your
 
 When Plex is connected, the shelves also list every episode and film in your Plex TV and Movies libraries, including files that [Sonarr or Radarr](/guide/sonarr-radarr) downloaded and files you copied in yourself. These episodes sit beside your recordings on the same show page, play in Freetvarr's player, and take their watched state and resume point from Plex. An episode that Plex has as both a recording and a download shows once; **Episode info** in the [episode menu](#episode-menu) lists both versions. Turn this off, or choose the Plex libraries it lists, in Settings → RECORDING → Plex → [YOUR WHOLE LIBRARY](/guide/plex#your-whole-library).
 
-**Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides shows you have finished; when you have watched everything, the page says `You are all caught up`. The browser remembers both choices.
+**Sort** and **Unwatched** sit on each **See all** page, under the switch. **Sort** has two choices: **Recent** (the default) and **A–Z**. A leading "The" is ignored, so `The Block` sorts under B. The **Unwatched** chip hides titles you have finished, and the line under the page title then counts what is left, such as `23 of 60 movies · Unwatched`. When you have watched everything on the shelf, the page says `You are all caught up` and offers **Show everything**. The browser remembers both choices. The rows in Library always show everything, newest first.
 
 Press a poster to open the show page. Press **⋯** under a poster, or hold the poster on a touch screen, to open the [show menu](#show-menu) without opening the show.
 
-When recent imports failed, a banner sits above the shelves. Press **Review** to open the [recording log](#recording-log), filtered to the failures.
+When recent imports failed, a banner sits above the rows. Press **Review** to open the [recording log](#recording-log), filtered to the failures.
 
 An empty library says `Nothing recorded yet` and offers **Find a show in the TV guide**.
 
