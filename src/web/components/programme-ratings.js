@@ -13,21 +13,41 @@ import {
   shownScoreOf,
 } from '/ratings-display.js'
 import { expiringMap } from '/bounded-cache.js'
+import { remainingHoldMs } from '/pending.js'
 
 export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => {
   const ratings = shallowRef(null)
   const reviewAllowed = ref(false)
   const cardOpen = ref(false)
   const loading = ref(false)
+  const likely = computed(() => Boolean(programme.value?.ratingsLikely) || programme.value?.kind === 'movie')
+  const dotsShown = computed(() => loading.value && likely.value)
   let token = 0
   let retryTimer = null
   let loadingTimer = null
+  let dotsHoldTimer = null
+  let dotsShownAt = 0
   let openedAt = 0
+
+  const showDots = () => {
+    dotsShownAt = Date.now()
+    loading.value = true
+  }
 
   const stopLoading = () => {
     clearTimeout(loadingTimer)
+    clearTimeout(dotsHoldTimer)
     loadingTimer = null
+    dotsHoldTimer = null
     loading.value = false
+  }
+
+  const afterDotsHold = (finish) => {
+    clearTimeout(loadingTimer)
+    loadingTimer = null
+    const holdMs = dotsShown.value ? remainingHoldMs({ startedAt: dotsShownAt, now: Date.now(), minMs: DOTS_MIN_MS }) : 0
+    if (!holdMs) return finish()
+    dotsHoldTimer = setTimeout(finish, holdMs)
   }
 
   const stop = () => {
@@ -38,9 +58,12 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
   }
 
   const settle = (result) => {
-    stopLoading()
-    ratings.value = result
-    reviewAllowed.value = lateReviews || Date.now() - openedAt <= REVIEW_INSERT_WINDOW_MS
+    const allowReview = lateReviews || Date.now() - openedAt <= REVIEW_INSERT_WINDOW_MS
+    afterDotsHold(() => {
+      stopLoading()
+      ratings.value = result
+      reviewAllowed.value = allowReview
+    })
   }
 
   const load = async ({ request, attempt }) => {
@@ -51,7 +74,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
       return settle(result)
     }
     const delay = result?.status === 'pending' ? retryDelayOf(attempt) : null
-    if (delay == null) return stopLoading()
+    if (delay == null) return afterDotsHold(stopLoading)
     retryTimer = setTimeout(() => load({ request, attempt: attempt + 1 }), delay)
   }
 
@@ -65,7 +88,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
     openedAt = Date.now()
     const cached = ratingsCache.get(key)
     if (cached) return settle(cached)
-    loadingTimer = setTimeout(() => { loading.value = true }, LOADING_DELAY_MS)
+    loadingTimer = setTimeout(showDots, LOADING_DELAY_MS)
     load({ request: { key, title: program.title, kind: program.kind, year: program.year, token }, attempt: 0 })
   }
 
@@ -74,8 +97,7 @@ export const useProgrammeRatings = (programme, { lateReviews = false } = {}) => 
 
   const score = computed(() => shownScoreOf(ratings.value))
   const review = computed(() => (reviewAllowed.value ? shownReviewOf(ratings.value) : null))
-  const likely = computed(() => Boolean(programme.value?.ratingsLikely) || programme.value?.kind === 'movie')
-  return { score, review, cardOpen, loading: computed(() => loading.value && likely.value) }
+  return { score, review, cardOpen, loading: dotsShown }
 }
 
 export const ProgrammeArtBadges = {
@@ -230,3 +252,4 @@ let nextCardId = 1
 
 const REVIEW_INSERT_WINDOW_MS = 2500
 const LOADING_DELAY_MS = 300
+const DOTS_MIN_MS = 600
