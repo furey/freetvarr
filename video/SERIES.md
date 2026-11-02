@@ -599,7 +599,7 @@ Freetvarr, watch recordings on TV, live TV, free-to-air TV, media player, Plex, 
 - Voiceover:
   1. Open Recordings, then Library. Each show has a poster, on a shelf.
   2. Shows, movies, and specials and one-offs each have their own shelf.
-  3. A number badge counts the episodes you have not started. A REC badge means one records now.
+  3. A number badge counts the episodes you have not watched. A REC badge means one records now.
 - Visual: Recordings → Library on the demo server: Shows, Movies (Lighthouse at Dusk), and Specials and one-offs.
 - Kicker: Shows, movies, one-offs
 

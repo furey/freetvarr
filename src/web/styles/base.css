@@ -1530,7 +1530,7 @@ button.ui-group-row:hover {
 
 @media (hover: hover) {
   a.ui-group-row:hover,
-  button.ui-group-row:hover {
+  button.ui-group-row:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.03);
   }
 }

@@ -114,7 +114,7 @@ test('ruleSummaryOf: says where, how many, and what happens to ads', () => {
   assert.equal(ruleSummaryOf({ paused: true, episodesToKeep: 5 }), 'Paused · keeps the latest 5')
 })
 
-test('showSummariesOf: groups by show key, counts new and unwatched, and keeps rules without recordings', () => {
+test('showSummariesOf: groups by show key, counts unwatched, and keeps rules without recordings', () => {
   const rows = [
     row({ recording_id: 'a', season: 22, episode: 45, aired_at: NOW - DAY_MS, played_at: '2026-10-18 08:00:00', playback_position_s: 600, image_path: 'x' }),
     row({ recording_id: 'b', title: 'the block', season: 22, episode: 44, aired_at: NOW - 2 * DAY_MS }),
@@ -129,7 +129,7 @@ test('showSummariesOf: groups by show key, counts new and unwatched, and keeps r
   })
   assert.deepEqual(shows.map((s) => s.key), ['grand-designs', 'the-block', 'melbourne-cup'])
   const block = shows.find((s) => s.key === 'the-block')
-  assert.deepEqual(block.counts, { total: 4, new: 1, unwatched: 2, failed: 1, inProgress: 0 })
+  assert.deepEqual(block.counts, { total: 4, unwatched: 2, failed: 1, inProgress: 0 })
   assert.equal(block.recordingNow, true)
   assert.equal(block.kind, 'show')
   assert.equal(block.image, '/api/recordings/a/image?w=384')
@@ -147,6 +147,21 @@ test('showSummariesOf: groups by show key, counts new and unwatched, and keeps r
   })
   assert.equal(upcoming[0].classification, 'M')
   assert.equal(shows.find((s) => s.key === 'melbourne-cup').kind, 'oneoff')
+})
+
+test('showSummariesOf: an old Plex show nobody has watched counts every episode as unwatched', () => {
+  const plexEpisode = (overrides) => row({
+    source: 'plex', plex_kind: 'episode', plex_new: false, title: 'Bluey', season: 1,
+    file_path: '/data/media/tv/Bluey/S01E01.mkv', aired_at: NOW - 400 * DAY_MS, ...overrides,
+  })
+  const [bluey] = showSummariesOf({
+    rows: [plexEpisode({ recording_id: 'plex-1', episode: 1 }), plexEpisode({ recording_id: 'plex-2', episode: 2 })],
+  })
+  assert.deepEqual(bluey.counts, { total: 2, unwatched: 2, failed: 0, inProgress: 0 })
+  const [halfWatched] = showSummariesOf({
+    rows: [plexEpisode({ recording_id: 'plex-1', episode: 1, watched_at: '2026-01-01 08:00:00' }), plexEpisode({ recording_id: 'plex-2', episode: 2 })],
+  })
+  assert.equal(halfWatched.counts.unwatched, 1)
 })
 
 test('library payloads carry each episode label, the latest show label, and a film year', () => {
