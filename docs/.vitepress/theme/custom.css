@@ -1391,3 +1391,7 @@ kbd {
   fill: var(--ftv-bg) !important;
   opacity: 1 !important;
 }
+
+.vp-doc .no-break {
+  white-space: nowrap;
+}
