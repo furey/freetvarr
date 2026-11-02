@@ -364,7 +364,7 @@ The ways below go from least to most work:
 
 On a computer, open the recordings in [VLC](https://www.videolan.org), a free video player for Windows, Mac, and Linux.
 
-On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive as ExFAT first; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
+On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive as ExFAT (a drive format that holds files over 4 GB) first; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
 
 ### Convert via HandBrake
 
