@@ -595,10 +595,15 @@ body.sheet-open .app-tabbar {
   aspect-ratio: 16 / 9;
 }
 
+@property --row-end-progress {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
 .ui-row-end-words,
 .ui-row-end-arrow {
   grid-area: 1 / 1;
-  transition: opacity var(--motion-fast) var(--ease-standard);
 }
 
 .ui-row-end-words {
@@ -653,25 +658,36 @@ body.sheet-open .app-tabbar {
   box-shadow: var(--focus-ring);
 }
 
-.ui-row-end:focus-visible .ui-row-end-words {
-  opacity: 0;
-}
-
-.ui-row-end:focus-visible .ui-row-end-arrow {
-  opacity: 1;
-}
-
 @media (hover: hover) and (pointer: fine) {
+  .ui-row-end {
+    --row-end-progress: 0;
+    --row-end-travel: 32px;
+    transition: --row-end-progress 240ms linear;
+  }
+
+  .ui-row-end:is(:hover, :focus-visible) {
+    --row-end-progress: 1;
+    transition-duration: 280ms;
+  }
+
   .ui-row-end:hover .ui-row-end-art {
     background: var(--color-surface-2);
   }
 
-  .ui-row-end:hover .ui-row-end-words {
-    opacity: 0;
+  .ui-row-end-art {
+    overflow: clip;
   }
 
-  .ui-row-end:hover .ui-row-end-arrow {
-    opacity: 1;
+  .ui-row-end-arrow {
+    --arrow-step: clamp(0, var(--row-end-progress) / 0.57, 1);
+    opacity: calc(1 - var(--arrow-step));
+    transform: translateX(calc(var(--arrow-step) * var(--arrow-step) * var(--row-end-travel)));
+  }
+
+  .ui-row-end-words {
+    --words-step: clamp(0, (var(--row-end-progress) - 0.43) / 0.57, 1);
+    opacity: var(--words-step);
+    transform: translateX(calc((1 - var(--words-step)) * (1 - var(--words-step)) * -1 * var(--row-end-travel)));
   }
 }
 
