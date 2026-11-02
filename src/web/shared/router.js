@@ -1,7 +1,7 @@
 import { ref, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { resolveRoute } from '/route-table.js'
 import { entryStateWithOrigin, replacedEntryStateOf } from '/back-target.js'
-import { createScrollMemory, entryStateWithKey, canReachTop } from '/scroll-memory.js'
+import { createScrollMemory, entryStateWithKey, restoreScrollTop } from '/scroll-memory.js'
 
 const resolveCurrentHash = () => {
   const resolved = resolveRoute(window.location.hash || '')
@@ -41,28 +41,40 @@ export const latestArrival = () => arrival
 let currentEntryKey = stampEntryKey(history.state?.entryKey || scrollMemory.arrive(null).key)
 
 const RESTORE_LIMIT_MS = 1500
+const RESTORE_RETRY_MS = 50
 const USER_SCROLL_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown']
 
 const maxScrollY = () => document.documentElement.scrollHeight - window.innerHeight
 
-const restoreScroll = (top) => {
-  if (top <= 0) return window.scrollTo({ top: 0 })
-  const startedAt = performance.now()
-  let cancelled = false
-  const cancel = () => { cancelled = true }
-  USER_SCROLL_EVENTS.forEach((type) => window.addEventListener(type, cancel, { once: true, passive: true }))
-  const stop = () => USER_SCROLL_EVENTS.forEach((type) => window.removeEventListener(type, cancel))
-  const attempt = () => {
-    if (cancelled) return stop()
-    const reachable = canReachTop({ top, maxScrollY: maxScrollY() })
-    const expired = performance.now() - startedAt > RESTORE_LIMIT_MS
-    if (reachable || expired) {
-      window.scrollTo({ top })
-      return stop()
-    }
-    requestAnimationFrame(attempt)
+const frameOrTimeout = (run) => {
+  let ran = false
+  const once = () => {
+    if (ran) return
+    ran = true
+    run()
   }
-  requestAnimationFrame(attempt)
+  requestAnimationFrame(once)
+  setTimeout(once, RESTORE_RETRY_MS)
+}
+
+let activeRestore = null
+
+const restoreScroll = (top) => {
+  activeRestore?.cancel()
+  const cancelOnUserScroll = () => restore.cancel()
+  const stopListening = () => USER_SCROLL_EVENTS.forEach((type) => window.removeEventListener(type, cancelOnUserScroll))
+  const restore = restoreScrollTop({
+    top,
+    maxScrollY,
+    scrollTo: (target) => window.scrollTo({ top: target }),
+    nextAttempt: frameOrTimeout,
+    now: () => performance.now(),
+    limitMs: RESTORE_LIMIT_MS,
+    onDone: stopListening,
+  })
+  activeRestore = restore
+  if (restore.isDone()) return
+  USER_SCROLL_EVENTS.forEach((type) => window.addEventListener(type, cancelOnUserScroll, { once: true, passive: true }))
 }
 
 const scrollForArrival = async (view) => {
