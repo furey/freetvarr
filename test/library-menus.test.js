@@ -70,10 +70,32 @@ test('showMenuOf: lists every action in the approved order with delete counts', 
   assert.deepEqual(groups[2].map((item) => item.detail), ['1', '3'])
 })
 
+test('showMenuOf: always lists both mark-all items and disables the one that would change nothing', () => {
+  const markItemsOf = (episodes) => showMenuOf({ show: showWith(episodes) })[0]
+    .filter((item) => item.key.startsWith('mark-all'))
+    .map(({ key, disabled = false, detail = '' }) => ({ key, disabled, detail }))
+  const untouched = markItemsOf([episode({ recordingId: 'a' }), episode({ recordingId: 'b', episode: 45 })])
+  assert.deepEqual(untouched, [
+    { key: 'mark-all-watched', disabled: false, detail: '' },
+    { key: 'mark-all-unwatched', disabled: true, detail: 'All unwatched' },
+  ])
+  const partWatched = markItemsOf([episode({ recordingId: 'a', watched: true }), episode({ recordingId: 'b', episode: 45 })])
+  assert.deepEqual(partWatched.map((item) => item.disabled), [false, false])
+  const started = markItemsOf([episode({ recordingId: 'a', positionS: 600 })])
+  assert.deepEqual(started.map((item) => item.disabled), [false, false])
+  const finished = markItemsOf([episode({ recordingId: 'a', watched: true }), episode({ recordingId: 'b', episode: 45, watched: true })])
+  assert.deepEqual(finished, [
+    { key: 'mark-all-watched', disabled: true, detail: 'All watched' },
+    { key: 'mark-all-unwatched', disabled: false, detail: '' },
+  ])
+  assert.deepEqual(markItemsOf([episode({ recordingId: 'a', failed: true })]), [])
+  assert.deepEqual(markItemsOf([]), [])
+})
+
 test('showMenuOf: hides what does not apply and leaves recording episodes out of the counts', () => {
   const show = showWith([episode({ recordingId: 'a' }), episode({ recordingId: 'live', episode: 45 })], { rule: null, resumeNext: null })
   const groups = showMenuOf({ show, activeIds: new Set(['live']) })
-  assert.deepEqual(keysOf(groups), [['mark-all-watched'], ['show-info', 'plex', 'change-picture', 'refresh-artwork'], ['delete-all']])
+  assert.deepEqual(keysOf(groups), [['mark-all-watched', 'mark-all-unwatched'], ['show-info', 'plex', 'change-picture', 'refresh-artwork'], ['delete-all']])
   assert.equal(groups[2][0].detail, '1')
   const paused = showMenuOf({ show: showWith([episode()], { rule: { paused: true } }) })
   assert.ok(paused[1].some((item) => item.key === 'resume-series'))

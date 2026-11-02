@@ -18,6 +18,8 @@ import {
   posterMetaOf,
   shelvesOf,
   showsCountText,
+  unwatchedCountOf,
+  unwatchedLabelOf,
 } from '/library-shelves.js'
 import { diagnoseRecordingError } from '/recording-error.js'
 import { scheduledCountOfState } from '/scheduled-groups.js'
@@ -155,7 +157,7 @@ export const RecordingsLibraryView = {
                 @pointermove="posterPress.onPointerMove" @pointerup="posterPress.onPointerEnd" @pointercancel="posterPress.onPointerEnd" @pointerleave="posterPress.onPointerEnd">
                 <title-art :shape="group.shape" :title="show.title" :src="group.shape === 'poster' ? posterSrc(show) : cardSrc(show)">
                   <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
-                  <span v-if="group.key === 'shows' && show.counts.new" class="ui-art-badge is-end"><span class="ui-count-badge">{{ show.counts.new }}</span></span>
+                  <span v-if="group.key === 'shows' && unwatchedCountOf(show)" class="ui-art-badge is-end"><span class="ui-count-badge" :aria-label="unwatchedLabelOf(show)">{{ unwatchedCountOf(show) }}</span></span>
                   <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
                 </title-art>
                 <div class="ui-card-title">{{ show.title }}</div>
@@ -349,7 +351,12 @@ export const RecordingsLibraryView = {
       return recordedPercentOf({ start: item.start, stop: item.stop, nowMs: now.value.getTime() })
     }
     const metaOf = (show, group) => inProgressMeta(show) || KIND_META[group.key]({ show, timeZone: tz.value })
-    const posterLabel = (show, group) => [show.title, show.recordingNow ? 'recording now' : '', metaOf(show, group)].filter(Boolean).join(', ')
+    const posterLabel = (show, group) => [
+      show.title,
+      show.recordingNow ? 'recording now' : '',
+      metaOf(show, group),
+      group.key === 'shows' ? unwatchedLabelOf(show) : '',
+    ].filter(Boolean).join(', ')
     const posterSrc = (show) => `${show.poster}&w=384`
     const cardSrc = (show) => show.image || `/api/epg/show-image?title=${encodeURIComponent(show.title)}&w=384`
 
@@ -359,7 +366,7 @@ export const RecordingsLibraryView = {
       shows, stale, loaded, error, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       kind, groups, kindTotal, kindSubtitle, kindEmpty, kindTabs, skeletonRows, layoutClassOf, switchKind, goBack, kindCountText, setRowScroller,
       LIBRARY_SORTS, FAILED_LOG_HREF, tz,
-      metaOf, posterLabel, inProgressMeta, recordingPercent, posterSrc, cardSrc, isScheduledOnly, showHrefOf,
+      metaOf, posterLabel, unwatchedCountOf, unwatchedLabelOf, inProgressMeta, recordingPercent, posterSrc, cardSrc, isScheduledOnly, showHrefOf,
     }
   },
 }

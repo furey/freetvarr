@@ -46,8 +46,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
     [
       running?.inProgress.canPlayFromStart && { key: 'from-start', label: 'Watch from the start', icon: 'restart' },
       next && { key: 'play-next', label: 'Play next unwatched', icon: 'play', detail: next.episode != null ? `E${next.episode}` : '' },
-      episodes.some((e) => !e.watched && !e.failed) && { key: 'mark-all-watched', label: 'Mark all as watched', icon: 'check' },
-      episodes.some((e) => e.watched || e.positionS > 0) && { key: 'mark-all-unwatched', label: 'Mark all as unwatched', icon: 'unwatched' },
+      ...markAllItemsOf(episodes),
     ],
     [
       show.rule && { key: 'options', label: 'Recording options', icon: 'options' },
@@ -68,6 +67,20 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
     ],
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
 }
+
+export const markAllItemsOf = (episodes) => {
+  const canMarkWatched = episodes.some((e) => !e.watched && !e.failed)
+  const canMarkUnwatched = episodes.some((e) => e.watched || e.positionS > 0)
+  if (!canMarkWatched && !canMarkUnwatched) return []
+  return [
+    markAllItemOf({ key: 'mark-all-watched', label: 'Mark all as watched', icon: 'check', enabled: canMarkWatched, reason: 'All watched' }),
+    markAllItemOf({ key: 'mark-all-unwatched', label: 'Mark all as unwatched', icon: 'unwatched', enabled: canMarkUnwatched, reason: 'All unwatched' }),
+  ]
+}
+
+const markAllItemOf = ({ key, label, icon, enabled, reason }) => (enabled
+  ? { key, label, icon }
+  : { key, label, icon, detail: reason, disabled: true })
 
 export const shelfMoveOf = (show) => {
   if (show.kind === 'oneoff') return { key: 'kind-show', label: 'Move to Shows', icon: 'move' }

@@ -139,7 +139,7 @@ test('getLibraryShows: a one-off recording appears on the right shelf the moment
   })
   const rugby = shows.find((s) => s.key === 'rugby-league-world-cup-2026')
   assert.equal(rugby.recordingNow, true)
-  assert.deepEqual(rugby.counts, { total: 1, new: 0, unwatched: 1, failed: 0, inProgress: 1 })
+  assert.deepEqual(rugby.counts, { total: 1, unwatched: 1, failed: 0, inProgress: 1 })
   assert.equal(rugby.inProgress.phase, RECORDING)
   assert.equal(rugby.image, '/api/epg/image/358017?w=384')
 })
@@ -223,7 +223,7 @@ test('getLibraryShow: the new episode sits in the season list of a show you alre
   const ids = show.seasons[0].episodes.map((e) => e.recordingId)
   assert.deepEqual(ids, ['c53af306', 'old-1'])
   assert.deepEqual(show.resumeNext, { recordingId: 'old-1', positionS: 0 })
-  assert.equal(show.counts.new, 1)
+  assert.deepEqual([show.counts.unwatched, show.counts.inProgress], [2, 1])
 })
 
 test('getLibraryShow: the imported row replaces the stand-in with the same id', async () => {
