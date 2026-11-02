@@ -62,7 +62,8 @@ const keepFinalCodeUnbroken = (children, escapeHtml) => {
 export const keepLastWordsTogether = (md) => {
   md.core.ruler.push('keep-last-words-together', ({ tokens }) => {
     tokens
-      .filter(({ type, children }) => type === 'inline' && children)
+      .filter(({ type, children }, index) =>
+        type === 'inline' && children && tokens[index - 1]?.type !== 'heading_open')
       .forEach(({ children }) => {
         joinLastTwoWords(children, md.utils.escapeHtml)
         keepFinalCodeUnbroken(children, md.utils.escapeHtml)

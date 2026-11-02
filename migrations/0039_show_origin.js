@@ -42,7 +42,7 @@ const keyOf = (title) => String(title ?? '')
   .replace(/^-+|-+$/g, '') || null
 
 const keepingShowLinks = async (knex, rebuildShows) => {
-  await knex.raw('create temp table kept_show_links as select recording_id, show_id from recordings where show_id is not null')
+  await knex.raw('create temp table kept_show_links as select recording_id, show_id from recordings where show_id is not null and show_id in (select id from shows)')
   await rebuildShows()
   await knex.raw(`update recordings
     set show_id = (select show_id from kept_show_links where kept_show_links.recording_id = recordings.recording_id)
