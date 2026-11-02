@@ -61,19 +61,19 @@ A `A$20` Xbox One or Hauppauge USB tuner works on a normal Linux computer. It do
 
 <div class="product-shot">
   <img src="../img/hardware/hauppauge-usb-tuner.webp" alt="A Hauppauge WinTV USB tuner stick with its case removed, showing the aerial socket at one end and the USB plug at the other" width="1000" height="563" loading="lazy">
-  <p>A USB tuner (Hauppauge WinTV MiniStick). It needs a computer with DVB drivers, such as a Raspberry Pi or a mini PC running Linux.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Hauppauge_WinTV_MiniStick-1202.jpg">Raimond Spekking</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+  <p>A USB tuner (Hauppauge WinTV MiniStick). It needs a computer with DVB drivers, such as a Raspberry Pi or a mini PC running Linux.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Hauppauge_WinTV_MiniStick-1202.jpg">Raimond Spekking</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons;&nbsp;resized.</em></p>
 </div>
 
 <div class="product-shot">
   <img src="../img/hardware/raspberry-pi-tv-hat.webp" alt="A Raspberry Pi 4 in a clear case with a small TV tuner board fitted on top and an aerial socket at its edge" width="1000" height="750" loading="lazy">
-  <p>A Raspberry Pi 4 with the Raspberry Pi TV µHAT, a DVB-T/T2 tuner board. TVHeadend drives it the same way as a USB tuner.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Raspberry_Pi_4B_DVB_TV_%CE%BCHat_(angle).jpg">Multicherry</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+  <p>A Raspberry Pi 4 with the Raspberry Pi TV µHAT, a DVB-T/T2 tuner board. TVHeadend drives it the same way as a USB tuner.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Raspberry_Pi_4B_DVB_TV_%CE%BCHat_(angle).jpg">Multicherry</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons;&nbsp;resized.</em></p>
 </div>
 
 ## Wiring it up
 
 <div class="product-shot">
   <img src="../img/hardware/rooftop-uhf-aerials.webp" alt="Three long UHF TV aerials and an older VHF aerial on one mast against a blue sky" width="1000" height="700" loading="lazy">
-  <p>Rooftop TV aerials. Most Australian homes already have one; the tuner uses the same aerial and lead as the old TV or recorder.<br><em>Photo: Serge Nueffer, public domain, via <a href="https://commons.wikimedia.org/wiki/File:Three_UHF_Yagi_television_antennas.jpg">Wikimedia Commons</a>; cropped and resized.</em></p>
+  <p>Rooftop TV aerials. Most Australian homes already have one; the tuner uses the same aerial and lead as the old TV or recorder.<br><em>Photo: Serge Nueffer, public domain, via <a href="https://commons.wikimedia.org/wiki/File:Three_UHF_Yagi_television_antennas.jpg">Wikimedia Commons</a>; cropped and&nbsp;resized.</em></p>
 </div>
 
 The tuner takes the place of whatever box was on the end of your aerial lead. Nothing else in the chain changes. For most homes the chain is the aerial lead into the tuner and an ethernet lead into the router:
@@ -124,7 +124,7 @@ The HDHomeRun's antenna input is an F-type threaded socket, so your wall plate m
 
 <div class="product-shot">
   <img src="../img/hardware/pal-and-f-plugs.webp" alt="Two aerial leads side by side: a PAL plug with a plain metal barrel on the left, and a smaller threaded F plug with a bare centre wire on the right" width="1000" height="644" loading="lazy">
-  <p>Left: a PAL (Belling-Lee) plug, which pushes on. Right: an F plug, which screws on. The tuner has an F socket.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:TV_antenna_connectors.jpg">Sajad-HasanAhmadi</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons; resized.</em></p>
+  <p>Left: a PAL (Belling-Lee) plug, which pushes on. Right: an F plug, which screws on. The tuner has an F socket.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:TV_antenna_connectors.jpg">Sajad-HasanAhmadi</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons;&nbsp;resized.</em></p>
 </div>
 
 > [!NOTE]<br>
@@ -219,7 +219,7 @@ Live TV in the browser re-encodes H.264 so that Chrome can play interlaced chann
 
    The line says `hardware (VAAPI` when it works.
 
-The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, set `LIVE_TV_VAAPI_DEVICE` in the `.env` (e.g. `LIVE_TV_VAAPI_DEVICE=/dev/dri/renderD129`).
+The override file passes `/dev/dri` into the Freetvarr Docker container and adds `RENDER_GID` as a group. Never put `/dev/dri` in the main Docker compose file on a host that lacks it. The Freetvarr Docker container then fails to start. If the render node is not `/dev/dri/renderD128`, set `LIVE_TV_VAAPI_DEVICE` in the `.env` to its path, such as `/dev/dri/renderD129`.
 
 > [!NOTE]<br>
 > The author's NAS is a Synology DS220+ (Intel Celeron J4025, UHD 600 graphics) with render group `937`. Hardware `1080i` to `720p` ran at about `6.5x` real time, using about `5%` of one core. Software `720p` ran at only `1.36x` real time on both cores.

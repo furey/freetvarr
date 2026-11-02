@@ -9,6 +9,7 @@ import {
   formatHours,
   formatUptime,
   stripDayPeriodSpace,
+  knownTimeZoneOf,
 } from '../src/web/time-format.js'
 
 const TZ = 'Australia/Sydney'
@@ -108,3 +109,10 @@ test('formatUptime: days drop seconds', () => {
   assert.equal(formatUptime(2 * 86400 + 59 * 60), '2 days 59 mins')
 })
 
+test('knownTimeZoneOf keeps real zones and drops the rest', () => {
+  assert.equal(knownTimeZoneOf('Australia/Sydney'), 'Australia/Sydney')
+  assert.equal(knownTimeZoneOf('UTC'), 'UTC')
+  assert.equal(knownTimeZoneOf('Not/AZone'), null)
+  assert.equal(knownTimeZoneOf(''), null)
+  assert.equal(knownTimeZoneOf(undefined), null)
+})

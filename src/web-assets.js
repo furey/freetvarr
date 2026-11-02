@@ -3,7 +3,7 @@ import path from 'path'
 import express from 'express'
 import { cacheControlFor, stampAssetUrls, stampIndexHtml } from './build-id.js'
 
-export const webAssets = async ({ webRoot, build, nodeModules, pageHealth = async () => null }) => {
+export const webAssets = async ({ webRoot, build, nodeModules, pageHealth = async () => null, pageTimeZone = () => null }) => {
   const preloads = await staticImportGraph({ webRoot, entry: BOOT_MODULE })
   const cacheControlOf = (req) => cacheControlFor({ requestedBuild: req.query.v, build })
   const router = express.Router()
@@ -18,7 +18,8 @@ export const webAssets = async ({ webRoot, build, nodeModules, pageHealth = asyn
       pageHealth().catch(() => null),
     ])
     res.setHeader('Cache-Control', 'no-cache')
-    res.type('html').send(withHealthMeta({ html: stampIndexHtml({ html, build, preloads }), health }))
+    const stamped = stampIndexHtml({ html, build, preloads })
+    res.type('html').send(withTimeZoneMeta({ html: withHealthMeta({ html: stamped, health }), timeZone: pageTimeZone() }))
   })
   router.get(STAMPED_TEXT_PATH, async (req, res, next) => {
     const source = await fs.readFile(path.join(webRoot, req.path), 'utf8').catch(() => null)
@@ -48,6 +49,10 @@ export const staticImportGraph = async ({ webRoot, entry }) => {
 
 export const withHealthMeta = ({ html, health }) => (health
   ? html.replace(CHARSET_META, () => `${CHARSET_META}\n    <meta name="freetvarr-health" content="${attributeOf(JSON.stringify(health))}" />`)
+  : html)
+
+export const withTimeZoneMeta = ({ html, timeZone }) => (timeZone
+  ? html.replace(CHARSET_META, () => `${CHARSET_META}\n    <meta name="freetvarr-time-zone" content="${attributeOf(String(timeZone))}" />`)
   : html)
 
 export const staticImportsOf = (source) => [...source.matchAll(STATIC_IMPORT)].map(([, specifier]) => specifier)

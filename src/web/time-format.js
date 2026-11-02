@@ -48,6 +48,15 @@ const formatDays = (count) => `${count} day${count === 1 ? '' : 's'}`
 
 export const stripDayPeriodSpace = (text) => text.replace(/[\s  ]+(am|pm)$/i, (_, period) => period.toLowerCase())
 
+export const knownTimeZoneOf = (zone) => {
+  if (!zone) return null
+  try {
+    return new Intl.DateTimeFormat('en-AU', { timeZone: zone }).resolvedOptions().timeZone
+  } catch {
+    return null
+  }
+}
+
 export const dateFormat = (options, timeZone) => {
   const key = `${timeZone}|${JSON.stringify(options)}`
   if (!dateFormatters.has(key)) {

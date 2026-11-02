@@ -98,7 +98,7 @@ The original Watchtower project (`containrrr/watchtower`) stopped on `2025-12-17
 The settings, from the Watchtower [container selection](https://watchtower.nickfedor.com/v1.23.2/configuration/container-selection/), [scheduling](https://watchtower.nickfedor.com/v1.23.2/configuration/scheduling/), and [update behaviour](https://watchtower.nickfedor.com/v1.23.2/configuration/update-behavior/) pages:
 
 - **`image`**: a fixed version, so Watchtower never pulls a new Watchtower release that nobody reviewed. To update Watchtower, change the version by hand after you read its [release notes](https://github.com/nicholas-fedor/watchtower/releases).
-- **`WATCHTOWER_LABEL_ENABLE`**: Watchtower updates only the containers with the label `com.centurylinklabs.watchtower.enable=true`.
+- **`WATCHTOWER_LABEL_ENABLE`**: Watchtower updates only the containers with the label `com.centurylinklabs.watchtower.enable=true`, and leaves the others alone.
 - **`WATCHTOWER_SCHEDULE`**: when Watchtower checks, as a cron expression with 6 fields (seconds first). `0 0 4 * * *` checks every day at 4am, in the time zone that `/etc/localtime` gives it.
 - **`WATCHTOWER_CLEANUP`**: Watchtower deletes the old Freetvarr image after an update, to free disk space.
 

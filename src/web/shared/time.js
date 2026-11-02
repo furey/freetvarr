@@ -4,11 +4,14 @@ import {
   dateFormat as cachedDateFormat,
   formatClock,
   formatDate,
+  knownTimeZoneOf,
 } from '/time-format.js'
 import { readSnapshot, writeSnapshot } from '/warm-start.js'
 import { browserStorage } from '/shared/storage.js'
 
-export const tz = ref(readSnapshot({ storage: browserStorage(), key: 'tz' }) ?? 'UTC')
+const readPageTimeZone = () => knownTimeZoneOf(document.querySelector('meta[name="freetvarr-time-zone"]')?.content)
+
+export const tz = ref(readPageTimeZone() ?? readSnapshot({ storage: browserStorage(), key: 'tz' }) ?? 'UTC')
 watch(tz, (zone) => writeSnapshot({ storage: browserStorage(), key: 'tz', data: zone }))
 
 export const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || ''
