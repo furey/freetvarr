@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import express from 'express'
 
 import { stampAssetUrls } from '../src/build-id.js'
-import { staticImportGraph, staticImportsOf, webAssets, withHealthMeta } from '../src/web-assets.js'
+import { staticImportGraph, staticImportsOf, webAssets, withHealthMeta, withTimeZoneMeta } from '../src/web-assets.js'
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WEB_ROOT = path.join(REPO_ROOT, 'src', 'web')
@@ -141,4 +141,54 @@ test('index.html: carries the health the server knows', async () => {
   } finally {
     server.close()
   }
+})
+
+test('withTimeZoneMeta: puts the server time zone in a meta tag so the first paint shows local time', () => {
+  const html = '<head>\n    <meta charset="utf-8" />\n</head>'
+  assert.equal(
+    withTimeZoneMeta({ html, timeZone: 'Australia/Sydney' }),
+    '<head>\n    <meta charset="utf-8" />\n    <meta name="freetvarr-time-zone" content="Australia/Sydney" />\n</head>',
+  )
+})
+
+test('withTimeZoneMeta: escapes the zone and keeps replacement patterns literal', () => {
+  const html = '<head>\n    <meta charset="utf-8" />\n</head>'
+  const stamped = withTimeZoneMeta({ html, timeZone: 'Bad/"<zone>"&$&$1' })
+  const content = stamped.match(/<meta name="freetvarr-time-zone" content="([^"]*)" \/>/)[1]
+  assert.equal(content, 'Bad/&quot;&lt;zone&gt;&quot;&amp;$&amp;$1')
+})
+
+test('withTimeZoneMeta: leaves the page alone when the zone is not known', () => {
+  const html = '<head>\n    <meta charset="utf-8" />\n</head>'
+  assert.equal(withTimeZoneMeta({ html, timeZone: '' }), html)
+  assert.equal(withTimeZoneMeta({ html, timeZone: null }), html)
+})
+
+test('index.html: carries the time zone the server resolves', async () => {
+  const app = express()
+  app.use(await webAssets({
+    webRoot: WEB_ROOT,
+    build: BUILD,
+    nodeModules: path.join(REPO_ROOT, 'node_modules'),
+    pageTimeZone: () => 'Pacific/Auckland',
+  }))
+  const server = app.listen(0, '127.0.0.1')
+  await new Promise((resolve) => server.once('listening', resolve))
+  try {
+    const html = await (await fetch(`http://127.0.0.1:${server.address().port}/`)).text()
+    assert.match(html, /<meta name="freetvarr-time-zone" content="Pacific\/Auckland" \/>/)
+  } finally {
+    server.close()
+  }
+})
+
+test('index.html: has no time zone meta when the server gives none', async () => {
+  const html = await (await fetch(`${baseUrl}/`)).text()
+  assert.doesNotMatch(html, /freetvarr-time-zone/)
+})
+
+test('shared time: reads the page time zone before the stored snapshot', async () => {
+  const source = await fs.readFile(path.join(WEB_ROOT, 'shared', 'time.js'), 'utf8')
+  assert.match(source, /meta\[name="freetvarr-time-zone"\]/)
+  assert.match(source, /ref\(readPageTimeZone\(\) \?\? readSnapshot\(/)
 })

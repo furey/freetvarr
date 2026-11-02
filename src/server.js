@@ -2473,6 +2473,7 @@ app.use(await webAssets({
   build: BUILD_ID,
   nodeModules: path.join(__dirname, '..', 'node_modules'),
   pageHealth: pageHealthOf,
+  pageTimeZone: currentTimeZone,
 }))
 
 // Terminal error handler: return the message only, never a stack trace, and never
