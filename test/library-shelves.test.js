@@ -15,6 +15,8 @@ import {
   scheduledWhenOf,
   shelvesOf,
   showsCountText,
+  unwatchedCountOf,
+  unwatchedLabelOf,
 } from '../src/web/library-shelves.js'
 import {
   canStep,
@@ -44,7 +46,7 @@ const show = (overrides) => ({
   key: 'the-block',
   title: 'The Block',
   kind: 'show',
-  counts: { total: 6, new: 2, unwatched: 3, failed: 0 },
+  counts: { total: 6, unwatched: 3, failed: 0 },
   latestAt: 100,
   nextAiring: null,
   rule: null,
@@ -55,7 +57,7 @@ const show = (overrides) => ({
 test('shelvesOf: splits by kind, sorts recent or A–Z, and filters unwatched', () => {
   const shows = [
     show({ key: 'a', title: 'The Zoo', latestAt: 300 }),
-    show({ key: 'b', title: 'Apple', latestAt: 100, counts: { total: 2, new: 0, unwatched: 0, failed: 0 } }),
+    show({ key: 'b', title: 'Apple', latestAt: 100, counts: { total: 2, unwatched: 0, failed: 0 } }),
     show({ key: 'c', title: 'Heat', kind: 'movie', latestAt: 200 }),
     show({ key: 'd', title: 'Cup', kind: 'oneoff', latestAt: 50 }),
   ]
@@ -66,14 +68,23 @@ test('shelvesOf: splits by kind, sorts recent or A–Z, and filters unwatched', 
   assert.deepEqual(shelvesOf({ shows }).oneoffs.map((s) => s.key), ['d'])
 })
 
-test('posterMetaOf: counts episodes and new ones, or names the first airing', () => {
-  assert.equal(posterMetaOf({ show: show(), timeZone: TZ }), '6 episodes · 2 new')
-  assert.equal(posterMetaOf({ show: show({ counts: { total: 1, new: 0 } }), timeZone: TZ }), '1 episode')
+test('posterMetaOf: counts episodes, or names the first airing', () => {
+  assert.equal(posterMetaOf({ show: show(), timeZone: TZ }), '6 episodes')
+  assert.equal(posterMetaOf({ show: show({ counts: { total: 1, unwatched: 0 } }), timeZone: TZ }), '1 episode')
   assert.equal(
-    posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: false }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }),
+    posterMetaOf({ show: show({ counts: { total: 0, unwatched: 0 }, rule: { paused: false }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }),
     'First episode Tue 8:30pm',
   )
-  assert.match(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Tue 20 Oct$/)
+  assert.match(posterMetaOf({ show: show({ counts: { total: 0, unwatched: 0 }, nextAiring: { startDate: TUE_830PM } }), timeZone: TZ }), /^Tue 20 Oct$/)
+})
+
+test('unwatchedCountOf and unwatchedLabelOf: count every unwatched episode for the poster pill', () => {
+  assert.equal(unwatchedCountOf(show()), 3)
+  assert.equal(unwatchedLabelOf(show()), '3 unwatched')
+  assert.equal(unwatchedCountOf(show({ counts: { total: 6, unwatched: 6, failed: 0 } })), 6)
+  assert.equal(unwatchedCountOf(show({ counts: { total: 6, unwatched: 0, failed: 0 } })), 0)
+  assert.equal(unwatchedLabelOf(show({ counts: { total: 6, unwatched: 0, failed: 0 } })), '')
+  assert.equal(unwatchedCountOf({ counts: undefined }), 0)
 })
 
 test('movie and one-off meta use the channel with the length or the day', () => {
@@ -253,8 +264,8 @@ test('recordingRowOf: gives the player and confirm copy the row fields they read
 })
 
 test('posterMetaOf: a paused rule with no episodes says so', () => {
-  assert.equal(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: true } }), timeZone: TZ }), 'Paused')
-  assert.equal(posterMetaOf({ show: show({ counts: { total: 0, new: 0 }, rule: { paused: false } }), timeZone: TZ }), 'Not in the guide yet')
+  assert.equal(posterMetaOf({ show: show({ counts: { total: 0, unwatched: 0 }, rule: { paused: true } }), timeZone: TZ }), 'Paused')
+  assert.equal(posterMetaOf({ show: show({ counts: { total: 0, unwatched: 0 }, rule: { paused: false } }), timeZone: TZ }), 'Not in the guide yet')
 })
 
 test('scheduled episodes: pill, meta, hero line, and status card for a show that has not recorded yet', () => {

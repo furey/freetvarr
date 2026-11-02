@@ -41,12 +41,16 @@ export const sortShows = ({ shows, sort = 'recent' }) => [...shows].sort(sort ==
 export const titleSortKey = (title) => String(title || '').trim().replace(/^the\s+/i, '')
 
 export const posterMetaOf = ({ show, timeZone }) => {
-  const { total, new: fresh } = show.counts
+  const { total } = show.counts
   if (!total && show.rule?.paused) return 'Paused'
   if (isScheduledOnly(show)) return scheduledShelfMetaOf({ show, timeZone })
   if (!total) return firstEpisodeText({ nextAiring: show.nextAiring, timeZone, short: true })
-  return [countText(total, 'episode'), fresh ? `${fresh} new` : ''].filter(Boolean).join(' · ')
+  return countText(total, 'episode')
 }
+
+export const unwatchedCountOf = (show) => show.counts?.unwatched ?? 0
+
+export const unwatchedLabelOf = (show) => (unwatchedCountOf(show) ? `${unwatchedCountOf(show)} unwatched` : '')
 
 export const firstEpisodeText = ({ nextAiring, timeZone, short = false }) => {
   if (!nextAiring) return 'Not in the guide yet'

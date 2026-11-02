@@ -492,7 +492,6 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = N
     artworkStamps: { background: stamps.background ?? null, poster: stamps.poster ?? null },
     counts: {
       total: rows.length,
-      new: watchable.filter(isNewRow).length,
       unwatched: watchable.filter((row) => !isWatched(row)).length,
       failed: rows.filter(isFailed).length,
       inProgress: rows.filter(isInProgressRow).length,
