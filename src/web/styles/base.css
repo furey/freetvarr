@@ -662,12 +662,13 @@ body.sheet-open .app-tabbar {
   .ui-row-end {
     --row-end-progress: 0;
     --row-end-travel: 32px;
-    transition: --row-end-progress 240ms linear;
+    --row-end-duration: 280ms;
+    transition: --row-end-progress calc(var(--row-end-duration) * 6 / 7) linear;
   }
 
   .ui-row-end:is(:hover, :focus-visible) {
     --row-end-progress: 1;
-    transition-duration: 280ms;
+    transition-duration: var(--row-end-duration);
   }
 
   .ui-row-end:hover .ui-row-end-art {
