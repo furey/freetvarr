@@ -17,7 +17,7 @@ const DESKTOP_SHOTS = [
   { hash: '#/home', file: 'screenshot-dashboard.png', wait: '.home-hero, .home-row' },
   { hash: '#/settings/system/series', file: 'screenshot-series.png', wait: '.settings-page' },
   { hash: '#/settings/system/activity', file: 'screenshot-syncs.png', wait: '.settings-page' },
-  { hash: '#/recordings', file: 'screenshot-recordings.png', wait: '.library-shelf, .library-grid' },
+  { hash: '#/recordings', file: 'screenshot-recordings.png', wait: '.ui-row-end' },
   { hash: '#/settings/storage', file: 'screenshot-settings.png', wait: '.settings-page' },
   { hash: '#/settings/plex', file: 'screenshot-plex.png', wait: '.settings-page', prepare: (page) => showPlexLibraryNames(page) },
   { hash: '#/settings/arr', file: 'screenshot-arr.png', wait: '.settings-page' },
@@ -38,7 +38,7 @@ const DESKTOP_SHOTS = [
 const MOBILE_SHOTS = [
   { hash: '#/home', file: 'screenshot-mobile-dashboard.png', wait: '.home-hero, .home-row' },
   { hash: '#/settings/system/series', file: 'screenshot-mobile-series.png', wait: '.settings-page' },
-  { hash: '#/recordings', file: 'screenshot-mobile-recordings.png', wait: '.library-shelf, .library-grid' },
+  { hash: '#/recordings', file: 'screenshot-mobile-recordings.png', wait: '.ui-row-end' },
   { hash: '#/guide', file: 'screenshot-mobile-guide.png', wait: '.epg-cell' },
   { hash: '#/live', file: 'screenshot-mobile-live.png', wait: '.live-row, .live-list' },
   { hash: '#/recordings/scheduled', file: 'screenshot-mobile-recording-banner.png', wait: '.ui-banner' },

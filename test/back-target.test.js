@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { backTargetOf, entryStateWithOrigin, BACK_FALLBACK } from '../src/web/back-target.js'
+import { backTargetOf, entryStateWithOrigin, libraryBackOf, replacedEntryStateOf, BACK_FALLBACK } from '../src/web/back-target.js'
 
 const SHOW = '#/recordings/show/the-bear'
 
@@ -60,4 +60,34 @@ test('entryStateWithOrigin: an origin given by the link, not the history, is mar
 
 test('entryStateWithOrigin: an entry with no origin page stores null', () => {
   assert.deepEqual(entryStateWithOrigin({ state: null, originHash: '' }), { cameFrom: null })
+})
+
+const backAfterKindSwitch = (entryState) => {
+  const replaced = entryStateWithOrigin({ state: replacedEntryStateOf(entryState), originHash: '#/recordings/movies' })
+  return libraryBackOf({ cameFrom: replaced.cameFrom, inHistory: !replaced.cameFromOutsideHistory })
+}
+
+test('Library back: a deep link to a drill-in, then a kind switch, opens the overview instead of leaving the app', () => {
+  assert.equal(backAfterKindSwitch(null), 'navigate')
+  assert.equal(backAfterKindSwitch({ entryKey: 'k1' }), 'navigate')
+})
+
+test('Library back: from the overview, then a kind switch, goes back in history to the overview', () => {
+  assert.equal(backAfterKindSwitch({ cameFrom: '#/recordings', entryKey: 'k2' }), 'history')
+})
+
+test('Library back: an origin outside history, or another page, opens the overview', () => {
+  assert.equal(backAfterKindSwitch({ cameFrom: '#/recordings', cameFromOutsideHistory: true }), 'navigate')
+  assert.equal(backAfterKindSwitch({ cameFrom: '#/home' }), 'navigate')
+  assert.equal(libraryBackOf({ cameFrom: '#/recordings/shows', inHistory: true }), 'navigate')
+})
+
+test('replacedEntryStateOf: carries the origin over and drops the scroll key', () => {
+  assert.deepEqual(replacedEntryStateOf({ cameFrom: '#/recordings', entryKey: 'k3' }), { cameFrom: '#/recordings' })
+  assert.deepEqual(replacedEntryStateOf(null), { cameFrom: null, cameFromOutsideHistory: true })
+})
+
+test('backTargetOf: a show opened from a drill-in names that kind', () => {
+  assert.equal(backTargetOf({ previousHash: '#/recordings/movies', currentHash: SHOW }).label, 'Movies')
+  assert.equal(backTargetOf({ previousHash: '#/recordings/one-offs', currentHash: SHOW }).label, 'One-offs')
 })

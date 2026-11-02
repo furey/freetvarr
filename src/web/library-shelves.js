@@ -7,17 +7,21 @@ export const LIBRARY_SORTS = [
   { key: 'az', label: 'A–Z' },
 ]
 
-export const LIBRARY_SECTION_TITLES = {
-  shows: 'Shows',
-  movies: 'Movies',
-  oneoffs: 'Specials and one-offs',
-}
+export const LIBRARY_ROW_SIZE = 12
 
-export const sectionJumpsOf = (shelves) => {
-  const filled = Object.keys(LIBRARY_SECTION_TITLES).filter((key) => shelves?.[key]?.length)
-  if (filled.length < 2) return []
-  return filled.map((key) => ({ key, label: LIBRARY_SECTION_TITLES[key] }))
-}
+export const LIBRARY_KINDS = [
+  { key: 'shows', slug: 'shows', title: 'Shows', segment: 'Shows', noun: 'show', shape: 'poster' },
+  { key: 'movies', slug: 'movies', title: 'Movies', segment: 'Movies', noun: 'movie', shape: 'poster' },
+  { key: 'oneoffs', slug: 'one-offs', title: 'Specials and one-offs', segment: 'One-offs', noun: 'one-off', shape: 'card' },
+].map((kind) => ({ ...kind, href: `#/recordings/${kind.slug}` }))
+
+export const libraryKindOf = (slug) => LIBRARY_KINDS.find((kind) => kind.slug === slug) ?? null
+
+export const libraryRowsOf = (shelves) => LIBRARY_KINDS
+  .filter((kind) => shelves?.[kind.key]?.length)
+  .map((kind) => ({ ...kind, items: shelves[kind.key].slice(0, LIBRARY_ROW_SIZE), total: shelves[kind.key].length }))
+
+export const kindCountText = ({ kind, count }) => countText(count, kind.noun)
 
 export const FAILURE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 

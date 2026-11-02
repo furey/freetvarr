@@ -51,6 +51,7 @@ export const VIEW_PRELOADS = {
     '/components/artwork-picker.js',
     '/components/move-to-show-sheet.js',
     '/response-order.js',
+    '/row-scroll-memory.js',
     '/shared/view-store.js',
     '/tuner-plan.js',
     '/views/recordings-library-view.js',

@@ -23,7 +23,7 @@ export const UiSegmented = {
         :aria-label="option.ariaLabel || null" :title="option.title || null"
         :tabindex="index === focusIndex ? 0 : -1"
         :disabled="option.href ? null : isDisabled(option) || null"
-        @click="choose(option)"><slot :option="option" :selected="isSelected(option)">{{ option.label }}</slot></component>
+        @click="choose(option, $event)"><slot :option="option" :selected="isSelected(option)">{{ option.label }}</slot></component>
     </div>
   `,
   setup(props, { emit }) {
@@ -34,7 +34,9 @@ export const UiSegmented = {
       if (selected !== -1) return selected
       return Math.max(0, props.options.findIndex((option) => !isDisabled(option)))
     })
-    const choose = (option) => {
+    const choose = (option, event) => {
+      if (option.replace && opensElsewhere(event)) return
+      if (option.replace) event.preventDefault()
       if (isDisabled(option) || isSelected(option)) return
       emit('update:modelValue', option.value)
     }
@@ -53,3 +55,5 @@ export const UiSegmented = {
     return { isSelected, isDisabled, focusIndex, choose, onKeydown }
   },
 }
+
+const opensElsewhere = (event) => Boolean(event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey || event?.button > 0)

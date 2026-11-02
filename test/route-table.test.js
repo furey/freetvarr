@@ -123,3 +123,17 @@ test('viewKeyOf: names the view module each route opens', () => {
   assert.equal(viewKeyOf(resolveRoute('#/welcome')), 'welcome')
   assert.equal(viewKeyOf(resolveRoute('#/nowhere')), 'home')
 })
+
+test('recordingsPageOf: the kind drill-ins are library pages with a kind', () => {
+  assert.deepEqual(recordingsPageOf(['movies']), { page: 'library', kind: 'movies' })
+  assert.deepEqual(recordingsPageOf(['one-offs']), { page: 'library', kind: 'one-offs' })
+  assert.deepEqual(recordingsPageOf(['show', 'shows']), { page: 'show', showKey: 'shows' })
+  assert.equal(viewKeyOf({ view: 'recordings', params: ['shows'] }), 'library')
+})
+
+test('resolveRoute: anything under a kind drill-in redirects to the drill-in itself', () => {
+  assert.equal(resolveRoute('#/recordings/shows/the-bear').canonicalHash, '#/recordings/shows')
+  assert.equal(resolveRoute('#/recordings/Movies').canonicalHash, '#/recordings/movies')
+  assert.equal(resolveRoute('#/recordings/movies').canonicalHash, null)
+  assert.deepEqual(resolveRoute('#/recordings/one-offs/x/y').params, ['one-offs'])
+})
