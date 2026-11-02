@@ -171,4 +171,4 @@ With **Empty trash automatically after every scan** on (the Plex default), Plex 
 Imports write under your [media root](/guide/configuration#the-two-recordings-paths) (the TV folder, `/data/media/tv` by default) using each series folder and season template ([Series rules](/guide/series)). Plex reads them as an ordinary TV library.
 
 > [!NOTE]<br>
-> Episodes stay `.ts`, the raw broadcast format. Plex plays them, but seeking is slow, because a transport stream has no index. If that bothers you, run the files through Tdarr or similar to remux them to `.mkv` after Freetvarr is done with them.
+> Episodes stay `.ts`, the raw broadcast format. Plex plays them, but seeking is slow, because a transport stream has no index. If that bothers you, a fast copy into MP4 with ffmpeg is the simpler fix for a one-off batch: it keeps the quality and runs much faster than a full convert. [Converting recordings to MP4](/guide/leaving-fetch#converting-recordings-to-mp4) is written for Fetch recordings, but its steps work on any `.ts` file. To remux every new recording automatically, run the files through Tdarr or similar after Freetvarr is done with them.

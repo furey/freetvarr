@@ -227,14 +227,14 @@ The first time you open the app, your computer warns that it cannot check it. [F
 5. If the app finds no Fetch box, type the box's IP address (four numbers such as `192.168.1.50`) under **Or type its IP address**, and press **Connect**. The IP address is in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 6. Choose the recordings to save (**Select all** chooses every one), and press **Next**.
 7. Check the folder. The app saves to a `Fetch recordings` folder inside your Videos folder (Movies on a Mac). Press **Change** to choose another folder. The app shows how much space the recordings need and how much is free.
-8. Turn on **Names for Plex, Jellyfin or Kodi** if the recordings will go into a media library (the folders of video files that Plex, Jellyfin, or Kodi reads). [Adding them to your media library](#adding-them-to-your-media-library) explains the names.
+8. Turn on **Names for Plex, Jellyfin or Kodi** if the recordings will go into a media library (the folders of video files that Plex, Jellyfin, or Kodi reads). [Adding recordings to your media library](#adding-recordings-to-your-media-library) explains the names.
 9. Press **Save**.
 
 When the copy ends, the app shows tiles for **Saved**, **Already saved**, and **Not saved**. Press a tile (or its **Show list**) to see those recordings in a list.
 
 If the copy stops part way, or some recordings show as not saved, press **Save again**. It is the main button while anything is unsaved. The app skips the recordings it already saved and carries on with the rest. With hundreds of recordings, expect to do this several times.
 
-The files play in VLC (a free video player). For other ways to watch them, press **How to watch your recordings** in the **I have my files, but now what?** card on the finished screen.
+The files play in VLC (a free video player). For other ways to watch them, press **How to watch your recordings** in the **I have my files, but now what?** card on the finished screen. To make MP4 files for other players, see [Converting recordings to MP4](#converting-recordings-to-mp4).
 
 <a id="copy-with-the-terminal"></a>
 
@@ -282,11 +282,13 @@ The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every optio
 
 The files play in VLC (a free video player). To make MP4 files for other players, see [Converting recordings to MP4](#converting-recordings-to-mp4).
 
-### Adding them to your media library
+<a id="adding-them-to-your-media-library"></a>
 
-On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. With **Names for Plex, Jellyfin or Kodi** turned on in the app, or `--for-plex` in the terminal, the files get the names a media library expects: a folder for each show, a `Season` folder inside it, and file names that end with the season and episode (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). You do not rename anything.
+## Adding recordings to your media library
 
-Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up)), open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac). Drag each folder out of the folder you saved to (`Fetch recordings` from the app, or `fetch-recordings` from the terminal) into one of the folders inside Freetvarr's `media` folder. The install script creates it at `freetvarr/data/media`, with a `tv` and a `one-offs` folder inside:
+On Path 2, your media library (e.g. Plex, Jellyfin, or Kodi) shows your Fetch recordings next to your new ones. This works the same for recordings saved with the desktop app and with the command line. With **Names for Plex, Jellyfin or Kodi** turned on in the app, or `--for-plex` on the command line, the files get the names a media library expects: a folder for each show, a `Season` folder inside it, and file names that end with the season and episode (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). You do not rename anything.
+
+Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up)), open the NAS's shared folder from your computer (File Explorer on Windows, Finder on a Mac). Drag each folder out of the folder you saved to (`Fetch recordings` from the app, or `fetch-recordings` from the command line) into one of the folders inside Freetvarr's `media` folder. The install script creates it at `freetvarr/data/media`, with a `tv` and a `one-offs` folder inside:
 
 | Fetch folder                                                                                      | Goes into                                                                         |
 | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -296,23 +298,47 @@ Once the NAS and Freetvarr are set up (steps 5–7 of [Setting up](#setting-up))
 
 Your media library finds the new files on its next scan. To start a scan now, choose **Scan Library Files** from the library's menu in Plex. When Plex has them, Freetvarr's [Recordings](/guide/recordings#library) lists them beside your new recordings, on the same show page (Settings → RECORDING → Plex → [YOUR WHOLE LIBRARY](/guide/plex#your-whole-library) turns this off).
 
-If the NAS is already running when you save your Fetch recordings, you can copy them straight into the NAS and skip the drag. The folder for TV series is `freetvarr/data/media/tv`, inside the NAS shared folder where you installed Freetvarr.
+### Saving straight to the NAS
 
-In the app, open the NAS's shared folder from your computer first, so the computer is connected to it. Then press **Change** on **Choose a folder**, choose the `tv` folder, and keep **Names for Plex, Jellyfin or Kodi** turned on.
+If the NAS is already running Freetvarr when you save your Fetch recordings, you can save them straight into the NAS and skip the drag. Save in separate rounds, one for each folder in the table above, because films and news do not belong in `tv`. The first round saves the series into `tv`, with the media library names. The later rounds save the films into `movies` (or `one-offs`) and everything else into `one-offs`, without the names.
 
-In the terminal, keep `--for-plex`, and put the path of the `tv` folder in `--save`. To get its path, open the `tv` folder from your computer. On Windows, click the File Explorer address bar and copy the path. On a Mac, hold Option, Control-click the folder in Finder, and choose **Copy as Pathname**. For example, with Freetvarr in a shared folder named `docker` on a NAS named `NAS`, use `--save=\\NAS\docker\freetvarr\data\media\tv` on Windows, or `--save=/Volumes/docker/freetvarr/data/media/tv` on a Mac. Use your own path in place of the example.
+The examples below use a NAS named `NAS`, with Freetvarr in a shared folder named `docker`. The `tv` folder is then `\\NAS\docker\freetvarr\data\media\tv` on Windows, and `/Volumes/docker/freetvarr/data/media/tv` on a Mac. Put your NAS's name and shared folder in place of the examples.
 
-This is safe if the NAS already holds Freetvarr recordings: the app and `fetchtv` never overwrite a file they did not save. If a file already has the name a recording would get, the recording is saved as `<name> - copy 2.ts` instead. While a recording copies, it is saved as a `.part` file, which Plex and Freetvarr do not read. The app and `fetchtv` also write a `fetchtv.json` file at the top of the save folder, with a list of the files it saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
+This is safe if the NAS already holds Freetvarr recordings: the app and `fetchtv` never overwrite a file they did not save. If a file already has the name a recording would get, the recording is saved as `<name> - copy 2.ts` instead. While a recording copies, it is saved as a `.part` file, which Plex and Freetvarr do not read. The app and `fetchtv` also write a `fetchtv.json` file at the top of the save folder, with a list of the files they saved. Leave it there, so that a later run knows which files are its own (Plex and Freetvarr ignore it).
 
-Films and news shows belong in `movies` or `one-offs`, not `tv`. In the app, save in separate rounds: choose only the series and save them into `tv` with **Names for Plex, Jellyfin or Kodi** turned on, then press **Choose other recordings**, choose the films, and save them into `movies` or `one-offs` with it turned off.
+#### From the desktop app
 
-In the terminal, add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`. These lines use the example path from above:
+1. Connect your computer to the NAS's shared folder:
+   - On Windows, open File Explorer, type `\\NAS\docker` in the address bar, and press Enter. Sign in with your NAS user name and password if Windows asks.
+   - On a Mac, open Finder and choose Go → Connect to Server. Type `smb://NAS` (or `smb://NAS.local` if that does not connect), press **Connect**, sign in with your NAS user name and password, and choose the `docker` shared folder.
+2. Open Fetch My Recordings and press **Start**. The app lists the recordings on your Fetch box, with every recording that is not yet saved ticked.
+3. Press **Select none**, then tick each series. Press **Next**.
+4. On **Choose a folder**, press **Change**. A folder chooser opens.
+5. In the folder chooser, go to Freetvarr's `media` folder. This works because your computer is connected to the shared folder (step 1):
+   - On Windows, click the address bar, type `\\NAS\docker\freetvarr\data\media`, and press Enter. If you mapped the shared folder to a drive letter, you can choose that drive under This PC instead.
+   - On a Mac, press Command-Shift-G, type `/Volumes/docker/freetvarr/data/media`, and press Return.
+6. Select the `tv` folder and press **Use this folder**.
+7. Check that **Names for Plex, Jellyfin or Kodi** is turned on.
+8. Press **Save**.
+9. When the copy ends, press **Choose other recordings**. The list now ticks only the recordings that are not yet saved, such as films and news.
+10. Press **Select none**, then tick the films. Press **Next**.
+11. Press **Change**, choose the `movies` folder (or `one-offs` if you have no [movies folder](/guide/series#films)), and press **Use this folder**.
+12. Check that **Names for Plex, Jellyfin or Kodi** is turned off, and press **Save**.
+13. Repeat steps 9–12 for everything else (e.g. news): press **Select none**, tick only the remaining recordings, and save them into the `one-offs` folder.
+
+#### From the command line
+
+Keep `--for-plex`, and put the path of the `tv` folder in `--save`. To get its path, open the `tv` folder from your computer. On Windows, click the File Explorer address bar and copy the path. On a Mac, hold Option, Control-click the folder in Finder, and choose **Copy as Pathname**. For example, with Freetvarr in a shared folder named `docker` on a NAS named `NAS`, use `--save=\\NAS\docker\freetvarr\data\media\tv` on Windows, or `--save=/Volumes/docker/freetvarr/data/media/tv` on a Mac. Use your own path in place of the example.
+
+Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`. These lines use the example path from above:
 
 ```console
 npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/docker/freetvarr/data/media/tv
 npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/docker/freetvarr/data/media/movies
 npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/docker/freetvarr/data/media/one-offs
 ```
+
+### Episode numbers
 
 Fetch numbers episodes from its own guide data, and the numbers can differ from the guide that Freetvarr and Plex use by one (e.g. The Block `S22 E34` on Fetch is `S22E35` in the guide). When a show has Fetch and Freetvarr recordings from the same weeks, compare the air dates and rename the Fetch files where the numbers differ. The app and `fetchtv` cannot see the guide, so they cannot fix the numbers themselves.
 
@@ -335,7 +361,7 @@ The ways below go from least to most work:
 
 On a computer, open the recordings in [VLC](https://www.videolan.org), a free video player for Windows, Mac, and Linux.
 
-On a TV, add the recordings to your media library (see [Adding them to your media library](#adding-them-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive; check the TV's manual.
+On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive; check the TV's manual.
 
 ### Convert via HandBrake
 
@@ -479,7 +505,7 @@ Do these in order. The times are for someone doing it the first time.
 5. **Set up the NAS or mini PC**, and install Docker (on most NAS units, Docker is an app in the vendor's app store). `1–2 hours`.
 6. **Install Freetvarr** ([Getting started](/guide/getting-started)). The install script also installs TVHeadend. To get Plex as well, add your Plex claim code before you run it ([No Plex yet?](/guide/plex#no-plex-yet)). If you already run TVHeadend or Plex, Freetvarr connects to them instead ([An existing TVHeadend](/guide/getting-started#an-existing-tvheadend)). `15–30 minutes`.
 7. **Run the Freetvarr [setup](/guide/getting-started#_2-run-setup)**. It secures TVHeadend, scans for channels, loads the TV guide, sets the recording folders, and creates your Plex libraries. `30–60 minutes`.
-8. **[Add your Fetch recordings](#adding-them-to-your-media-library)** to your media library (e.g. Plex, Jellyfin, or Kodi): drag them into Freetvarr's `media` folder. `15 minutes`, plus copying time.
+8. **[Add your Fetch recordings](#adding-recordings-to-your-media-library)** to your media library (e.g. Plex, Jellyfin, or Kodi): drag them into Freetvarr's `media` folder. `15 minutes`, plus copying time.
 9. **Watch [Live TV](/guide/live-tv)** in Freetvarr in a browser to check that the whole setup works. `5 minutes`.
 
 ## Switching over
