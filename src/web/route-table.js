@@ -2,6 +2,8 @@ export const ROUTES = ['home', 'for-you', 'live', 'guide', 'recordings', 'settin
 
 export const DEFAULT_ROUTE = 'home'
 
+export const LIBRARY_KIND_SLUGS = ['shows', 'movies', 'one-offs']
+
 export const NAV_DESTINATIONS = [
   { key: 'home', label: 'Home', href: '#/home' },
   { key: 'live', label: 'Live TV', href: '#/live' },
@@ -31,6 +33,7 @@ export const canonicalSegments = (segments) => {
   if (view === 'welcome' && rest.length) return [...SETUP_PAGE, ...setupDrawerPath(lowerCase(rest))]
   if (view === 'settings') return ['settings', ...canonicalSettingsPath(lowerCase(rest))]
   if (view === 'recordings' && rest[0]?.toLowerCase() === 'show') return ['recordings', 'show', ...rest.slice(1)]
+  if (view === 'recordings' && LIBRARY_KIND_SLUGS.includes(rest[0]?.toLowerCase())) return ['recordings', rest[0].toLowerCase()]
   return [view, ...lowerCase(rest)]
 }
 
@@ -54,6 +57,7 @@ const NAV_PARENTS = { 'for-you': 'home' }
 export const recordingsPageOf = (params = []) => {
   if (params[0] === 'scheduled') return { page: 'scheduled' }
   if (params[0] === 'show' && params[1]) return { page: 'show', showKey: params[1] }
+  if (LIBRARY_KIND_SLUGS.includes(params[0])) return { page: 'library', kind: params[0] }
   return { page: 'library' }
 }
 

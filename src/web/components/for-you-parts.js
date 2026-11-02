@@ -89,12 +89,15 @@ export const ForYouRows = {
     rows: { type: Array, required: true },
     ctl: { type: Object, required: true },
     withLead: Boolean,
+    endHref: { type: String, default: '' },
+    endCountText: { type: String, default: '' },
   },
   template: `
     <div class="for-you-rows">
       <div v-for="row in rows" :key="row.shape" :class="['ui-scroller', 'for-you-scroller', 'is-' + row.shape]">
         <for-you-card v-for="item in row.items" :key="item.id" :item="item" :shape="row.shape"
           :scheduled="ctl.isScheduled(item)" :with-lead="withLead" @open="ctl.openItem" @menu="ctl.openMenu" />
+        <row-end-tile v-if="endHref" :href="endHref" :shape="row.shape" :count-text="endCountText" />
       </div>
     </div>
   `,

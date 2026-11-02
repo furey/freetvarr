@@ -87,6 +87,11 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
     .filter((section) => section.rows.length)
 }
 
+export const suggestionCountOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set() }) => {
+  if (!payload || payload.enabled === false) return 0
+  return sectionsOf({ payload, scheduledKeys, hiddenKeys }).reduce((sum, section) => sum + sectionItemsOf(section).length, 0)
+}
+
 export const homeRowOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), limit = HOME_ROW_LIMIT }) => {
   if (!payload || payload.enabled === false) return null
   const sections = sectionsOf({ payload, scheduledKeys, hiddenKeys })
