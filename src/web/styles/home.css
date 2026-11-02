@@ -672,7 +672,8 @@
   gap: 20px;
 }
 
-.for-you-back {
+.for-you-back,
+.library-back {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -686,7 +687,8 @@
   text-decoration: none;
 }
 
-.for-you-back:hover {
+.for-you-back:hover,
+.library-back:hover {
   color: var(--color-text-1);
   text-decoration: none;
 }
@@ -697,7 +699,8 @@
   }
 }
 
-.for-you-back svg {
+.for-you-back svg,
+.library-back svg {
   width: 20px;
   height: 20px;
 }

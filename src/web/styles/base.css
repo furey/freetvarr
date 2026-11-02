@@ -557,6 +557,124 @@ body.sheet-open .app-tabbar {
   padding-left: 0;
 }
 
+.ui-row-end {
+  display: block;
+  color: var(--color-text-2);
+  text-decoration: none;
+}
+
+.ui-row-end.is-poster {
+  width: var(--poster-w);
+}
+
+.ui-row-end.is-card {
+  width: var(--card-w);
+}
+
+.ui-row-end:hover {
+  color: var(--color-text-2);
+  text-decoration: none;
+}
+
+.ui-row-end-art {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: var(--radius-art);
+  background: var(--color-surface-1);
+  box-sizing: border-box;
+  text-align: center;
+  transition: transform var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard);
+}
+
+.ui-row-end.is-poster .ui-row-end-art {
+  aspect-ratio: 2 / 3;
+}
+
+.ui-row-end.is-card .ui-row-end-art {
+  aspect-ratio: 16 / 9;
+}
+
+.ui-row-end-words,
+.ui-row-end-arrow {
+  grid-area: 1 / 1;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+
+.ui-row-end-words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-row-end-label {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  text-wrap: balance;
+}
+
+.ui-row-end-count {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-text-2);
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
+}
+
+.ui-row-end-arrow {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: var(--color-surface-3);
+  color: var(--color-text-1);
+  opacity: 0;
+}
+
+.ui-row-end-arrow svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ui-row-end:active .ui-row-end-art {
+  transform: scale(0.97);
+}
+
+.ui-row-end:focus-visible {
+  outline: none;
+}
+
+.ui-row-end:focus-visible .ui-row-end-art {
+  box-shadow: var(--focus-ring);
+}
+
+.ui-row-end:focus-visible .ui-row-end-words {
+  opacity: 0;
+}
+
+.ui-row-end:focus-visible .ui-row-end-arrow {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-row-end:hover .ui-row-end-art {
+    background: var(--color-surface-2);
+  }
+
+  .ui-row-end:hover .ui-row-end-words {
+    opacity: 0;
+  }
+
+  .ui-row-end:hover .ui-row-end-arrow {
+    opacity: 1;
+  }
+}
+
 .ui-poster-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--poster-w), 1fr));

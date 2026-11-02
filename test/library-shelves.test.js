@@ -2,14 +2,17 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  LIBRARY_ROW_SIZE,
   failedRecordingsOf,
+  kindCountText,
+  libraryKindOf,
+  libraryRowsOf,
   failureBannerOf,
   movieMetaOf,
   oneOffMetaOf,
   posterMetaOf,
   scheduledShelfMetaOf,
   scheduledWhenOf,
-  sectionJumpsOf,
   shelvesOf,
   showsCountText,
 } from '../src/web/library-shelves.js'
@@ -286,28 +289,20 @@ test('scheduled episodes: pill, meta, hero line, and status card for a show that
 })
 
 
-test('sectionJumpsOf: lists filled sections in page order, and none when only one section has content', () => {
+test('libraryRowsOf: keeps the 12 newest of each kind, keeps the full total, and drops empty kinds', () => {
   const shelf = (count) => Array.from({ length: count }, (_, index) => show({ key: String(index) }))
-  const keysOf = (shelves) => sectionJumpsOf(shelves).map((jump) => jump.key)
-  assert.deepEqual(sectionJumpsOf({ shows: shelf(120), movies: shelf(8), oneoffs: shelf(6) }), [
-    { key: 'shows', label: 'Shows' },
-    { key: 'movies', label: 'Movies' },
-    { key: 'oneoffs', label: 'Specials and one-offs' },
+  const rows = libraryRowsOf({ shows: shelf(40), movies: shelf(5), oneoffs: [] })
+  assert.deepEqual(rows.map((row) => [row.key, row.items.length, row.total, row.href]), [
+    ['shows', LIBRARY_ROW_SIZE, 40, '#/recordings/shows'],
+    ['movies', 5, 5, '#/recordings/movies'],
   ])
-  assert.deepEqual(keysOf({ shows: shelf(3), movies: shelf(1), oneoffs: [] }), ['shows', 'movies'])
-  assert.deepEqual(keysOf({ shows: [], movies: shelf(2), oneoffs: shelf(2) }), ['movies', 'oneoffs'])
-  assert.deepEqual(keysOf({ shows: shelf(3), movies: [], oneoffs: shelf(1) }), ['shows', 'oneoffs'])
-  assert.deepEqual(keysOf({ shows: shelf(120), movies: [], oneoffs: [] }), [])
-  assert.deepEqual(keysOf({ shows: [], movies: shelf(4), oneoffs: [] }), [])
-  assert.deepEqual(keysOf({ shows: [], movies: [], oneoffs: [] }), [])
+  assert.equal(LIBRARY_ROW_SIZE, 12)
+  assert.deepEqual(libraryRowsOf({ shows: [], movies: [], oneoffs: [] }), [])
 })
 
-test('sectionJumpsOf: follows the unwatched filter, so a section with nothing left drops out', () => {
-  const shows = [
-    show({ key: 'a', title: 'Master Cook' }),
-    show({ key: 'b', title: 'Space Wars', kind: 'movie', counts: { total: 1, new: 0, unwatched: 0, failed: 0 } }),
-    show({ key: 'c', title: 'The Sports Show', kind: 'oneoff' }),
-  ]
-  assert.deepEqual(sectionJumpsOf(shelvesOf({ shows })).map((jump) => jump.key), ['shows', 'movies', 'oneoffs'])
-  assert.deepEqual(sectionJumpsOf(shelvesOf({ shows, unwatchedOnly: true })).map((jump) => jump.key), ['shows', 'oneoffs'])
+test('libraryKindOf and kindCountText: name each drill-in page and count in its own noun', () => {
+  assert.equal(libraryKindOf('one-offs').title, 'Specials and one-offs')
+  assert.equal(libraryKindOf('oneoffs'), null)
+  assert.equal(kindCountText({ kind: libraryKindOf('movies'), count: 1 }), '1 movie')
+  assert.equal(kindCountText({ kind: libraryKindOf('one-offs'), count: 8 }), '8 one-offs')
 })

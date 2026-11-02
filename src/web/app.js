@@ -80,6 +80,7 @@ import { ProgrammeSheetHost } from '/components/programme-sheet-host.js'
 import { ProgressBlock } from '/components/progress-block.js'
 import { RecordingPlayer } from '/components/recording-player.js'
 import { RecordingsTabs } from '/components/recordings-tabs.js'
+import { RowEndTile } from '/components/row-end-tile.js'
 import { UiSegmented } from '/components/ui-segmented.js'
 import { SearchOverlay } from '/components/search-overlay.js'
 import { StaleBuildBanner } from '/components/stale-build-banner.js'
@@ -101,7 +102,7 @@ import { route, routeParams } from '/shared/router.js'
 import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
-import { viewKeyOf } from '/route-table.js'
+import { recordingsPageOf, viewKeyOf } from '/route-table.js'
 import { registerViewLoader, warmView } from '/shared/route-warmup.js'
 import { VIEW_ENTRIES } from '/view-modules.js'
 import { FolderEditor, FolderSyncButton } from '/views/folder-editor.js'
@@ -174,6 +175,8 @@ const prefetchViewsAfterLoad = () => {
 
 const FULL_SCREEN_VIEWS = ['welcome']
 
+const recordingsViewKeyOf = (params) => (recordingsPageOf(params).kind ? 'library-kind' : params.join('/'))
+
 const viewFor = (resolved) => VIEW_COMPONENTS[viewKeyOf(resolved)] || HomeView
 
 const App = {
@@ -201,7 +204,7 @@ const App = {
   setup() {
     const currentView = computed(() => viewFor({ view: route.value, params: routeParams.value }))
     const viewKey = computed(() => {
-      const page = route.value === 'recordings' ? `:${routeParams.value.join('/')}` : ''
+      const page = route.value === 'recordings' ? `:${recordingsViewKeyOf(routeParams.value)}` : ''
       return `${route.value}${page}:${refreshTick.value}`
     })
     const fullScreen = computed(() => FULL_SCREEN_VIEWS.includes(route.value))
@@ -247,6 +250,7 @@ app.component('recording-chip', RecordingChip)
 app.component('clock-label', ClockLabel)
 app.component('search-overlay', SearchOverlay)
 app.component('recordings-tabs', RecordingsTabs)
+app.component('row-end-tile', RowEndTile)
 app.component('ui-segmented', UiSegmented)
 app.component('title-art', TitleArt)
 app.component('classification-chip', ClassificationChip)

@@ -65,8 +65,8 @@ Each slide also has a **⋯** button. It opens the same actions as the matching 
 
 Under the highlights, Home has these rows. A row with nothing in it is left out. A row title opens the same page as the link at the right end of the row.
 
-- **New recordings**: episodes you have not watched, newest first, with a `NEW` badge. Press a card to open the show page. **See all** opens [Recordings](/guide/recordings).
-- **For you**: suggestions from the next week of the TV guide. The row takes turns between the rows of the For you page, with two films from **Top rated movies this week** at the third and seventh places. Until Freetvarr knows what you like, this row is called **New this week**. **See all** opens the [For you](/guide/for-you) page.
+- **New recordings**: episodes you have not watched, newest first, with a `NEW` badge. Press a card to open the show page. **See all**, or the last tile in the row, opens [Recordings](/guide/recordings). The tile counts every recording in your library.
+- **For you**: suggestions from the next week of the TV guide. The row takes turns between the rows of the For you page, with two films from **Top rated movies this week** at the third and seventh places. Until Freetvarr knows what you like, this row is called **New this week**. **See all**, or the last tile in the row, opens the [For you](/guide/for-you) page. The tile counts every suggestion.
 - **On now**: what is on your favourite channels, with the channel logo beside each title and a bar that shows how far through each programme is. Press a card to watch the channel live. **Live TV** opens the [Live TV](/guide/live-tv) page.
 - **Recording tonight**: up to three recordings for tonight. Press one to open [Scheduled](/guide/recordings#scheduled).
 

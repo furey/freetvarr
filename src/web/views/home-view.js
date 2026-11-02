@@ -20,7 +20,7 @@ import {
   showHrefOf,
   splitClock,
 } from '/home-feed.js'
-import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, homeRowOf, isScheduled, scheduledKeysOf } from '/for-you.js'
+import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, homeRowOf, isScheduled, scheduledKeysOf, suggestionCountOf } from '/for-you.js'
 import {
   guideMatchMenuOf,
   onNowMenuOf,
@@ -132,6 +132,8 @@ const heroSlidesFor = ({ home, nowMs }) => heroSlidesOf({
   timeZone: tz.value,
 })
 
+const countText = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`
+
 const rowFocusWarmUrlsOf = (row) => row.slice(0, FOCUS_WARM_ROW_ITEMS).map((recording) => recording.image).filter(Boolean)
 
 export const HomeView = {
@@ -196,6 +198,7 @@ export const HomeView = {
               <span class="ui-card-title">{{ r.title }}</span>
               <span class="ui-card-meta">{{ newCardMeta(r) }}</span>
             </menu-card>
+            <row-end-tile href="#/recordings" shape="card" :count-text="libraryCountText" />
           </div>
         </section>
 
@@ -210,7 +213,7 @@ export const HomeView = {
             <h2 id="home-for-you-title" class="ui-section-title"><a :href="forYouHref" class="ui-row-title-link">{{ forYouRow.title }}<chevron-glyph class="ui-row-chevron" /></a></h2>
             <a :href="forYouHref" class="ui-row-link" tabindex="-1" aria-hidden="true">See all</a>
           </div>
-          <for-you-rows :rows="[{ shape: 'card', items: forYouRow.items }]" :ctl="forYou" with-lead />
+          <for-you-rows :rows="[{ shape: 'card', items: forYouRow.items }]" :ctl="forYou" with-lead :end-href="forYouHref" :end-count-text="forYouCountText" />
         </section>
 
         <section v-if="onNow.length" class="ui-section" aria-labelledby="home-on-now-title">
@@ -303,6 +306,12 @@ export const HomeView = {
       scheduledKeys: scheduledKeys.value,
       hiddenKeys: forYouHiddenKeys.value,
     }))
+    const libraryCountText = computed(() => countText(shows.value.reduce((sum, show) => sum + (show.counts?.total ?? 0), 0), 'recording'))
+    const forYouCountText = computed(() => countText(suggestionCountOf({
+      payload: forYouPayload.value,
+      scheduledKeys: scheduledKeys.value,
+      hiddenKeys: forYouHiddenKeys.value,
+    }), 'suggestion'))
     const heroClockMs = computed(() => heroClockMsOf({ candidates: home.value.hero?.candidates, nowMs: nowMs.value }))
     const heroSlides = computed(() => heroSlidesFor({ home: home.value, nowMs: heroClockMs.value }))
     const forYouSlide = computed(() => heroSlides.value.find((slide) => slide.type === 'for-you') ?? null)
@@ -599,7 +608,7 @@ export const HomeView = {
       loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, showFlash, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
-      forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF,
+      forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF, libraryCountText, forYouCountText,
       homeMenu, chooseHomeAction, openSlideMenu, openOnNowMenu, openTonightMenu, openEpisodeMenu, chooseEpisodeAction,
       episodeGroups, episodeMenuSubtitle, episodeHeading,
       menuEpisode: library.menuEpisode, libraryBusy: library.busy, libraryPendingKey: library.pendingKey,

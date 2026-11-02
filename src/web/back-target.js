@@ -14,13 +14,31 @@ const labelOf = ({ view, params }) => {
 }
 
 const recordingsLabelOf = (params) => {
-  const { page } = recordingsPageOf(params)
+  const { page, kind } = recordingsPageOf(params)
   if (page === 'scheduled') return 'Scheduled'
+  if (kind) return KIND_BACK_LABELS[kind]
   if (page === 'show') return 'Back'
   return 'Library'
 }
 
+const KIND_BACK_LABELS = { shows: 'Shows', movies: 'Movies', 'one-offs': 'One-offs' }
+
 export const entryStateWithOrigin = ({ state, originHash, inHistory = true }) => {
   if (state && 'cameFrom' in state) return state
   return { ...(state || {}), cameFrom: originHash || null, ...(inHistory ? {} : { cameFromOutsideHistory: true }) }
+}
+
+export const replacedEntryStateOf = (state) => {
+  const cameFrom = state?.cameFrom ?? null
+  const inHistory = Boolean(cameFrom) && !state?.cameFromOutsideHistory
+  return { cameFrom, ...(inHistory ? {} : { cameFromOutsideHistory: true }) }
+}
+
+export const libraryBackOf = ({ cameFrom, inHistory }) => (inHistory && isLibraryOverview(cameFrom) ? 'history' : 'navigate')
+
+const isLibraryOverview = (hash) => {
+  if (!hash) return false
+  const { view, params } = resolveRoute(hash)
+  const { page, kind } = recordingsPageOf(params)
+  return view === 'recordings' && page === 'library' && !kind
 }
