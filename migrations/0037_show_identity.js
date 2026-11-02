@@ -20,11 +20,20 @@ export const up = async (knex) => {
 
 export const down = async (knex) => {
   await knex.schema.dropTableIfExists('show_identity_picks')
-  await knex.schema.alterTable('shows', (t) => {
+  await keepingShowLinks(knex, () => knex.schema.alterTable('shows', (t) => {
     t.dropColumn('tvmaze_id')
     t.dropColumn('tvdb_id')
     t.dropColumn('tmdb_id')
     t.dropColumn('database_title')
     t.dropColumn('identity_state')
-  })
+  }))
+}
+
+const keepingShowLinks = async (knex, rebuildShows) => {
+  await knex.raw('create temp table kept_show_links as select recording_id, show_id from recordings where show_id is not null')
+  await rebuildShows()
+  await knex.raw(`update recordings
+    set show_id = (select show_id from kept_show_links where kept_show_links.recording_id = recordings.recording_id)
+    where recording_id in (select recording_id from kept_show_links)`)
+  await knex.raw('drop table kept_show_links')
 }
