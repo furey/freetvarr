@@ -56,7 +56,7 @@ export const LibraryMenuSheet = {
       <div class="library-menu">
         <div v-for="(group, g) in groups" :key="g" class="ui-group library-menu-group">
           <button v-for="item in group" :key="item.key" type="button"
-            :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger, 'is-pending': pendingKey === item.key }]"
+            :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger, 'is-pending': pendingKey === item.key, 'is-unavailable': item.disabled }]"
             :disabled="busy || item.disabled" :aria-busy="pendingKey === item.key" @click="$emit('choose', item.key)">
             <span v-if="pendingKey === item.key" class="spinner library-menu-spinner" aria-hidden="true"></span><menu-icon v-else :name="item.icon" :class="'is-' + item.icon" />
             <span class="library-menu-label">{{ pendingKey === item.key ? menuPendingLabelOf(item.key) : item.label }}</span>

@@ -935,9 +935,17 @@
   color: var(--color-live-text);
 }
 
-.library-menu-item:disabled {
+.library-menu-item:disabled:not(.is-unavailable) {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.library-menu-item.is-unavailable {
+  cursor: not-allowed;
+}
+
+.library-menu-item.is-unavailable > :not(.library-menu-detail) {
+  opacity: 0.45;
 }
 
 .library-menu-label {
