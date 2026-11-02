@@ -662,7 +662,7 @@ body.sheet-open .app-tabbar {
   .ui-row-end {
     --row-end-progress: 0;
     --row-end-travel: 32px;
-    --row-end-duration: 280ms;
+    --row-end-duration: 420ms;
     transition: --row-end-progress calc(var(--row-end-duration) * 6 / 7) linear;
   }
 
