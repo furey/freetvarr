@@ -374,6 +374,12 @@ kbd {
   border-top-right-radius: 0;
 }
 
+@media (max-width: 639px) {
+  .vp-doc .vp-code-group .tabs {
+    margin: 0 -16px;
+  }
+}
+
 .vp-doc div[class*="language-"] > span.lang {
   top: 6px;
   right: 12px;
@@ -1197,7 +1203,8 @@ kbd {
 .VPFeature .title,
 .VPFeature .details,
 .vp-doc p,
-.vp-doc li {
+.vp-doc li,
+.vp-doc td {
   text-wrap: pretty;
 }
 
@@ -1311,6 +1318,7 @@ kbd {
 .vp-doc h1,
 .vp-doc h2,
 .vp-doc h3,
+.vp-doc h4,
 .vp-doc .custom-block p,
 .vp-doc .product-shot p,
 .vp-doc figcaption {

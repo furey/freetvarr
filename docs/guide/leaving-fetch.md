@@ -280,7 +280,7 @@ npx fetchtv recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./f
 
 The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
 
-The files play in VLC (a free video player).
+The files play in VLC (a free video player). To make MP4 files for other players, see [Converting recordings to MP4](#converting-recordings-to-mp4).
 
 ### Adding them to your media library
 
@@ -315,6 +315,158 @@ npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/docker/free
 ```
 
 Fetch numbers episodes from its own guide data, and the numbers can differ from the guide that Freetvarr and Plex use by one (e.g. The Block `S22 E34` on Fetch is `S22E35` in the guide). When a show has Fetch and Freetvarr recordings from the same weeks, compare the air dates and rename the Fetch files where the numbers differ. The app and `fetchtv` cannot see the guide, so they cannot fix the numbers themselves.
+
+## Converting recordings to MP4
+
+The saved recordings are `.ts` files: the broadcast exactly as the Fetch box recorded it, in one file. To convert a recording is to copy its picture and sound into a different kind of video file. MP4 is the kind of video file that most phones, tablets, TVs, and video apps open.
+
+You may not need to convert anything. VLC (a free video player), Plex, Jellyfin, and Kodi play `.ts` files as they are. Convert only the recordings that a device or app you use will not open.
+
+> [!WARNING]<br>
+> Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and ffmpeg through Homebrew, `winget`, or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can install unwanted software or malware on your computer.
+
+The ways below go from least to most work:
+
+- [Play them as they are](#play-them-as-they-are): nothing to convert.
+- [Convert via HandBrake](#convert-via-handbrake): a free app with buttons. It does a full convert, which takes several minutes to an hour or more for each hour of recording.
+- [Convert via command line](#convert-via-command-line): a fast copy into MP4, which takes under a minute for an hour of HD from a local drive, or a full convert.
+
+### Play them as they are
+
+On a computer, open the recordings in [VLC](https://www.videolan.org), a free video player for Windows, Mac, and Linux.
+
+On a TV, add the recordings to your media library (see [Adding them to your media library](#adding-them-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive; check the TV's manual.
+
+### Convert via HandBrake
+
+HandBrake is a free, open-source app for Windows, Mac, and Linux that converts video files. It does a full convert: it makes a new picture and new sound, so it takes a while. The new file plays on almost any device.
+
+These steps follow HandBrake's own [documentation](https://handbrake.fr/docs/en/latest/). They were not tried on every computer, and a few labels differ between Windows, Mac, and Linux.
+
+1. Download HandBrake from [handbrake.fr](https://handbrake.fr) and install it.
+2. Open HandBrake and press **Open Source**. Choose one `.ts` recording.
+3. Choose a preset (a saved set of settings) from the **Preset** list, under **General**:
+   - **Fast 1080p30** for an HD recording. HandBrake shows the recording's size under **Source**: `1920x1080` is HD.
+   - **Fast 576p25** for an SD recording (`720x576`).
+
+   Both presets make an MP4 file with stereo sound. They also fix the interlaced picture that TV broadcasts use (each frame sent as two halves), so moving edges do not look striped.
+4. Check the file name in **Save As** and the folder in **To**. Press **Browse** to choose another folder.
+5. Press **Start**. A full convert takes several minutes to an hour or more for each hour of recording, depending on the computer.
+
+To convert many recordings, choose a folder in **Open Source** instead of one file, and add every recording to HandBrake's queue (a list of files to convert one after another). HandBrake's [queue guide](https://handbrake.fr/docs/en/latest/advanced/queue.html) shows how on each computer. HandBrake's queue guide says it ignores the folders inside the folder you choose, so open each `Season` folder in turn.
+
+### Convert via command line
+
+ffmpeg is a free command-line tool that converts video. You type its commands in a terminal (a window where you type commands). It has two ways to convert:
+
+- **Fast copy**: puts the recording's picture and sound unchanged into an MP4 file, with no loss of quality. It suits HD recordings.
+- **Full convert**: makes a new picture and new sound, like HandBrake. It takes much longer, and the file plays on almost any device. Use it for SD recordings, and for any device that will not play a fast copy.
+
+On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `100` times the speed of playback, so an hour of HD took under a minute. That was with the recordings on the computer's own drive. Over Wi-Fi to a NAS it takes longer, because the whole recording travels over the network twice (once to read it and once to write the MP4). A full convert of HD ran at about `2` times the speed of playback, so an hour of HD took about `30–40 minutes`.
+
+#### Getting ready
+
+1. Install ffmpeg on your computer:
+   - **Mac**: install Homebrew, a free tool that installs command-line software. Copy the install command from [brew.sh](https://brew.sh), paste it into **Terminal**, and press Enter. Homebrew supports macOS 15 (Sequoia) and later. On macOS 11 to 14 it may work without support, and it does not run on macOS 10.15 or earlier. On an older Mac, use VLC or HandBrake instead. Then run:
+
+     ```sh
+     brew install ffmpeg
+     ```
+
+   - **Windows**: open **Command Prompt** (search the Start menu for `cmd`) and run:
+
+     ```sh
+     winget install Gyan.FFmpeg
+     ```
+
+     `winget` is the Windows Package Manager, built into Windows 10 and 11. The first time you use it, it asks you to agree to the terms of its download source: type `Y` and press Enter. When it finishes, close the window and open a new one, so that Windows finds `ffmpeg`.
+   - **Linux**: on Debian or Ubuntu, run `sudo apt install ffmpeg`. On Fedora, Fedora's own ffmpeg package leaves out the H.264 encoder that the full convert uses. Turn on [RPM Fusion](https://rpmfusion.org/Configuration) first, then run `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`.
+2. Check that ffmpeg works. In the terminal, run:
+
+   ```sh
+   ffmpeg -version
+   ```
+
+   The first line starts with `ffmpeg version`.
+3. Go to the folder that holds your recordings. Type `cd` and a space, drag the folder from Finder or File Explorer onto the terminal window, and press Enter. In Command Prompt, type `cd /d` instead of `cd`, so it can change drive too. Command Prompt cannot open a network folder (a path that starts with `\\`); use PowerShell for those (search the Start menu for `PowerShell`).
+
+#### One recording
+
+Each command below reads the `.ts` file named after `-i` and writes the `.mp4` file named last. Put your recording's file name in place of the example in both places, and keep the quotation marks. The commands are the same on Mac, Windows, and Linux.
+
+A fast copy:
+
+```sh
+ffmpeg -fflags +genpts -i "Gogglebox Australia - S20E08.ts" -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart "Gogglebox Australia - S20E08.mp4"
+```
+
+A full convert:
+
+```sh
+ffmpeg -fflags +genpts -i "Gogglebox Australia - S20E08.ts" -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart "Gogglebox Australia - S20E08.mp4"
+```
+
+Both keep the picture and every sound track. Both leave out the captions and the TV guide data that broadcasts carry, because an MP4 file cannot hold them in that form; keep the `.ts` file if you watch with captions. The full convert also fixes the interlaced broadcast picture (see [Convert via HandBrake](#convert-via-handbrake)) and turns the sound into stereo, which every TV and phone plays.
+
+Try a fast copy first. Use a full convert instead when:
+
+- The MP4 will not open, or plays sound with no picture. Australian SD channels broadcast an older kind of picture (MPEG-2) that Apple devices and many apps do not play inside an MP4 file.
+- The MP4 plays a picture with no sound, or a sound track is missing (such as audio description). Some channels send a sound track in an older format (MP2) that Apple devices do not play inside an MP4 file.
+
+For the second case, this command keeps the picture as it is and converts only the sound, so it runs much faster than a full convert:
+
+```sh
+ffmpeg -fflags +genpts -i "Gogglebox Australia - S20E08.ts" -map 0:v:0 -map 0:a -c:v copy -c:a aac -b:a 192k -ac 2 -sn -dn -ignore_unknown -movflags +faststart "Gogglebox Australia - S20E08.mp4"
+```
+
+> [!TIP]<br>
+> On a Mac, a full convert runs about `4` times faster on the Mac's video chip: in the full convert, use `-c:v h264_videotoolbox` and `-b:v 6M` in place of `-c:v libx264`, `-crf 20`, and `-preset medium`. Every hour then takes about `2.8GB`, whatever the recording.
+
+#### A whole folder
+
+These commands convert every `.ts` file in the folder the terminal is in, and in every folder inside it (such as the show and `Season` folders that Fetch My Recordings and `fetchtv` create). Each MP4 file goes next to its `.ts` file, with the same name. The `.ts` files stay as they are. If an MP4 file already exists, the command skips that recording, so you can run it again after a stop. To stop a command, press Control-⁠C (Ctrl+C on Windows). In bash, the usual Linux terminal, press it again for each recording that starts, or close the window. After a stop, delete the last MP4 file the command wrote before you run it again, because that file is incomplete.
+
+Choose the tab for your terminal. On a Mac, use **Terminal**. On Windows, use PowerShell or Command Prompt.
+
+A fast copy of every recording:
+
+::: code-group
+
+```sh [Mac/Linux]
+find . -type f -name '*.ts' -print0 | while IFS= read -r -d '' f; do ffmpeg -nostdin -n -fflags +genpts -i "$f" -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart "${f%.ts}.mp4"; done
+```
+
+```powershell [PowerShell]
+Get-ChildItem -Recurse -File -Filter *.ts | ForEach-Object { ffmpeg -nostdin -n -fflags +genpts -i $_.FullName -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart ([IO.Path]::ChangeExtension($_.FullName, 'mp4')) }
+```
+
+```cmd [Command Prompt]
+for /r %I in (*.ts) do ffmpeg -nostdin -n -fflags +genpts -i "%I" -map 0:v:0 -map 0:a -c copy -sn -dn -ignore_unknown -movflags +faststart "%~dpnI.mp4"
+```
+
+:::
+
+A full convert of every recording:
+
+::: code-group
+
+```sh [Mac/Linux]
+find . -type f -name '*.ts' -print0 | while IFS= read -r -d '' f; do ffmpeg -nostdin -n -fflags +genpts -i "$f" -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart "${f%.ts}.mp4"; done
+```
+
+```powershell [PowerShell]
+Get-ChildItem -Recurse -File -Filter *.ts | ForEach-Object { ffmpeg -nostdin -n -fflags +genpts -i $_.FullName -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart ([IO.Path]::ChangeExtension($_.FullName, 'mp4')) }
+```
+
+```cmd [Command Prompt]
+for /r %I in (*.ts) do ffmpeg -nostdin -n -fflags +genpts -i "%I" -map 0:v:0 -map 0:a -vf bwdif=mode=send_frame -c:v libx264 -crf 20 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -sn -dn -movflags +faststart "%~dpnI.mp4"
+```
+
+:::
+
+The Command Prompt lines are for typing at the prompt. In a `.bat` file, write `%%I` and `%%~dpnI` in place of `%I` and `%~dpnI`.
+
+Check that a few MP4 files play before you delete any `.ts` files. If the recordings are in your media library, it has two files for each episode until you delete one of them.
 
 ## Setting up
 
