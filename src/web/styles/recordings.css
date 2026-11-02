@@ -1520,17 +1520,7 @@ body.library-selecting .ui-toast-region {
   min-width: 0;
 }
 
-.library-poster .ui-card-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  min-height: 40px;
-  white-space: normal;
-  text-wrap: balance;
-  overflow-wrap: anywhere;
-}
-
+.library-poster .ui-card-title,
 .library-poster .ui-card-meta {
   padding-right: 28px;
 }
@@ -1558,9 +1548,8 @@ body.library-selecting .ui-toast-region {
 .library-poster-more {
   position: absolute;
   right: -10px;
-  bottom: -9px;
+  bottom: -4px;
   width: 40px;
-  height: 36px;
 }
 
 @media (max-width: 767px), (max-height: 500px) {
