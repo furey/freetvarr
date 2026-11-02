@@ -300,7 +300,7 @@ Your media library finds the new files on its next scan. To start a scan now, ch
 
 ### Saving straight to the NAS
 
-If the NAS is already running Freetvarr when you save your Fetch recordings, you can save them straight into the NAS and skip the drag. Save in separate rounds, one for each folder in the table above: the series into `tv` with the media library names, then the films into `movies` or `one-offs` and everything else into `one-offs`, without the names.
+If the NAS is already running Freetvarr when you save your Fetch recordings, you can save them straight into the NAS and skip the drag. Save in separate rounds, one for each folder in the table above, because films and news do not belong in `tv`. The first round saves the series into `tv`, with the media library names. The later rounds save the films into `movies` (or `one-offs`) and everything else into `one-offs`, without the names.
 
 The examples below use a NAS named `NAS`, with Freetvarr in a shared folder named `docker`. The `tv` folder is then `\\NAS\docker\freetvarr\data\media\tv` on Windows, and `/Volumes/docker/freetvarr/data/media/tv` on a Mac. Put your NAS's name and shared folder in place of the examples.
 
@@ -310,22 +310,21 @@ This is safe if the NAS already holds Freetvarr recordings: the app and `fetchtv
 
 1. Connect your computer to the NAS's shared folder:
    - On Windows, open File Explorer, type `\\NAS\docker` in the address bar, and press Enter. Sign in with your NAS user name and password if Windows asks.
-   - On a Mac, open Finder and choose Go → Connect to Server. Type `smb://NAS`, press **Connect**, sign in with your NAS user name and password, and choose the `docker` shared folder.
+   - On a Mac, open Finder and choose Go → Connect to Server. Type `smb://NAS` (or `smb://NAS.local` if that does not connect), press **Connect**, sign in with your NAS user name and password, and choose the `docker` shared folder.
 2. Open Fetch My Recordings and press **Start**. The app lists the recordings on your Fetch box, with every recording that is not yet saved ticked.
 3. Press **Select none**, then tick each series. Press **Next**.
 4. On **Choose a folder**, press **Change**. A folder chooser opens.
-5. Go to Freetvarr's `media` folder in the folder chooser:
+5. In the folder chooser, go to Freetvarr's `media` folder. This works because your computer is connected to the shared folder (step 1):
    - On Windows, click the address bar, type `\\NAS\docker\freetvarr\data\media`, and press Enter. If you mapped the shared folder to a drive letter, you can choose that drive under This PC instead.
-   - On a Mac, press Command-Shift-G, type `/Volumes/docker/freetvarr/data/media`, and press Return. Connected shared folders are in `/Volumes`.
-   - On Linux, go to the folder where the shared folder is mounted.
+   - On a Mac, press Command-Shift-G, type `/Volumes/docker/freetvarr/data/media`, and press Return.
 6. Select the `tv` folder and press **Use this folder**.
 7. Check that **Names for Plex, Jellyfin or Kodi** is turned on.
 8. Press **Save**.
 9. When the copy ends, press **Choose other recordings**. The list now ticks only the recordings that are not yet saved, such as films and news.
-10. Leave only the films ticked, and press **Next**.
-11. Press **Change**, choose the `movies` folder (or `one-offs` if you have no movies folder), and press **Use this folder**.
-12. Turn off **Names for Plex, Jellyfin or Kodi**, and press **Save**.
-13. Repeat steps 9–12 for everything else (e.g. news), and save it into the `one-offs` folder.
+10. Press **Select none**, then tick the films. Press **Next**.
+11. Press **Change**, choose the `movies` folder (or `one-offs` if you have no [movies folder](/guide/series#films)), and press **Use this folder**.
+12. Check that **Names for Plex, Jellyfin or Kodi** is turned off, and press **Save**.
+13. Repeat steps 9–12 for everything else (e.g. news): press **Select none**, tick only the remaining recordings, and save them into the `one-offs` folder.
 
 #### From the command line
 
