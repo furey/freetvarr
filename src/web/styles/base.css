@@ -680,14 +680,16 @@ body.sheet-open .app-tabbar {
 
   .ui-row-end-arrow {
     --arrow-step: clamp(0, var(--row-end-progress) / 0.57, 1);
-    opacity: calc(1 - var(--arrow-step));
-    transform: translateX(calc(var(--arrow-step) * var(--arrow-step) * var(--row-end-travel)));
+    --arrow-eased: calc(var(--arrow-step) * var(--arrow-step) * var(--arrow-step));
+    opacity: calc(1 - var(--arrow-eased));
+    transform: translateX(calc(var(--arrow-eased) * var(--row-end-travel)));
   }
 
   .ui-row-end-words {
-    --words-step: clamp(0, (var(--row-end-progress) - 0.43) / 0.57, 1);
-    opacity: var(--words-step);
-    transform: translateX(calc((1 - var(--words-step)) * (1 - var(--words-step)) * -1 * var(--row-end-travel)));
+    --words-left: calc(1 - clamp(0, (var(--row-end-progress) - 0.43) / 0.57, 1));
+    --words-eased: calc(var(--words-left) * var(--words-left) * var(--words-left) * var(--words-left));
+    opacity: calc(1 - var(--words-eased));
+    transform: translateX(calc(var(--words-eased) * -1 * var(--row-end-travel)));
   }
 }
 
