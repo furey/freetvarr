@@ -57,7 +57,10 @@ const frameOrTimeout = (run) => {
   setTimeout(once, RESTORE_RETRY_MS)
 }
 
+let activeRestore = null
+
 const restoreScroll = (top) => {
+  activeRestore?.cancel()
   const cancelOnUserScroll = () => restore.cancel()
   const stopListening = () => USER_SCROLL_EVENTS.forEach((type) => window.removeEventListener(type, cancelOnUserScroll))
   const restore = restoreScrollTop({
@@ -69,6 +72,7 @@ const restoreScroll = (top) => {
     limitMs: RESTORE_LIMIT_MS,
     onDone: stopListening,
   })
+  activeRestore = restore
   if (restore.isDone()) return
   USER_SCROLL_EVENTS.forEach((type) => window.addEventListener(type, cancelOnUserScroll, { once: true, passive: true }))
 }
