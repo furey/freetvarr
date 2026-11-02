@@ -349,7 +349,7 @@ The saved recordings are `.ts` files: the broadcast exactly as the Fetch box rec
 You may not need to convert anything. VLC (a free video player), Plex, Jellyfin, and Kodi play `.ts` files as they are. Convert only the recordings that a device or app you use will not open.
 
 > [!WARNING]<br>
-> Renaming a `.ts` file to `.mp4` does not convert it. The file inside stays the same, and QuickTime Player and many TVs will not open it.
+> Renaming a `.ts` file to `.mp4` does not convert it. The file inside stays the same, and QuickTime Player will not open it.
 
 > [!WARNING]<br>
 > Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and ffmpeg through Homebrew, `winget`, or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can install unwanted software or malware on your computer.
@@ -364,7 +364,7 @@ The ways below go from least to most work:
 
 On a computer, open the recordings in [VLC](https://www.videolan.org), a free video player for Windows, Mac, and Linux.
 
-On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive as ExFAT (a drive format that holds files over 4 GB) first; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
+On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive first, as ExFAT (a drive format that holds files over 4 GB) if your TV reads it; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
 
 ### Convert via HandBrake
 
