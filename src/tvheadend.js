@@ -166,10 +166,11 @@ export const listUpcoming = async (conn) => {
   return (body?.entries || []).map(normaliseEntry)
 }
 
-export const listFinished = async (conn) => {
-  const body = await apiGet('dvr/entry/grid_finished', { limit: 5000 }, conn)
-  return (body?.entries || []).map(normaliseEntry)
-}
+export const listFinished = (conn) => allGridEntries('dvr/entry/grid_finished', conn)
+
+export const listRemovedIds = async (conn) => (await allGridEntries('dvr/entry/grid_removed', conn))
+  .filter((e) => e.fileRemoved)
+  .map((e) => e.uuid)
 
 export const forgetPastAirings = () => {
   pastAiringsGeneration++
@@ -417,22 +418,29 @@ export const removeRecordings = async ({ recordingIds } = {}) => {
   const known = new Set(finished.map((e) => e.uuid))
   const removed = []
   const unknown = []
+  const failed = []
   for (const id of ids) {
     if (!known.has(id)) {
       unknown.push(id)
       continue
     }
     const rerecords = upcoming.filter((e) => e.parentId === id)
-    await removeKeepingHistory({ uuid: id, rerecords, conn })
-    removed.push(id)
+    try {
+      await removeKeepingHistory({ uuid: id, rerecords, conn })
+      removed.push(id)
+    } catch (err) {
+      console.warn(`[tvheadend] could not remove ${id}: ${err.message}`)
+      failed.push({ id, error: err })
+    }
   }
+  if (removed.length === 0 && failed.length > 0) throw failed[0].error
   if (removed.length === 0) {
     throw new TvheadendError(
       `Recording(s) not in TVHeadend's finished list: ${unknown.join(', ')}.`,
       { stage: 'remove', code: 'not-found' },
     )
   }
-  return { ok: true, removed, unknown }
+  return { ok: true, removed, unknown, failed: failed.map((f) => f.id) }
 }
 
 export const getState = async () => {
@@ -731,6 +739,7 @@ const normaliseEntry = (e) => {
     parentId: e.parent || null,
     filename: e.filename || null,
     filesize: e.filesize ?? null,
+    fileRemoved: Boolean(e.fileremoved),
     image: e.image || null,
     description: guideText.synopsis || null,
     advice: guideText.advice,

@@ -34,6 +34,7 @@ import {
   getTvhRecordingsPath,
   rebaseFilePaths,
   airingOf,
+  usePlaybackCheck,
 } from './sync.js'
 import { LIBRARY_STATES, libraryChoicePatchOf, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { libraryRootReadyFor, libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
@@ -981,6 +982,7 @@ const playbackSessions = createPlaybackSessions({
   streamsElsewhere: () => liveSessions.labels(),
   ...playbackSessionHooks(),
 })
+usePlaybackCheck((recordingId) => playbackSessions.list().some((session) => String(session.recordingId) === String(recordingId)))
 
 const liveStreams = createLiveStreams({
   envValue: process.env.LIVE_TV_MAX_SESSIONS,

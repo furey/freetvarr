@@ -7,6 +7,7 @@ import {
   fetchProgrammeImageOrThrow,
   listAutorecs,
   listFinished,
+  listRemovedIds,
   listUpcoming,
   removeRecordings as removeTvhRecordings,
   resolveConnection,
@@ -81,6 +82,7 @@ const notifySyncFinished = ({ listener, syncId, trigger }) => {
 }
 
 const syncFinishedListeners = new Set()
+const UPDATE_CHUNK = 500
 let starting = null
 
 export const matchShow = (shows, showTitle, { sport = false } = {}) => {
@@ -378,6 +380,8 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     await finishSync(syncId, 'error', summary)
     return
   }
+  await markRemovedByTvheadend({ conn, finished })
+    .catch((err) => console.warn(`[sync] removed recordings check: ${err.message}`))
 
   const classificationOf = await recordingClassifications(finished)
   const context = await importContextOf({ conn })
@@ -440,7 +444,9 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
   }
   summary.steps.imports = Date.now() - importsStartedAt
 
-  if (imported.tv > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
+  const retries = showId == null ? await pendingRemovals({ finished, shows, queued: deletables }) : []
+  deletables.push(...retries)
+  if (imported.tv > 0 || retries.length > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
   if (imported.oneOff > 0) summary.plexOneOffs = await timeStep('plexOneOffs', () => refreshSection('plex_oneoff_section_id'))
   if (imported.film > 0) summary.plexMovies = await timeStep('plexMovies', () => refreshSection('plex_movies_section_id'))
   if (deletables.length > 0) {
@@ -858,30 +864,89 @@ const accumulateAdSummary = (summary, adResult) => {
   summary.ads.adSeconds += adResult.adSeconds
 }
 
+export const usePlaybackCheck = (isPlaying) => {
+  isRecordingPlaying = isPlaying
+}
+
+let isRecordingPlaying = () => false
+
+const markRemovedByTvheadend = async ({ conn, finished }) => {
+  const removed = new Set(await listRemovedIds(conn))
+  const finishedIds = new Set(finished.map((entry) => entry.uuid))
+  const ids = (await db('recordings').whereNull('deleted_from_tvh_at').pluck('recording_id'))
+    .filter((id) => removed.has(id) && !finishedIds.has(id))
+  const now = new Date().toISOString()
+  for (let at = 0; at < ids.length; at += UPDATE_CHUNK) {
+    await db('recordings').whereIn('recording_id', ids.slice(at, at + UPDATE_CHUNK))
+      .update({ deleted_from_tvh_at: now, tvh_remove_pending_at: null })
+  }
+  return ids.length
+}
+
+const pendingRemovals = async ({ finished, shows, queued }) => {
+  const finishedIds = new Set(finished.map((entry) => entry.uuid))
+  const queuedIds = new Set(queued.map((d) => d.recording_id))
+  const showById = new Map(shows.map((show) => [show.id, show]))
+  const rows = await db('recordings')
+    .whereNotNull('tvh_remove_pending_at')
+    .whereNull('deleted_from_tvh_at')
+    .where({ status: 'done' })
+    .select('recording_id', 'title', 'show_id', 'ad_status')
+  return rows
+    .filter((row) => finishedIds.has(row.recording_id) && !queuedIds.has(row.recording_id))
+    .filter((row) => {
+      const show = showById.get(row.show_id)
+      return Boolean(show?.delete_after_import) && shouldQueueAutoDelete({ show, adResult: { status: row.ad_status } })
+    })
+    .map((row) => ({ recording_id: row.recording_id, title: row.title }))
+}
+
+const markRemovalPending = async (ids) => {
+  if (ids.length === 0) return
+  await db('recordings').whereIn('recording_id', ids).whereNull('tvh_remove_pending_at')
+    .update({ tvh_remove_pending_at: new Date().toISOString() })
+}
+
 const runAutoDelete = async (deletables, plex) => {
   const ids = deletables.map((d) => d.recording_id)
+  const playing = ids.filter((id) => isRecordingPlaying(id))
+  const ready = ids.filter((id) => !playing.includes(id))
 
   const guardSettingRaw = (await getSetting('delete_after_plex_refresh_only')) ?? 'true'
   const guardOn = guardSettingRaw !== 'false'
   const plexAttemptedAndFailed = guardOn && plex && !plex.triggered
   const plexUnconfigured = plex?.skipped && plex?.reason === 'plex not configured'
   if (plexAttemptedAndFailed && !plexUnconfigured) {
+    await markRemovalPending(ids)
     return {
       skipped: true,
       reason: `plex refresh did not succeed (${plex.error || plex.reason || 'unknown'})`,
       candidates: ids.length,
     }
   }
+  await markRemovalPending(playing)
+  if (ready.length === 0) return { skipped: true, reason: 'playing now', candidates: ids.length, playing }
 
   try {
-    const result = await removeTvhRecordings({ recordingIds: ids })
+    const result = await removeTvhRecordings({ recordingIds: ready })
     const now = new Date().toISOString()
-    await db('recordings').whereIn('recording_id', result.removed).update({ deleted_from_tvh_at: now })
-    return { triggered: true, removed: result.removed, unmapped: result.unknown, removed_at: now }
+    await db('recordings').whereIn('recording_id', result.removed)
+      .update({ deleted_from_tvh_at: now, tvh_remove_pending_at: null })
+    await db('recordings').whereIn('recording_id', result.unknown).update({ tvh_remove_pending_at: null })
+    await markRemovalPending(result.failed)
+    return {
+      triggered: true,
+      removed: result.removed,
+      unmapped: result.unknown,
+      ...(result.failed.length ? { failed: result.failed } : {}),
+      ...(playing.length ? { playing } : {}),
+      removed_at: now,
+    }
   } catch (err) {
+    await markRemovalPending(ready)
     const stage = err instanceof TvheadendError ? err.stage : 'unknown'
     const code = err instanceof TvheadendError ? err.code : undefined
-    console.error(`[tvheadend] remove-after-import failed for ${ids.length} recording(s) (stage ${stage}): ${err.message}`)
+    console.error(`[tvheadend] remove-after-import failed for ${ready.length} recording(s) (stage ${stage}): ${err.message}`)
     return { error: err.message, stage, code, candidates: ids.length }
   }
 }
