@@ -316,13 +316,14 @@ export const createLiveSessions = ({
   const sessions = new Map()
   const ended = new Map()
 
-  const start = async ({ channelId, plan, label = null, weight = liveStreamWeightOf(0), client = null }) => {
+  const start = async ({ channelId, plan, label = null, weight = liveStreamWeightOf(0), client = null, clientToken = null }) => {
     const existing = forChannel(channelId)
     if (existing) {
       existing.viewers += 1
       touch(existing.id)
       return { session: existing, shared: true }
     }
+    releaseHeld({ clientToken, keepChannelId: channelId })
     const playing = [...labels(), ...streamsElsewhere()]
     const limit = limitOf(maxSessions)
     if (playing.length >= limit) {
@@ -336,6 +337,7 @@ export const createLiveSessions = ({
       dir: path.join(rootDir, id),
       userAgent: `Freetvarr-live/${id}`,
       client,
+      clientToken,
       status: 'tuning',
       reason: null,
       startedAt: now(),
@@ -343,6 +345,7 @@ export const createLiveSessions = ({
       lastByteAt: now(),
       viewers: 1,
       attending: false,
+      attendingViewers: new Set(),
       weight,
       heldUntil: 0,
       bufferSeconds: bufferMinutes * 60,
@@ -397,6 +400,7 @@ export const createLiveSessions = ({
     try {
       await removeDir(session.dir)
       await makeDir(session.dir)
+      if (session.ending) return removeDir(session.dir).catch(() => {})
       session.exited = false
       session.child = spawnFfmpeg(session)
     } catch (err) {
@@ -447,7 +451,7 @@ export const createLiveSessions = ({
       })
       upstream.pipe(session.child.stdin)
     } catch (err) {
-      if (session.ending) return
+      if (session.ending) return session.child?.stdin?.end()
       end(session, {
         code: UPSTREAM_REASONS.has(err.code) ? err.code : 'upstream',
         detail: err.message,
@@ -516,18 +520,37 @@ export const createLiveSessions = ({
 
   const hold = async (id) => {
     const session = sessions.get(id)
-    if (!session || session.ending) return false
-    if (!bufferMinutes) return leave(id)
+    if (!session || session.ending || !bufferMinutes) return false
     session.heldUntil = now() + bufferMinutes * 60_000
     return true
   }
 
-  const setAttending = (id, attending) => {
+  const unhold = (id) => {
+    const session = touch(id)
+    if (!session || session.ending) return false
+    session.heldUntil = 0
+    return true
+  }
+
+  const heldBy = (clientToken) => [...sessions.values()].filter((s) => clientToken
+    && !s.ending
+    && s.clientToken === clientToken
+    && s.viewers === 1
+    && s.heldUntil > now())
+
+  const releaseHeld = ({ clientToken, keepChannelId = null }) => Promise.all(heldBy(clientToken)
+    .filter((s) => s.channelId !== keepChannelId)
+    .map((s) => end(s, { code: 'replaced' })))
+
+  const setAttending = (id, attending, viewer = null) => {
     const session = sessions.get(id)
     if (!session || session.ending) return false
-    if (session.attending === attending) return true
-    session.attending = attending
-    onAttention(session, attending)
+    if (attending) session.attendingViewers.add(viewer)
+    else session.attendingViewers.delete(viewer)
+    const attended = session.attendingViewers.size > 0
+    if (session.attending === attended) return true
+    session.attending = attended
+    onAttention(session, attended)
     return true
   }
 
@@ -595,7 +618,7 @@ export const createLiveSessions = ({
 
   const get = (id) => sessions.get(id) || null
 
-  const labels = () => [...sessions.values()].map((s) => `live TV on ${s.label}`)
+  const labels = () => [...sessions.values()].filter((s) => !s.ending).map((s) => `live TV on ${s.label}`)
 
   const list = () => [...sessions.values()].map((s) => ({
     id: s.id,
@@ -610,7 +633,7 @@ export const createLiveSessions = ({
   }))
 
   return {
-    start, touch, hold, leave, setAttending, tick, stopAll, forChannel, statusForChannel,
+    start, touch, hold, unhold, releaseHeld, leave, setAttending, tick, stopAll, forChannel, statusForChannel,
     waitForPlaylist, playlistFor, fileFor, get, view, labels, list, activeCount: () => sessions.size,
   }
 }
@@ -667,7 +690,8 @@ export const preflightChannel = async ({ channelId, now = Date.now() }) => {
   return { ...verdict, channel: { id: channel.id, name: channel.name } }
 }
 
-export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRank = 0, client = null }) => {
+export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRank = 0, client = null, clientToken = null }) => {
+  await sessions.releaseHeld({ clientToken, keepChannelId: channelId })
   const existing = sessions.forChannel(channelId)
   const verdict = existing ? null : await preflightChannel({ channelId })
   if (verdict && !verdict.ok) {
@@ -678,7 +702,7 @@ export const startLiveChannel = async ({ channelId, sessions, encoder, pictureRa
   }
   const plan = existing ? null : await planForChannel({ channelId, encoder })
   const { session, shared } = await sessions.start({
-    channelId, plan, label: verdict?.channel?.name, weight: liveStreamWeightOf(pictureRank), client,
+    channelId, plan, label: verdict?.channel?.name, weight: liveStreamWeightOf(pictureRank), client, clientToken,
   })
   return { session: sessions.view(session), shared, conflict: verdict?.conflict || null }
 }

@@ -273,7 +273,9 @@ const OPENING_KEYFRAMES = 'expr:lt(t,4)*gte(t,n_forced)'
 
 const PLAN = pickStreams({ streams: SBS_HD })
 
-const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {}, onAttention } = {}) => {
+const fakeHarness = ({
+  exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, upstreamError, files = {}, onAttention, maxSessions, exitDelayMs = 0, removeDelayMs = 0,
+} = {}) => {
   const events = []
   const spawnArgs = []
   let clock = NOW
@@ -285,10 +287,14 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, up
     newId: () => `${String(++ids).padStart(16, '0')}`,
     rootDir: '/tmp/fake-live',
     makeDir: async () => {},
-    removeDir: async (dir) => { events.push(`rm ${dir}`) },
+    removeDir: async (dir) => {
+      if (removeDelayMs) await new Promise((resolve) => setTimeout(resolve, removeDelayMs))
+      events.push(`rm ${dir}`)
+    },
     readText: async (file) => files[file.split('/').pop()] ?? null,
     killGraceMs,
     bufferMinutes,
+    ...(maxSessions ? { maxSessions } : {}),
     spawnProcess: (command, args) => {
       spawnArgs.push(args)
       const child = new EventEmitter()
@@ -296,7 +302,9 @@ const fakeHarness = ({ exitOnTerm = true, killGraceMs = 5_000, bufferMinutes, up
       child.stderr = new PassThrough()
       child.kill = (signal) => {
         events.push(signal)
-        if (signal === 'SIGKILL' || exitOnTerm) setImmediate(() => child.emit('exit', null, signal))
+        if (signal !== 'SIGKILL' && !exitOnTerm) return
+        if (exitDelayMs) return setTimeout(() => child.emit('exit', null, signal), exitDelayMs)
+        setImmediate(() => child.emit('exit', null, signal))
       }
       children.push(child)
       return child
@@ -609,11 +617,95 @@ test('sessions: a held session outlives the idle timeout until the hold expires'
   assert.equal(h.sessions.activeCount(), 0)
 })
 
-test('sessions: with no buffer, hold ends the session like leave', async () => {
+test('sessions: with no buffer, hold does not reduce the viewer count of a shared session', async () => {
   const h = fakeHarness()
   const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  assert.equal(await h.sessions.hold(session.id), false)
+  assert.equal(await h.sessions.hold(session.id), false)
+  assert.equal(session.viewers, 2)
+  assert.equal(h.sessions.activeCount(), 1)
+  await h.sessions.leave(session.id)
+  assert.equal(h.sessions.activeCount(), 1)
+  await h.sessions.stopAll()
+})
+
+test('sessions: a start during the previous session teardown is not refused by the stream limit', async () => {
+  const h = fakeHarness({ maxSessions: 1, exitDelayMs: 50 })
+  const first = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  const leaving = h.sessions.leave(first.session.id)
+  const second = await h.sessions.start({ channelId: 'c2', plan: PLAN })
+  assert.equal(second.shared, false)
+  await leaving
+  await h.sessions.stopAll()
+})
+
+test('sessions: a start with the same client token ends that token held session before the limit check', async () => {
+  const h = fakeHarness({ maxSessions: 1, bufferMinutes: 30 })
+  const first = await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'phone' })
+  await h.sessions.hold(first.session.id)
+  const second = await h.sessions.start({ channelId: 'c2', plan: PLAN, clientToken: 'phone' })
+  assert.equal(second.session.channelId, 'c2')
+  assert.equal(first.session.status, 'ended')
+  assert.deepEqual(first.session.reason, { code: 'replaced' })
+  await h.sessions.stopAll()
+})
+
+test('sessions: another device or a shared held session is not ended by a new start', async () => {
+  const h = fakeHarness({ maxSessions: 1, bufferMinutes: 30 })
+  const first = await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'phone' })
+  await h.sessions.hold(first.session.id)
+  await assert.rejects(h.sessions.start({ channelId: 'c2', plan: PLAN, clientToken: 'tablet' }), { code: 'stream-limit' })
+  await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'tablet' })
+  await assert.rejects(h.sessions.start({ channelId: 'c2', plan: PLAN, clientToken: 'phone' }), { code: 'stream-limit' })
+  assert.equal(first.session.status, 'tuning')
+  await h.sessions.stopAll()
+})
+
+test('sessions: an unhold ends the hold, so the reaper ends the session 20 s later', async () => {
+  const h = fakeHarness({ bufferMinutes: 30 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
   await h.sessions.hold(session.id)
+  assert.equal(h.sessions.unhold(session.id), true)
+  h.advance(21_000)
+  h.upstreams[0].write(Buffer.from('ts'))
+  await h.sessions.tick()
   assert.equal(h.sessions.activeCount(), 0)
+})
+
+test('sessions: a touch alone keeps the hold', async () => {
+  const h = fakeHarness({ bufferMinutes: 30 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await h.sessions.hold(session.id)
+  h.sessions.touch(session.id)
+  h.advance(21_000)
+  h.upstreams[0].write(Buffer.from('ts'))
+  await h.sessions.tick()
+  assert.equal(h.sessions.activeCount(), 1)
+  await h.sessions.stopAll()
+})
+
+test('sessions: a shared live session stays attended while one viewer attends', async () => {
+  const seen = []
+  const h = fakeHarness({ onAttention: (session, attending) => seen.push(attending) })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  h.sessions.setAttending(session.id, true, 'a')
+  h.sessions.setAttending(session.id, true, 'b')
+  h.sessions.setAttending(session.id, false, 'b')
+  assert.equal(session.attending, true)
+  h.sessions.setAttending(session.id, false, 'a')
+  assert.deepEqual(seen, [true, false])
+  await h.sessions.stopAll()
+})
+
+test('sessions: stopping during a fallback restart spawns no new ffmpeg', async () => {
+  const h = fakeHarness({ removeDelayMs: 20 })
+  const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })
+  await new Promise((resolve) => setImmediate(resolve))
+  await failChild(h.children[0], 'Could not find codec parameters for stream 1')
+  await h.sessions.leave(session.id)
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  assert.equal(h.children.length, 1)
 })
 
 test('sessions: the session view carries the buffer length', async () => {
