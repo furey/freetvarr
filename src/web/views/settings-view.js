@@ -25,6 +25,7 @@ import { isLandingPending } from '/shared/setting-landing.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { unsavedSettings } from '/shared/store.js'
 import { createClearTimer } from '/status-timer.js'
+import { RETRY_MIN_MS, canSaveSettings, hasUnsavedSettings, loadSettingsWith, settingsSnapshotOf, settingsTvhTestBodyOf } from '/settings-load.js'
 import { tz, browserTimeZone } from '/shared/time.js'
 
 const LICENCES = [
@@ -504,13 +505,13 @@ export const SettingsView = {
 
       <div class="settings-save-bar">
         <div class="settings-save-bar-inner">
-          <span v-if="loadError" class="status-readout err" role="alert">Could not load settings: {{ loadError }}</span>
+          <span v-if="loadError" class="status-readout err" role="alert">{{ loadError }}</span>
           <span v-else-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
           <span v-else class="settings-save-hint">Changes apply when you save.</span>
-          <button v-if="loadError" type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': loading }]" :disabled="loading" :aria-busy="loading" @click="loadSettings">
+          <button v-if="loadError" type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': loading }]" :disabled="loading" :aria-busy="loading" @click="loadSettings({ retry: true })">
             <template v-if="loading"><span class="spinner" aria-hidden="true"></span> Loading…</template><template v-else><refresh-icon /> Try again</template>
           </button>
-          <button v-else type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="saving || !loaded" :aria-busy="saving">
+          <button v-else type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="!canSaveSettings({ loaded, saving })" :aria-busy="saving">
             <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save settings</template>
           </button>
         </div>
@@ -728,18 +729,13 @@ export const SettingsView = {
         genreLookupBaseline.remember(genreLookup.value)
       })
       .catch(() => {}))
-    const loadSettings = async () => {
+    const loadSettings = async ({ retry = false } = {}) => {
       loading.value = true
-      loadError.value = ''
-      try {
-        fillFrom(await fetchSettings())
-        loaded.value = true
-        await rememberSavedBody()
-      } catch (err) {
-        loadError.value = err.message
-      } finally {
-        loading.value = false
-      }
+      const outcome = await loadSettingsWith({ fetchSettings, fill: fillFrom, minMs: retry ? RETRY_MIN_MS : 0 })
+      loaded.value = outcome.loaded
+      loadError.value = outcome.error
+      loading.value = false
+      if (outcome.loaded) await rememberSavedBody()
     }
     onMounted(async () => {
       await loadSettings()
@@ -787,9 +783,9 @@ export const SettingsView = {
     const savedBody = ref(null)
     const rememberSavedBody = async () => {
       await nextTick()
-      savedBody.value = JSON.stringify(settingsBody())
+      savedBody.value = settingsSnapshotOf(settingsBody())
     }
-    const hasUnsavedChanges = computed(() => savedBody.value !== null && JSON.stringify(settingsBody()) !== savedBody.value)
+    const hasUnsavedChanges = computed(() => hasUnsavedSettings({ snapshot: savedBody.value, body: savedBody.value === null ? {} : settingsBody() }))
     watch(hasUnsavedChanges, (unsaved) => { unsavedSettings.value = unsaved }, { immediate: true })
     onUnmounted(() => { unsavedSettings.value = false })
 
@@ -913,12 +909,11 @@ export const SettingsView = {
       tvhStatus.value = 'Contacting TVHeadend…'
       tvhStatusKind.value = 'busy'
       try {
-        const r = await api('POST', '/api/tvh-test', {
-          tvh_url: tvhUrl.value,
-          tvh_username: tvhUsername.value,
-          ...(tvhPassword.value ? { tvh_password: tvhPassword.value } : {}),
-          persist: false,
-        })
+        const r = await api('POST', '/api/tvh-test', settingsTvhTestBodyOf({
+          url: tvhUrl.value,
+          username: tvhUsername.value,
+          password: tvhPassword.value,
+        }))
         tvhStatus.value = tvhTestSummary(r)
         tvhStatusKind.value = 'ok'
       } catch (err) {
@@ -1116,7 +1111,7 @@ export const SettingsView = {
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, genreLookup, genreCredits, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
-      save, loadPlexSections, refreshPlexNow, detectPlexToken,
+      canSaveSettings, save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
       testTvh, detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
       tvhDiscoverText, tvhDiscoverKind,

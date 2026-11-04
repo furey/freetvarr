@@ -110,6 +110,7 @@ export const VIEW_PRELOADS = {
     '/series-order.js',
     '/setting-baseline.js',
     '/settings-index.js',
+    '/settings-load.js',
     '/settings-pages.js',
     '/setup-folders.js',
     '/shared/activity-summary.js',

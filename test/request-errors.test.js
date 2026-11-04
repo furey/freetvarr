@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import { OFFLINE_MESSAGE, RATE_LIMITED_MESSAGE, reachServer, responseErrorOf } from '../src/web/shared/request-errors.js'
+import { OFFLINE_MESSAGE, RATE_LIMITED_MESSAGE, failureText, reachServer, responseErrorOf } from '../src/web/shared/request-errors.js'
 import { RATE_LIMITED_MESSAGE as SERVER_RATE_LIMITED_MESSAGE } from '../src/rate-limits.js'
 import { isCsrfRejection } from '../src/web/shared/csrf-retry.js'
 
@@ -35,8 +35,15 @@ test('responseErrorOf: the server error text wins, and a csrf 403 still reads as
   assert.equal(responseErrorOf({ status: 500 }).message, 'HTTP 500')
 })
 
-test('api: every request and the csrf token fetch go through the offline and 429 helpers', () => {
-  assert.match(api, /const fetchCsrf = async \(\) => \{\n\s*const res = noteBuild\(await reachServer\(\(\) => fetch\('\/api\/csrf-token'\)\)\)/)
-  assert.match(api, /const res = noteBuild\(await reachServer\(\(\) => fetch\(url, \{/)
-  assert.match(api, /if \(!res\.ok\) throw responseErrorOf\(\{ status: res\.status, data \}\)/)
+test('failureText: an offline, 429, or "Could not" message shows alone, other errors get the action first', () => {
+  const offline = { message: OFFLINE_MESSAGE, code: 'offline' }
+  assert.equal(failureText({ action: 'Could not search the guide', err: offline }), OFFLINE_MESSAGE)
+  assert.equal(failureText({ action: 'Could not save your picks', err: responseErrorOf({ status: 429 }) }), RATE_LIMITED_MESSAGE)
+  assert.equal(failureText({ action: 'Could not load settings', err: new Error('Could not read the database.') }), 'Could not read the database.')
+  assert.equal(failureText({ action: 'Could not search the guide', err: new Error('HTTP 500') }), 'Could not search the guide: HTTP 500')
+})
+
+test('api: requests and the csrf token fetch use reachServer, and failures use responseErrorOf', () => {
+  assert.equal(api.match(/reachServer\(/g)?.length, 2)
+  assert.match(api, /responseErrorOf\(/)
 })

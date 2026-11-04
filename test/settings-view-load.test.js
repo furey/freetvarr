@@ -1,26 +1,54 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 
-const view = readFileSync(new URL('../src/web/views/settings-view.js', import.meta.url), 'utf8')
+import { RETRY_MIN_MS, canSaveSettings, loadSettingsWith, settingsTvhTestBodyOf } from '../src/web/settings-load.js'
+import { OFFLINE_MESSAGE, reachServer, responseErrorOf } from '../src/web/shared/request-errors.js'
 
-const functionBody = (name) => {
-  const start = view.indexOf(`const ${name} = async () => {`)
-  return view.slice(start, view.indexOf('\n    }\n', start))
-}
-
-test('settings: a failed load shows the error with Try again, and Save stays off until a load works', () => {
-  assert.match(view, /<span v-if="loadError" class="status-readout err" role="alert">Could not load settings: \{\{ loadError \}\}<\/span>/)
-  assert.match(view, /<button v-if="loadError" type="button"[^>]*@click="loadSettings">/)
-  assert.match(view, /<button v-else type="submit" form="settings-form"[^>]*:disabled="saving \|\| !loaded"/)
-  const load = functionBody('loadSettings')
-  assert.match(load, /fillFrom\(await fetchSettings\(\)\)\n\s*loaded\.value = true/)
-  assert.match(load, /catch \(err\) \{\n\s*loadError\.value = err\.message/)
-  assert.match(functionBody('save'), /^const save = async \(\) => \{\n\s*if \(!loaded\.value\) return/)
+test('loadSettingsWith: a rejected GET /api/settings fills nothing, keeps Save off, and says why', async () => {
+  const filled = []
+  const outcome = await loadSettingsWith({
+    fetchSettings: async () => { throw responseErrorOf({ status: 500, data: { error: 'database is locked' } }) },
+    fill: (settings) => filled.push(settings),
+  })
+  assert.deepEqual(outcome, { loaded: false, error: 'Could not load settings: database is locked' })
+  assert.deepEqual(filled, [])
+  assert.equal(canSaveSettings({ loaded: outcome.loaded, saving: false }), false)
 })
 
-test('settings: Test connection does not save the address and keeps the typed password for Save', () => {
-  const testTvh = functionBody('testTvh')
-  assert.match(testTvh, /persist: false/)
-  assert.doesNotMatch(testTvh, /tvhPassword\.value = ''/)
+test('loadSettingsWith: an offline failure shows the offline message alone, with no doubled "Could not"', async () => {
+  const outcome = await loadSettingsWith({
+    fetchSettings: () => reachServer(async () => { throw new TypeError('Load failed') }),
+    fill: () => {},
+  })
+  assert.equal(outcome.error, OFFLINE_MESSAGE)
+})
+
+test('loadSettingsWith: a good load fills the page and turns Save on', async () => {
+  const filled = []
+  const outcome = await loadSettingsWith({ fetchSettings: async () => ({ tvh_url: 'http://tvh:9981' }), fill: (s) => filled.push(s) })
+  assert.deepEqual(outcome, { loaded: true, error: '' })
+  assert.deepEqual(filled, [{ tvh_url: 'http://tvh:9981' }])
+  assert.equal(canSaveSettings({ loaded: true, saving: false }), true)
+  assert.equal(canSaveSettings({ loaded: true, saving: true }), false)
+})
+
+test('settingsTvhTestBodyOf: the Settings test asks the server not to save, and sends a typed password', () => {
+  assert.deepEqual(settingsTvhTestBodyOf({ url: 'http://tvh:9981', username: 'admin', password: 'pw' }), {
+    tvh_url: 'http://tvh:9981',
+    tvh_username: 'admin',
+    tvh_password: 'pw',
+    persist: false,
+  })
+  assert.equal('tvh_password' in settingsTvhTestBodyOf({ url: 'u', username: 'a', password: '' }), false)
+})
+
+test('loadSettingsWith: Try again holds its busy state for the minimum time', async () => {
+  const holds = []
+  await loadSettingsWith({
+    fetchSettings: async () => ({}),
+    fill: () => {},
+    minMs: RETRY_MIN_MS,
+    hold: async ({ task, minMs }) => { holds.push(minMs); return task() },
+  })
+  assert.deepEqual(holds, [800])
 })
