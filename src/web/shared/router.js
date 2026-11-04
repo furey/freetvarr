@@ -112,7 +112,7 @@ export const replaceSectionInPlace = ({ hash, section }) => {
   routeSection.value = section
 }
 
-export const navigateFrom =({ hash, originHash }) => {
+export const navigateFrom = ({ hash, originHash }) => {
   if (window.location.hash === hash) return
   originOverride = originHash || null
   window.location.hash = hash

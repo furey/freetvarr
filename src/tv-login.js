@@ -65,7 +65,7 @@ export const createTvLoginRoute = ({ http, resolveConnection, readLogin, saveLog
   }
 }
 
-export const deleteTvLoginRoute =({ http, resolveConnection, readLogin, clearLogin }) => async (req, res) => {
+export const deleteTvLoginRoute = ({ http, resolveConnection, readLogin, clearLogin }) => async (req, res) => {
   const stored = await readLogin()
   const requested = String(req.body?.username ?? '').trim()
   if (!stored.username) return res.status(404).json({ ok: false, error: 'There is no TV login to delete.' })

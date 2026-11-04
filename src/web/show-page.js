@@ -23,7 +23,7 @@ export const adRemovalModeOf = ({ on, openMode }) => {
   return openMode === 'detect' ? 'detect' : 'off'
 }
 
-export const canStep =({ options, value, direction }) => (direction > 0
+export const canStep = ({ options, value, direction }) => (direction > 0
   ? Number(value) < options.at(-1)
   : Number(value) > options[0])
 
