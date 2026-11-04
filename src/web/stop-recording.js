@@ -24,10 +24,8 @@ export const stopConfirmOf = ({ recordedMs, seriesChannelLabel = '', addsToLibra
   if (!keepsStoppedRecording(recordedMs)) {
     return {
       title: 'Stop recording?',
-      deleted: [
-        { icon: 'trash', title: recorded, detail: `Freetvarr keeps a stopped recording only after ${KEEP_MINUTES} minutes` },
-        ...(seriesChannelLabel ? [{ icon: 'trash', title: 'Repeats of this episode', detail: 'TVHeadend counts this episode as recorded, so its repeats do not record' }] : []),
-      ],
+      deleted: [{ icon: 'trash', title: recorded, detail: `Freetvarr keeps a stopped recording only after ${KEEP_MINUTES} minutes` }],
+      ...(seriesChannelLabel ? { note: 'TVHeadend counts this episode as recorded, so its repeats do not record.', noteIcon: 'info' } : {}),
       stays: seriesLine,
       undo: "You can't undo this.",
       goLabel: 'Stop and delete',
