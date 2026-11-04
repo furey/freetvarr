@@ -1564,7 +1564,7 @@ A hostname here is the name part of the `Host` header, without the port. `normal
 | ----------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | Empty `Host`            | HTTP/1.0 clients                                                                            | Browsers always send one                       |
 | IP literal (`net.isIP`) | `192.168.1.10`, `[fe80::1]`, `::ffff:192.168.1.10`                                          | No DNS answer to rebind                        |
-| One label               | `synnas`, `freetvarr`, `diskstation`                                                        | No public DNS name has one label               |
+| One label               | `nas`, `freetvarr`, `diskstation`                                                           | No public DNS name has one label               |
 | Private-use suffix      | `.localhost`, `.local`, `.lan`, `.home`, `.home.arpa`, `.internal`, `.localdomain`, `.corp` | Not delegated in the public root zone          |
 | Machine name            | `os.hostname()` and its first label                                                         | The host's own name under `network_mode: host` |
 | Extra names             | The setting `allowed_hosts` joined with `FREETVARR_ALLOWED_HOSTS`                           | The user lists them                            |

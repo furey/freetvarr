@@ -20,7 +20,7 @@ import {
   parseAllowedHosts,
 } from '../src/host-gate.js'
 
-const allowedByDefault = (raw) => isAllowedHost({ hostname: normaliseHostname(raw), extra: [], machineNames: ['synnas'] })
+const allowedByDefault = (raw) => isAllowedHost({ hostname: normaliseHostname(raw), extra: [], machineNames: ['nas'] })
 
 const ACCEPTED = [
   '192.168.1.10',
@@ -39,7 +39,7 @@ const ACCEPTED = [
   'a.localhost',
   'freetvarr',
   'diskstation:3733',
-  'synnas',
+  'nas',
   'nas.local',
   'freetvarr.lan',
   'freetvarr.lan:3733',

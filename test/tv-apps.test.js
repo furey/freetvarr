@@ -4,12 +4,12 @@ import assert from 'node:assert/strict'
 import { tvAppsAddresses, tvAppsHost } from '../src/web/tv-apps.js'
 
 test('tvAppsHost: keeps a LAN address TV apps can reach', () => {
-  assert.equal(tvAppsHost({ tvhUrl: 'http://192.168.86.254:9981', browserHost: 'freetvarr.lan' }), '192.168.86.254')
+  assert.equal(tvAppsHost({ tvhUrl: 'http://192.168.1.254:9981', browserHost: 'freetvarr.lan' }), '192.168.1.254')
 })
 
 test('tvAppsHost: swaps an address only Freetvarr can reach for the browser host', () => {
   for (const tvhUrl of ['http://127.0.0.1:9981', 'http://localhost:9981', 'http://tvheadend:9981', 'http://host.docker.internal:9981', 'http://[::1]:9981']) {
-    assert.equal(tvAppsHost({ tvhUrl, browserHost: '192.168.86.254' }), '192.168.86.254', tvhUrl)
+    assert.equal(tvAppsHost({ tvhUrl, browserHost: '192.168.1.254' }), '192.168.1.254', tvhUrl)
   }
 })
 
@@ -18,15 +18,15 @@ test('tvAppsHost: leaves the host blank when the browser is on the same computer
 })
 
 test('tvAppsHost: gives nothing without a TVHeadend URL', () => {
-  assert.equal(tvAppsHost({ tvhUrl: '', browserHost: '192.168.86.254' }), '')
+  assert.equal(tvAppsHost({ tvhUrl: '', browserHost: '192.168.1.254' }), '')
 })
 
 test('tvAppsAddresses: builds the playlist, guide, and Kodi details', () => {
-  const addresses = tvAppsAddresses({ tvhUrl: 'http://127.0.0.1:9981/', host: '192.168.86.254', authCode: 'P.a+b' })
+  const addresses = tvAppsAddresses({ tvhUrl: 'http://127.0.0.1:9981/', host: '192.168.1.254', authCode: 'P.a+b' })
   assert.deepEqual(addresses, {
-    playlist: 'http://192.168.86.254:9981/playlist/auth/channels.m3u?auth=P.a%2Bb',
-    guide: 'http://192.168.86.254:9981/xmltv/channels?auth=P.a%2Bb',
-    host: '192.168.86.254',
+    playlist: 'http://192.168.1.254:9981/playlist/auth/channels.m3u?auth=P.a%2Bb',
+    guide: 'http://192.168.1.254:9981/xmltv/channels?auth=P.a%2Bb',
+    host: '192.168.1.254',
     httpPort: '9981',
     htspPort: '9982',
   })

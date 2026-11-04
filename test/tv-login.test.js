@@ -5,7 +5,7 @@ import { createTvLogin, createTvLoginRoute, deleteTvLogin, deleteTvLoginRoute, v
 
 const CONN = { url: 'http://tvh.test:9981', username: 'freetvarr', password: 'secret' }
 
-const fakeTvheadend = ({ access = [{ uuid: 'a1', username: 'freetvarr', prefix: '192.168.86.0/24' }], failOn = {}, authcode = 'P.code' } = {}) => {
+const fakeTvheadend = ({ access = [{ uuid: 'a1', username: 'freetvarr', prefix: '192.168.1.0/24' }], failOn = {}, authcode = 'P.code' } = {}) => {
   const state = { access: [...access], passwords: [], deleted: [], nextId: 1 }
   const get = async (path) => {
     if (path === 'access/entry/grid') return { entries: state.access }
@@ -35,7 +35,7 @@ test('createTvLogin: makes a watch-only login with a persistent code on the Free
   const login = await createTvLogin({ http, conn: CONN, username: ' tv ', fallbackPrefix: '10.0.0.0/24', generatePassword: () => 'pw' })
   assert.deepEqual(login, { username: 'tv', password: 'pw', authCode: 'P.code' })
   const entry = state.access.find((e) => e.username === 'tv')
-  assert.equal(entry.prefix, '192.168.86.0/24')
+  assert.equal(entry.prefix, '192.168.1.0/24')
   assert.equal(entry.admin, false)
   assert.equal(entry.webui, false)
   assert.deepEqual(entry.dvr, [])

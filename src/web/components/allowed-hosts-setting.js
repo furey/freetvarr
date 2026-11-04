@@ -6,7 +6,7 @@ export const AllowedHostsSetting = {
   emits: ['change'],
   template: `
     <div class="allowed-hosts">
-      <p class="setup-hint">A hostname is the name in the web address, such as synnas in http://synnas:3733 or tv.example.com in https://tv.example.com. IP addresses, localhost, one‑word names, and names that end in .local, .lan, .home.arpa, or .internal always work. Add any other name you open Freetvarr by, such as a reverse proxy or a Tailscale name. From 3.0.0, Freetvarr refuses names that are not on this list.</p>
+      <p class="setup-hint">A hostname is the name in the web address, such as nas in http://nas:3733 or tv.example.com in https://tv.example.com. IP addresses, localhost, one‑word names, and names that end in .local, .lan, .home.arpa, or .internal always work. Add any other name you open Freetvarr by, such as a reverse proxy or a Tailscale name. From 3.0.0, Freetvarr refuses names that are not on this list.</p>
       <ul v-if="rows.length" class="ui-chip-row aka-list" aria-label="Allowed hostnames">
         <li v-for="row in rows" :key="row.name" class="ui-chip is-small aka-chip">
           <span class="setup-mono">{{ row.name }}</span>

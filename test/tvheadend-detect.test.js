@@ -38,11 +38,11 @@ test('rankCandidates: skips docker bridges, link-local, IPv6, and a loopback hin
 
 test('rankCandidates: hints rank first in the order given and skip loopback', () => {
   const urls = rankCandidates({
-    hintAddresses: ['192.168.86.246', '127.0.0.1', '192.168.215.1'],
+    hintAddresses: ['192.168.1.246', '127.0.0.1', '192.168.215.1'],
     interfaces: { eth0: [{ family: 'IPv4', address: '192.168.139.2', internal: false }] },
   })
   assert.deepEqual(urls.slice(0, 3), [
-    'http://192.168.86.246:9981',
+    'http://192.168.1.246:9981',
     'http://192.168.215.1:9981',
     'http://192.168.139.2:9981',
   ])
@@ -80,11 +80,11 @@ test('dropAliasDuplicates: keeps an alias host with different server info', () =
 
 test('dropAliasDuplicates: collapses numeric addresses with the same fingerprint to the first', () => {
   const found = [
-    { url: 'http://192.168.86.246:9981', version: '4.3', fingerprint: 'a' },
+    { url: 'http://192.168.1.246:9981', version: '4.3', fingerprint: 'a' },
     { url: 'http://192.168.139.2:9981', version: '4.3', fingerprint: 'a' },
     { url: 'http://192.168.215.1:9981', version: '4.3', fingerprint: 'a' },
   ]
-  assert.deepEqual(dropAliasDuplicates(found).map((c) => c.url), ['http://192.168.86.246:9981'])
+  assert.deepEqual(dropAliasDuplicates(found).map((c) => c.url), ['http://192.168.1.246:9981'])
 })
 
 test('dropAliasDuplicates: keeps numeric addresses with different fingerprints', () => {
