@@ -13,7 +13,7 @@ Free-to-air recordings come with their ad breaks. Freetvarr can find those break
 
 ## Modes
 
-- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate comskip is on your channels, or to skip the ads instead of cutting them.
+- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate Comskip is on your channels, or to skip the ads instead of cutting them.
 - **Cut** removes the breaks by copying the video across untouched (no re-encoding; the output stays `.ts`) and keeps the original as `<file>.ts.orig`.
 
 > [!WARNING]<br>

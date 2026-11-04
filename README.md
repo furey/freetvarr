@@ -8,7 +8,7 @@
 <p align="center">
   <strong>Record free-to-air TV.<br/>Watch it on your TV in any media player, ad free.*</strong><br/>
   A self-hosted companion for TVHeadend and compatible tuner (e.g. HDHomeRun).<br/>
-  <sub>*optional via <code>comskip</code></sub>
+  <sub>*optional via Comskip</sub>
 </p>
 
 <p align="center">
