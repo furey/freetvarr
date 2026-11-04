@@ -42,7 +42,7 @@ export const SuggestionsSettingsView = {
           <button type="button" class="ui-group-row suggestions-row-button" data-setting="hidden-shows" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
               <span class="settings-row-title">Hidden shows</span>
-              <span class="settings-row-meta">Shows you marked Not interested</span>
+              <span class="settings-row-meta">Shows you marked Not interested or Fewer like this</span>
             </span>
             <span class="suggestions-count ui-tabular"><span v-if="!hiddenLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ hidden.length }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
@@ -88,7 +88,7 @@ export const SuggestionsSettingsView = {
               @update:model-value="save({ historyEnabled: !$event })">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Pause history</span>
-                <span class="settings-row-meta">Freetvarr stops noting what you watch until you turn this off. Thumbs and Not interested still count.</span>
+                <span class="settings-row-meta">Freetvarr stops noting what you watch until you turn this off. More like this, Fewer like this, and Not interested still count.</span>
               </span>
             </toggle-switch>
           </div>
@@ -111,7 +111,7 @@ export const SuggestionsSettingsView = {
               @click="showAgain(show)">Show again</button>
           </div>
         </div>
-        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or thumbs down on a For you card to hide a show.</p>
+        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or Fewer like this on a For you card to hide a show.</p>
       </ui-sheet>
 
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :busy="confirmBusy"
