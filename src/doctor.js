@@ -283,7 +283,7 @@ const LATER_CHECKS = [
       if (!failed.length) return { status: 'pass', detail: 'Each series recording Freetvarr made matches its whole show title.' }
       return {
         status: 'warn',
-        detail: `TVHeadend did not save the exact-title change for ${joinAnd(failed.map((rule) => rule.name))}, so ${failed.length === 1 ? 'that series recording' : 'those series recordings'} can still record longer titles that contain the show title.`,
+        detail: `TVHeadend did not save the whole-title change for ${joinAnd(failed.map((rule) => rule.name))}, so ${failed.length === 1 ? 'that series recording' : 'those series recordings'} can still record longer titles that contain the show title.`,
         fix: 'Freetvarr tries again after the next sync. If this stays, check the Freetvarr log for the TVHeadend error.',
       }
     },

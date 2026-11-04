@@ -26,15 +26,17 @@ const quietLog = () => {
   return { lines, log: (line) => lines.push(line), warn: (line) => lines.push(line) }
 }
 
-const fakeTvh = ({ autorecs = LIVE_RULES, upcoming = LIVE_TIMERS, failSave = () => false } = {}) => {
+const fakeTvh = ({ autorecs = LIVE_RULES, upcoming = LIVE_TIMERS, failSave = () => false, ignoreSave = () => false } = {}) => {
   const saves = []
+  let rules = autorecs.entries.map((rule) => ({ ...rule }))
   return {
     saves,
-    read: async (route) => (route === 'dvr/autorec/grid' ? autorecs : upcoming),
+    read: async (route) => (route === 'dvr/autorec/grid' ? { entries: rules.map((rule) => ({ ...rule })) } : upcoming),
     write: async (route, form) => {
       const node = JSON.parse(form.node)
       if (failSave(node)) throw new Error('HTTP 500')
       saves.push({ route, node })
+      if (!ignoreSave(node)) rules = rules.map((rule) => (rule.uuid === node.uuid ? { ...rule, ...node } : rule))
       return {}
     },
   }
@@ -84,12 +86,38 @@ test('anchorPlanOf: leaves user rules, regex rules, edited rules, and anchored r
     { ...base, uuid: 'edited', name: 'Hard Quiz', title: 'Hard Quiz Kids' },
     { ...base, uuid: 'anchored', name: 'The Chase', title: '^The Chase( ?[:(-].*)?$' },
     { ...base, uuid: 'fulltext', name: 'Gruen', title: 'Gruen', fulltext: true },
-    { ...base, uuid: 'old', name: 'Mr. Bean', title: 'Mr. Bean' },
+    { ...base, uuid: 'mergetext', name: 'Gogglebox', title: 'Gogglebox', mergetext: true },
     { ...base, uuid: 'escaped', name: 'Mr. Bean', title: 'Mr\\. Bean' },
   ]
   assert.deepEqual(anchorPlanOf({ autorecs }).map((change) => [change.uuid, change.newTitle]), [
     ['escaped', '^Mr\\. Bean( ?[:(-].*)?$'],
   ])
+})
+
+test('anchorPlanOf: a rule from before titles were escaped gets its name escaped and anchored', () => {
+  const base = { comment: 'freetvarr', fulltext: false }
+  const autorecs = [
+    { ...base, uuid: 'old-bean', name: 'Mr. Bean', title: 'Mr. Bean' },
+    { ...base, uuid: 'old-qa', name: 'Q+A', title: 'Q+A' },
+    { ...base, uuid: 'old-kids', name: 'Hard Quiz (Kids)', title: 'Hard Quiz (Kids)' },
+  ]
+  const upcoming = [{ uuid: 't1', autorec: 'old-bean', disp_title: 'MrX Bean' }, { uuid: 't2', autorec: 'old-bean', disp_title: 'Mr. Bean' }]
+  const plan = anchorPlanOf({ autorecs, upcoming })
+  assert.deepEqual(plan.map((change) => [change.uuid, change.newTitle]), [
+    ['old-bean', '^Mr\\. Bean( ?[:(-].*)?$'],
+    ['old-qa', '^Q\\+A( ?[:(-].*)?$'],
+    ['old-kids', '^Hard Quiz \\(Kids\\)( ?[:(-].*)?$'],
+  ])
+  assert.deepEqual(plan[0].droppedTimers.map((timer) => timer.uuid), ['t1'])
+})
+
+test('runAutorecAnchorOnce: a save TVHeadend answered but did not apply counts as failed', async () => {
+  const tvh = fakeTvh({ ignoreSave: (node) => node.uuid === '494b07186c1ab2dd29f0a54fb2f70ec5' })
+  const { log, warn } = quietLog()
+  const result = await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn } })
+  assert.equal(result.changed, 3)
+  assert.deepEqual(result.failed, [{ uuid: '494b07186c1ab2dd29f0a54fb2f70ec5', name: '1 Euro House' }])
+  assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), null)
 })
 
 test('runAutorecAnchorOnce: saves only the title, logs each dropped timer first, and runs once', async () => {

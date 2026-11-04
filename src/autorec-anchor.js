@@ -6,7 +6,7 @@ import { isTvheadendUnconfigured } from './tvheadend-unconfigured.js'
 export const anchorPlanOf = ({ autorecs = [], upcoming = [] }) => autorecs
   .filter(isAnchorable)
   .map((rule) => {
-    const title = literalTitleOf(rule.title)
+    const title = rule.name
     return {
       uuid: rule.uuid,
       name: rule.name,
@@ -49,8 +49,21 @@ const anchorRules = async ({ read = tvhRead, write = tvhWrite, log = console }) 
       })
     if (!saved) failed.push({ uuid: change.uuid, name: change.name })
   }
-  await recordOutcome(failed)
-  return { changed: plan.length - failed.length, failed }
+  const unapplied = plan.length > failed.length ? await unappliedChangesOf({ plan, failed, read, log }) : []
+  const allFailed = [...failed, ...unapplied]
+  await recordOutcome(allFailed)
+  return { changed: plan.length - allFailed.length, failed: allFailed }
+}
+
+const unappliedChangesOf = async ({ plan, failed, read, log }) => {
+  const saved = new Map(((await read('dvr/autorec/grid', { limit: GRID_LIMIT }))?.entries || []).map((rule) => [rule.uuid, rule.title]))
+  const failedIds = new Set(failed.map((rule) => rule.uuid))
+  return plan
+    .filter((change) => !failedIds.has(change.uuid) && saved.has(change.uuid) && saved.get(change.uuid) !== change.newTitle)
+    .map((change) => {
+      log.warn(`[rules] TVHeadend answered but kept the title "${saved.get(change.uuid)}" for "${change.name}" (${change.uuid})`)
+      return { uuid: change.uuid, name: change.name }
+    })
 }
 
 export const readAnchorFailures = async () => {
@@ -65,10 +78,9 @@ export const readAnchorFailures = async () => {
 }
 
 const isAnchorable = (rule) => {
-  if (rule?.comment !== CREATOR_COMMENT || rule.fulltext) return false
-  if (anchoredLiteralOf(rule.title)) return false
-  const title = literalTitleOf(rule.title)
-  return Boolean(title) && title === rule.name
+  if (rule?.comment !== CREATOR_COMMENT || rule.fulltext || rule.mergetext) return false
+  if (!rule.name || anchoredLiteralOf(rule.title)) return false
+  return rule.title === rule.name || literalTitleOf(rule.title) === rule.name
 }
 
 const isLeftAsItIs = (rule) => rule?.comment === CREATOR_COMMENT && !anchoredLiteralOf(rule.title) && !isAnchorable(rule)

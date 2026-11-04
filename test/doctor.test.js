@@ -128,7 +128,7 @@ const runAgainst = async ({ routes, now = Date.now(), timeoutMs, ...overrides })
 
 const byId = (report) => Object.fromEntries(report.checks.map((c) => [c.id, c]))
 
-test('runDoctor: warns when TVHeadend did not save the exact-title change for a series recording', async () => {
+test('runDoctor: warns when TVHeadend did not save the whole-title change for a series recording', async () => {
   const now = Date.now()
   const anchorFailures = async () => [{ uuid: 'r1', name: 'Chefs Ahoy' }]
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, anchorFailures }))['tvh.rules']
