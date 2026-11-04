@@ -285,3 +285,32 @@ test('automatic jobs never read library_items', async () => {
     assert.equal(text.includes('library_items'), false, `${file} reads library_items`)
   }
 })
+
+for (const [name, patch] of [
+  ['a pending recording', { status: 'pending', file_path: null }],
+  ['an importing recording', { status: 'importing' }],
+  ['a recording not imported yet', { status: 'not_imported', file_path: null }],
+  ['a recording still in progress', { status: 'recording', file_path: null }],
+  ['a recording whose file is missing', { library_state: 'missing' }],
+]) {
+  test(`mergeWithRecordings: ${name} keeps the Plex copy of the same episode as another version`, () => {
+    const rows = mergeWithRecordings({
+      rows: [recording(patch)],
+      itemRows: [itemRow({ rating_key: '7', show_title: 'The Block', season: 22, episode: 41, file_path: '/x/The Block S22E41.mkv', manager: 'sonarr' })],
+      keyOf: groupKeyOf,
+      nowMs: NOW,
+    })
+    assert.deepEqual(rows.map((row) => row.recording_id), ['r1'])
+    assert.deepEqual(rows[0].other_versions.map((version) => version.itemId), ['plex-7'])
+  })
+}
+
+test('mergeWithRecordings: a playable recording takes the Plex copy ahead of a pending one in the same slot', () => {
+  const rows = mergeWithRecordings({
+    rows: [recording({ recording_id: 'r0', status: 'pending', file_path: null }), recording()],
+    itemRows: [itemRow({ rating_key: '7', show_title: 'The Block', season: 22, episode: 41, file_path: '/x/The Block S22E41.mkv', manager: 'sonarr' })],
+    keyOf: groupKeyOf,
+    nowMs: NOW,
+  })
+  assert.deepEqual(rows.map((row) => [row.recording_id, (row.other_versions || []).map((version) => version.itemId)]), [['r0', []], ['r1', ['plex-7']]])
+})

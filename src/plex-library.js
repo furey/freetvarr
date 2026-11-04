@@ -109,9 +109,11 @@ export const mergeWithRecordings = ({ rows = [], itemRows = [], keyOf, nowMs = D
   const slotOf = (row) => (row.season != null && row.episode != null
     ? slotKeyOf({ key: keyOf(row), season: row.season, episode: row.episode })
     : null)
-  const bySlot = new Map(withVersions
-    .filter((row) => slotOf(row) && hasPlayableFile(row))
-    .map((row) => [slotOf(row), row.recording_id]))
+  const bySlot = new Map()
+  const slotted = withVersions.filter((row) => slotOf(row) && !isUnfinishedAttempt(row))
+  for (const row of [...slotted.filter(hasPlayableFile), ...slotted.filter((row) => !hasPlayableFile(row))]) {
+    if (!bySlot.has(slotOf(row))) bySlot.set(slotOf(row), row.recording_id)
+  }
   const extraVersions = new Map()
   const kept = []
   const plexSlots = new Set()
