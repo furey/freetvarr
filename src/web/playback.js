@@ -10,6 +10,12 @@ export const seekPlan = ({ target, offset, producedEnd, duration, margin = SEEK_
   return { kind: 'restart', offset: Math.floor(wanted) }
 }
 
+export const endedPositionOf = ({ offset, currentTime }) =>
+  (Number(offset) || 0) + (Number.isFinite(currentTime) ? currentTime : 0)
+
+export const retryOffsetOf = ({ started, position, requestedOffset }) =>
+  (started ? Math.floor(position) : requestedOffset)
+
 export const fmtPlayTime = (seconds) => {
   const total = Math.max(0, Math.floor(Number(seconds) || 0))
   const hours = Math.floor(total / 3600)

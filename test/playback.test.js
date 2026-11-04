@@ -22,7 +22,7 @@ import {
   view,
 } from '../src/playback.js'
 import { createLiveSessions } from '../src/live-tv.js'
-import { seekPlan, fmtPlayTime } from '../src/web/playback.js'
+import { seekPlan, fmtPlayTime, endedPositionOf, retryOffsetOf } from '../src/web/playback.js'
 
 const SD_PROBE = {
   format: { duration: '1800.48' },
@@ -449,4 +449,16 @@ test('playback sessions: a VAAPI encode that fails before any segment starts aga
   h.children[1].emit('exit', 1, null)
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal(session.status, 'ended')
+})
+
+test('endedPositionOf: the end of a play is the offset plus the played time, not the file length', () => {
+  assert.equal(endedPositionOf({ offset: 600, currentTime: 1200 }), 1800)
+  assert.equal(endedPositionOf({ offset: 0, currentTime: Number.NaN }), 0)
+})
+
+test('retryOffsetOf: a retry before the first frame reuses the requested offset (null resumes, 0 stays 0)', () => {
+  assert.equal(retryOffsetOf({ started: false, position: 0, requestedOffset: null }), null)
+  assert.equal(retryOffsetOf({ started: false, position: 0, requestedOffset: 0 }), 0)
+  assert.equal(retryOffsetOf({ started: false, position: 900, requestedOffset: 900 }), 900)
+  assert.equal(retryOffsetOf({ started: true, position: 1234.6, requestedOffset: null }), 1234)
 })

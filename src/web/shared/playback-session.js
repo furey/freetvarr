@@ -1,5 +1,5 @@
 import { ref, watch } from '/vendor/vue.esm-browser.prod.js'
-import { seekPlan, adBreakAt, SEEK_EDGE_MARGIN_S } from '/playback.js'
+import { seekPlan, adBreakAt, retryOffsetOf, SEEK_EDGE_MARGIN_S } from '/playback.js'
 import { DOUBLE_TAP_MS, emptyTapState, isTap, registerTap, clampSkip } from '/double-tap.js'
 import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
 import { csrfToken, api } from '/shared/api.js'
@@ -97,6 +97,7 @@ const startPlaybackAt = async (offset, { delayMs = 0 } = {}) => {
   detachPlayVideo()
   playback.phase = 'starting'
   playback.message = ''
+  playback.requestedOffset = offset
   if (offset != null) playback.position = offset
   if (delayMs) await wait(delayMs)
   if (run !== playRun) return
@@ -251,13 +252,17 @@ export const seekPlaybackTo = (target) => {
 }
 
 export const togglePlayback = () => {
-  if (playback.phase === 'ended') return startPlaybackAt(Math.floor(playback.position))
-  if (!playback.sessionId && playback.phase === 'playing') return startPlaybackAt(Math.floor(playback.position))
+  if (playback.phase === 'ended') return startPlaybackAt(retryOffset())
+  if (!playback.sessionId && playback.phase === 'playing') return startPlaybackAt(retryOffset())
   if (!playVideo || playback.phase !== 'playing') return
   if (playVideo.ended) return seekPlaybackTo(0)
   if (playVideo.paused || playback.stuck) return playVideo.play()?.catch(() => {})
   playVideo.pause()
 }
+
+const retryOffset = () => retryOffsetOf({
+  started: playback.started, position: playback.position, requestedOffset: playback.requestedOffset,
+})
 
 const flashPlaybackSkipHint = createSkipHintFlasher(playback)
 
