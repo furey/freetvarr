@@ -220,7 +220,7 @@ test('delete: removes library files and TVHeadend recordings, purges the rows an
   }
 })
 
-test('delete: a sync started during a delete waits until the delete finishes', async () => {
+test('delete: a sync started during a delete waits until the delete finishes', { timeout: 10_000 }, async () => {
   await importedEpisode({ id: 'a1', episode: 1 })
   let release
   fake.holdRemove = new Promise((resolve) => { release = resolve })
@@ -229,7 +229,7 @@ test('delete: a sync started during a delete waits until the delete finishes', a
     order.push('deleted')
     return reply
   })
-  while (!fake.posts.includes('/api/idnode/save')) await new Promise((resolve) => setTimeout(resolve, 5))
+  await waitUntil(() => fake.posts.includes('/api/idnode/save'))
   const sync = startSync({ trigger: 'cron' }).then((started) => {
     order.push('sync')
     return started
@@ -241,8 +241,32 @@ test('delete: a sync started during a delete waits until the delete finishes', a
   assert.equal(status, 200)
   assert.ok(started.syncId)
   assert.ok((await db('recordings').where({ recording_id: 'a1' }).first()).purged_at)
-  while (getActiveSyncId() === started.syncId) await new Promise((resolve) => setTimeout(resolve, 10))
+  await waitUntil(() => getActiveSyncId() !== started.syncId)
 })
+
+test('delete: a sync that waits too long behind a delete gives up with a sync error', { timeout: 10_000 }, async () => {
+  await importedEpisode({ id: 'a2', episode: 2 })
+  let release
+  fake.holdRemove = new Promise((resolve) => { release = resolve })
+  const deletion = post('/api/library/delete', { show_key: 'the-block', scope: 'all', expected_count: 1 })
+  await waitUntil(() => fake.posts.includes('/api/idnode/save'))
+  const started = await startSync({ trigger: 'cron', libraryWaitMs: 50 })
+  assert.equal(started.alreadyRunning, false)
+  assert.equal(started.gaveUp, true)
+  const row = await db('syncs').where({ id: started.syncId }).first()
+  assert.equal(row.status, 'error')
+  assert.match(JSON.parse(row.summary_json).errors[0], /library delete or folder rename was still running/)
+  release()
+  assert.equal((await deletion).status, 200)
+})
+
+const waitUntil = async (ready, { timeoutMs = 5000 } = {}) => {
+  const deadline = Date.now() + timeoutMs
+  while (!ready()) {
+    if (Date.now() > deadline) throw new Error('timed out waiting')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+}
 
 test('delete: a changed episode count is a conflict and deletes nothing', async () => {
   const { filePath } = await importedEpisode({ id: 'c1', episode: 1 })

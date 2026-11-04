@@ -10,9 +10,16 @@ export const runLibraryChange = async (task) => {
 
 export const isLibraryChanging = () => changes > 0
 
-export const libraryChangesSettled = () => (changes === 0
-  ? Promise.resolve()
-  : new Promise((resolve) => waiters.push(resolve)))
+export const libraryChangesSettled = ({ timeoutMs = Infinity } = {}) => {
+  if (changes === 0) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const timer = Number.isFinite(timeoutMs) ? setTimeout(() => resolve(false), Math.max(0, timeoutMs)) : null
+    waiters.push(() => {
+      clearTimeout(timer)
+      resolve(true)
+    })
+  })
+}
 
 const releaseWaiters = () => {
   const ready = waiters

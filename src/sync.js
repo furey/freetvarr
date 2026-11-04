@@ -40,10 +40,7 @@ export const getActiveSyncId = () => inFlight?.syncId ?? null
 export const isSyncBusy = () => starting != null || inFlight != null
 
 export const startSync = async (options = {}) => {
-  do {
-    await libraryChangesSettled()
-    while (starting) await starting.catch(() => {})
-  } while (isLibraryChanging())
+  if (!(await libraryChangesDone(options.libraryWaitMs ?? LIBRARY_WAIT_MS))) return giveUpBehindLibraryChange(options)
   if (inFlight) {
     if (options.followUp) followUpTrigger = options.trigger ?? 'manual'
     return { syncId: inFlight.syncId, alreadyRunning: true, ...(options.followUp ? { followUp: true } : {}) }
@@ -55,6 +52,24 @@ export const startSync = async (options = {}) => {
   } finally {
     if (starting === attempt) starting = null
   }
+}
+
+const libraryChangesDone = async (limitMs) => {
+  const deadline = Date.now() + limitMs
+  if (isLibraryChanging()) console.warn('[sync] waiting for a library delete or folder rename to finish before the sync starts')
+  do {
+    if (!(await libraryChangesSettled({ timeoutMs: deadline - Date.now() }))) return false
+    while (starting) await starting.catch(() => {})
+  } while (isLibraryChanging())
+  return true
+}
+
+const giveUpBehindLibraryChange = async ({ trigger = 'manual', showId = null }) => {
+  const message = LIBRARY_WAIT_ERROR
+  console.warn(`[sync] ${message}`)
+  const syncId = await createSync(trigger, showId)
+  await finishSync(syncId, 'error', { trigger, imported: 0, skipped: 0, failed: 0, errors: [message], items: [], steps: {}, message })
+  return { syncId, alreadyRunning: false, gaveUp: true }
 }
 
 export const syncErrorLogOf = (err) => err?.stack || String(err?.message ?? err)
@@ -102,6 +117,8 @@ const notifySyncFinished = ({ listener, syncId, trigger }) => {
 
 const syncFinishedListeners = new Set()
 const UPDATE_CHUNK = 500
+const LIBRARY_WAIT_MS = 10 * 60 * 1000
+const LIBRARY_WAIT_ERROR = 'A library delete or folder rename was still running after 10 minutes, so this sync did not run. The next sync tries again.'
 let starting = null
 
 export const matchShow = (shows, showTitle, { sport = false } = {}) => {
