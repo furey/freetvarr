@@ -108,6 +108,7 @@ const ENTRIES = [
   { label: 'Sync now', page: 'activity', description: 'Runs a sync at once.', tags: ['import', 'refresh'] },
   { page: 'setup', description: 'Check or change TVHeadend, channels, the guide, folders, and Plex.', tags: ['wizard', 'channel scan', 'scan again', 'guide source'] },
   { label: 'Channel scan', page: 'setup', description: 'Scans the aerial for channels again.', tags: ['scan again', 'retune', 'new channels'] },
+  { label: 'Allowed hostnames', page: 'setup', description: 'Extra names Freetvarr answers to, such as a reverse proxy or Tailscale name.', tags: ['hostname', 'host', 'reverse proxy', 'tailscale', 'domain', 'dns rebinding'] },
   { label: 'Run the whole setup from the start', page: 'setup', description: 'Runs every setup step again.', tags: ['wizard', 'restart'] },
   { page: 'tvheadend', description: 'The TVHeadend address and login, and the tuners.', tags: ['tvh', 'server'] },
   { label: 'Server', page: 'tvheadend', setting: 'tvh-server', description: 'The TVHeadend address and login.', tags: ['tvh', 'auto-discover', 'test connection'] },

@@ -578,6 +578,25 @@
   border-radius: var(--radius-card);
 }
 
+.allowed-hosts {
+  display: grid;
+  gap: 12px;
+}
+
+.allowed-hosts .setup-hint {
+  text-wrap: pretty;
+}
+
+.allowed-hosts .aka-chip {
+  padding-right: 4px;
+}
+
+.allowed-hosts-source {
+  padding: 0 8px 0 4px;
+  font-size: 12px;
+  color: var(--color-text-2);
+}
+
 .setup-page .plex-library-setup {
   padding: 16px;
   border-radius: var(--radius-card);

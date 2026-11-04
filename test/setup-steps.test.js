@@ -119,7 +119,7 @@ test('setupSettingsRows: shows what Freetvarr uses now', () => {
     folders: { problems: [], notes: [] },
   })
   const byKey = Object.fromEntries(rows.map((row) => [row.key, row]))
-  assert.deepEqual(rows.map((row) => row.key), ['tvheadend', 'channels', 'guide', 'folders', 'plex', 'time-zone'])
+  assert.deepEqual(rows.map((row) => row.key), ['tvheadend', 'channels', 'guide', 'folders', 'plex', 'time-zone', 'hostnames'])
   assert.equal(byKey.tvheadend.meta, 'Signs in as freetvarr')
   assert.equal(byKey.channels.meta, 'Sydney ArtarmonBridge')
   assert.equal(byKey.guide.meta, 'Sydney')
@@ -134,6 +134,25 @@ test('setupSettingsRows: unknown parts stay neutral while loading, missing parts
   assert.equal(rows[1].tone, 'warn')
   assert.equal(rows[2].tone, '')
   assert.equal(rows[2].meta, 'Checking…')
+})
+
+test('setupSettingsRows: the Allowed hostnames row counts the names and warns about unknown names and *', () => {
+  const rowOf = (hosts) => setupSettingsRows({ hosts }).find((row) => row.key === 'hostnames')
+  assert.equal(rowOf(null).meta, 'Checking…')
+  assert.deepEqual(
+    (({ title, meta, value, tone }) => ({ title, meta, value, tone }))(rowOf({ hosts: [], env_hosts: [], any_host: false, seen: [] })),
+    { title: 'Allowed hostnames', meta: 'IP addresses and local names always work', value: '', tone: '' },
+  )
+  const added = rowOf({ hosts: ['a.example.com'], env_hosts: ['b.example.com'], any_host: false, seen: [] })
+  assert.equal(added.value, '2')
+  assert.equal(added.tone, 'ok')
+  const unknown = rowOf({ hosts: [], env_hosts: [], any_host: false, seen: [{ name: 'tv.example.com' }] })
+  assert.equal(unknown.meta, 'Opened as tv.example.com, which 3.0.0 will refuse')
+  assert.equal(unknown.tone, 'warn')
+  const anyName = rowOf({ hosts: ['*'], env_hosts: [], any_host: true, seen: [] })
+  assert.equal(anyName.meta, 'Answers to any name')
+  assert.equal(anyName.tone, 'warn')
+  assert.equal(setupDrawerOf(['system', 'setup', 'hostnames']), 'hostnames')
 })
 
 test('morphFrames: maps a chip box onto its bar and keeps the visible corner radius', () => {

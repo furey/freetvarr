@@ -678,7 +678,50 @@ const LATER_CHECKS = [
       }
     },
   },
+  {
+    id: 'host.names',
+    group: 'host',
+    title: 'Addresses Freetvarr answers to',
+    doc: 'guide/troubleshooting#allowed-hostnames',
+    run: async (ctx) => hostNamesCheck(await ctx.deps.hostNames()),
+  },
 ]
+
+export const hostNamesCheck = (report) => {
+  if (!report) return { status: 'skip', detail: 'Only the running server knows the names it was opened as.' }
+  if (report.anyHost) {
+    return {
+      status: 'warn',
+      detail: 'Freetvarr answers to any name, so any website can reach it through a browser on your network.',
+      fix: 'Remove * from Allowed hostnames and list the names you use.',
+      action: SETTINGS_HOSTNAMES,
+    }
+  }
+  if (!report.seen.length) return { status: 'pass', detail: answersToLine(report.added) }
+  const shown = report.seen.slice(0, SHOWN_HOST_NAMES)
+  const more = report.seen.length - shown.length
+  const names = [...shown.map(seenHostLine), ...(more ? [plural(more, 'more name')] : [])]
+  const mostUsed = report.seen.reduce((a, b) => (b.count > a.count ? b : a))
+  return {
+    status: 'warn',
+    detail: `Freetvarr was opened as ${joinAnd(names)}. From 3.0.0 Freetvarr refuses names it does not know.`,
+    fix: report.seen.length === 1
+      ? `If you open Freetvarr by this name, press Allow ${mostUsed.name}. ${unknownNameNote('the name')}`
+      : `If you open Freetvarr by these names, allow each one in Allowed hostnames. ${unknownNameNote('a name')}`,
+    action: {
+      label: `Allow ${mostUsed.name}`,
+      post: `/api/allowed-hosts/allow/${encodeURIComponent(mostUsed.name)}`,
+      done: `Added ${mostUsed.name} to Allowed hostnames.`,
+    },
+  }
+}
+
+const answersToLine = (added) => (added
+  ? `Freetvarr answers to IP addresses, local names, and ${plural(added, 'name')} you added.`
+  : 'Freetvarr answers to IP addresses and local names.')
+
+const seenHostLine = ({ name, count, last_seen: lastSeen, from }) =>
+  `${name} (${plural(count, 'request')}, last ${fmtStamp(lastSeen)}${from ? `, from ${from}` : ''})`
 
 export const liveStreamsCheck = (streams) => {
   const measured = describeBenchmark(streams?.benchmark)
@@ -930,6 +973,7 @@ const defaultDeps = () => ({
   interfaces: () => os.networkInterfaces(),
   dockerVm: () => detectDockerVm(),
   uid: () => process.getuid?.() ?? null,
+  hostNames: async () => null,
 })
 
 const URL_GRABBER_TITLE = /XMLTV URL grabber/i
@@ -1080,3 +1124,6 @@ const SETTINGS_PLAYER = { label: 'Open settings', href: '#/settings/player' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity/syncs' }
 const CREATE_ONE_OFF_PLACEHOLDER = { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' }
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }
+const SETTINGS_HOSTNAMES = { label: 'Open setup', href: '#/settings/system/setup/hostnames' }
+const SHOWN_HOST_NAMES = 3
+const unknownNameNote = (which) => `If you do not know ${which}, leave it out: a website may have tried to reach Freetvarr through a browser on your network.`

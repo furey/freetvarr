@@ -39,7 +39,7 @@ test('compose: an unset LIVE_TV_MAX_SESSIONS stays empty so the benchmark decide
 
 test('compose: optional passthroughs default to empty', () => {
   const values = Object.fromEntries(freetvarrEnvironment().map((e) => [e.name, e.value]))
-  for (const name of ['TVH_URL', 'LIVE_TV_VAAPI_DEVICE', 'MOVIES_ROOT']) {
+  for (const name of ['TVH_URL', 'LIVE_TV_VAAPI_DEVICE', 'MOVIES_ROOT', 'FREETVARR_ALLOWED_HOSTS']) {
     assert.equal(values[name], `\${${name}:-}`)
   }
 })

@@ -257,6 +257,7 @@ import { savePlexConnection, saveTvheadendConnection } from './connection-secret
 import { ownValueOf } from './query-lookup.js'
 import { restrictDatabaseFiles } from './database-file-modes.js'
 import { RESET_REFUSED_MESSAGE, isResetConfirmed } from './web/confirm-copy.js'
+import { createAllowedHosts, createHostGate, createSeenHosts, hostCheckReport, machineNamesOf, mountAllowedHosts } from './host-gate.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -313,6 +314,14 @@ const MAX_PERSON_IMAGE_SOURCE_LENGTH = 300
 dns.setDefaultResultOrder('ipv4first')
 net.setDefaultAutoSelectFamilyAttemptTimeout(CONNECT_ATTEMPT_TIMEOUT_MS)
 
+const MACHINE_NAMES = machineNamesOf()
+const allowedHosts = createAllowedHosts({ readSetting: getSetting, writeSetting: setSetting, envText: process.env.FREETVARR_ALLOWED_HOSTS })
+const seenHosts = createSeenHosts({ readSetting: getSetting, writeSetting: setSetting })
+const loadHostCheck = () => Promise.all([allowedHosts.load(), seenHosts.load()])
+  .catch((err) => console.warn(`[host-check] could not read the allowed hostnames: ${err.message}`))
+await loadHostCheck()
+const hostGate = createHostGate({ allowedHosts, seenHosts, machineNames: MACHINE_NAMES })
+
 const app = express()
 app.disable('x-powered-by')
 app.set('trust proxy', 'loopback')
@@ -348,6 +357,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow')
   next()
 })
+
+app.use(hostGate)
 
 app.use('/api', (req, res, next) => {
   res.setHeader(BUILD_HEADER, BUILD_ID)
@@ -1206,7 +1217,11 @@ app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {
 
 const doctorLimiter = createRateLimiter({ limit: 10 })
 
-const liveDoctorDeps = { liveEncoder: () => liveEncoderReady, liveStreams: async () => liveStreams.describe() }
+const liveDoctorDeps = {
+  liveEncoder: () => liveEncoderReady,
+  liveStreams: async () => liveStreams.describe(),
+  hostNames: async () => hostCheckReport({ allowedHosts, seenHosts, machineNames: MACHINE_NAMES }),
+}
 
 app.get('/api/doctor', doctorLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
@@ -1261,6 +1276,7 @@ mountArrRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange:
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+mountAllowedHosts({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, allowedHosts, seenHosts, machineNames: MACHINE_NAMES })
 mountSearchRoutes({
   app,
   csrf: doubleCsrfProtection,
@@ -2279,6 +2295,7 @@ app.post('/api/reset', syncLimiter, doubleCsrfProtection, async (req, res) => {
     return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }
   await resetFreetvarrData(db)
+  await loadHostCheck()
   try {
     await startScheduler()
   } catch (err) {
@@ -2476,6 +2493,7 @@ const shutdown = async () => {
   await liveSessions.stopAll().catch(() => {})
   await playbackSessions.stopAll().catch(() => {})
   await stopUserEvents().catch(() => {})
+  await seenHosts.flush()
   server.close()
   await db.destroy()
   process.exit(0)
