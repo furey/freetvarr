@@ -8,7 +8,7 @@ import path from 'node:path'
 const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-autorec-match-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
-const { autorecMatchFieldsOf, autorecMatchesAiring, isSameShowTitle, literalTitleOf } = await import('../src/autorec-match.js')
+const { anchorAutorecTitle, autorecMatchFieldsOf, autorecMatchesAiring, isSameShowTitle, literalTitleOf } = await import('../src/autorec-match.js')
 const { enableSeriesTag, listAutorecs, newAutorecConfOf } = await import('../src/tvheadend.js')
 const { db, setSetting, deleteSetting } = await import('../src/db.js')
 
@@ -119,4 +119,25 @@ test('enableSeriesTag: finds an existing anchored rule instead of making a secon
   )
   assert.equal(result.existed, true)
   assert.deepEqual(creates, [])
+})
+
+const TRICKY_TITLES = ["Who's Who: The Quiz", 'Law & Order', 'Law & Order: SVU', 'Mr. Inbetween', '9-1-1', '9-1-1: Lone Star', 'Q+A', 'Q&A', 'The Chase (Celebrity)', '[Untitled]', 'Hey {Brother}', 'Price $1', 'C:\\Path', 'What?!', 'A|B', 'Star*', '^Start', 'End$', 'Dots...', 'Ça va', 'Über Leben', '1 Euro House', 'MKR', 'Friends', 'Back-to-Back', "Grey's Anatomy", 'The 7.30 Report', 'Hard Quiz (Kids)', 'Bluey', 'a(b', 'a)b', 'x]y', 'p\\q', 'Tab\there', '#hash', 'Pct 100%', 'Slash/Name', 'Emoji 📺', 'Mixed [a-z] (1+1)', 'Big Brother']
+
+test('anchored titles read back as the same title, for titles full of regex characters', () => {
+  assert.equal(TRICKY_TITLES.length, 40)
+  for (const title of TRICKY_TITLES) assert.equal(literalTitleOf(anchorAutorecTitle(title)), title, title)
+})
+
+test('the anchored pattern and isSameShowTitle agree on every tricky title', () => {
+  for (const title of TRICKY_TITLES) {
+    const pattern = new RegExp(anchorAutorecTitle(title), 'iu')
+    const subjects = [title, `${title}: Special`, `${title} (Ep 5)`, `${title} - Final`, `${title}-Live`, title.toUpperCase(), `${title} Australia`, `The ${title}`, `${title}s`]
+    for (const subject of subjects) assert.equal(pattern.test(subject), isSameShowTitle({ title: subject, show: title }), `${title} / ${subject}`)
+  }
+})
+
+test('listAutorecs: every tricky anchored title keeps its plain series key', async () => {
+  const autorecs = TRICKY_TITLES.map((title, i) => ({ uuid: `r${i}`, title: anchorAutorecTitle(title), name: title, channel: CHANNEL }))
+  const rules = await withTvh((conn) => listAutorecs(conn), { autorecs })
+  assert.deepEqual(rules.map((rule) => rule.seriesLinkId), TRICKY_TITLES.map((title) => `${CHANNEL}|${title.toLowerCase()}`))
 })

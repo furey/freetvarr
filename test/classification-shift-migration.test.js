@@ -15,7 +15,12 @@ after(async () => {
 })
 
 const migrateTo = async (name) => {
-  while (!(await db.migrate.list())[0].some((done) => done.name === name)) await db.migrate.up()
+  for (;;) {
+    const [done, pending] = await db.migrate.list()
+    if (done.some((migration) => migration.name === name)) return
+    if (!pending.some((migration) => migration.file === name)) throw new Error(`migration ${name} does not exist`)
+    await db.migrate.up()
+  }
 }
 
 test('migration 0041: labels and categories gain a shift column, and rollback keeps the base-channel rows', async () => {
