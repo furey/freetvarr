@@ -3,6 +3,9 @@ export const savedNoticeOf = (cleared = []) => {
   return lines.length ? `Saved. ${lines.join(' ')}` : 'Saved.'
 }
 
+export const clearedSecretToastOf = (cleared = []) =>
+  cleared.length ? { text: savedNoticeOf(cleared), kind: 'info', persist: true } : null
+
 export const reenterLineOf = (key) => `Enter the ${SECRET_NAMES[key]} again for the new address.`
 
 export const rootFieldErrorOf = (err) => {

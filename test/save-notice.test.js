@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { reenterLineOf, rootFieldErrorOf, savedNoticeOf } from '../src/web/save-notice.js'
+import { clearedSecretToastOf, reenterLineOf, rootFieldErrorOf, savedNoticeOf } from '../src/web/save-notice.js'
 
 test('savedNoticeOf: says which secret to enter again after a save clears it', () => {
   assert.equal(savedNoticeOf([]), 'Saved.')
@@ -14,6 +14,15 @@ test('savedNoticeOf: says which secret to enter again after a save clears it', (
 })
 
 const apiError = (message, data) => Object.assign(new Error(message), { data })
+
+test('clearedSecretToastOf: keeps the cleared-secret notice until the user closes it', () => {
+  assert.equal(clearedSecretToastOf([]), null)
+  assert.deepEqual(clearedSecretToastOf(['tvh_password']), {
+    text: 'Saved. Enter the TVHeadend password again for the new address.',
+    kind: 'info',
+    persist: true,
+  })
+})
 
 test('rootFieldErrorOf: names the root field a refused save points at', () => {
   const err = apiError('Media root cannot be /, a system folder.', { field: 'media_root', error: 'Media root cannot be /, a system folder.' })

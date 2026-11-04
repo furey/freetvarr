@@ -10,7 +10,8 @@ import { RESET_CONFIRM_BODY, resetConfirm, restoreOpenAccessConfirm } from '/con
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { holdAtLeast } from '/pending.js'
-import { rootFieldErrorOf, savedNoticeOf } from '/save-notice.js'
+import { clearedSecretToastOf, rootFieldErrorOf } from '/save-notice.js'
+import { toast } from '/shared/toast.js'
 import { createSettingBaseline } from '/setting-baseline.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
@@ -859,7 +860,9 @@ export const SettingsView = {
         if (saved?.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         if (saved?.cleared?.includes('plex_token')) plexTokenSet.value = false
         const cleared = [...(saved?.cleared ?? []), ...(arrCleared ?? [])]
-        flash({ msg: savedNoticeOf(cleared), ...(cleared.length ? { kind: 'info', ms: 10000 } : {}) })
+        const clearedToast = clearedSecretToastOf(cleared)
+        if (clearedToast) toast(clearedToast)
+        else flash({ msg: 'Saved.' })
         await rememberSavedBody()
         await refreshSyncSchedule()
       } catch (err) {
