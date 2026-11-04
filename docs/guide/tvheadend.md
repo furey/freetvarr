@@ -15,7 +15,7 @@ This page lists each TVHeadend setting in the order TVHeadend needs it. Each ste
 > Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup](/guide/getting-started#_2-run-setup) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, to connect an existing TVHeadend, or to see what setup changed.
 
 > [!NOTE]<br>
-> The [HDHomeRun](https://www.silicondust.com/hdhomerun/) tuner, the `au-Sydney` mux list (the broadcast frequencies TVHeadend scans), and the Sydney [XMLTV](https://xmltv.org/) feed (a TV guide file TVHeadend downloads) on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
+> The [HDHomeRun](https://www.silicondust.com/hdhomerun/) tuner, the `au-Sydney` mux list (the broadcast frequencies TVHeadend scans), and the Sydney [XMLTV](https://wiki.xmltv.org/) feed (a TV guide file TVHeadend downloads) on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
 
 ```mermaid
 flowchart TD
@@ -30,7 +30,7 @@ flowchart TD
 
 ## 1. Run the container
 
-The [Docker](https://www.docker.com/) compose file that the install script downloads (`docker-compose.yml`) already defines TVHeadend next to Freetvarr. [Step 1 of Getting started](/guide/getting-started#_1-install) starts it, so you do not start it here. The TVHeadend service in that file looks like this (the file also holds the `init` service that makes the folders):
+The [Docker](https://docs.docker.com/) compose file that the install script downloads (`docker-compose.yml`) already defines TVHeadend next to Freetvarr. [Step 1 of Getting started](/guide/getting-started#_1-install) starts it, so you do not start it here. The TVHeadend service in that file looks like this (the file also holds the `init` service that makes the folders):
 
 ```yaml
 services:

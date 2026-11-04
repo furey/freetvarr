@@ -22,10 +22,10 @@ The top bar has these controls:
 - The back button closes the player. For live TV, closing also frees the tuner (the device that receives the broadcast).
 - The channel logo and the title of what is playing.
 - **Multiview** (live TV only): watch up to four channels at once. See [Multiview](#multiview).
-- **[AirPlay](https://www.apple.com/airplay/)** (recordings only): sends the episode to an [Apple TV](https://www.apple.com/apple-tv-4k/). It shows in [Safari](https://www.apple.com/safari/) when Safari finds an AirPlay device.
+- **AirPlay** (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
 - **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer).
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
-- Recordings add **Skip ad** over the picture and a pill on the position bar that says how many minutes are left. See [Playback](/guide/recordings#playback).
+- During a marked ad break, recordings show **Skip ad** over the picture. Recordings also show a pill on the position bar that says how many minutes are left. See [Playback](/guide/recordings#playback).
 - **Info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
 - The sound button: turns the sound on or off. See [Sound](#sound).
 - **⋯** (**More**): **Captions**, **Pop out (picture in picture)** (see [Pop out](#pop-out)), and **Full screen**. Buttons that do not fit in the top bar, such as **Multiview** or **Miniplayer**, move into this menu.
@@ -68,8 +68,8 @@ Open **⋯**, then press **Captions** to turn captions on or off. The menu row s
 Press **Miniplayer** in the top bar (or in the **⋯** menu, when the bar has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
 
 - On a phone, the Miniplayer is a bar above the tab bar.
-- On a tablet or computer, it is a small card in a corner of the screen. The card needs a screen at least `768` pixels wide and `501` pixels tall; a smaller screen gets the bar.
-- On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width, and never narrower than `240` pixels (the same limits as the small picture in [Multiview](#multiview) **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
+- On a tablet or computer, it is a small card in a corner of the screen. On a small screen it is a bar instead.
+- On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in [Multiview](#multiview) **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
 
 Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
 
@@ -148,7 +148,7 @@ Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, 
 
 Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording (`1080` lines, each frame sent as two alternating halves) the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or [ad scan](/guide/ad-removal) runs.
 
-`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's [Docker](https://docs.docker.com/compose/) compose file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then restart Freetvarr. In the `freetvarr` folder, run:
+`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's [Docker Compose](https://docs.docker.com/compose/) file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker Compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then restart Freetvarr. In the `freetvarr` folder, run:
 
 ```sh
 docker compose up -d

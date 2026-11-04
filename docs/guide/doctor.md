@@ -58,7 +58,7 @@ Reads the tuner status, which needs **Admin**, and the upcoming recordings, whic
 
 ## Open access {#tvh-open}
 
-Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the [linuxserver](https://www.linuxserver.io/) [Docker](https://www.docker.com/) image (the one in Freetvarr's Docker compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
+Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the [linuxserver](https://www.linuxserver.io/) [Docker](https://docs.docker.com/) image (the one in Freetvarr's Docker Compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
 
 ## Tuners {#tvh-tuners}
 
@@ -90,11 +90,11 @@ Checks that the media folder exists and that Freetvarr can write to it. When it 
 
 ## Hardlinks {#paths-hardlink}
 
-Makes a real test hardlink (a second name for the same file data, which uses no extra space) from the recordings folder into the media folder, the one-off folder, and the movies folder (when set). If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy is deleted. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts (a mount is a folder attached to the Docker container from the host). For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
+Makes a real test hardlink from the recordings folder into the media folder, the one-off folder, and the movies folder (when set). A hardlink is a second name for the same file data, which uses no extra space. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy is deleted. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. A mount is a folder attached to the Docker container from the host. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `10GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC ([Docker Desktop](https://www.docker.com/products/docker-desktop/)), the figure is Docker's virtual disk. The real limit is your computer's own disk.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `10GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC ([Docker Desktop](https://docs.docker.com/desktop/)), the figure is Docker's virtual disk. The real limit is your computer's own disk.
 
 ## Plex library {#plex-reach}
 
@@ -102,7 +102,7 @@ Lists Plex's library sections. It skips when Plex is not set up. It fails when P
 
 ## Plex one-off library {#plex-oneoffs}
 
-Counts the items in the Plex library chosen as the **One-off library**. It skips when Plex or that library is not set up. It warns when Plex lists items but the one-off folder has no files, because Plex then keeps items whose files are gone. When the `.freetvarr-keep` file (an empty hidden file that stops Plex reading the one-off folder as empty; see [The one-off library](/guide/plex#the-one-off-library)) is missing, the check offers **Create placeholder file**. See [One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex).
+Counts the items in the Plex library chosen as the **One-off library**. It skips when Plex or that library is not set up. It warns when Plex lists items but the one-off folder has no files, because Plex then keeps items whose files are gone. The `.freetvarr-keep` file is an empty hidden file that stops Plex reading the one-off folder as empty ([The one-off library](/guide/plex#the-one-off-library)). When it is missing, the check offers **Create placeholder file**. See [One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex).
 
 ## Syncs {#sync-health}
 

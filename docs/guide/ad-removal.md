@@ -9,11 +9,11 @@ description: >-
 
 <Illustration name="ad-removal" />
 
-Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using [Comskip](https://www.kaashoek.com/comskip/) (an ad-detection tool) and [FFmpeg](https://ffmpeg.org/), both bundled in the Freetvarr [Docker](https://www.docker.com/) image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
+Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using [Comskip](https://www.kaashoek.com/comskip/) (an ad-detection tool) and [FFmpeg](https://ffmpeg.org/), both bundled in the Freetvarr [Docker](https://docs.docker.com/) image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
 
 ## Modes
 
-- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate Comskip is on your channels, or to skip the ads instead of cutting them.
+- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in an [`.edl` file](https://kodi.wiki/view/Edit_decision_list) (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate Comskip is on your channels, or to skip the ads instead of cutting them.
 - **Cut** removes the breaks by copying the video across untouched (no re-encoding; the output stays `.ts`) and keeps the original as `<file>.ts.orig`.
 - **Off** (the default) skips ad removal for the series.
 
@@ -26,7 +26,7 @@ In Freetvarr, turn on ad removal in Settings → RECORDING → Ad removal, then 
 
 ## Skip instead of cut
 
-A cut that goes wrong loses part of the show. A skip that goes wrong costs nothing (you rewind). **Detect** gives you skips in the players that read the [`.edl` file](https://kodi.wiki/view/Edit_decision_list):
+A cut that goes wrong loses part of the show. A skip that goes wrong costs nothing (you rewind). **Detect** gives you skips in the players that read the `.edl` file:
 
 - [**Kodi**](https://kodi.tv/) skips each break once, by itself, when it plays the video from your library folder. Rewind to watch a break.
 - [**Jellyfin**](https://jellyfin.org/) needs a plugin that reads `.edl` files (e.g. [EDL to Media Segments](https://github.com/VTRunner/EdlToMediaSegments)), then shows the breaks as commercials you can skip.

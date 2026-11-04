@@ -105,7 +105,7 @@ To change the setting on an existing series, open its show page, press **Recordi
 A series recording is one TVHeadend autorec entry (an automatic recording rule in TVHeadend). It matches on **title plus channel** (or on title alone, with [any channel](#record-on-any-channel)), across all days and all start times. It skips an episode whose episode number it has already recorded. The **Keep the latest** option in [Recording options](/guide/recordings#recording-options) (**Keep** in the programme sheet) maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
 
 - **One channel**: an SD channel and its HD simulcast are separate channels, so a series recording on the HD channel does not cover SD airings. Series rules shows both as one series.
-- **Episode numbers**: duplicate detection needs them. [XMLTV](https://wiki.xmltv.org) feeds (TV guide data files) carry them inconsistently, so your TV guide source decides what you get. Where they are missing, TVHeadend records every airing.
+- **Episode numbers**: duplicate detection needs them. [XMLTV](https://wiki.xmltv.org/) feeds (TV guide data files) carry them inconsistently, so your TV guide source decides what you get. Where they are missing, TVHeadend records every airing.
 
 ## Series rows
 
@@ -177,7 +177,7 @@ Each folder has a season template that decides where episodes are saved. The def
 
 ## Filenames
 
-Freetvarr renames every file as it imports it, into the shape Plex, Jellyfin, and [Kodi](https://kodi.tv/download) read:
+Freetvarr renames every file as it imports it, into the shape Plex, Jellyfin, and [Kodi](https://kodi.tv/) read:
 
 ```text
 Show Name - S01E02 - Episode Title.ts
@@ -223,7 +223,7 @@ To add a title:
 
 ## Recordings with no series
 
-A programme that airs once, such as a sports final or a special, goes to the one-off folder. So does sport with no entry on TheTVDB or TMDB, such as each game of a tournament. The one-off folder is `/data/media/one-offs` in the [Docker](https://docs.docker.com/compose/) compose file that the install script downloads. Each title gets its own folder, and the file name carries the air date and start time:
+A programme that airs once, such as a sports final or a special, goes to the one-off folder. So does sport with no entry on TheTVDB or TMDB, such as each game of a tournament. The one-off folder is `/data/media/one-offs` in the [Docker Compose](https://docs.docker.com/compose/) file that the install script downloads. Each title gets its own folder, and the file name carries the air date and start time:
 
 ```text
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts

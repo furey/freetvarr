@@ -8,7 +8,7 @@ description: >-
 
 # Plex DVR instead
 
-[Plex](https://www.plex.tv/) has its own recorder, Live TV & DVR. With a network tuner such as an [HDHomeRun](https://www.silicondust.com/hdhomerun.html), it records free-to-air TV (channels broadcast free by antenna) straight into your Plex library. If you already have a [Plex Pass](https://www.plex.tv/plex-pass/) (Plex's paid plan), that may be all you need, and you can skip [TVHeadend](/guide/tvheadend) (the free, open-source recorder that Freetvarr works with) and Freetvarr.
+[Plex](https://www.plex.tv/) has its own recorder, Live TV & DVR. With a network tuner such as an [HDHomeRun](https://www.silicondust.com/hdhomerun/), it records free-to-air TV (channels broadcast free by antenna) straight into your Plex library. If you already have a [Plex Pass](https://www.plex.tv/plex-pass/) (Plex's paid plan), that may be all you need, and you can skip [TVHeadend](/guide/tvheadend) (the free, open-source recorder that Freetvarr works with) and Freetvarr.
 
 The author built Freetvarr before noticing that the author's own Plex Pass already covered Plex DVR.
 
@@ -43,7 +43,7 @@ Plex DVR suits you if most of these are true:
 
 ## What Plex DVR does well
 
-- **One app for everything.** Live TV and recordings play in every Plex app, the [Apple TV](https://www.apple.com/apple-tv-4k/) app included ([Watching live TV](https://support.plex.tv/articles/115007689648-watching-live-tv/)).
+- **One app for everything.** Live TV and recordings play in every Plex app, the Apple TV app included ([Watching live TV](https://support.plex.tv/articles/115007689648-watching-live-tv/)).
 - **No import step.** Recordings go straight into the Plex library you choose.
 - **Flexible series options.** Record all episodes or new ones only, limit to one channel, keep only the latest few, or delete after watching ([Setting up recordings](https://support.plex.tv/articles/226074728-setting-up-recordings/)).
 - **Ad skipping without touching the file.** By default Plex marks the ad breaks and the player offers a Skip button, so a wrong detection costs nothing ([Removing commercials](https://support.plex.tv/articles/115003944134-removing-commercials/)).

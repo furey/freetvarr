@@ -8,11 +8,11 @@ description: >-
 # Windows (untested)
 
 > [!WARNING]<br>
-> Everything on this page is untested and theoretical. The author has no Windows PC and has never run Freetvarr on Windows. The steps come from the Microsoft and Docker documentation and from forum reports, not from a working install. Expect to troubleshoot, and expect some parts not to work. The supported route is a NAS or a mini PC that runs Linux (see [The computer](/guide/hardware-requirements#the-computer)).
+> Everything on this page is untested and theoretical. The author has no Windows PC and has never run Freetvarr on Windows. The steps come from the Microsoft and [Docker](https://docs.docker.com/) documentation and from forum reports, not from a working install. Expect to troubleshoot, and expect some parts not to work. The supported route is a NAS or a mini PC that runs Linux (see [The computer](/guide/hardware-requirements#the-computer)).
 
-Freetvarr and [TVHeadend](https://tvheadend.org/) (the program that runs the tuner and records; see [TVHeadend](/guide/tvheadend)) are Linux programs in [Docker](https://www.docker.com/) containers. Windows runs Linux containers inside [WSL](https://learn.microsoft.com/en-us/windows/wsl/) (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
+Freetvarr and [TVHeadend](https://tvheadend.org/) (the program that runs the tuner and records) are Linux programs in Docker containers. Windows runs Linux containers inside [WSL](https://learn.microsoft.com/en-us/windows/wsl/) (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
 
-The most likely route is Docker Engine inside an [Ubuntu](https://ubuntu.com/) distribution in WSL, with WSL's mirrored networking turned on (Ubuntu then shares the PC's own network address). [Docker Desktop](https://www.docker.com/products/docker-desktop/) is simpler to install but has more network limits.
+The most likely route is Docker Engine inside an [Ubuntu](https://ubuntu.com/) distribution in WSL, with WSL's mirrored networking turned on (Ubuntu then shares the PC's own network address). [Docker Desktop](https://docs.docker.com/desktop/) is simpler to install but has more network limits.
 
 ## The Windows PC
 
@@ -34,7 +34,7 @@ Windows 10 has no mirrored networking. On Windows 10 only the [Docker Desktop](#
 These steps install Docker Engine inside Ubuntu in WSL. Each step links to the source it comes from.
 
 1. In the PC's BIOS or UEFI firmware, turn on virtualisation (see [The Windows PC](#the-windows-pc)).
-2. In [PowerShell](https://learn.microsoft.com/en-us/powershell/) (as administrator), run:
+2. In PowerShell (as administrator), run:
 
    ```powershell
    wsl --install
@@ -127,7 +127,7 @@ TVHeadend records only while the PC is on and Ubuntu is running:
 
 - In Windows **Settings → SYSTEM → Power**, set sleep to **Never**.
 - Windows Update restarts the PC. Set **Active hours** in **Settings → Windows Update → Advanced options** to cover the times you record most.
-- After a restart, WSL does not start until something starts it. A [Task Scheduler](https://learn.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page) task that runs `wsl.exe -d Ubuntu` when you sign in starts Ubuntu, and Docker Engine then starts the containers. Forum reports say a task that runs before sign-in is unreliable, so sign-in after each restart may be necessary.
+- After a restart, WSL does not start until something starts it. A Task Scheduler task that runs `wsl.exe -d Ubuntu` when you sign in starts Ubuntu, and Docker Engine then starts the containers. Forum reports say a task that runs before sign-in is unreliable, so sign-in after each restart may be necessary.
 
 A desktop PC that stays on uses more power than a NAS or a mini PC.
 
@@ -145,4 +145,4 @@ Run the install command in the Ubuntu terminal, with Docker Desktop's WSL integr
 
 ## The supported route
 
-A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, [Quick Sync](https://en.wikipedia.org/wiki/Intel_Quick_Sync_Video) (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware-requirements#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.
+A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, Quick Sync (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware-requirements#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.

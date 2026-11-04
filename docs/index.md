@@ -7,11 +7,10 @@ hero:
   text: >-
     <span class="hero-line-1"><em class="hero-em">Live TV</em> on your devices.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
-    Self-hosted TV for any tuner that <a href="https://tvheadend.org/">TVHeadend</a> (free
-    recorder software that drives the tuner) can use. Watch live,
+    Self-hosted TV for any tuner that <a href="https://tvheadend.org/">TVHeadend</a> can use. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
-    Comskip</span>
+    <a href="https://www.kaashoek.com/comskip/">Comskip</a></span>
   image:
     src: /logo.svg
     alt: Freetvarr
@@ -37,7 +36,7 @@ features:
   - title: Free to run
     illustration: free-to-run
     details: >-
-      A tuner you own and a free <a href="https://xmltv.org/">XMLTV</a> guide (a TV guide file format). No subscription, no levy, no
+      A tuner you own and a free XMLTV guide (a TV guide file format). No subscription, no levy, no
       vendor who can retire your recorder.
     link: /guide/hardware-requirements
     linkText: What to buy
@@ -68,16 +67,16 @@ features:
   - title: Plex integration
     illustration: plex-integration
     details: >-
-      Refreshes your <a href="https://www.plex.tv/">Plex</a> library after each sync that imports something, and
+      Refreshes your Plex library after each sync that imports something, and
       keeps watched marks and resume points the same in Plex and Freetvarr.
     link: /guide/plex
     linkText: Set up Plex
   - title: Optional ad removal
     illustration: ad-removal
     details: >-
-      Comskip commercial detection with a detect-only audit mode and
-      keyframe stream-copy cutting (cuts at keyframes without re-encoding the video), keeping an .orig backup of
-      every cut.
+      Comskip commercial detection with a detect-only audit mode. Cuts
+      happen at keyframes without re-encoding, so there is no quality loss, and
+      Freetvarr keeps an .orig backup of every cut.
     link: /deep-dive#ad-removal
     linkText: How it works
   - title: Removes that work
@@ -92,7 +91,7 @@ features:
   - title: Authless LAN service
     illustration: authless-lan
     details: >-
-      Backed by <a href="https://www.sqlite.org/">SQLite</a> in a single <a href="https://www.docker.com/">Docker</a> container, with no external runtime
+      Backed by SQLite in a single Docker container, with no external runtime
       dependencies. Built for a trusted home network, with rate limiting and
       browser-side protections (details in the security model).
     link: /deep-dive#security-model

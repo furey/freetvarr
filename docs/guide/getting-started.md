@@ -13,9 +13,9 @@ description: >-
 ## Prerequisites
 
 - A **[TVHeadend](https://tvheadend.org/)-compatible tuner**. [Hardware requirements](/guide/hardware-requirements) covers the choice.
-- **[Docker](https://www.docker.com/) with [Compose v2](https://docs.docker.com/compose/install/)** (the `docker compose` command) on a host that stays on. For a network tuner such as an [HDHomeRun](https://www.silicondust.com/hdhomerun/), run Docker on Linux (a NAS, mini PC, or [Raspberry Pi](https://www.raspberrypi.org/)). [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [OrbStack](https://orbstack.dev/) on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of [setup](#_2-run-setup) instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows; [Windows](/guide/windows) describes a theoretical route through [WSL](https://learn.microsoft.com/en-us/windows/wsl/) (Windows Subsystem for Linux). [The computer](/guide/hardware-requirements#the-computer) gives minimum and recommended specs.
+- **[Docker](https://docs.docker.com/) with [Compose v2](https://docs.docker.com/compose/install/)** (the `docker compose` command) on a host that stays on. For a network tuner such as an [HDHomeRun](https://www.silicondust.com/hdhomerun/), run Docker on Linux (a NAS or mini PC). [Docker Desktop](https://docs.docker.com/desktop/) and [OrbStack](https://orbstack.dev/) on a Mac cannot find a network tuner on their own; enter the tuner's address in the **Channels** step of [setup](#_2-run-setup) instead ([Missing tuner](/guide/troubleshooting#missing-tuner)). Freetvarr is untested on Windows; [Windows](/guide/windows) describes a theoretical route through [WSL](https://learn.microsoft.com/en-us/windows/wsl/) (Windows Subsystem for Linux). [The computer](/guide/hardware-requirements#the-computer) gives minimum and recommended specs.
 
-Freetvarr's Docker compose file, which the install downloads, runs TVHeadend next to Freetvarr. A short-lived `init` container makes the `config` and `data` folders and then exits; that is normal. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). [Plex](https://www.plex.tv/) is optional. With no media server yet, the Docker compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
+Freetvarr's Docker Compose file, which the install downloads, runs TVHeadend next to Freetvarr. A short-lived `init` container makes the `config` and `data` folders and then exits; that is normal. If TVHeadend already runs elsewhere, see [An existing TVHeadend](#an-existing-tvheadend). [Plex](https://www.plex.tv/) is optional. With no media server yet, the Docker Compose file can run Plex too: get a Plex claim code before you install ([No Plex yet?](/guide/plex#no-plex-yet)). If Plex already runs, setup connects to it.
 
 ## 1. Install
 
@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/install.sh | s
 
 <BrowserFrame src="/install-demo.mp4" poster="/install-demo-poster.jpg" ratio="1280 / 960" label="Terminal" single aria-label="The one-line install in a terminal, from the curl command to the address of setup" />
 
-The script creates the `freetvarr` folder, downloads its Docker compose file, writes its `.env` (the settings file that Docker Compose reads), and asks for confirmation regarding project file ownership. Press `Enter` to accept the defaults (most people do). The first start downloads the Docker images, which takes a few minutes. The script then starts the Docker containers and outputs the URL of setup. Open that URL in a browser and proceed to [step 2](#_2-run-setup).
+The script creates the `freetvarr` folder, downloads its Docker Compose file, writes its `.env` (the settings file that Docker Compose reads), and asks for confirmation regarding project file ownership. Press `Enter` to accept the defaults (most people do). The first start downloads the Docker images, which takes a few minutes. The script then starts the Docker containers and outputs the URL of setup. Open that URL in a browser and proceed to [step 2](#_2-run-setup).
 
 ::: details Install script options
 
@@ -47,7 +47,7 @@ Press `e` if the files must belong to a different user. On a NAS, for example, u
 
 Press `n` to stop without starting anything. Edit the `.env` in the `freetvarr` folder, then run the script again. `Esc` cancels without starting anything.
 
-Run the script again at any time. It keeps an existing `.env` and Docker compose file, and it asks about file ownership until the Docker containers have started once. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
+Run the script again at any time. It keeps an existing `.env` and Docker Compose file, and it asks about file ownership until the Docker containers have started once. On a NAS, sign in over SSH first, and use `sudo` if your user cannot reach Docker.
 
 :::
 
@@ -55,7 +55,7 @@ The script is the quickest way, but you have two other ways to install: [by hand
 
 ### Install: by hand
 
-Use this instead of the script if you prefer to run each command yourself in a terminal, or if you want to check the Docker compose file first.
+Use this instead of the script if you prefer to run each command yourself in a terminal, or if you want to check the Docker Compose file first.
 
 1. Create a folder and move into it:
 
@@ -63,7 +63,7 @@ Use this instead of the script if you prefer to run each command yourself in a t
    mkdir freetvarr && cd freetvarr
    ```
 
-2. Download the Docker compose file:
+2. Download the Docker Compose file:
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/furey/freetvarr/main/docker-compose.example.yml -o docker-compose.yml
@@ -72,8 +72,8 @@ Use this instead of the script if you prefer to run each command yourself in a t
 3. Optional: write a `.env` with `PUID` and `PGID` set to your user and group (`id -u` and `id -g`), one per line, for example:
 
    ```ini
-   PUID=1026
-   PGID=100
+   PUID=1000
+   PGID=1000
    ```
 
 4. Start both Docker containers:
@@ -108,13 +108,17 @@ The first visit to `http://<host-ip>:3733` in a browser opens setup. Setup fills
 <BrowserFrame src="/wizard-demo.mp4" poster="/wizard-demo-poster.jpg" label="http://freetvarr.lan/#/welcome" aria-label="A walkthrough of Freetvarr setup, from the time zone to the last step" />
 
 1. **Start**: confirm your time zone, then press **Start setup**. To see each component of the system first, press **How it works**; **Start setup** on its last step, or **Skip**, goes on to the TVHeadend step.
-2. **TVHeadend**: check the TVHeadend address. If Freetvarr installed TVHeadend for you, choose an admin username and a password of at least `8` characters (press the eye button to check what you typed), check the allowed networks (the address ranges the logins work from), then press **Secure and connect**. Freetvarr saves the logins in TVHeadend and connects to it. If you installed TVHeadend yourself, press **Use my own TVHeadend login instead**, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)), and press **Save and next**.
-3. **Channels**: check the tuners and the transmitter your antenna points at, then press **Find channels**. The scan takes a few minutes, and **Next** is available when it finishes. If TVHeadend already has channels, press **Next** to keep them, or **Scan again** to add channels that are missing. A dialog asks you to confirm first: the scan only adds channels, your favourites stay, and live TV and recordings keep their tuners (the scan uses a free tuner and waits when none is free). If setup finds no tuner, press **Enter the tuner's address**, enter the tuner's IP address (on Docker Desktop, OrbStack, or WSL, also enter **This computer's address**), and press **Use this address**. In Australia, the scan also makes ABC, Seven, Nine, 10, and SBS your favourites (the HD channel of each where there is one), in that order, if you have no favourites yet. To change them, press **Channels** in the TV guide ([Favourites](/guide/tv-guide#favourites)).
-4. **Guide**: check the TV guide region, then press **Set up guide**. For any channel left without TV guide listings, setup pre-selects its best guess. Check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number. Then press **Save and next**. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an [XMLTV](https://xmltv.org/) guide address (the web address of a TV guide file) if you have one ([XMLTV guide](/guide/tvheadend#_6-load-the-xmltv-guide)), or press **Skip**.
+2. **TVHeadend**: check the TVHeadend address. If Freetvarr installed TVHeadend for you, choose an admin username and a password of at least `8` characters. Press the eye button to check what you typed. Check the allowed networks (the address ranges the logins work from), then press **Secure and connect**. Freetvarr saves the logins in TVHeadend and connects to it. If you installed TVHeadend yourself, press **Use my own TVHeadend login instead**, enter the TVHeadend username and password you created for Freetvarr ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)), and press **Save and next**.
+3. **Channels**: check the tuners and the transmitter your antenna points at, then press **Find channels**. The scan takes a few minutes, and **Next** is available when it finishes. If TVHeadend already has channels, press **Next** to keep them, or **Scan again** to add channels that are missing. A dialog asks you to confirm. The scan only adds channels; your favourites, live TV, and recordings stay as they are.
+
+   If setup finds no tuner, press **Enter the tuner's address**, enter the tuner's IP address (on Docker Desktop, OrbStack, or WSL, also enter **This computer's address**), and press **Use this address**.
+
+   In Australia, the scan also makes ABC, Seven, Nine, 10, and SBS your favourites (the HD channel of each where there is one), in that order, if you have no favourites yet. To change them, press **Channels** in the TV guide ([Favourites](/guide/tv-guide#favourites)).
+4. **Guide**: check the TV guide region, then press **Set up guide**. For any channel left without TV guide listings, setup pre-selects its best guess. Check each one, or choose **No guide**; to change a pick, click it and type part of a channel name or number. Then press **Save and next**. A +1 channel, such as `10 HD +1`, gets the listings of its main channel one hour later ([+1 channels](/guide/tvheadend#_1-channels)). Outside Australia and New Zealand, enter an [XMLTV](https://wiki.xmltv.org/) guide address (the web address of a TV guide file) if you have one ([XMLTV guide](/guide/tvheadend#_6-load-the-xmltv-guide)), or press **Skip**.
 5. **Folders**: Freetvarr checks the recordings folder (where TVHeadend saves recordings) and the TV folder of your media library. If the checks pass, press **Next**. If a check fails, do what its message says, or press **Change folders**.
 6. **Plex**: optional. Freetvarr looks for Plex and its access token. If Freetvarr connects to Plex, check the Plex library for TV episodes, movies, and one-off recordings (**TV library**, **Movies library**, and **One-off library**), press **Create libraries** if Plex has no library for your recordings yet, then press **Next**. **Skip Plex** leaves Plex out. To enter the Plex address and token yourself, press **Connect Plex by hand** ([Plex](/guide/plex)).
 
-**You’re set** lists what setup saved. If channels or the TV guide are missing, the list says so and links back to that step. Press **Start watching** to finish and open [Home](/guide/home) (**Open Freetvarr** when something is still missing).
+The last step lists what setup saved (**You’re set**, or **Nearly there** when something is missing). When channels or the TV guide are missing, the list says so and links back to that step. Press **Start watching** to finish and open [Home](/guide/home) (**Open Freetvarr** when something is still missing).
 
 Press **Finish later**, confirm, and Settings opens. It keeps what you saved so far. To check or change any part later, open Settings → SYSTEM → Setup ([Settings](/guide/settings#system)).
 

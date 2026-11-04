@@ -9,18 +9,18 @@ description: >-
 
 <Illustration name="tv-apps" />
 
-In Freetvarr, Settings → WATCHING → **Watch on TV** is so you can use [Jellyfin](https://jellyfin.org/) or [Kodi](https://kodi.tv/) instead of your tuner's own app (e.g. the app for an [HDHomeRun](https://www.silicondust.com/hdhomerun.html) tuner). It makes a watch-only login in [TVHeadend](https://tvheadend.org/) (the TV login) and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
+In Freetvarr, Settings → WATCHING → **Watch on TV** is so you can use [Jellyfin](https://jellyfin.org/) or [Kodi](https://kodi.tv/) instead of your tuner's own app (e.g. the app for an [HDHomeRun](https://www.silicondust.com/hdhomerun/) tuner). It makes a watch-only login in [TVHeadend](https://tvheadend.org/) (the TV login) and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
 
 > [!NOTE]<br>
 > Once set up, the app plays straight from TVHeadend, so your live TV keeps working, even if Freetvarr was stopped for whatever reason. The app also gets TVHeadend's TV guide listings from TVHeadend. Your recordings appear separately, in [Plex](https://www.plex.tv/) or [Infuse](https://firecore.com/infuse).
 
 > [!TIP]<br>
-> A Freetvarr app for [Apple TV](https://www.apple.com/apple-tv-4k/) and [Android TV](https://www.android.com/tv/) is planned. Stay tuned!
+> A Freetvarr app for Apple TV and Android TV is planned. Stay tuned!
 
-| App      | On the TV                                                                                                                    | Needs                                                     |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Jellyfin | Apple TV, [Google TV](https://tv.google/) and Android TV, [Fire TV](https://www.amazon.com/firetv), some smart TVs (e.g. LG) | A Jellyfin server on an always-on computer (e.g. the NAS) |
-| Kodi     | Google TV and Android TV (from Google Play); Apple TV and Fire TV take extra steps                                           | Nothing else; the app talks to TVHeadend itself           |
+| App      | On the TV                                                                          | Needs                                                     |
+| -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Jellyfin | Apple TV, Google TV and Android TV, Fire TV, some smart TVs (e.g. LG)              | A Jellyfin server on an always-on computer (e.g. the NAS) |
+| Kodi     | Google TV and Android TV (from Google Play); Apple TV and Fire TV take extra steps | Nothing else; the app talks to TVHeadend itself           |
 
 If you already run Jellyfin, use it: one server feeds every Jellyfin app in the house, and it can show your recordings too. If you don't, Kodi on a Google TV or Android TV is the quickest start.
 
@@ -64,7 +64,7 @@ Jellyfin has its own TVHeadend plugin, but each plugin release suits only some J
 
 Open **Live TV** in any Jellyfin app on your TV, tablet, or phone. The channels show TVHeadend's channel names and logos, and the TV guide fills in after the refresh.
 
-If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV login does not allow (e.g. [Docker](https://www.docker.com/) with its own network, instead of host networking, where the container shares the computer's network). In TVHeadend's web interface, open **Configuration → Users → Access Entries**, open the TV login, and add that network to **Allowed networks**.
+If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV login does not allow (e.g. Jellyfin in [Docker](https://docs.docker.com/) on its own network). With host networking, a container shares the computer's network. In TVHeadend's web interface, open **Configuration → Users → Access Entries**, open the TV login, and add that network to **Allowed networks**.
 
 ## Kodi
 

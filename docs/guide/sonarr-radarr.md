@@ -36,7 +36,7 @@ Without a connection, Freetvarr leaves files that Sonarr or Radarr downloaded al
 
 ## Read the API keys for you
 
-Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the same way it reads the [Plex token](/guide/plex#the-token). The [Docker compose](https://docs.docker.com/compose/) file mounts each file read-only into the Freetvarr Docker container.
+Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the same way it reads the [Plex token](/guide/plex#the-token). The [Docker Compose](https://docs.docker.com/compose/) file mounts each file read-only into the Freetvarr Docker container.
 
 1. Add the host path of each file to the `.env` file beside your `docker-compose.yml`:
 

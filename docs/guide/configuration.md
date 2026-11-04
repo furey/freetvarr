@@ -7,7 +7,7 @@ description: >-
 
 # Configuration
 
-Freetvarr reads settings from two places. Freetvarr's `.env`, next to its [Docker compose](https://docs.docker.com/compose/) file in the `freetvarr` folder that the [install script](/guide/getting-started#_1-install) creates, holds deploy settings. You set everything else (the [TVHeadend](https://tvheadend.org/) URL and login, the [Plex](https://www.plex.tv/) token, the schedule) in Freetvarr's Settings page in a browser.
+Freetvarr reads settings from two places. Freetvarr's `.env`, next to its [Docker Compose](https://docs.docker.com/compose/) file in the `freetvarr` folder that the [install script](/guide/getting-started#_1-install) creates, holds deploy settings. You set everything else (the [TVHeadend](https://tvheadend.org/) URL and login, the [Plex](https://www.plex.tv/) token, the schedule) in Freetvarr's Settings page in a browser.
 
 ## Compose environment
 
@@ -43,7 +43,7 @@ Every value is optional:
 
 ## Backups
 
-Freetvarr keeps its database, its CSRF secret, your uploaded pictures, and its caches in one folder: `${CONFIG_PATH}/freetvarr` on the host (`/config` in the Freetvarr Docker container). The database is `state.db`. Freetvarr writes it in [SQLite](https://www.sqlite.org/) (a single-file database) WAL mode, so recent changes sit in the files `state.db-wal` and `state.db-shm` beside it until SQLite folds them into `state.db`. A copy of `state.db` alone can miss those changes. Back up the whole folder:
+Freetvarr keeps its database, its CSRF secret, your uploaded pictures, and its caches in one folder: `${CONFIG_PATH}/freetvarr` on the host (`/config` in the Freetvarr Docker container). The database is `state.db`, a [SQLite](https://www.sqlite.org/) file. SQLite runs it in WAL mode, so recent changes sit in the files `state.db-wal` and `state.db-shm` beside it until SQLite folds them into `state.db`. A copy of `state.db` alone can miss those changes. Back up the whole folder:
 
 1. Stop Freetvarr. In a terminal in the `freetvarr` folder, run:
 
@@ -70,16 +70,16 @@ If the config folder is not writable, Freetvarr exits with a message to check th
 
 Freetvarr keeps two settings for one folder. These are the settings most likely to be wrong:
 
-- **Recordings root** (`recordings_root`; `/recordings` in the code, `/data/recordings` in the example Docker compose file) is where Freetvarr sees TVHeadend's files, inside the Freetvarr Docker container.
+- **Recordings root** (`recordings_root`; `/recordings` in the code, `/data/recordings` in the example Docker Compose file) is where Freetvarr sees TVHeadend's files, inside the Freetvarr Docker container.
 - **TVHeadend recordings path** (`tvh_recordings_path`, default `/recordings`) is the path TVHeadend reports in the filenames it hands out, inside the TVHeadend Docker container.
 
-In the example Docker compose file, TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`, and Freetvarr mounts `${DATA_PATH}` at `/data`. TVHeadend reports `/recordings/...` and Freetvarr sees the same file at `/data/recordings/...`, so the two settings differ and you never touch them. Freetvarr rewrites every TVHeadend filename from the second path to the first. Freetvarr skips a file outside that prefix and adds a note saying so.
+In the example Docker Compose file, TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`, and Freetvarr mounts `${DATA_PATH}` at `/data`. TVHeadend reports `/recordings/...` and Freetvarr sees the same file at `/data/recordings/...`, so the two settings differ and you never touch them. Freetvarr rewrites every TVHeadend filename from the second path to the first. Freetvarr skips a file outside that prefix and adds a note saying so.
 
-The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/media/tv` in the example Docker compose file), is where Freetvarr files finished episodes for your media library.
+The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/media/tv` in the example Docker Compose file), is where Freetvarr files finished episodes for your media library.
 
 ## The one-off folder
 
-The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example Docker compose file) holds recordings that match no [series folder](/guide/series#recordings-with-no-series). On the host it is `${DATA_PATH}/media/one-offs`. The example Docker compose file creates the host folder. Create it yourself only if you moved `oneoff_root`, and make `PUID:PGID` the owner. If the folder is missing, these recordings show as **SKIPPED** with a note.
+The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example Docker Compose file) holds recordings that match no [series folder](/guide/series#recordings-with-no-series). On the host it is `${DATA_PATH}/media/one-offs`. The example Docker Compose file creates the host folder. Create it yourself only if you moved `oneoff_root`, and make `PUID:PGID` the owner. If the folder is missing, these recordings show as **SKIPPED** with a note.
 
 The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in the `.env`) takes [films](/guide/series#films) with no series folder. Leave it empty to send films to the one-off folder. It must sit inside the same [shared mount](#one-shared-mount) as the recordings, for example `/data/media/movies`.
 
@@ -91,7 +91,7 @@ When a title moves between the Shows and One-offs shelves of [Recordings](/guide
 
 Keep the recordings and your library inside one folder, mounted into the Freetvarr Docker container once. Freetvarr then imports each recording instantly and uses no extra disk space. If they sit in two separate mounts, Freetvarr copies every recording instead, which is slower and takes twice the space.
 
-The example Docker compose file does this. It mounts `${DATA_PATH}` once, at `/data`, and the recordings, the TV library, and the one-off folder are all folders inside it:
+The example Docker Compose file does this. It mounts `${DATA_PATH}` once, at `/data`, and the recordings, the TV library, and the one-off folder are all folders inside it:
 
 ```yaml
     volumes:

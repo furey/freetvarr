@@ -25,7 +25,7 @@ With it, you can:
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Freetvarr runs in [Docker](https://www.docker.com/) next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware requirements](/guide/hardware-requirements) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
+Freetvarr runs in [Docker](https://docs.docker.com/) next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware requirements](/guide/hardware-requirements) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
 
 ## Plex DVR
 
@@ -33,7 +33,7 @@ If you have a Plex Pass, you may not need Freetvarr. Plex's own DVR records free
 
 ## How it files recordings
 
-TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a series into your media library as `Show/Season 01/Show - S01E02 - Episode Title.ts` (new show folders also carry a TVDB number), or by air date when the TV guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When Freetvarr sees the recordings folder and the media library through one Docker mount ([One shared mount](/guide/configuration#one-shared-mount)), the import is a hardlink: it is instant and uses no extra disk space.
+TVHeadend names each recording after the programme title only, for example `The Block.ts`. Plex, Jellyfin, and Kodi match a file to an episode only when the name has a season and episode number (`S01E02`) or an air date. Freetvarr finds new recordings. It files each episode of a series into your media library as `Show/Season 01/Show - S01E02 - Episode Title.ts` (new show folders also carry the show's [TheTVDB](https://thetvdb.com/) or TMDB number), or by air date when the TV guide has no episode number. A one-off, such as a sports final, goes to a separate folder named after its title. When Freetvarr sees the recordings folder and the media library through one Docker mount ([One shared mount](/guide/configuration#one-shared-mount)), the import is a hardlink: it is instant and uses no extra disk space.
 
 ## Where it works
 
@@ -42,7 +42,7 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP (a satellite tuner that sends its signal over your network), or IPTV. [Hardware requirements](/guide/hardware-requirements) covers the choice.
 
 > [!NOTE]<br>
-> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney [XMLTV](https://xmltv.org/) feed (a TV guide file), a `comskip.ini` (the settings file of the ad-detection tool [Comskip](https://github.com/erikkaashoek/Comskip)) tuned for Australian channels) because that is where the author lives. Each one is an example. Substitute your own region's values as you go; [Hardware requirements](/guide/hardware-requirements) and [TVHeadend](/guide/tvheadend) say what to pick instead.
+> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney [XMLTV](https://wiki.xmltv.org/) feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. XMLTV is a TV guide file format. [Comskip](https://www.kaashoek.com/comskip/) is the ad-detection tool, and `comskip.ini` is its settings file. Each one is an example. Substitute your own region's values as you go; [Hardware requirements](/guide/hardware-requirements) and [TVHeadend](/guide/tvheadend) say what to pick instead.
 
 ## What Freetvarr isn't
 
@@ -53,11 +53,11 @@ Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PC
 - **Not a notifier.** No Discord / ntfy / push integration. **Add to watchlist** in [Search](/guide/tv-guide#watchlist) adds a show to a list in the app; it sends no message.
 
 > [!IMPORTANT]<br>
-> Tested against TVHeadend `4.3` fed by an HDHomeRun Flex Quatro, with Plex Media Server. Other tuners and TVHeadend versions are unverified.
+> Tested against TVHeadend `4.3` fed by an [HDHomeRun](https://www.silicondust.com/hdhomerun/) Flex Quatro, with Plex Media Server. Other tuners and TVHeadend versions are unverified.
 
 ## Background
 
-The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copied recordings off a Fetch TV box into Plex. When Fetch announced a levy on its Gen 3 boxes ([Leaving Fetch TV](/guide/leaving-fetch#the-deadline)), the author bought an [HDHomeRun](https://www.silicondust.com/hdhomerun/) tuner, set up TVHeadend, and swapped Fetcharr's pieces one at a time until the new setup worked. That became Freetvarr. Only after all that did it turn out that the author's Plex Pass already covered Plex DVR, which records from the same tuner with no extra software; [Plex DVR instead](/guide/plex-dvr) compares the two. For people without a Plex Pass, Freetvarr is one option, but the hardware still costs a few hundred dollars. [Leaving Fetch TV](/guide/leaving-fetch) compares that cost with a new Fetch box.
+The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copied recordings off a Fetch TV box into Plex. When Fetch announced a levy on its Gen 3 boxes ([Leaving Fetch TV](/guide/leaving-fetch#the-deadline)), the author bought an HDHomeRun tuner, set up TVHeadend, and swapped Fetcharr's pieces one at a time until the new setup worked. That became Freetvarr. Only after all that did it turn out that the author's Plex Pass already covered Plex DVR, which records from the same tuner with no extra software; [Plex DVR instead](/guide/plex-dvr) compares the two. For people without a Plex Pass, Freetvarr is one option, but the hardware still costs a few hundred dollars. [Leaving Fetch TV](/guide/leaving-fetch) compares that cost with a new Fetch box.
 
 ## Where next
 

@@ -12,7 +12,7 @@ description: >-
 
 The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after [TVHeadend](https://tvheadend.org) records it.
 
-The TV guide shows only the listings you loaded into TVHeadend. With the [XMLTV](https://wiki.xmltv.org) guide feed (a standard TV guide data file that a guide service supplies) set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
+The TV guide shows only the listings you loaded into TVHeadend. With the [XMLTV](https://wiki.xmltv.org/) guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)), you get seven days with episode numbers. XMLTV is a standard TV guide data file that a guide service supplies. Without it you get what the broadcast carries: about a day, with little detail.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -60,7 +60,7 @@ A switch in the sheet picks what to do. One line under it says what the main but
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** records the show on whichever channel airs it. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library (the folder where your TV shows live). The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
+- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library (the folder that holds your TV shows). The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Watch from the start** shows when TVHeadend is recording the programme. It plays the recording from its first minute while it keeps recording. The line under it says the time it plays from.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
@@ -74,7 +74,7 @@ The same sheet opens from [Home](/guide/home), [For you](/guide/for-you), [Live 
 
 Freetvarr decides from the guide whether a programme is a movie, part of a series, or a one-off:
 
-- **Movie**: it runs `75` minutes or more and has no season number, episode number, or episode title, and it airs no more than four times in the next 7 days. A programme the guide lists as a movie counts even when it airs more often. A long documentary special counts as a movie too. News and sport never count, unless the movie lookups for [For you](/guide/for-you) know the title as a film.
+- **Movie**: it runs `75` minutes or more and has no season number, episode number, or episode title, and it airs no more than `4` times in the next 7 days. A programme the guide lists as a movie counts even when it airs more often. A long documentary special counts as a movie too. News and sport never count, unless the movie lookups for [For you](/guide/for-you) know the title as a film.
 - **Series**: it has a season number, an episode number, or an episode title, or it airs `3` or more times in the next 7 days (a programme that meets the movie rule is a movie first), or [TVmaze](https://www.tvmaze.com) (a free online TV database) knows it as a TV show. A show with a series recording always counts as a series.
 - **One-off**: anything else, such as a sports final or a short special.
 
@@ -179,9 +179,9 @@ Some programmes in a guide feed have no image, or an image link that no longer w
 
 1. Another airing of the same programme in the guide.
 2. The show's background or poster in your [Plex](https://www.plex.tv) TV or movies library, matched by title.
-3. The show's picture on [TVmaze](https://www.tvmaze.com), matched by exact title.
+3. The show's picture on TVmaze, matched by exact title.
 4. With a [TMDB key](#tmdb-key), the film or show's backdrop or poster on [TMDB](https://www.themoviedb.org).
-5. The lead picture of the film or show's English [Wikipedia](https://en.wikipedia.org) article.
+5. The lead picture of the film or show's English Wikipedia article.
 
 For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wikidata.org) by exact title, then checks the match before it uses a picture: a year in the synopsis must match the release year, a cast list in the synopsis must name someone in the article, and otherwise names and words from the synopsis must appear in the article. A programme with no synopsis gets no picture from these steps. An episode never matches a film.
 
@@ -191,7 +191,7 @@ A lookup sends the programme title to TVmaze, Wikidata, and Wikipedia, and to TM
 
 ### TMDB key
 
-A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and backdrops, which are often sharper than the Wikipedia picture. It also adds film ratings and a line from a TMDB review on the programme sheet; see [Ratings and reviews](#ratings-and-reviews). To add one:
+A free TMDB API key adds film and TV posters and backdrops, which are often sharper than the Wikipedia picture. It also adds film ratings and a line from a TMDB review on the programme sheet; see [Ratings and reviews](#ratings-and-reviews). To add one:
 
 1. Sign up at [themoviedb.org](https://www.themoviedb.org/signup).
 2. Open [TMDB API settings](https://www.themoviedb.org/settings/api) and request a free developer key. TMDB asks about your "application". You are using Freetvarr at home, so answer for that:
@@ -208,7 +208,7 @@ A free [TMDB](https://www.themoviedb.org) API key adds film and TV posters and b
 4. In Freetvarr, go to Settings → WATCHING → Film and TV info and paste it into **TMDB API key (optional)** under **TMDB KEY**.
 5. Press **Test key**, then **Save key**.
 
-The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Some show ratings and cast lists come from [TVmaze](https://www.tvmaze.com).
+The key stays on the Freetvarr server; the browser never receives it. **Remove key** deletes it, and Freetvarr then makes no requests to TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Some show ratings and cast lists come from TVmaze.
 
 ## Ratings and reviews
 
@@ -222,7 +222,7 @@ Scores and reviews appear only after you open a programme or a show. They never 
 
 Only films and scripted, animated, documentary, and miniseries shows get a score or a review line. Reality, game shows, talk, news, sport, variety, panel shows, and lifestyle programmes never do. When no source gives a show's type, Freetvarr uses the guide genre: film and drama count; game show, news, and sport do not.
 
-Films come from [TMDB](https://www.themoviedb.org), which needs a [TMDB key](#tmdb-key). With a TMDB key, series come from TMDB first. Freetvarr uses a TMDB series only when the synopsis matches it, or when it comes from your country and its network matches a channel in your guide. When TMDB has no such match, or fewer than `50` votes for it, the score comes from [TVmaze](https://www.tvmaze.com), which needs no key. Without a TMDB key, series scores come from TVmaze. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
+Films come from TMDB, which needs a [TMDB key](#tmdb-key). With a TMDB key, series come from TMDB first. Freetvarr uses a TMDB series only when the synopsis matches it, or when it comes from your country and its network matches a channel in your guide. When TMDB has no such match, or fewer than `50` votes for it, the score comes from TVmaze, which needs no key. Without a TMDB key, series scores come from TVmaze. Freetvarr matches a title with the same checks as [Missing pictures](#missing-pictures), and shows nothing when it is not sure of the match. A score from TMDB with fewer than `50` votes is hidden.
 
 Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down. When the site of a link does not answer, the score card shows no link. To turn these off, go to Settings → WATCHING → Film and TV info and turn off **Ratings** or **Reviews**. The **Cast and crew** switch is separate; see [Cast and crew](#cast-and-crew). **Reviews** is switched off and unavailable until you add a TMDB key. Each lookup sends the programme title to TVmaze or TMDB.
 

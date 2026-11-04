@@ -7,12 +7,12 @@ description: 'Fixes keyed by symptom: the TVHeadend login, the setup checks, tun
 
 <Illustration name="troubleshooting" />
 
-Run [Health](/guide/doctor) first (Settings → SYSTEM → **Health**, or press the alert on Home). It checks [TVHeadend](https://tvheadend.org/), the TV guide, the folders, [Plex](https://www.plex.tv/), the syncs, live TV, the ad removal tools, and the time zone, and links each problem it finds to the section below that fixes it.
+Run [Health](/guide/doctor) first (Settings → SYSTEM → **Health**, or press the alert on Home). It checks [TVHeadend](https://tvheadend.org/), the TV guide, and the folders. It also checks [Plex](https://www.plex.tv/), the syncs, live TV, the ad removal tools, and the time zone and network. Health links each problem it finds to the section below that fixes it.
 
 Each section starts from what you see, then gives the cause and the fix. The sections follow the order of a first install.
 
 > [!NOTE]<br>
-> Where a fix below names an [HDHomeRun](https://www.silicondust.com/hdhomerun.html) or an Australian broadcaster, that is the author's own setup. Each such entry says what to do with a different tuner or in another country.
+> Where a fix below names an [HDHomeRun](https://www.silicondust.com/hdhomerun/) or an Australian broadcaster, that is the author's own setup. Each such entry says what to do with a different tuner or in another country.
 
 ## TVHeadend 401 or 403
 
@@ -37,7 +37,7 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 **Save and next** on the TVHeadend step of setup tests the connection and stays on the step until it passes. After a failure, the button reads **Try again**. The error shows under the TVHeadend address. **Finish later** opens a dialog: press **Finish later** again to leave setup and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open Settings → SYSTEM → Setup.
 
-- **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither [Docker](https://www.docker.com/) container is on a Docker bridge network, so container names don't resolve).
+- **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither [Docker](https://docs.docker.com/) container is on a Docker bridge network, so container names don't resolve).
 - **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run this in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`):
 
   ```sh
@@ -46,8 +46,8 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 - **`TVHeadend request failed: ENOTFOUND`**: the hostname in the URL doesn't resolve. Use the host's IP address.
 - **Auto-discover TVHeadend finds nothing**: no TVHeadend answered on port `9981` at any address of the host. Type the URL yourself, or set `TVH_URL` for the Freetvarr Docker container ([Configuration](/guide/configuration#compose-environment)).
-- **`Connected to TVHeadend.` with no channel count**: TVHeadend has no enabled channels yet. See [No channels](#no-channels).
-- **`Connected to TVHeadend.` with no tuner count**: the Freetvarr user lacks **Admin**, or TVHeadend sees no tuner. See [Missing tuner](#missing-tuner).
+- **`Connected to TVHeadend` with no channel count**: TVHeadend has no enabled channels yet. See [No channels](#no-channels).
+- **`Connected to TVHeadend` with no tuner count**: the Freetvarr user lacks **Admin**, or TVHeadend sees no tuner. See [Missing tuner](#missing-tuner).
 
 ## TVHeadend admin login
 
@@ -57,7 +57,7 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 
 **Test path** in Settings → RECORDING → Media library checks a folder inside the Freetvarr Docker container, not on the host.
 
-- **"/data/recordings does not exist inside the container"**: the Docker compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then apply the change. In a terminal in the `freetvarr` folder, run:
+- **"/data/recordings does not exist inside the container"**: the Docker Compose file doesn't mount a folder at that path. Check the `volumes:` of the `freetvarr` service, then apply the change. In a terminal in the `freetvarr` folder, run:
 
   ```sh
   docker compose up -d freetvarr
@@ -75,7 +75,7 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
   sudo chown -R <PUID>:<PGID> <host-folder>
   ```
 
-  The `init` service of the Docker compose file (a one-shot container that runs before the others) gives the subfolders of `CONFIG_PATH` and `DATA_PATH` (the host folders set in `.env`) to `PUID:PGID` on every start, so this appears only when you change `PUID`/`PGID` or put other folders in the mount. Fix the folder the message names.
+  The `init` service of the Docker Compose file (a one-shot container that runs before the others) gives the subfolders of `CONFIG_PATH` and `DATA_PATH` (the host folders set in `.env`) to `PUID:PGID` on every start, so this appears only when you change `PUID`/`PGID` or put other folders in the mount. Fix the folder the message names.
 - **"is on the same disk as the media root but in a separate mount, so imports copy each file"**: this is a notice, not a failure. Imports still work. Mount one folder that holds both `recordings/` and `media/`, as in [One shared mount](/guide/configuration#one-shared-mount), to make them hardlinks.
 - **"is on a different disk from the media root, so imports copy each file"**: this is a notice, not a failure. Imports still work. Move `recordings/` and `media/` onto one disk, then mount one folder that holds both.
 
@@ -84,14 +84,14 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 **Check TVHeadend** in Settings → RECORDING → Media library reads the recording path from TVHeadend's default DVR profile and compares it with **As TVHeadend sees it** under **RECORDINGS FOLDER**.
 
 - **"TVHeadend has no recording path. Set one in its DVR profile."**: set **Recording system path** on the default profile ([TVHeadend step 7](/guide/tvheadend#_7-set-the-recording-path)).
-- **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the Docker compose file that the install script downloads), or put TVHeadend's path in **As TVHeadend sees it**. That field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts, as `recordings_root`. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
+- **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the Docker Compose file that the install script downloads), or put TVHeadend's path in **As TVHeadend sees it**. That field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts, as `recordings_root`. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
 
 ## Missing tuner
 
-In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or the **Tuners** check on [Health](/guide/doctor#tvh-tuners) says `TVHeadend sees no tuner.`
+In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or the **TVHeadend tuners** check on [Health](/guide/doctor#tvh-tuners) says `TVHeadend sees no tuner.`
 
-- The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server (a satellite tuner that sends its signal over your home network; those broadcasts don't cross Docker's private bridge network). A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
-- On a Mac, [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [OrbStack](https://orbstack.dev/) cannot find a network tuner on their own. In Settings → SYSTEM → Setup, press **Channels**, enter the tuner's IP address and this computer's IP address, then press **Use this address**. The **Tuners** check on [Health](/guide/doctor#tvh-tuners) links there. Or run Freetvarr with Docker on Linux (a NAS, mini PC, or [Raspberry Pi](https://www.raspberrypi.com/)).
+- The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server. SAT>IP is a satellite tuner that sends its signal over your home network. Those broadcasts do not cross Docker's private bridge network. A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
+- On a Mac, [Docker Desktop](https://docs.docker.com/desktop/) and [OrbStack](https://orbstack.dev/) cannot find a network tuner on their own. In Settings → SYSTEM → Setup, press **Channels**, enter the tuner's IP address and this computer's IP address, then press **Use this address**. The **TVHeadend tuners** check on [Health](/guide/doctor#tvh-tuners) links there. Or run Freetvarr with Docker on Linux (a NAS or mini PC).
 - The tuner has to be on the same part of the network as the host (those broadcasts don't cross between subnets). For a tuner on another subnet, press **Enter the tuner's address** in the **Channels** step of setup. A tuner plugged straight into a spare NAS port gets a link-local `169.254.x.x` address. TVHeadend still finds it, but nothing else on the LAN can reach it ([Hardware requirements](/guide/hardware-requirements#direct-to-a-spare-nas-port)).
 - Check the tuner answers at all. On an HDHomeRun, open `http://<hdhr-ip>/tuners.html` in a browser. If the page does not load, the tuner has a power or network cable problem, not a TVHeadend one. See [Hardware requirements](/guide/hardware-requirements#checking-the-signal). On a USB or PCIe tuner, check `/dev/dvb` exists on the host and inside the container.
 - TVHeadend lists the tuner but Health says `TVHeadend sees no tuner.`: the Freetvarr user lacks **Admin**, which TVHeadend requires for the tuner status.
@@ -270,7 +270,7 @@ When the edit form says Sonarr also saves episodes in the folder, rename the ser
 
 ## Plex token auto-detect
 
-- Auto-detect needs Plex's `Preferences.xml` inside the Freetvarr Docker container. The `plex` profile (the Docker compose profile that runs Plex next to Freetvarr, see [No Plex yet?](/guide/plex#no-plex-yet)) mounts it for you. For another Plex on the same host, set `PLEX_PREFS_PATH` in the `.env`. [Plex](/guide/plex#the-token) lists where the file lives.
+- Auto-detect needs Plex's `Preferences.xml` inside the Freetvarr Docker container. The `plex` profile (the Docker Compose profile that runs Plex next to Freetvarr, see [No Plex yet?](/guide/plex#no-plex-yet)) mounts it for you. For another Plex on the same host, set `PLEX_PREFS_PATH` in the `.env`. [Plex](/guide/plex#the-token) lists where the file lives.
 - **"Preferences.xml not found at /plex/Library/…"**: the `plex` profile is not running, and `PLEX_PREFS_PATH` is unset. Start the profile, or set the path in `.env`, then run:
 
   ```sh
@@ -302,7 +302,7 @@ Ad detection is cutting the wrong things, or missing breaks.
 
 ## Playback failed on HD channels
 
-[Chrome](https://www.google.com/chrome/) shows "Playback failed" or a black player on an HD channel, while SD channels play. Chrome cannot decode interlaced H.264, so Freetvarr must re-encode it. To check the method Freetvarr chose, run this command in a terminal in the `freetvarr` folder:
+Chrome shows "Playback failed" or a black player on an HD channel, while SD channels play. Chrome cannot decode interlaced H.264, so Freetvarr must re-encode it. To check the method Freetvarr chose, run this command in a terminal in the `freetvarr` folder:
 
 ```sh
 docker compose logs freetvarr | grep "\[live\] video"

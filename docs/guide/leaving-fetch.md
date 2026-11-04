@@ -33,7 +33,7 @@ imageAlt: 'A step-by-step guide: Leaving Fetch TV? Keep recording free-to-air TV
      <p>A two-bay NAS ([Synology](https://www.synology.com/en-global) DS223j). It holds two hard drives and stays on all the time.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Synology_Disk_Station_DS223J_-_NAS-Server.jpg">DYVER</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons;&nbsp;resized.</em></p>
    </div>
 
-3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include [TVHeadend](https://tvheadend.org/) (free recording software that runs on a home computer) and [Jellyfin](https://jellyfin.org/). Paid options include [Plex](https://www.plex.tv/)'s own recording feature (it needs a [Plex Pass](https://www.plex.tv/plex-pass/) subscription), [Channels DVR](https://getchannels.com/dvr-server/), and SiliconDust's own recording service. Plex and Jellyfin are also media players: apps that show your recordings and other videos on your TV.
+3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include [TVHeadend](https://tvheadend.org/) and [Jellyfin](https://jellyfin.org/). Paid options include [Plex](https://www.plex.tv/)'s own recording feature (it needs a [Plex Pass](https://www.plex.tv/plex-pass/) subscription), [Channels DVR](https://getchannels.com/dvr-server/), and SiliconDust's own recording service. Plex and Jellyfin are also media players: apps that show your recordings and other videos on your TV.
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
@@ -105,9 +105,9 @@ Some households leaving Fetch report two other routes: a smart TV that records f
 
 ### Path 1: Watch only
 
-Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays live TV from the tuner on your TV, tablet, or phone (e.g. the HDHomeRun app, [Kodi](https://kodi.tv/) (a free media player app), or [VLC](https://www.videolan.org/vlc/)). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short TV guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
+Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays live TV from the tuner on your TV, tablet, or phone (e.g. the HDHomeRun app, [Kodi](https://kodi.tv/), or [VLC](https://www.videolan.org/vlc/)). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short TV guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
-Add Path 2 later and the TV apps get the 7-day guide that Path 2 adds too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)). Members report that with a guide from another source, Jellyfin showed no programmes until they matched each guide channel to a tuner channel by hand in Jellyfin's TV guide settings.
+Add Path 2 later and the TV apps also get its 7-day guide: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)). Members report that with a guide from another source, Jellyfin showed no programmes until they matched each guide channel to a tuner channel by hand in Jellyfin's TV guide settings.
 
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer TV guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
@@ -148,7 +148,7 @@ On a phone, open Freetvarr in the browser, open Live TV, and tap a channel. The 
 
 Live TV on a phone: the channel list, then the player.
 
-The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses [Docker](https://www.docker.com/) (free software that runs apps such as TVHeadend) and a few commands typed in a terminal (a window where you type commands). The guides linked in [Setting up](#setting-up) show each step.
+The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses [Docker](https://docs.docker.com/) (free software that runs apps such as TVHeadend) and a few commands typed in a terminal (a window where you type commands). The guides linked in [Setting up](#setting-up) show each step.
 
 To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
@@ -200,7 +200,7 @@ Save your recordings before you cancel and before Fetch suspends the box. After 
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="F1yCHcC4i9M" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:36" />
 
-The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) desktop app. The [command line](#save-via-command-line) (typing commands in a terminal, a window where you type commands) does the same job by hand, and also runs on a NAS or in Docker.
+The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) desktop app. The [command line](#save-via-command-line) does the same job by hand, and also runs on a NAS or in Docker.
 
 <a id="copy-with-the-app"></a>
 
@@ -224,7 +224,7 @@ The first time you open the app, your computer warns that it cannot check it. [F
    - On Windows, open the `.exe` file. It installs the app and opens it.
    - On Linux, make the `.AppImage` file executable (in a terminal, `chmod +x` and the file name), then open it. On Ubuntu 22.04 or later, if the app does not open, run `sudo apt install libfuse2` (`libfuse2t64` on Ubuntu 24.04 or later). The [Fetch My Recordings README](https://github.com/furey/fetch-my-recordings#first-open-on-linux) covers the rest.
 3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**.
-4. Press **Start**. The app searches your home network for the Fetch box. When it first searches, your Mac asks about devices on your local network; click **Allow**. On Windows, if Windows Security asks, tick **Private networks** and click **Allow access**. If you refuse, the app finds no box. With one box, it lists the box's recordings; with more than one, choose your box.
+4. Press **Start**. The app searches your home network for the Fetch box. When it first searches, your Mac can ask about devices on your local network; click **Allow**. If you clicked **Don't Allow**, open System Settings → Privacy & Security → Local Network, then turn on Fetch My Recordings. On Windows, if Windows Security asks, tick **Private networks** and click **Allow access**. Without that access, the app finds no box. With one box, it lists the box's recordings; with more than one, choose your box.
 5. If the app finds no Fetch box, type the box's IP address (four numbers such as `192.168.1.50`) under **Or type its IP address**, and press **Connect**. The IP address is in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 6. Choose the recordings to save (**Select all** chooses every one), and press **Next**.
 7. Check the folder. The app saves to a `Fetch recordings` folder inside your Videos folder (Movies on a Mac). Press **Change** to choose another folder. The app shows how much space the recordings need and how much is free.
@@ -247,14 +247,14 @@ The files play in VLC (a free video player). For other ways to watch them, press
 The [`fetchtv`](https://github.com/furey/fetchtv) tool is the manual way: you type its commands in a terminal. The app runs the same tool, so the files get the same names. Use the terminal to run it on a NAS or in Docker (the [`fetchtv` README](https://github.com/furey/fetchtv#installation) covers both), or for options the app does not have, such as leaving out shows by name. These steps run it on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up.
 
 1. Install [Node.js](https://nodejs.org/en/download), the free software that runs the tool. Download the LTS (long-term support) installer from nodejs.org and run it.
-2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", Windows is blocking PowerShell scripts, which is its default setting. Use Command Prompt, or type `npx.cmd` wherever these steps say [`npx`](https://docs.npmjs.com/cli/commands/npx). Running PowerShell as administrator does not change this. (Some PCs already allow PowerShell scripts, e.g. with PowerShell 7, so `npx` works there unchanged.) If Windows says `npx` is not recognized, close the window and open a new one after installing Node.js.
+2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", Windows is blocking PowerShell scripts, which is its default setting. Use Command Prompt, or type `npx.cmd` wherever these steps say `npx`. Running PowerShell as administrator does not change this. (Some PCs already allow PowerShell scripts, e.g. with PowerShell 7, so `npx` works there unchanged.) If Windows says `npx` is not recognized, close the window and open a new one after installing Node.js.
 3. Find the box. In the terminal, type this command and press Enter:
 
    ```sh
    npx fetchtv@latest
    ```
 
-   If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and prints the IP address of the Fetch box it finds (four numbers such as `192.168.1.50`). With more than one box, use `--ip=` with the address of the box you want.
+   If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and prints the IP address of the Fetch box it finds (four numbers such as `192.168.1.50`). With more than one box, find each box's address in your router's list of devices, then use `--ip=` with the address of the box you want.
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 5. List your recordings. Put your box's IP address in place of the example, and run:
 
@@ -350,7 +350,7 @@ The saved recordings are `.ts` files: the broadcast exactly as the Fetch box rec
 You may not need to convert anything. VLC (a free video player), Plex, Jellyfin, and Kodi play `.ts` files as they are. Convert only the recordings that a device or app you use will not open.
 
 > [!WARNING]<br>
-> Renaming a `.ts` file to `.mp4` does not convert it. The file inside stays the same, and [QuickTime Player](https://support.apple.com/guide/quicktime-player/welcome/mac) will not open it.
+> Renaming a `.ts` file to `.mp4` does not convert it. The file inside stays the same, and QuickTime Player will not open it.
 
 > [!WARNING]<br>
 > Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and [FFmpeg](https://ffmpeg.org/) through [Homebrew](https://brew.sh), [`winget`](https://learn.microsoft.com/en-us/windows/package-manager/winget/), or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can install unwanted software or malware on your computer.
@@ -365,7 +365,7 @@ The ways below go from least to most work:
 
 On a computer, open the recordings in VLC, a free video player for Windows, Mac, and Linux.
 
-On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the [Infuse](https://firecore.com/infuse) (a free Apple TV and iPhone video app) or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive first, as [exFAT](https://learn.microsoft.com/en-us/windows/win32/fileio/exfat-specification) (a drive format that holds files over 4 GB) if your TV reads it; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
+On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the [Infuse](https://firecore.com/infuse) or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive first, as exFAT (a drive format that holds files over 4 GB) if your TV reads it; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
 
 ### Convert via HandBrake
 
@@ -387,7 +387,7 @@ To convert many recordings, choose a folder in **Open Source** instead of one fi
 
 ### Convert via command line
 
-ffmpeg is a free command-line tool that converts video. You type its commands in a terminal (a window where you type commands). It has two ways to convert:
+FFmpeg is a free command-line tool that converts video. You type its commands in a terminal. It has two ways to convert:
 
 - **Fast copy**: puts the recording's picture and sound unchanged into an MP4 file, with no loss of quality. It suits HD recordings.
 - **Full convert**: makes a new picture and new sound, like HandBrake. It takes much longer, and the file plays on almost any device. Use it for SD recordings, and for any device that will not play a fast copy.
@@ -396,7 +396,7 @@ On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `
 
 #### Getting ready
 
-1. Install ffmpeg on your computer:
+1. Install FFmpeg on your computer:
    - **Mac**: install Homebrew, a free tool that installs command-line software. Copy the install command from [brew.sh](https://brew.sh), paste it into **Terminal**, and press Enter. Homebrew supports macOS 15 (Sequoia) and later. On macOS 11 to 14 it may work without support, and it does not run on macOS 10.15 or earlier. On an older Mac, use VLC or HandBrake instead. Then run:
 
      ```sh
@@ -410,8 +410,8 @@ On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `
      ```
 
      `winget` is the Windows Package Manager, built into Windows 10 and 11. The first time you use it, it asks you to agree to the terms of its download source: type `Y` and press Enter. When it finishes, close the window and open a new one, so that Windows finds `ffmpeg`.
-   - **Linux**: on Debian or Ubuntu, run `sudo apt install ffmpeg`. On Fedora, Fedora's own ffmpeg package leaves out the H.264 encoder that the full convert uses. Turn on [RPM Fusion](https://rpmfusion.org/Configuration) first, then run `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`.
-2. Check that ffmpeg works. In the terminal, run:
+   - **Linux**: on Debian or Ubuntu, run `sudo apt install ffmpeg`. On Fedora, Fedora's own FFmpeg package leaves out the H.264 encoder that the full convert uses. Turn on [RPM Fusion](https://rpmfusion.org/Configuration) first, then run `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`.
+2. Check that FFmpeg works. In the terminal, run:
 
    ```sh
    ffmpeg -version
@@ -577,7 +577,7 @@ If the Fetch box gets a clear picture now, the tuner will too: it uses the same 
 
 For many households the cheapest choice is the `$29.99` levy: it keeps the box you already have until at least `30 June 2028` (if Fetch still accepts your opt-in), against about `A$280–1,400` for the two paths. It does not keep the apps Fetch removes ([The deadline](#the-deadline)). This guide is for people who want to leave Fetch anyway.
 
-A new Fetch box can also come out cheaper than either path. Fetch's prices, from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in October 2026, during the offer window (14 September 2026 to 31 October 2026), so the prices may differ now:
+A new Fetch box can also come out cheaper than either path. Fetch's prices from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in `October 2026`:
 
 | Box              | Price                                  | Records         | Three years with Fetch Access |
 | ---------------- | -------------------------------------- | --------------- | ----------------------------- |
