@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   CUSTOM_SYNC_SCHEDULE,
   DEFAULT_SYNC_CRON,
@@ -23,6 +23,7 @@ import {
 import { routeSection, scrollToRouteSection } from '/shared/router.js'
 import { isLandingPending } from '/shared/setting-landing.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
+import { unsavedSettings } from '/shared/store.js'
 import { tz, browserTimeZone } from '/shared/time.js'
 
 const LICENCES = [
@@ -729,6 +730,7 @@ export const SettingsView = {
       try {
         fillFrom(await fetchSettings())
         loaded.value = true
+        await rememberSavedBody()
       } catch (err) {
         loadError.value = err.message
       } finally {
@@ -778,37 +780,51 @@ export const SettingsView = {
     const stopSectionWatch = watch(routeSection, () => isLandingPending() || scrollToRouteSection())
     onUnmounted(stopSectionWatch)
 
+    const savedBody = ref(null)
+    const rememberSavedBody = async () => {
+      await nextTick()
+      savedBody.value = JSON.stringify(settingsBody())
+    }
+    const hasUnsavedChanges = computed(() => savedBody.value !== null && JSON.stringify(settingsBody()) !== savedBody.value)
+    watch(hasUnsavedChanges, (unsaved) => { unsavedSettings.value = unsaved }, { immediate: true })
+    onUnmounted(() => { unsavedSettings.value = false })
+
+    const settingsBody = () => {
+      const body = {
+        tvh_url: tvhUrl.value,
+        tvh_username: tvhUsername.value,
+        recordings_root: recordingsRoot.value,
+        tvh_recordings_path: tvhRecordingsPath.value,
+        sync_cron: syncCron.value,
+        plex_url: plexUrl.value,
+        plex_tv_section_id: plexSectionId.value,
+        plex_prefs_path: plexPrefsPath.value,
+        media_root: mediaRoot.value,
+        oneoff_root: oneOffRoot.value,
+        import_unmatched: importUnmatched.value,
+        show_artwork_lookup: showArtworkLookup.value,
+        ratings_lookup_enabled: ratingsLookupEnabled.value,
+        face_focus_enabled: faceFocusEnabled.value,
+        reviews_lookup_enabled: reviewsLookupEnabled.value,
+        credits_lookup_enabled: creditsLookupEnabled.value,
+        plex_oneoff_section_id: plexOneOffSectionId.value,
+        movies_root: moviesRoot.value,
+        plex_movies_section_id: plexMoviesSectionId.value,
+        delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly.value,
+        ad_removal_enabled: adRemovalEnabled.value,
+        ad_original_retention_days: adOriginalRetentionDays.value,
+      }
+      body.time_zone = timeZone.value
+      if (plexToken.value) body.plex_token = plexToken.value
+      if (tvhPassword.value) body.tvh_password = tvhPassword.value
+      return body
+    }
+
     const save = async () => {
       if (!loaded.value) return
       saving.value = true
       try {
-        const body = {
-          tvh_url: tvhUrl.value,
-          tvh_username: tvhUsername.value,
-          recordings_root: recordingsRoot.value,
-          tvh_recordings_path: tvhRecordingsPath.value,
-          sync_cron: syncCron.value,
-          plex_url: plexUrl.value,
-          plex_tv_section_id: plexSectionId.value,
-          plex_prefs_path: plexPrefsPath.value,
-          media_root: mediaRoot.value,
-          oneoff_root: oneOffRoot.value,
-          import_unmatched: importUnmatched.value,
-          show_artwork_lookup: showArtworkLookup.value,
-          ratings_lookup_enabled: ratingsLookupEnabled.value,
-          face_focus_enabled: faceFocusEnabled.value,
-          reviews_lookup_enabled: reviewsLookupEnabled.value,
-          credits_lookup_enabled: creditsLookupEnabled.value,
-          plex_oneoff_section_id: plexOneOffSectionId.value,
-          movies_root: moviesRoot.value,
-          plex_movies_section_id: plexMoviesSectionId.value,
-          delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly.value,
-          ad_removal_enabled: adRemovalEnabled.value,
-          ad_original_retention_days: adOriginalRetentionDays.value,
-        }
-        body.time_zone = timeZone.value
-        if (plexToken.value) body.plex_token = plexToken.value
-        if (tvhPassword.value) body.tvh_password = tvhPassword.value
+        const body = settingsBody()
         await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
         await saveGenreLookup()
@@ -825,6 +841,7 @@ export const SettingsView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        await rememberSavedBody()
         flash({ msg: 'Saved.' })
         await refreshSyncSchedule()
       } catch (err) {

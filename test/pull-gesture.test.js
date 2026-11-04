@@ -7,8 +7,26 @@ import {
   pullMoveOf,
   pullOffsetOf,
   pullProgressOf,
-  isPullCommitted
+  isPullCommitted,
+  isPullRefreshAllowed
 } from '../src/web/pull-gesture.js'
+import { readFileSync } from 'node:fs'
+
+test('isPullRefreshAllowed: no pull to refresh in the setup wizard or over unsaved Settings', () => {
+  assert.equal(isPullRefreshAllowed({ route: 'welcome' }), false)
+  assert.equal(isPullRefreshAllowed({ route: 'settings', unsavedSettings: true }), false)
+  assert.equal(isPullRefreshAllowed({ route: 'settings', unsavedSettings: false }), true)
+  assert.equal(isPullRefreshAllowed({ route: 'home' }), true)
+})
+
+test('pull to refresh: the gesture checks the route and unsaved Settings, and Settings reports its changes', () => {
+  const pull = readFileSync(new URL('../src/web/shared/pull-to-refresh.js', import.meta.url), 'utf8')
+  const settings = readFileSync(new URL('../src/web/views/settings-view.js', import.meta.url), 'utf8')
+  assert.match(pull, /\|\| !isPullRefreshAllowed\(\{ route: route\.value, unsavedSettings: unsavedSettings\.value \}\)/)
+  assert.match(settings, /const hasUnsavedChanges = computed\(\(\) => savedBody\.value !== null && JSON\.stringify\(settingsBody\(\)\) !== savedBody\.value\)/)
+  assert.match(settings, /watch\(hasUnsavedChanges, \(unsaved\) => \{ unsavedSettings\.value = unsaved \}, \{ immediate: true \}\)/)
+  assert.match(settings, /loaded\.value = true\n\s*await rememberSavedBody\(\)/)
+})
 
 test('pullMoveOf holds a downward move inside the slop so the native bounce never starts', () => {
   assert.equal(pullMoveOf({ dx: 0, dy: 1, claimed: false }), 'hold')
