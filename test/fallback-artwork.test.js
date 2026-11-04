@@ -14,7 +14,7 @@ const memoryCache = () => {
   }
 }
 
-const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 1000 }, cache = memoryCache(), hintsFor = async (title) => ({ title }), tmdbRetryTtlMs }) => ({
+const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 1000 }, cache = memoryCache(), hintsFor = async (title) => ({ title }), tmdbRetryTtlMs, staleBeforeMs = 0 }) => ({
   cache,
   clock,
   artwork: createFallbackArtwork({
@@ -27,7 +27,7 @@ const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 100
     hitTtlMs: 100,
     missTtlMs: 10,
     failureBackoffMs: 50,
-    staleBeforeMs: 0,
+    staleBeforeMs,
     ...(tmdbRetryTtlMs ? { tmdbRetryTtlMs } : {}),
   }),
 })
@@ -414,4 +414,22 @@ test('the lookup marks a Wikipedia picture for a quick retry when TMDB fails', a
     reference: 'wikidata:Q1',
     retrySoon: true,
   })
+})
+
+test('a Wikipedia picture kept because TMDB failed counts as saved now, so it is not looked up again before its expiry', async () => {
+  let calls = 0
+  const { artwork, clock } = fallbackWith({
+    apiKey: 'k',
+    tmdbRetryTtlMs: 80,
+    staleBeforeMs: 990,
+    lookUp: async () => {
+      calls += 1
+      return { sources: ['https://upload.wikimedia.org/a.jpg'], reference: 'wikidata:Q1', retrySoon: true }
+    },
+  })
+  await artwork.sourcesFor('Training Day')
+  clock.ms = 1060
+  assert.deepEqual(await artwork.artworkFor('Training Day'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 1)
 })
