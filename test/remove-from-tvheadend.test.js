@@ -79,6 +79,7 @@ before(async () => {
     id: 1, show_pattern: 'The Block', dest_folder: 'The Block', enabled: true, delete_after_import: true,
   })
   await fs.mkdir(RECORDINGS_ROOT, { recursive: true })
+  await fs.mkdir(MEDIA_ROOT, { recursive: true })
 })
 
 after(async () => {

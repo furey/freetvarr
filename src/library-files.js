@@ -2,11 +2,12 @@ import path from 'path'
 import fs from 'fs/promises'
 
 import { db } from './db.js'
+import { createPathRootReady } from './library-roots.js'
 
 export const LIBRARY_STATES = ['replaced', 'not_in_library']
 
-export const refreshLibraryStates = async (rows) => {
-  const checked = await Promise.all(rows.map(async (row) => ({ row, ...(await libraryStateOf(row)) })))
+export const refreshLibraryStates = async (rows, { rootReady = createPathRootReady() } = {}) => {
+  const checked = await Promise.all(rows.map(async (row) => ({ row, ...(await libraryStateOf(row, { rootReady })) })))
   await Promise.all(checked.filter(hasChanged).map(saveLibraryState))
   return checked.map(({ row, state, replacement }) => ({
     ...row,
@@ -23,14 +24,19 @@ export const sweepLibraryStates = async () => {
   return refreshLibraryStates(rows)
 }
 
-export const libraryStateOf = async (row) => {
+export const libraryStateOf = async (row, { rootReady = createPathRootReady() } = {}) => {
   if (!CHECKED_STATUSES.includes(row.status) || !row.file_path) return KEPT
   if (await isPresent(row.file_path)) return KEPT
+  if (!(await rootReady(row.file_path))) return storedStateOf(row)
   const replacement = await findReplacement(row)
   return replacement
     ? { state: 'replaced', replacement }
     : { state: 'not_in_library', replacement: null }
 }
+
+export const libraryChoicePatchOf = (choice) => (choice === 'include'
+  ? { library_choice: choice, status: 'pending', error: null, library_state: null, library_replacement: null, library_deleted_at: null }
+  : { library_choice: choice })
 
 export const findReplacement = async ({ file_path: filePath, season, episode }) => {
   if (season == null || episode == null) return null
@@ -72,6 +78,8 @@ const namesEpisode = ({ name, season, episode }) => [...name.matchAll(EPISODE_TO
 
 const SEASON_FOLDER = /^season\s*(\d+)$/i
 const EPISODE_TOKEN = /(?<![a-z0-9])S0?(\d+)\s*E0?(\d+)(?!\d)/gi
+
+const storedStateOf = (row) => ({ state: row.library_state ?? null, replacement: row.library_replacement ?? null })
 
 const hasChanged = ({ row, state, replacement }) =>
   (row.library_state ?? null) !== state || (row.library_replacement ?? null) !== replacement

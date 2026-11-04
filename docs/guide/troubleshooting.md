@@ -196,10 +196,24 @@ The row's error in the [recording log](/guide/recordings#recording-log) says whi
 - **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress shows this, and post-recording padding can keep it here for up to ten minutes after the programme ends. The next sync picks it up.
 - **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press **Check TVHeadend** in Settings → RECORDING → Media library, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
 - **"outside the recordings folder"**: the recording file is a link to a place outside the Recordings folder, such as a subfolder that links to another disk. Freetvarr does not import it. Move the recording into the folder TVHeadend records to; the next sync imports it.
+- **"folder … not found"**: the TV, one-off, or movies folder does not exist inside the Freetvarr Docker container. Mount it, or change it in Settings → RECORDING → Media library. Freetvarr does not create a missing library folder.
+- **"folder … is empty, but imported recordings point into it"**: see [Empty library folder](#empty-library-folder).
+
+## Empty library folder
+
+The [Library folders](/guide/doctor#paths-mounted) health check warns, or new recordings show as **SKIPPED** with `is empty, but imported recordings point into it`. The usual cause is a media share on a NAS that was not mounted when the Docker container started. The container then sees an empty folder where the share should be.
+
+While a library folder is empty and Freetvarr's imported recordings point into it, Freetvarr does not import into it, does not remove those recordings from TVHeadend, and keeps your shows in Recordings as they were. **Import again** refuses with a note.
+
+1. Mount the share on the host.
+2. Restart the Freetvarr Docker container. A share mounted after the container started does not reach the container.
+3. Run a sync. The skipped recordings import.
+
+If you emptied the folder yourself, or moved the media root without moving the files, delete those recordings in Freetvarr ([Delete episodes](/guide/recordings#delete-episodes)) so that syncs import into it again.
 
 ## Partial recordings
 
-- The imported file came up more than `1MB` short of the TVHeadend recording file. The next sync imports the file again. If it stays **PARTIAL**, the copy keeps failing. Check that the disk with your media library has free space and that Freetvarr can write to the media library folder, then run the checks in Settings → SYSTEM → Health.
+- The imported file came up more than `1MB` short of the TVHeadend recording file. The next sync imports the file again. A **PARTIAL** row keeps its library file while the TVHeadend file is missing. If it stays **PARTIAL**, the copy keeps failing. Check that the disk with your media library has free space and that Freetvarr can write to the media library folder, then run the checks in Settings → SYSTEM → Health.
 
 ## Replaced recordings
 
@@ -214,6 +228,8 @@ A recording shows `NOT IN LIBRARY` in the recording log when its file is gone an
 ## Copy files in the library
 
 A file named like `Show - S01E02 - copy 2.ts` appears in the TV library or the one-off folder. Freetvarr never writes over a file it did not import. When the name an import needs already belongs to another file (e.g. a Sonarr download, a file you copied in, or a Fetch recording saved by [Fetch My Recordings or `fetchtv`](/guide/leaving-fetch#saving-your-fetch-recordings)), Freetvarr leaves that file as it is and saves the recording under the next free `copy` name. The import's log in Settings → SYSTEM → [Activity](/guide/syncs) names both files.
+
+A file that has the same size as the TVHeadend recording, for example one left by a Reset, counts as the same recording, and the import uses it as it is.
 
 Keep the file you want and delete the other. To delete Freetvarr's copy, press **Delete episode** in its [episode menu](/guide/recordings#episode-menu), so that the TVHeadend copy goes too.
 
@@ -239,6 +255,7 @@ TVHeadend stops with a segfault (signal `11`) just after it logs `Purging obsole
 
 An import fails with a permission error, or the TVHeadend file won't delete.
 
+- The recording log row shows **FAILED** with the error, and the next sync tries the import again.
 - Set `PUID`/`PGID` to match the owner of the bind-mounted host folders, and use the same pair for both Docker containers. Freetvarr hardlinks and deletes files that TVHeadend created, so a mismatch fails at those steps.
 
 ## Plex not refreshing

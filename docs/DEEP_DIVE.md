@@ -653,10 +653,11 @@ flowchart TD
   pathcheck -->|no| skippath["row: skipped<br>path outside the mount"]
   pathcheck -->|yes| statcheck{"fs.stat of<br>the source file"}
   statcheck -->|fails| skipfile["row: skipped<br>file not found"]
-  statcheck -->|ok| rootcheck{"one-off or movies<br>folder exists?"}
-  rootcheck -->|no| skiproot["row: skipped<br>folder not found"]
-  rootcheck -->|"yes, or tv"| dest["freeDestination"]
+  statcheck -->|ok| rootcheck{"libraryRootProblemOf<br>of the kind's folder"}
+  rootcheck -->|"missing or empty"| skiproot["row: skipped<br>folder not found or empty"]
+  rootcheck -->|ready| dest["freeDestination"]
   dest --> imp["row: importing<br>importFile"]
+  imp -->|throws| failed["row: failed<br>error, no file_path"]
   imp --> classify{"classifyImport"}
   classify -->|"shortfall over 1 MB"| partial["row: partial"]
   classify -->|"else"| done["row: done"]
@@ -670,14 +671,25 @@ flowchart TD
     3. The entry's library tag `exclude` holds (`Recorded with Add to library off`).
     4. A matched folder, the setting `import_unmatched` not `false`, or the library tag `include` imports.
     5. Anything else holds (`No series folder for this title, and Import every recording is off`).
-2. `holdRecording` sets `status` `not_imported`, `error` to the reason, and `file_path` to `null`. It leaves a `done` or `importing` row, or a row with `deleted_from_tvh_at`, unchanged.
+2. `holdRecording` sets `status` `not_imported`, `error` to the reason, and `file_path`, `purged_at`, and `log_cleared_at` to `null`. So a held row cleared from the log comes back at the next sync while TVHeadend still has it. It leaves a `done`, `partial`, or `importing` row, or a row with `deleted_from_tvh_at`, unchanged.
 3. `lookUpDatabaseIds` runs when `needsDatabaseIds` is true ([Sport and database ids](#sport-and-database-ids)).
 4. `libraryKind` gives `tv`, `oneOff`, or `film` from `seriesKindOf` ([Library kinds](#library-kinds)). A film with no movies folder gives `oneOff`.
 5. For `tv` with no matched folder, `folderForSeries` calls `ensureShowFolder`. An entry from a series recording uses the autorec name and origin `user`; any other entry uses its title and origin `auto`.
-6. `processItem` writes `skipped` with the reason in `error` when the path does not map, the source file is missing, or the one-off or movies folder is missing.
-7. `importItem` imports the file and classifies it. It runs [Ad removal](#ad-removal) only for a `done` item with a series folder.
+6. `processItem` writes `skipped` with the reason in `error` when the path does not map, the source file is missing, or the library folder for the kind is not ready ([Library folder check](#library-folder-check)). A `partial` row keeps its `status` and `file_path`; only `error` changes.
+7. `importItem` imports the file and classifies it. When the folder or the copy throws, the row becomes `failed` with the error and no `file_path`, and the next sync tries again. A copy that throws deletes its part-copied file. It runs [Ad removal](#ad-removal) only for a `done` item with a series folder.
 
 Each import is an `import` job in [Activity](#activity), titled `Import · <title>`.
+
+### Library folder check
+
+`libraryRootProblemOf(root)` in `src/library-roots.js` gives `missing` when `readdir` of the folder fails, and `empty` when the folder has no entry other than names that start with `.`, `@`, or `#` while `recordings` rows with `status` `done` or `partial`, no `purged_at`, no `library_state`, and no `library_deleted_at` have a `file_path` under it. Anything else is ready. An empty folder on a new install is ready, because no row points into it. A sync checks each folder once (`createRootCheck`).
+
+- The TV, one-off, and movies imports skip with `<kind> folder <root> not found; mount it or change it in Settings` or `<kind> folder <root> is empty, but imported recordings point into it; check that it is mounted`. No folder is created, so nothing is written to the mount point of an unmounted share, and nothing is removed from TVHeadend.
+- `refreshLibraryStates` keeps the stored `library_state` of a row whose file is missing when the row's folder is not ready, so the Library keeps its shows while the share is gone.
+- **Import again** (`POST /api/recordings/:id/library` with `include`) answers `409` when the row's `file_path` is under a folder that is not ready.
+- The [Library folders](/guide/doctor#paths-mounted) health check warns for each empty folder.
+
+In Docker, a share mounted on the host after the container started does not reach the container, so a restart is needed.
 
 ### Path translation
 
@@ -692,7 +704,7 @@ Each import is an `import` job in [Activity](#activity), titled `Import · <titl
 | `film`   | `buildFilmPath`   | `<movies_root>/<name>/<name>.<ext>`; `<name>` is `Title (Year)`, or `Title`   |
 
 - The season folder comes from `shows.season_template`, default `Season {season}`. `{season}` and `{season_padded}` pad to two digits; `{season_unpadded}` does not. No season gives `00`.
-- `episodeFilename` gives `<folder> - SxxEyy[ - <episode title>].<ext>`, or `<folder> - <YYYY-MM-DD>[ - <episode title>].<ext>` without episode numbers. `<folder>` is `dest_folder` without a `{tvdb-…}`, `{tmdb-…}`, or `{imdb-…}` id hint.
+- `episodeFilename` gives `<folder> - SxxEyy[ - <episode title>].<ext>`, or `<folder> - <YYYY-MM-DD>[ - <episode title>].<ext>` without episode numbers. The date is the local air day in the server time zone. `<folder>` is `dest_folder` without a `{tvdb-…}`, `{tmdb-…}`, or `{imdb-…}` id hint.
 - `<ext>` is the extension of the TVHeadend file, or `ts`. `createValidFilename` removes `\ / : * ? " < > |`.
 - `guardWithinRoot` throws `destination escapes media root` when a path resolves outside its root.
 
@@ -705,7 +717,7 @@ Each import is an `import` job in [Activity](#activity), titled `Import · <titl
 
 ### Free destination
 
-`freeDestination` in `src/sync.js` tries the planned path, then `- copy 2`, `- copy 3`, and so on before the extension (`(2)` for a film). A candidate is free when this row already holds its `file_path`, or when no row holds it and the file is missing or is the same inode as the source.
+`freeDestination` in `src/sync.js` tries the planned path, then `- copy 2`, `- copy 3`, and so on before the extension (`(2)` for a film). Only rows with no `library_deleted_at` and no `purged_at` hold a path. A candidate is free when this row already holds its `file_path`, or when no row holds it and the file is missing, is the same inode as the source, or has the source size (a copy left by a Reset). `importItem` sets `file_path` to `null` on any deleted or purged row that still names the path it takes.
 
 ### Hardlink or copy
 
@@ -719,7 +731,7 @@ A hardlink fails across filesystems and across two bind mounts (`EXDEV`). The ex
 
 ### Recording artwork
 
-`src/artwork.js` stores recording pictures as `recordings/<uuid>.<ext>` in the artwork folder ([Config folder](#config-folder)). `saveArtwork` shrinks a picture over `150 KB` to `960 px` wide. `POST /api/epg/record`, `captureUpcomingArtwork`, and `saveRecordingDetails` save pictures. `pruneTombstonedRecordings` deletes `recordings` rows whose `deleted_from_tvh_at` is more than `30` days old (`RECORDING_TOMBSTONE_TTL_DAYS`), only when the row is out of the library (`purged_at` set, or `status` not `done` or `partial`) and `ad_backup_saved_at` is empty. `pruneRecordingArtwork` then deletes pictures with no row that are at least `14` days old.
+`src/artwork.js` stores recording pictures as `recordings/<uuid>.<ext>` in the artwork folder ([Config folder](#config-folder)). `saveArtwork` shrinks a picture over `150 KB` to `960 px` wide. `POST /api/epg/record`, `captureUpcomingArtwork`, and `saveRecordingDetails` save pictures. `saveRecordingDetails` fetches a picture while the row's `image_checked_at` is empty. A source that answers with an error or a non-image is not tried again until a restart. A timeout or network error leaves `image_checked_at` empty, so the next sync tries again, up to `3` tries (`ARTWORK_ATTEMPTS`). **Refresh artwork** clears both lists for the show's sources. Clearing a row that TVHeadend still has from the log deletes its picture and sets `image_path` and `image_checked_at` to `null`, so the picture comes back with the row. `pruneTombstonedRecordings` deletes `recordings` rows whose `deleted_from_tvh_at` is more than `30` days old (`RECORDING_TOMBSTONE_TTL_DAYS`), only when the row is out of the library (`purged_at` set, or `status` not `done` or `partial`) and `ad_backup_saved_at` is empty. `pruneRecordingArtwork` then deletes pictures with no row that are at least `14` days old.
 
 ## Library kinds
 
@@ -848,7 +860,7 @@ The workdir is removed on every exit path. A cut that starts when a `.orig` exis
 
 ### Ad recovery
 
-At startup, `recoverInterruptedCuts` renames `<file>.orig` back when the file is missing, and otherwise reconciles the backup columns with the disk. `resetInterruptedScans` then sets every `ad_status = 'scanning'` to `null`.
+At startup, `recoverInterruptedCuts` renames `<file>.orig` back when the file is missing and `ad_status` is `scanning` or `cut_failed`, then clears the cut columns (`restorePatchOf`). Otherwise it reconciles the backup columns with the disk: a `.orig` the row does not track is adopted, and a tracked one that is gone is forgotten only while the episode file exists. `resetInterruptedScans` then sets every `ad_status = 'scanning'` to `null`.
 
 ### Original backups
 
@@ -897,7 +909,7 @@ The delete answers `409` while a sync runs, while a target is `importing` or `sc
 3. It deletes the library file, its `.edl`, and its `.orig`, then up to `2` empty parent folders inside the root.
 4. It removes the TVHeadend copy with `removeRecordings`, unless `deleted_from_tvh_at` is set.
 
-Each target must be an absolute path inside the TV, one-off, or movies folder, its parent's `realpath` must stay in the root's `realpath`, and `lstat` must show a regular file. `deletionPatch` sets `library_deleted_at`, `library_choice` `exclude`, and, after a TVHeadend removal, `deleted_from_tvh_at` and `purged_at`. `bytesFreed` counts a file once per inode, only when the request removed all of its hardlinks. Each kind with a change refreshes its Plex section. The status is `200`, or `207` when any result is not `ok`.
+Each target must be an absolute path inside the TV, one-off, or movies folder, its parent's `realpath` must stay in the root's `realpath`, and `lstat` must show a regular file. `deletionPatch` sets `library_deleted_at`, `library_choice` `exclude`, and, after a TVHeadend removal, `deleted_from_tvh_at` and `purged_at`. When the TVHeadend removal fails, it sets `library_state` `not_in_library` instead, so the show leaves Home and the Library at once. **Import again** clears `library_deleted_at` and `library_state`. `bytesFreed` counts a file once per inode, only when the request removed all of its hardlinks. Each kind with a change refreshes its Plex section. The status is `200`, or `207` when any result is not `ok`.
 
 `sweepLibraryStates` (`src/library-files.js`) runs in each sync. For each `done` or `partial` row with a missing file, `library_state` becomes `replaced` (another video with the same `SxxEyy` in the same or a sibling `Season N` folder, stored in `library_replacement`) or `not_in_library`. `POST /api/recordings/:recording_id/library` with `choice: 'include'` resets a `not_in_library` row to `pending` and starts a `manual:import` sync.
 
@@ -1276,7 +1288,7 @@ A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`
 - Rows that take part: imported `done` or `partial` recordings that are not deleted, and items in the three Plex sections.
 - `matchPlexItem` in `src/library-actions.js` scores a Plex item by the shared trailing path segments with the recording file. An ambiguous match takes no part.
 - Triggers: the end of a sync, a watched or position change (after `10 s`), the Library opening (at most every `2` min), a settings change, and **Sync watched now** (`POST /api/plex/watch-sync/run`). One run executes at a time; requests during a run join one queued run.
-- A full pass reads every section item, `500` per page. It runs for a manual trigger, on the first run, when the last full pass is `24 h` old, or after `1 h` when rows lack a snapshot. A quick pass reads items viewed since the last run less `2` min.
+- A full pass reads every section item, `500` per page, up to `400` pages (`MAX_PAGES`). It runs for a manual trigger, on the first run, when the last full pass is `24 h` old, or after `1 h` when rows lack a snapshot. A quick pass reads items viewed since the last run less `2` min.
 
 `plex_watch_state` stores one snapshot per recording: `rating_key`, `plex_watched`, `plex_offset_s`, `ft_watched`, `ft_position_s`, and `synced_at`. The plan for a row:
 
@@ -1296,7 +1308,7 @@ Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a t
 
 `createLibraryScan` in `src/plex-library-scan.js` runs at the end of each watched sync when the setting `plex_whole_library` is not `false`. The sections are in `plex_library_sections` (default: the TV and movies sections; never the one-off section).
 
-- Each Plex file part becomes a `library_items` row (`rating_key`, `part_id`). A full pass deletes rows that it did not see. `recording_id` is set when the file is a Freetvarr recording.
+- Each Plex file part becomes a `library_items` row (`rating_key`, `part_id`). A full pass deletes rows that it did not see, except in a section that stopped at `MAX_PAGES`; that section keeps its unseen rows, and the run log warns. `recording_id` is set when the file is a Freetvarr recording.
 - `localPathOf` in `src/plex-library.js` maps a Plex path to a local path by the root folder names. A recording also links to a Plex file whose path ends with the recording's path below its library root (at least `2` segments).
 - Files deleted through Freetvarr stay out of `library_items` for `30` min, in memory, so a scan before Plex notices the delete does not save them again.
 - The scan links each row with no `recording_id` to its Sonarr or Radarr manager, and writes Plex and Sonarr GUIDs to `external_ids`.
@@ -1442,18 +1454,18 @@ The recent list keeps finished jobs for `24 h` and failed jobs for `7` days, in 
 
 `runDoctor` runs `tvh.reach`, then `tvh.auth`, then the other checks in parallel. A check that needs TVHeadend gets `skip` unless both first checks pass or warn. Each check returns `status` (`pass`, `warn`, `fail`, or `skip`), `detail`, `fix`, and an optional `action`, with an `8 s` timeout (`DEFAULT_TIMEOUT_MS`).
 
-| Id                                                                 | Checks                                                                                                                           |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `tvh.reach`, `tvh.auth`, `tvh.rights`, `tvh.open`                  | TVHeadend answers (`warn` below API version `19`); the login works; the rights probes answer without `403`; no open admin entry  |
-| `tvh.tuners`, `tvh.channels`                                       | At least one tuner turned on; at least one channel                                                                               |
-| `guide.depth`, `guide.logos`                                       | `fail` when the guide ends within `12 h`, `warn` within `48 h`; share of channels with an icon                                   |
-| `paths.recordings`, `paths.match`, `paths.media`, `paths.hardlink` | Readable recordings folder; DVR profile path equals `tvh_recordings_path`; writable media folder; imports hardlink               |
-| `disk.free`                                                        | `fail` under `10 GB` free; `warn` under `20 GB` or `10%`                                                                         |
-| `plex.reach`, `plex.oneoffs`                                       | The TV section exists and reads the media folder; `warn` when the Plex one-off library has items and the one-off folder has none |
-| `sync.health`                                                      | The cron schedule runs; the last sync is not `error` or `partial`                                                                |
-| `live.encoder`, `live.streams`                                     | `ffmpeg` on the `PATH`; the stream limit is not above the benchmark                                                              |
-| `ads.comskip`                                                      | `comskip`, `ffmpeg`, and `ffprobe` on the `PATH` when ad removal is on                                                           |
-| `host.env`                                                         | A known time zone and a LAN address                                                                                              |
+| Id                                                                                  | Checks                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tvh.reach`, `tvh.auth`, `tvh.rights`, `tvh.open`                                   | TVHeadend answers (`warn` below API version `19`); the login works; the rights probes answer without `403`; no open admin entry                                               |
+| `tvh.tuners`, `tvh.channels`                                                        | At least one tuner turned on; at least one channel                                                                                                                            |
+| `guide.depth`, `guide.logos`                                                        | `fail` when the guide ends within `12 h`, `warn` within `48 h`; share of channels with an icon                                                                                |
+| `paths.recordings`, `paths.match`, `paths.media`, `paths.mounted`, `paths.hardlink` | Readable recordings folder; DVR profile path equals `tvh_recordings_path`; writable media folder; no library folder empty while imported rows point into it; imports hardlink |
+| `disk.free`                                                                         | `fail` under `10 GB` free; `warn` under `20 GB` or `10%`                                                                                                                      |
+| `plex.reach`, `plex.oneoffs`                                                        | The TV section exists and reads the media folder; `warn` when the Plex one-off library has items and the one-off folder has none                                              |
+| `sync.health`                                                                       | The cron schedule runs; the last sync is not `error` or `partial`                                                                                                             |
+| `live.encoder`, `live.streams`                                                      | `ffmpeg` on the `PATH`; the stream limit is not above the benchmark                                                                                                           |
+| `ads.comskip`                                                                       | `comskip`, `ffmpeg`, and `ffprobe` on the `PATH` when ad removal is on                                                                                                        |
+| `host.env`                                                                          | A known time zone and a LAN address                                                                                                                                           |
 
 Each id links to its guide section, for example [`/guide/doctor#tvh-reach`](/guide/doctor#tvh-reach). `getDoctorReport` caches the report for `15 s`. `scheduleDoctorChecks` runs a fresh report `2` min after startup and every `3 h`. `GET /api/doctor` returns the report (`?fresh=1` skips the cache), and `npm run doctor` (`scripts/doctor.mjs`) prints it and exits `1` when a check fails.
 

@@ -159,7 +159,7 @@ test('summarise and deletionPatch: partial failures give 207 and keep failed TVH
     library_deleted_at: now, library_choice: 'exclude', deleted_from_tvh_at: now, purged_at: now,
   })
   assert.deepEqual(deletionPatch({ row: row(), result: { library: 'deleted', tvh: 'failed' }, now }), {
-    library_deleted_at: now, library_choice: 'exclude',
+    library_deleted_at: now, library_choice: 'exclude', library_state: 'not_in_library', library_replacement: null,
   })
   assert.equal(deletionPatch({ row: row(), result: { library: 'failed', tvh: 'skipped' }, now }), null)
 })

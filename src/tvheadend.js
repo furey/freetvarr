@@ -621,7 +621,9 @@ export const getChannelIcon = async ({ sources = [], conn } = {}) => {
   return null
 }
 
-export const fetchProgrammeImage = async ({ source, conn } = {}) => {
+export const fetchProgrammeImage = (options) => fetchProgrammeImageOrThrow(options).catch(() => null)
+
+export const fetchProgrammeImageOrThrow = async ({ source, conn } = {}) => {
   if (!source) return null
   const c = conn || (await resolveConnection())
   return fetchImage({
@@ -629,7 +631,7 @@ export const fetchProgrammeImage = async ({ source, conn } = {}) => {
     conn: c,
     timeout: PROGRAMME_IMAGE_TIMEOUT_MS,
     maxBytes: PROGRAMME_IMAGE_MAX_BYTES,
-  }).catch(() => null)
+  })
 }
 
 export const getRecordingStorage = async () => {

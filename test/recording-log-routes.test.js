@@ -88,6 +88,17 @@ test('DELETE /api/recordings/:id: clears one imported row from the log and keeps
   assert.equal((await call('DELETE', '/api/recordings/on-tvh')).status, 409)
 })
 
+test('DELETE /api/recordings/:id: a failed row still in TVHeadend fetches its picture again when it comes back', async () => {
+  await db('recordings').insert(recording({
+    recording_id: 'failed-on-tvh', status: 'failed', file_path: null, deleted_from_tvh_at: null,
+    image_checked_at: REMOVED_AT, image_path: 'recordings/failed-on-tvh',
+  }))
+  assert.equal((await call('DELETE', '/api/recordings/failed-on-tvh')).status, 200)
+  const row = await rowOf('failed-on-tvh')
+  assert.equal(row.image_checked_at, null)
+  assert.equal(row.image_path, null)
+})
+
 test('POST /api/recordings/restore: Undo puts cleared rows back in the log', async () => {
   const { body } = await call('DELETE', '/api/recordings?deleted=true')
   const restored = await call('POST', '/api/recordings/restore', { ids: body.ids })

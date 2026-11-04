@@ -11,6 +11,7 @@ import { hasOneOffPlaceholder, hasRecordingFiles } from './one-off-placeholder.j
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
+import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
 import { formatDiskSize } from './web/size-format.js'
@@ -392,6 +393,23 @@ const LATER_CHECKS = [
         detail: withFullStop(result.error),
         fix: mediaFolderFix({ result, mediaRoot: ctx.settings.mediaRoot, uid: ctx.deps.uid() }),
         action: SETTINGS_STORAGE,
+      }
+    },
+  },
+  {
+    id: 'paths.mounted',
+    group: 'storage',
+    title: 'Library folders',
+    doc: 'guide/troubleshooting#empty-library-folder',
+    run: async (ctx) => {
+      const roots = [...new Set([ctx.settings.mediaRoot, ctx.settings.oneOffRoot, ctx.settings.moviesRoot].filter(Boolean))]
+      const problems = await Promise.all(roots.map(async (root) => ({ root, problem: await ctx.deps.libraryRootProblem(root) })))
+      const empty = problems.filter(({ problem }) => problem === ROOT_EMPTY).map(({ root }) => root)
+      if (!empty.length) return { status: 'pass', detail: 'No library folder is empty while imported recordings point into it.' }
+      return {
+        status: 'warn',
+        detail: `${joinAnd(empty)} ${empty.length === 1 ? 'is' : 'are'} empty, but imported recordings point into ${empty.length === 1 ? 'it' : 'them'}. Syncs skip imports into ${empty.length === 1 ? 'it' : 'them'}.`,
+        fix: 'Check that the media share is mounted on the host, then restart the Freetvarr container. If you emptied the folder yourself, or moved the media root, delete those recordings in Freetvarr so that syncs import into it again.',
       }
     },
   },
@@ -872,6 +890,7 @@ const defaultDeps = () => ({
   oneOffFolder: readOneOffFolder,
   checkRecordingsFolder,
   checkMediaRoot,
+  libraryRootProblem: (root) => libraryRootProblemOf(root),
   probeHardlink,
   statfs: (folder) => fs.statfs(folder),
   latestSync: readLatestSync,

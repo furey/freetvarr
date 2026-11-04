@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createPlexWatchClient, METADATA_BATCH, PAGE_SIZE } from '../src/plex-watch-client.js'
+import { createPlexWatchClient, MAX_PAGES, METADATA_BATCH, PAGE_SIZE } from '../src/plex-watch-client.js'
 import { plexWatchStatusOf, togglePatchFrom } from '../src/plex-watch-routes.js'
 
 const page = (count, start = 0, totalSize = null) => ({
@@ -28,6 +28,27 @@ test('listItems pages through a large section with container headers', async () 
   assert.equal(calls[1].headers['X-Plex-Container-Start'], String(PAGE_SIZE))
   assert.equal(calls[0].maxBytes, 20 * 1024 * 1024)
   assert.equal(calls[0].timeoutMs, 15_000)
+})
+
+test('listAllItems says when a section is bigger than the page limit', async () => {
+  const total = PAGE_SIZE * MAX_PAGES + 1
+  const client = createPlexWatchClient({
+    url: 'http://plex',
+    token: 'x',
+    request: async (options) => page(PAGE_SIZE, Number(options.headers['X-Plex-Container-Start']), total),
+  })
+  const { items, truncated } = await client.listAllItems({ section: { id: '2', type: 'show' } })
+  assert.equal(items.length, PAGE_SIZE * MAX_PAGES)
+  assert.equal(truncated, true)
+  assert.ok(MAX_PAGES * PAGE_SIZE >= 100_000)
+})
+
+test('listAllItems reads a whole section that fits', async () => {
+  const client = createPlexWatchClient({ url: 'http://plex', token: 'x', request: async () => page(3, 0, 3) })
+  assert.deepEqual(await client.listAllItems({ section: { id: '2', type: 'show' } }), {
+    items: [{ ratingKey: '0' }, { ratingKey: '1' }, { ratingKey: '2' }],
+    truncated: false,
+  })
 })
 
 test('listItems asks only for items viewed since a time, and movies use type 1 with their agent ids', async () => {

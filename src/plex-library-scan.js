@@ -4,6 +4,9 @@ import { EXTERNAL_ID_KINDS, plexExternalIdEntriesOf, sonarrExternalIdEntriesOf }
 
 export const QUICK_OVERLAP_S = 120
 
+export const truncatedSectionNote = ({ section, count }) =>
+  `Plex library ${section.title || section.id} is too big to read in full; read the first ${count} items and kept the rest from earlier passes`
+
 export const createLibraryScan = ({
   loadSettings,
   loadRecordingFiles,
@@ -31,15 +34,19 @@ export const createLibraryScan = ({
     const savedRows = []
     const movies = []
     for (const section of sections) {
-      const items = full
-        ? await client.listItems({ section })
-        : uniqueItems([
-          ...await client.listItems({ section, addedSinceS: sinceS }),
-          ...await client.listItems({ section, viewedSinceS: sinceS }),
-        ])
+      const { items, truncated } = full
+        ? await client.listAllItems({ section })
+        : {
+          items: uniqueItems([
+            ...await client.listItems({ section, addedSinceS: sinceS }),
+            ...await client.listItems({ section, viewedSinceS: sinceS }),
+          ]),
+          truncated: false,
+        }
+      if (truncated) job.log(truncatedSectionNote({ section, count: items.length }), 'warn')
       if (section.type === 'movie') movies.push(...items)
       const rows = libraryItemRowsOf({ items, section, recordingFiles, roots, seenAt })
-      await saveScannedItems({ rows, full, sectionId: section.id, seenAt })
+      await saveScannedItems({ rows, full: full && !truncated, sectionId: section.id, seenAt })
       scanned += rows.length
       savedRows.push(...rows)
     }

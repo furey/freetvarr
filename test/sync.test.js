@@ -286,3 +286,16 @@ test('syncErrorLogOf: logs the message and stack of a failed request without its
   assert.ok(!line.includes('secret-token'))
   assert.ok(!line.includes('secret-key'))
 })
+
+test('episodeFilename: dates an unnumbered airing by the local day', () => {
+  const zone = process.env.TZ
+  process.env.TZ = 'Australia/Sydney'
+  try {
+    const start = Date.parse('2026-11-04T19:00:00Z')
+    const name = episodeFilename({ item: { title: 'Sunrise', start, ext: 'ts' }, show: { dest_folder: 'Sunrise' } })
+    assert.equal(name, 'Sunrise - 2026-11-05.ts')
+  } finally {
+    if (zone === undefined) delete process.env.TZ
+    else process.env.TZ = zone
+  }
+})
