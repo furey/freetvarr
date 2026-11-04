@@ -1,4 +1,4 @@
-import { eventRowOf } from './user-events.js'
+import { CHOICE_KINDS, eventRowOf } from './user-events.js'
 
 export const createEventWriter = ({
   insertRows,
@@ -14,7 +14,7 @@ export const createEventWriter = ({
   let flushing = Promise.resolve()
 
   const log = (event) => {
-    if (!enabled) return false
+    if (!enabled && !CHOICE_KINDS.has(event?.kind)) return false
     try {
       if (buffer.length >= maxBuffered) buffer.shift()
       buffer.push(eventRowOf({ event, nowMs: now() }))

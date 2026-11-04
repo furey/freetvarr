@@ -125,3 +125,17 @@ test('dense helpers average and rank anchors', () => {
   assert.equal(nearestLikedOf({ vector: Float32Array.from([0.9, 0.1]), anchors })[0].title, 'X')
   assert.equal(nearestLikedOf({ vector: Float32Array.from([0.9, 0.1]), anchors, excludeKey: 'x' })[0].title, 'Y')
 })
+
+test('a thumbs-down show is listed under hidden shows and Show again clears the thumb', async () => {
+  await db('user_events').delete()
+  await db('user_events').insert([
+    { ts: Date.now() - 2000, kind: 'thumb_up', series_key: 'mkr', title: 'MKR' },
+    { ts: Date.now() - 1000, kind: 'thumb_down', series_key: 'mkr', title: 'MKR' },
+  ])
+  const hidden = await call('GET', '/api/for-you/hidden')
+  assert.deepEqual(hidden.body.map((show) => [show.seriesKey, show.title]), [['mkr', 'MKR']])
+  const unhidden = await call('DELETE', '/api/for-you/hidden/mkr')
+  assert.equal(unhidden.body.wasHidden, true)
+  assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
+  assert.deepEqual((await db('user_events').where({ series_key: 'mkr' }).orderBy('id')).map((row) => row.kind), ['thumb_up', 'thumb_down', 'not_interested_undo', 'thumb_clear'])
+})

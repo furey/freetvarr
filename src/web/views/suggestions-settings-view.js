@@ -88,7 +88,7 @@ export const SuggestionsSettingsView = {
               @update:model-value="save({ historyEnabled: !$event })">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Pause history</span>
-                <span class="settings-row-meta">Freetvarr stops noting what you watch until you turn this off</span>
+                <span class="settings-row-meta">Freetvarr stops noting what you watch until you turn this off. Thumbs and Not interested still count.</span>
               </span>
             </toggle-switch>
           </div>
@@ -111,7 +111,7 @@ export const SuggestionsSettingsView = {
               @click="showAgain(show)">Show again</button>
           </div>
         </div>
-        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested on a For you card to hide a show.</p>
+        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or thumbs down on a For you card to hide a show.</p>
       </ui-sheet>
 
       <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :busy="confirmBusy"

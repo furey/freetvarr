@@ -1344,7 +1344,15 @@ const refreshAfterKindChange = () => {
   rebuildForYou().catch(() => {})
 }
 mountProgrammeKindRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: refreshAfterKindChange, titlesFor: titlesForKeys })
-mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
+mountUserEvents({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: playPingLimiter,
+  onChoice: () => {
+    forgetForYouCache()
+    homeHero.invalidate()
+  },
+})
 const warmedForYou = new WeakSet()
 const warmForYou = (result) => {
   if (warmedForYou.has(result)) return

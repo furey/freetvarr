@@ -560,3 +560,20 @@ test('For you offers the +1 airing only after the original has finished', () => 
   const after = run({ programmes: [original, later], events: twinEvents(), channels: twinLineup, nowMs: original.end + 60 * 1000 })
   assert.deepEqual(suggestedChannelsOf(after, 'Survivor Australia'), ['ten-plus'])
 })
+
+test('turning a thumbs down off shows the show again', () => {
+  const programmes = [airing('MKR')]
+  const liked = [...baseEvents(), ...watched('MKR', { episodes: 4 })]
+  const cleared = run({ programmes, events: [...liked, feedback('thumb_down', 'MKR', 3), feedback('thumb_clear', 'MKR', 2)] })
+  assert.ok(itemFor(cleared, 'MKR'))
+  const profile = profileOf({ events: [feedback('thumb_down', 'MKR', 3), feedback('thumb_clear', 'MKR', 2)], nowMs: NOW })
+  assert.deepEqual(profile.shows.get('mkr').thumbsDown, [])
+})
+
+test('a thumbs-down show is listed under hidden shows until the thumb is cleared', () => {
+  const down = [feedback('thumb_up', 'MKR', 5), feedback('thumb_down', 'MKR', 3), feedback('thumb_up', 'Rake', 1)]
+  const hidden = hiddenShowsOf({ profile: profileOf({ events: down, nowMs: NOW }), nowMs: NOW })
+  assert.deepEqual(hidden.map((show) => [show.seriesKey, show.hiddenAt, show.until]), [['mkr', NOW - 3 * DAY, null]])
+  const cleared = [...down, feedback('thumb_clear', 'MKR', 2)]
+  assert.deepEqual(hiddenShowsOf({ profile: profileOf({ events: cleared, nowMs: NOW }), nowMs: NOW }), [])
+})
