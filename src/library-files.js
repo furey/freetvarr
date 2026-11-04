@@ -34,6 +34,10 @@ export const libraryStateOf = async (row, { rootReady = createPathRootReady() } 
     : { state: 'not_in_library', replacement: null }
 }
 
+export const libraryChoicePatchOf = (choice) => (choice === 'include'
+  ? { library_choice: choice, status: 'pending', error: null, library_state: null, library_replacement: null, library_deleted_at: null }
+  : { library_choice: choice })
+
 export const findReplacement = async ({ file_path: filePath, season, episode }) => {
   if (season == null || episode == null) return null
   const wanted = { season: Number(season), episode: Number(episode) }

@@ -85,7 +85,7 @@ export const summarise = (results = []) => {
 export const deletionPatch = ({ row, result, now }) => {
   if (!LIBRARY_DONE.includes(result.library)) return null
   const patch = { library_deleted_at: row.library_deleted_at ?? now, library_choice: 'exclude' }
-  if (!TVH_DONE.includes(result.tvh)) return patch
+  if (!TVH_DONE.includes(result.tvh)) return { ...patch, library_state: 'not_in_library', library_replacement: null }
   return { ...patch, deleted_from_tvh_at: row.deleted_from_tvh_at ?? now, purged_at: now }
 }
 

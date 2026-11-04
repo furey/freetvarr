@@ -8,7 +8,8 @@ const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-library-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db, setSetting } = await import('../src/db.js')
-const { findReplacement, libraryStateOf, sweepLibraryStates } = await import('../src/library-files.js')
+const { findReplacement, libraryChoicePatchOf, libraryStateOf, sweepLibraryStates } = await import('../src/library-files.js')
+const { libraryRootReadyFor } = await import('../src/library-roots.js')
 
 const seasonDir = path.join(tmpDir, 'tv', 'My Kitchen Rules', 'Season 16')
 const fileIn = (name) => path.join(seasonDir, name)
@@ -117,4 +118,22 @@ test('sweepLibraryStates: keeps stored states while a library folder is empty or
   await fs.mkdir(path.join(emptyShare, 'Other Show'))
   await sweepLibraryStates()
   assert.equal((await db('recordings').where({ recording_id: 'share-tv' }).first()).library_state, 'not_in_library')
+})
+
+test('libraryChoicePatchOf: Import again clears the delete and the stored state', () => {
+  assert.deepEqual(libraryChoicePatchOf('include'), {
+    library_choice: 'include', status: 'pending', error: null, library_state: null, library_replacement: null, library_deleted_at: null,
+  })
+  assert.deepEqual(libraryChoicePatchOf('exclude'), { library_choice: 'exclude' })
+})
+
+test('libraryRootReadyFor: a path under an empty library folder with imported rows is not ready', async () => {
+  const share = path.join(tmpDir, 'ready-share')
+  await fs.mkdir(share)
+  await setSetting('media_root', share)
+  const filePath = path.join(share, 'Bluey', 'Bluey - S01E01.ts')
+  assert.equal(await libraryRootReadyFor(filePath), true)
+  await db('recordings').insert({ recording_id: 'ready-1', title: 'Bluey', status: 'done', file_path: filePath })
+  assert.equal(await libraryRootReadyFor(filePath), false)
+  assert.equal(await libraryRootReadyFor('/elsewhere/file.ts'), true)
 })

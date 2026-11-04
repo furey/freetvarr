@@ -60,6 +60,8 @@ export const createPathRootReady = ({ loadRoots = loadLibraryRoots, ...options }
   }
 }
 
+export const libraryRootReadyFor = (filePath) => createPathRootReady()(filePath)
+
 export const rootOfPath = ({ filePath, roots }) => roots
   .filter(Boolean)
   .map(withoutTrailingSlash)
