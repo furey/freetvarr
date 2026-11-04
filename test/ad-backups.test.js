@@ -14,6 +14,7 @@ const {
   isBackupExpired,
   processRecordingAds,
   pruneCutOriginals,
+  recoverInterruptedCuts,
   restoreOriginal,
   swapInCut,
 } = await import('../src/commercials.js')
@@ -194,10 +195,50 @@ test('backupReconcilePatchOf: adopts a backup the database missed and forgets on
     { ad_backup_saved_at: '2026-10-20 08:00:00', ad_backup_uncut: true, ad_cut_at: '2026-10-20 08:00:00' },
   )
   assert.deepEqual(
-    backupReconcilePatchOf({ row: { ad_backup_saved_at: '2026-10-20 08:00:00' }, hasBackup: false, now }),
+    backupReconcilePatchOf({ row: { ad_backup_saved_at: '2026-10-20 08:00:00' }, hasBackup: false, mainExists: true, now }),
     { ad_backup_saved_at: null, ad_backup_uncut: null },
   )
-  assert.equal(backupReconcilePatchOf({ row: { ad_backup_saved_at: null }, hasBackup: false, now }), null)
+  assert.equal(backupReconcilePatchOf({ row: { ad_backup_saved_at: null }, hasBackup: false, mainExists: true, now }), null)
+})
+
+test('backupReconcilePatchOf: keeps the backup date while the episode file is missing too', () => {
+  const now = '2026-10-22T00:00:00.000Z'
+  assert.equal(backupReconcilePatchOf({ row: { ad_backup_saved_at: '2026-10-20 08:00:00' }, hasBackup: false, mainExists: false, now }), null)
+})
+
+test('recoverInterruptedCuts: a cut episode deleted outside Freetvarr does not get its original back', async () => {
+  await cut(fakeTools())
+  await fs.rm(filePath)
+  await recoverInterruptedCuts()
+  assert.equal(await exists(filePath), false)
+  assert.equal(await exists(`${filePath}.orig`), true)
+  const saved = await row()
+  assert.equal(saved.ad_status, 'cut')
+  assert.ok(saved.ad_backup_saved_at)
+})
+
+for (const status of ['scanning', 'cut_failed']) {
+  test(`recoverInterruptedCuts: an episode left ${status} gets its original back and loses the cut state`, async () => {
+    await cut(fakeTools())
+    await fs.rm(filePath)
+    await db('recordings').where({ recording_id: RECORDING_ID }).update({ ad_status: status })
+    await recoverInterruptedCuts()
+    assert.equal(await read(filePath), ORIGINAL)
+    assert.equal(await exists(`${filePath}.orig`), false)
+    const saved = await row()
+    assert.equal(saved.ad_status, null)
+    assert.equal(saved.ad_cut_at, null)
+    assert.equal(saved.ad_backup_saved_at, null)
+    assert.equal(Number(saved.size), Buffer.byteLength(ORIGINAL))
+  })
+}
+
+test('recoverInterruptedCuts: keeps tracking a backup while both files are missing', async () => {
+  await cut(fakeTools())
+  await fs.rm(filePath)
+  await fs.rm(`${filePath}.orig`)
+  await recoverInterruptedCuts()
+  assert.ok((await row()).ad_backup_saved_at)
 })
 
 test('isRestorablePath: only full paths inside a library folder', () => {

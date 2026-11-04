@@ -201,27 +201,37 @@ export const resetInterruptedScans = async () =>
 
 export const recoverInterruptedCuts = async () => {
   const rows = await db('recordings').whereNotNull('file_path')
-    .select('recording_id', 'file_path', 'ad_processed_at', 'ad_cut_at', 'ad_backup_saved_at')
+    .select('recording_id', 'file_path', 'ad_status', 'ad_processed_at', 'ad_cut_at', 'ad_backup_saved_at', 'ad_backup_uncut')
   for (const row of rows) {
     const backupPath = backupPathOf(row.file_path)
     const hasBackup = await pathExists(backupPath)
-    if (hasBackup && !(await pathExists(row.file_path))) {
-      await fs.rename(backupPath, row.file_path).catch((err) => {
-        console.error(`[ads] failed to restore ${backupPath}: ${err.message}`)
-      })
+    const mainExists = await pathExists(row.file_path)
+    if (hasBackup && !mainExists && INTERRUPTED_CUT_STATUSES.includes(row.ad_status)) {
+      await putInterruptedBackupBack({ row, backupPath })
       continue
     }
-    const patch = backupReconcilePatchOf({ row, hasBackup, now: new Date().toISOString() })
+    const patch = backupReconcilePatchOf({ row, hasBackup, mainExists, now: new Date().toISOString() })
     if (patch) await db('recordings').where({ recording_id: row.recording_id }).update(patch)
   }
 }
 
-export const backupReconcilePatchOf = ({ row, hasBackup, now }) => {
+const putInterruptedBackupBack = async ({ row, backupPath }) => {
+  try {
+    await fs.rename(backupPath, row.file_path)
+    await fs.rm(skipMarkerPath(row.file_path), { force: true })
+    const { size } = await fs.stat(row.file_path)
+    await db('recordings').where({ recording_id: row.recording_id }).update(restorePatchOf({ before: row, size }))
+  } catch (err) {
+    console.error(`[ads] failed to restore ${backupPath}: ${err.message}`)
+  }
+}
+
+export const backupReconcilePatchOf = ({ row, hasBackup, mainExists, now }) => {
   if (hasBackup && !row.ad_backup_saved_at) {
     const savedAt = row.ad_processed_at || now
     return { ad_backup_saved_at: savedAt, ad_backup_uncut: true, ad_cut_at: row.ad_cut_at || savedAt }
   }
-  if (!hasBackup && row.ad_backup_saved_at) return { ad_backup_saved_at: null, ad_backup_uncut: null }
+  if (!hasBackup && mainExists && row.ad_backup_saved_at) return { ad_backup_saved_at: null, ad_backup_uncut: null }
   return null
 }
 
@@ -459,6 +469,7 @@ const WORKDIR_NAME = '.freetvarr-adcut'
 const ORIG_SUFFIX = '.orig'
 const EDL_COMMERCIAL_BREAK = 3
 const STALE_MARKER_STATUSES = ['cut', 'no_breaks']
+const INTERRUPTED_CUT_STATUSES = ['scanning', 'cut_failed']
 const DEFAULT_ORIG_RETENTION_DAYS = 7
 const MIN_COMSKIP_TIMEOUT_MS = 60 * 60 * 1000
 const MAX_COMSKIP_TIMEOUT_MS = 6 * 60 * 60 * 1000
