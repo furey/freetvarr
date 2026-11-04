@@ -39,6 +39,7 @@ import { browserStorage } from '/shared/storage.js'
 import { readHomeCache } from '/home-cache.js'
 import { knownShowTitleOf } from '/show-key.js'
 import { createResponseOrder } from '/response-order.js'
+import { AD_JOB_POLL_MS, hasAdJobRunning } from '/ad-confirm.js'
 import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
 import { showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
@@ -452,11 +453,26 @@ export const ShowView = {
       failedImages.value = { ...failedImages.value, [episode.recordingId]: true }
     }
 
+    let adJobTimer = null
+    let unmounted = false
+    const stopAdJobPoll = () => {
+      clearTimeout(adJobTimer)
+      adJobTimer = null
+    }
+    const scheduleAdJobPoll = () => {
+      stopAdJobPoll()
+      if (unmounted || !hasAdJobRunning(allEpisodes.value)) return
+      adJobTimer = setTimeout(load, AD_JOB_POLL_MS)
+    }
+    watch([show, error], scheduleAdJobPoll)
+
     onMounted(() => {
       load()
       window.addEventListener('keydown', onSelectKeydown)
     })
     onUnmounted(() => {
+      unmounted = true
+      stopAdJobPoll()
       window.removeEventListener('keydown', onSelectKeydown)
       document.body.classList.remove('library-selecting')
     })
