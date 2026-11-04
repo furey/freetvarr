@@ -1,4 +1,4 @@
-import { MAX_PADDING_MINUTES, paddingMinutesFrom } from './recording-padding.js'
+import { PADDING_ERROR, paddingMinutesFrom } from './recording-padding.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const WATCH_MODES = ['notify', 'record']
@@ -26,7 +26,7 @@ export const watchPaddingFrom = ({ mode, leadTime, lagTime }) => {
   const lead = paddingMinutesFrom(leadTime)
   const lag = paddingMinutesFrom(lagTime)
   if (lead === undefined || lag === undefined) {
-    return { error: `lead_time and lag_time must be whole numbers of minutes from 0 to ${MAX_PADDING_MINUTES}` }
+    return { error: PADDING_ERROR }
   }
   return mode === 'record' ? { lead_time: lead, lag_time: lag } : { lead_time: null, lag_time: null }
 }

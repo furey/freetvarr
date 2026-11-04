@@ -78,7 +78,7 @@ Activity groups syncs under a heading for each day: `Today`, `Yesterday`, or a d
 
 A failed sync also shows its first error under the row. On a wider screen, a **Details** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
 
-A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording, whose file came up more than `1MB` short of what TVHeadend reported) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
+A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording, whose file came up more than `1MB` short of the TVHeadend recording file) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
 
 ## Sync details
 
@@ -110,4 +110,4 @@ Two filters choose which syncs Activity lists:
 
 The browser remembers your choice. A running sync always shows.
 
-After each sync, Freetvarr trims the history, drops removed recordings older than 30 days, and deletes expired `.orig` backups (the originals that [ad removal](/guide/ad-removal#backups-and-retention) keeps after a cut).
+After each sync, Freetvarr trims the history, drops recordings that TVHeadend removed more than 30 days ago and that are not in your library, and deletes expired `.orig` backups (the originals that [ad removal](/guide/ad-removal#backups-and-retention) keeps after a cut).

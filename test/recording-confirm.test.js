@@ -89,7 +89,7 @@ test('clearListConfirm: plural wording', () => {
     'TVHeadend no longer has these recordings. Their rows leave this list, on every page and filter.',
     'The files stay in your library, and your media player still shows them.'
       + ' To delete them for good, delete them in your media player or from your library folder.',
-    'For 10 seconds, Undo puts the rows back. Without a clear, rows like these leave the list 30 days after TVHeadend removed them.',
+    'For 10 seconds, Undo puts the rows back. Without a clear, imported rows stay in this list, and other rows leave it 30 days after TVHeadend removed them.',
   ])
 })
 
