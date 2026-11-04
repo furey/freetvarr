@@ -11,9 +11,10 @@ import { doubleCsrf } from 'csrf-csrf'
 
 import { db, getSetting, setSetting } from './db.js'
 import { EPG_LIMIT, ROW_ACTION_LIMIT, SETUP_CHECK_LIMIT, createRateLimiter } from './rate-limits.js'
+import { retentionDaysOf, saveMoviesRoot, settingsSaveRefusalOf, tvhTestRequestOf } from './settings-requests.js'
 import { isWelcomeDismissed, setWelcomeDismissed } from './welcome.js'
 import { resolveCsrfSecret } from './csrf-secret.js'
-import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
+import { applyStoredTimeZone, currentTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { USER_ORIGIN } from './show-origin.js'
@@ -1696,10 +1697,9 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const body = req.body || {}
+  const refusal = settingsSaveRefusalOf(body)
+  if (refusal) return res.status(400).json({ error: refusal })
   const timeZone = body.time_zone === undefined ? undefined : String(body.time_zone).trim()
-  if (timeZone !== undefined && !isKnownTimeZone(timeZone)) {
-    return res.status(400).json({ error: `Unknown time zone "${timeZone}"` })
-  }
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))
@@ -1717,7 +1717,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   await writeString('media_root', body.media_root, { trim: true })
   await writeString('oneoff_root', body.oneoff_root, { trim: true })
   await writeString('plex_oneoff_section_id', body.plex_oneoff_section_id, { trim: true })
-  await writeString('movies_root', body.movies_root, { trim: true })
+  await saveMoviesRoot(body.movies_root)
   await writeString('plex_movies_section_id', body.plex_movies_section_id, { trim: true })
   if (body.show_artwork_lookup !== undefined) {
     await setSetting('show_artwork_lookup', body.show_artwork_lookup ? 'true' : 'false')
@@ -1748,11 +1748,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     await setSetting('ad_removal_enabled', body.ad_removal_enabled ? 'true' : 'false')
   }
   if (body.ad_original_retention_days !== undefined) {
-    const days = Number(body.ad_original_retention_days)
-    if (!Number.isInteger(days) || days <= 0) {
-      return res.status(400).json({ error: 'ad_original_retention_days must be a positive integer' })
-    }
-    await setSetting('ad_original_retention_days', String(days))
+    await setSetting('ad_original_retention_days', String(retentionDaysOf(body.ad_original_retention_days)))
   }
   if (timeZone !== undefined) {
     await setSetting('time_zone', timeZone)
@@ -1766,14 +1762,8 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
 })
 
 app.post('/api/tvh-test', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
-  const { tvh_url, tvh_username, tvh_password } = req.body || {}
   try {
-    const result = await testTvheadendConnection({
-      url: tvh_url !== undefined ? String(tvh_url).trim() : undefined,
-      username: tvh_username !== undefined ? String(tvh_username).trim() : undefined,
-      password: tvh_password ? String(tvh_password) : undefined,
-      persist: true,
-    })
+    const result = await testTvheadendConnection(tvhTestRequestOf(req.body))
     res.json(result)
   } catch (err) {
     const stage = err instanceof TvheadendError ? err.stage : 'unknown'

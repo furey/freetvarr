@@ -502,9 +502,13 @@ export const SettingsView = {
 
       <div class="settings-save-bar">
         <div class="settings-save-bar-inner">
-          <span v-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
+          <span v-if="loadError" class="status-readout err" role="alert">Could not load settings: {{ loadError }}</span>
+          <span v-else-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
           <span v-else class="settings-save-hint">Changes apply when you save.</span>
-          <button type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="saving" :aria-busy="saving">
+          <button v-if="loadError" type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': loading }]" :disabled="loading" :aria-busy="loading" @click="loadSettings">
+            <template v-if="loading"><span class="spinner" aria-hidden="true"></span> Loading…</template><template v-else><refresh-icon /> Try again</template>
+          </button>
+          <button v-else type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="saving || !loaded" :aria-busy="saving">
             <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save settings</template>
           </button>
         </div>
@@ -658,6 +662,9 @@ export const SettingsView = {
     const plexStatus = ref('')
     const plexStatusKind = ref('ok')
     const saving = ref(false)
+    const loaded = ref(false)
+    const loading = ref(false)
+    const loadError = ref('')
     const resetting = ref(false)
     const resetError = ref('')
     const oneOffRoot = ref('')
@@ -716,8 +723,23 @@ export const SettingsView = {
         genreLookupBaseline.remember(genreLookup.value)
       })
       .catch(() => {}))
+    const loadSettings = async () => {
+      loading.value = true
+      loadError.value = ''
+      try {
+        fillFrom(await fetchSettings())
+        loaded.value = true
+      } catch (err) {
+        loadError.value = err.message
+      } finally {
+        loading.value = false
+      }
+    }
     onMounted(async () => {
-      const s = await fetchSettings()
+      await loadSettings()
+      if (!isLandingPending()) await scrollToRouteSection()
+    })
+    const fillFrom = (s) => {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
@@ -752,12 +774,12 @@ export const SettingsView = {
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       adOriginalRetentionDays.value = s.ad_original_retention_days || '7'
       comskipIniOverride.value = Boolean(s.comskip_ini_override)
-      if (!isLandingPending()) await scrollToRouteSection()
-    })
+    }
     const stopSectionWatch = watch(routeSection, () => isLandingPending() || scrollToRouteSection())
     onUnmounted(stopSectionWatch)
 
     const save = async () => {
+      if (!loaded.value) return
       saving.value = true
       try {
         const body = {
@@ -874,11 +896,8 @@ export const SettingsView = {
           tvh_url: tvhUrl.value,
           tvh_username: tvhUsername.value,
           ...(tvhPassword.value ? { tvh_password: tvhPassword.value } : {}),
+          persist: false,
         })
-        if (tvhPassword.value) {
-          tvhPasswordSet.value = true
-          tvhPassword.value = ''
-        }
         tvhStatus.value = tvhTestSummary(r)
         tvhStatusKind.value = 'ok'
       } catch (err) {
@@ -1070,7 +1089,7 @@ export const SettingsView = {
       plexLibrarySetting,
       arrSettings,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
-      status, statusKind, plexStatus, plexStatusKind, saving,
+      status, statusKind, plexStatus, plexStatusKind, saving, loaded, loading, loadError, loadSettings,
       resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
