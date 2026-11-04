@@ -26,6 +26,7 @@ import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
+import { isSameShowTitle } from './autorec-match.js'
 import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
 import { showIdentityFor } from './show-identity.js'
 import { ROOT_EMPTY, createRootCheck, getMediaRoot, getMoviesRoot, getOneOffRoot } from './library-roots.js'
@@ -89,9 +90,11 @@ export const matchShow = (shows, showTitle, { sport = false } = {}) => {
     .sort((a, b) => b.show_pattern.length - a.show_pattern.length)[0]
 }
 
-const titleMatchesShow = ({ show, title, sport }) => (sport && isAutoTitleMatch(show)
-  ? showKeyOf(show.show_pattern) === showKeyOf(title)
-  : wordPatternOf(show.show_pattern)?.test(title) ?? false)
+const titleMatchesShow = ({ show, title, sport }) => {
+  if (!isAutoTitleMatch(show)) return wordPatternOf(show.show_pattern)?.test(title) ?? false
+  const sameKey = showKeyOf(show.show_pattern) === showKeyOf(title)
+  return sport ? sameKey : sameKey || isSameShowTitle({ title, show: String(show.show_pattern ?? '').trim() })
+}
 
 const wordPatternOf = (pattern) => {
   const text = String(pattern ?? '').trim()

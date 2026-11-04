@@ -180,6 +180,16 @@ test('ensureShowFolder: a sync makes an automatic title match; Record series cla
   assert.equal((await db('shows').where({ id: made.id }).first()).origin, 'user')
 })
 
+test('ensureShowFolder: Record series on a longer title makes its own folder and leaves the auto row auto', async () => {
+  await setSetting('media_root', mediaRoot)
+  const identityFor = async () => ({ state: 'none', identity: null, candidates: [] })
+  const survivor = await ensureShowFolder({ title: 'Survivor', shows: [], identityFor })
+  const australian = await ensureShowFolder({ title: 'Australian Survivor', shows: [survivor], identityFor, origin: 'user' })
+  assert.equal(australian.created, true)
+  assert.equal(australian.show_pattern, 'Australian Survivor')
+  assert.equal((await db('shows').where({ id: survivor.id }).first()).origin, 'auto')
+})
+
 const OFFICE_CHOICES = {
   state: 'choose',
   identity: null,

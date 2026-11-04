@@ -207,7 +207,7 @@ test('newAutorecConfOf: a new rule records unless the show is paused', () => {
   const conf = newAutorecConfOf(base)
   assert.equal(conf.enabled, true)
   assert.equal(conf.channel, ABC_TV)
-  assert.equal(conf.title, 'Hard Quiz')
+  assert.equal(conf.title, '^Hard Quiz( ?[:(-].*)?$')
   assert.equal(conf.start_extra, 2)
   assert.equal(conf.stop_extra, 5)
   assert.equal(conf.maxcount, 3)
@@ -216,9 +216,9 @@ test('newAutorecConfOf: a new rule records unless the show is paused', () => {
   assert.equal(newAutorecConfOf({ ...base, paused: true }).enabled, false)
 })
 
-test('newAutorecConfOf: escapes the guide title so TVHeadend matches it as plain text', () => {
+test('newAutorecConfOf: escapes and anchors the guide title so TVHeadend matches that show only', () => {
   const conf = newAutorecConfOf({ title: 'Mr. Bean (1990)?', channelId: ABC_TV, configName: 'dvr' })
-  assert.equal(conf.title, 'Mr\\. Bean \\(1990\\)\\?')
+  assert.equal(conf.title, '^Mr\\. Bean \\(1990\\)\\?( ?[:(-].*)?$')
   assert.equal(conf.name, 'Mr. Bean (1990)?')
 })
 

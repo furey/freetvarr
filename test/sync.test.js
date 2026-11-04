@@ -259,11 +259,22 @@ test('matchShow: for sport, an automatic title match matches the whole title onl
   assert.equal(matchShow(userRule, 'Women\'s Rugby League World Cup 2026', { sport: true }).id, 13)
 })
 
-test('matchShow: outside sport, an automatic title match still finds its words inside a longer title', () => {
+test('matchShow: outside sport, an automatic title match still matches the title with a subtitle', () => {
   const shows = [{ id: 5, show_pattern: 'Chefs Ahoy', origin: 'auto' }]
   assert.equal(matchShow(shows, 'Chefs Ahoy: Christmas').id, 5)
   assert.equal(matchShow(shows, 'Chefs Ahoy').id, 5)
   assert.equal(matchShow(shows, 'Chefs Ahoyhoy'), undefined)
+  assert.equal(matchShow([{ id: 6, show_pattern: 'Bluey', origin: 'auto' }], 'Bluey (2018)').id, 6)
+})
+
+test('matchShow: an automatic title match does not match a longer title of another show', () => {
+  const auto = (pattern) => [{ id: 7, show_pattern: pattern, origin: 'auto' }]
+  assert.equal(matchShow(auto('Survivor'), 'Australian Survivor'), undefined)
+  assert.equal(matchShow(auto('Hard Quiz'), 'Hard Quiz Kids'), undefined)
+  assert.equal(matchShow(auto('MasterChef Australia'), 'Junior MasterChef Australia'), undefined)
+  assert.equal(matchShow(auto('The Chase'), 'The Chase Australia'), undefined)
+  assert.equal(matchShow(auto('The Chase'), 'Beat The Chase'), undefined)
+  assert.equal(matchShow([{ id: 8, show_pattern: 'Survivor', origin: 'user' }], 'Australian Survivor').id, 8)
 })
 
 test('libraryKind: an automatic title match does not hold a sport title with no database id in TV', () => {

@@ -7,7 +7,7 @@ import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
-import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
+import { anchorAutorecTitle, autorecMatchFieldsOf, literalTitleOf } from './autorec-match.js'
 import { earlierAiringOfEntry } from './repeat-match.js'
 import { sameOrigin } from './url-binding.js'
 import { sourceImageTypeOf } from './raster-type.js'
@@ -372,7 +372,7 @@ const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
 export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, configName }) => ({
   enabled: !paused,
   name: title,
-  title: escapeAutorecTitle(title),
+  title: anchorAutorecTitle(title),
   fulltext: false,
   channel: channelId,
   start: 'Any',
