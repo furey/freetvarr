@@ -155,3 +155,72 @@ test('long news and sport one-offs are never films unless a film record says so'
   assert.equal(isFilmAiring({ programme: electionNight }), false)
   assert.equal(isFilmAiring({ programme: soccer, record: { categories: ['movie', 'movie-drama'], source: 'wikidata:Q1' } }), true)
 })
+
+test('a title seen as a recording and as a film airing is looked up as a film', () => {
+  const order = lookupOrderOf({
+    titles: [
+      { title: 'Dune', priority: 3 },
+      { title: 'Dune', movie: true, year: 2021, priority: 1 },
+    ],
+  })
+  assert.deepEqual(order.map((item) => [item.title, item.movie, item.year, item.priority]), [['Dune', true, 2021, 3]])
+})
+
+test('a recorded film is searched on Wikidata and a film miss never falls back to a TVmaze series', async () => {
+  const writes = []
+  const wikidataSearches = []
+  const enrichment = createGenreEnrichment({
+    searchTvmaze: async (title) => [show(title)],
+    searchWikidata: async (title) => {
+      wikidataSearches.push(title)
+      return ['Q1', 'Q2']
+    },
+    queryWikidata: async () => ({ results: { bindings: [] } }),
+    cache: { freshKeys: async () => new Set(), write: async (row) => writes.push(row) },
+    isEnabled: async () => true,
+    now: () => 0,
+    sleep: async () => {},
+  })
+  await enrichment.run({ titles: [{ title: 'Dune', priority: 3 }, { title: 'Dune', movie: true }] })
+  assert.deepEqual(wikidataSearches, ['Dune'])
+  assert.deepEqual(writes.map((row) => [row.key, row.source]), [['dune', null]])
+})
+
+test('enrichment stops after five failed lookups in a row', async () => {
+  let searches = 0
+  const enrichment = createGenreEnrichment({
+    searchTvmaze: async () => {
+      searches += 1
+      throw new Error('TVmaze did not answer')
+    },
+    cache: { freshKeys: async () => new Set(), write: async () => {} },
+    isEnabled: async () => true,
+    now: () => 0,
+    sleep: async () => {},
+  })
+  const titles = Array.from({ length: 20 }, (_, index) => ({ title: `Show ${index}` }))
+  const result = await enrichment.run({ titles })
+  assert.equal(searches, 5)
+  assert.equal(result.looked, 5)
+})
+
+test('genre searches go through the shared TVmaze client as background calls', async () => {
+  const { createOutboundClient } = await import('../src/outbound-http.js')
+  const requests = []
+  const client = createOutboundClient({
+    hosts: { 'api.tvmaze.com': { concurrency: 1 } },
+    request: async (options) => {
+      requests.push(options.url)
+      return { status: 200, headers: { 'content-type': 'application/json' }, body: Buffer.from(JSON.stringify([show('The Block')])) }
+    },
+  })
+  const enrichment = createGenreEnrichment({
+    client,
+    cache: { freshKeys: async () => new Set(), write: async () => {} },
+    isEnabled: async () => true,
+    now: () => 0,
+    sleep: async () => {},
+  })
+  assert.deepEqual(await enrichment.run({ titles: [{ title: 'The Block' }] }), { looked: 1, found: 1 })
+  assert.deepEqual(requests, ['https://api.tvmaze.com/search/shows'])
+})
