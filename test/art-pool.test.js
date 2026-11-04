@@ -306,18 +306,24 @@ const responseRecorder = () => {
   return res
 }
 
+const JPEG_START = Buffer.from([0xff, 0xd8, 0xff])
+const WEBP_START = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP')])
+const jpegOf = (text) => Buffer.concat([JPEG_START, Buffer.from(text)])
+const webpOf = (text) => Buffer.concat([WEBP_START, Buffer.from(text)])
+const textAfter = (start, body) => body.subarray(start.length).toString()
+
 const recordingImageRoute = () => {
   const widths = []
   const route = serveImageRoute({
     missingMaxAgeS: 300,
     imageMaxAgeS: 86400,
     route: recordingImageRouteOf({
-      loadOriginal: async (id) => (id === 'r1' ? { body: Buffer.from('jpeg'), contentType: 'image/jpeg' } : null),
+      loadOriginal: async (id) => (id === 'r1' ? { body: jpegOf('jpeg'), contentType: 'image/jpeg' } : null),
       thumbnails: () => ({
         thumbnailFor: async ({ key, width, loadOriginal }) => {
           widths.push({ key, width })
           const original = await loadOriginal()
-          return { body: Buffer.from(`${original.body}|${width}`), contentType: 'image/webp' }
+          return { body: webpOf(`${textAfter(JPEG_START, original.body)}|${width}`), contentType: 'image/webp' }
         },
       }),
     }),
@@ -335,15 +341,15 @@ test('the recording image route resizes to an allowed width as webp', async () =
   const res = await call({ query: { w: '384' } })
   assert.equal(res.headers['content-type'], 'image/webp')
   assert.equal(res.headers['cache-control'], 'public, max-age=86400')
-  assert.equal(res.body.toString(), 'jpeg|384')
-  assert.equal(widths[0].key, `recording:r1:${contentKeyOf(Buffer.from('jpeg'))}`)
+  assert.equal(textAfter(WEBP_START, res.body), 'jpeg|384')
+  assert.equal(widths[0].key, `recording:r1:${contentKeyOf(jpegOf('jpeg'))}`)
 })
 
 test('the recording image route keeps the original without w and rejects other widths', async () => {
   const { call, widths } = recordingImageRoute()
   const original = await call()
   assert.equal(original.headers['content-type'], 'image/jpeg')
-  assert.equal(original.body.toString(), 'jpeg')
+  assert.equal(textAfter(JPEG_START, original.body), 'jpeg')
   assert.equal((await call({ query: { w: '500' } })).statusCode, 400)
   const missing = await call({ id: 'gone', query: { w: '192' } })
   assert.equal(missing.statusCode, 404)

@@ -1,5 +1,5 @@
 export const rasterTypeOf = (body) => {
-  if (!Buffer.isBuffer(body) || body.length < 12) return null
+  if (!Buffer.isBuffer(body)) return null
   return SIGNATURES.find(({ matches }) => matches(body))?.type ?? null
 }
 
