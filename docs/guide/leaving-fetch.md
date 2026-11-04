@@ -15,7 +15,7 @@ imageAlt: 'A step-by-step guide: Leaving Fetch TV? Keep recording free-to-air TV
 [Fetch TV](https://www.fetchtv.com.au/) is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="oNzNmlOxSFs" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:03" />
+<YouTubeVideo id="oBGxlVlb2Lk" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:03" />
 
 ## What you'll need
 
@@ -198,7 +198,7 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="F1yCHcC4i9M" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:36" />
+<YouTubeVideo id="cCP5A1czJes" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:40" />
 
 The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) desktop app. The [command line](#save-via-command-line) does the same job by hand, and also runs on a NAS or in Docker.
 
@@ -242,7 +242,7 @@ The files play in VLC (a free video player). For other ways to watch them, press
 ### Save via command line
 
 <!-- markdownlint-disable-next-line MD033 -->
-<YouTubeVideo id="mLbXBfHPvsE" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:46" />
+<YouTubeVideo id="vdl2ovk8eoo" title="Save your Fetch TV recordings before you cancel, with fetchtv" duration="2:49" />
 
 The [`fetchtv`](https://github.com/furey/fetchtv) tool is the manual way: you type its commands in a terminal. The app runs the same tool, so the files get the same names. Use the terminal to run it on a NAS or in Docker (the [`fetchtv` README](https://github.com/furey/fetchtv#installation) covers both), or for options the app does not have, such as leaving out shows by name. These steps run it on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up.
 
