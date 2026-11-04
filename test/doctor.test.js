@@ -38,6 +38,8 @@ const healthyRoutes = ({ now }) => ({
   '/api/dvr/config/grid': () => fixture('dvr-config-grid'),
   '/api/hardware/tree': (url) => fixture(url.searchParams.get('uuid') === 'root' ? 'hardware-tree-root' : 'hardware-tree-device'),
   '/api/access/entry/grid': () => fixture('access-entry-grid'),
+  '/api/epggrab/module/list': () => ({ entries: [] }),
+  '/api/idnode/load': () => ({ entries: [] }),
 })
 
 const ALLOWED_PATHS = new Set(Object.keys(healthyRoutes({ now: 0 })))
@@ -286,6 +288,55 @@ test('runDoctor: a guide ending in 6 h fails and one ending in 30 h warns', asyn
   assert.match(six.detail, /runs 6 hrs ahead/)
   assert.match(six.fix, /Enable an XMLTV grabber/)
   assert.equal(thirty.status, 'warn')
+})
+
+const grabberRoutes = ({ now, args }) => ({
+  ...healthyRoutes({ now }),
+  '/api/epggrab/module/list': () => ({ entries: [{ uuid: 'g1', title: 'XMLTV: XMLTV URL grabber' }] }),
+  '/api/idnode/load': () => ({ entries: [{ params: [{ id: 'enabled', value: true }, { id: 'args', value: args }] }] }),
+})
+
+test('runDoctor: a guide grabber on another Freetvarr address warns and names both addresses', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: grabberRoutes({ now, args: 'http://192.168.1.20:3733/guide/xmltv.xml' }),
+    now,
+    currentGuideFeedUrl: async () => 'http://192.168.1.30:3733/guide/xmltv.xml',
+  })
+  const depth = byId(report)['guide.depth']
+  assert.equal(depth.status, 'warn')
+  assert.match(depth.detail, /192\.168\.1\.20:3733.*192\.168\.1\.30:3733/)
+  assert.match(depth.fix, /guide/i)
+})
+
+test('runDoctor: a failing guide with a stale grabber stays a fail and names both addresses', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...grabberRoutes({ now, args: 'http://192.168.1.20:3733/guide/xmltv.xml' }), '/api/epg/events/grid': () => eventsEndingIn({ now, hours: 6 }) },
+    now,
+    currentGuideFeedUrl: async () => 'http://192.168.1.30:3733/guide/xmltv.xml',
+  })
+  const depth = byId(report)['guide.depth']
+  assert.equal(depth.status, 'fail')
+  assert.match(depth.detail, /192\.168\.1\.20:3733.*192\.168\.1\.30:3733/)
+  assert.match(depth.detail, /runs 6 hrs ahead/)
+  assert.match(depth.fix, /Settings → SYSTEM → Setup and press Guide/)
+})
+
+test('runDoctor: a TVHeadend error while reading the grabber leaves the guide depth result alone', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...healthyRoutes({ now }), '/api/epggrab/module/list': refuse(500) },
+    now,
+  })
+  assert.equal(byId(report)['guide.depth'].status, 'pass')
+})
+
+test('runDoctor: a guide grabber on the current Freetvarr address stays a pass', async () => {
+  const now = Date.now()
+  const url = 'http://192.168.1.30:3733/guide/xmltv.xml'
+  const report = await runAgainst({ routes: grabberRoutes({ now, args: url }), now, currentGuideFeedUrl: async () => url })
+  assert.equal(byId(report)['guide.depth'].status, 'pass')
 })
 
 test('runDoctor: a route that never answers fails within the time budget', async () => {

@@ -165,17 +165,18 @@ flowchart TD
     gate["useLookupGate,<br>startCachePruning"]
     bench["liveStreams.load, then measure"]
     web["webAssets"]
+    syncs["closeSyncsLeftByRestart:<br>resetInterruptedImports,<br>closeInterruptedSyncs"]
     listen["app.listen"]
   end
   subgraph callback["Listen callback"]
     loop["loopMonitor.start, activity.useStore,<br>scheduleDoctorChecks"]
-    reconcile["remove LIVE_ROOT, keepOneOffFolder,<br>rebaseFilePaths, resetInterruptedImports,<br>closeInterruptedSyncs"]
+    reconcile["remove LIVE_ROOT, keepOneOffFolder,<br>rebaseFilePaths"]
     sweep["sweepLibraryStates, shrinkStoredArtwork,<br>prepareThumbnailCache, imageFocus.startRefresh"]
     adrec["recoverInterruptedCuts,<br>resetInterruptedScans"]
     warm["keepGuideWarm, watchPendingSkips,<br>homeHero.start, onSyncFinished hooks"]
     start["startUserEvents, startScheduler,<br>startAutoImport"]
   end
-  build --> tz --> csrf --> enc --> gate --> bench --> web --> listen
+  build --> tz --> csrf --> enc --> gate --> bench --> web --> syncs --> listen
   listen --> loop --> reconcile --> sweep --> adrec --> warm --> start
 ```
 
@@ -623,7 +624,7 @@ flowchart TD
 
 The `finally` step clears `inFlight`, then calls each `onSyncFinished` listener with `{ syncId, trigger }`, also after an `error`. The status is `ok`, `partial` when any item failed, or `error`. `summary_json` holds the trigger, the counts `imported`, `skipped`, and `failed`, `errors`, up to `100` items (`SYNC_ITEMS_CAP`), milliseconds per step, the Plex results, the `delete` result, and the `ads` counts.
 
-At startup, `closeInterruptedSyncs` sets each `running` row to `error` with the message `Freetvarr restarted before this sync finished.`, and `resetInterruptedImports` sets each `importing` row back to `pending`.
+Before `app.listen`, `closeSyncsLeftByRestart` (`src/startup-reconcile.js`) runs `resetInterruptedImports`, which sets each `importing` row back to `pending`, and `closeInterruptedSyncs`, which sets each `running` row to `error` with the message `Freetvarr restarted before this sync finished.` Both only read and write the database, so a sync that starts after the server listens stays `running`.
 
 ### Sync history
 
@@ -1467,7 +1468,7 @@ The recent list keeps finished jobs for `24 h` and failed jobs for `7` days, in 
 | `ads.comskip`                                                                       | `comskip`, `ffmpeg`, and `ffprobe` on the `PATH` when ad removal is on                                                                                                        |
 | `host.env`                                                                          | A known time zone and a LAN address                                                                                                                                           |
 
-Each id links to its guide section, for example [`/guide/doctor#tvh-reach`](/guide/doctor#tvh-reach). `getDoctorReport` caches the report for `15 s`. `scheduleDoctorChecks` runs a fresh report `2` min after startup and every `3 h`. `GET /api/doctor` returns the report (`?fresh=1` skips the cache), and `npm run doctor` (`scripts/doctor.mjs`) prints it and exits `1` when a check fails.
+Each id links to its guide section, for example [`/guide/doctor#tvh-reach`](/guide/doctor#tvh-reach). `getDoctorReport` caches the report for `15 s`. `scheduleDoctorChecks` runs a fresh report `2` min after startup and every `3 h`, with the same live encoder and stream readings as `GET /api/doctor`. `guide.depth` also warns when the enabled XMLTV URL grabber reads a Freetvarr feed address with another host or port than Freetvarr now has, and names both. `GET /api/doctor` returns the report (`?fresh=1` skips the cache), and `npm run doctor` (`scripts/doctor.mjs`) prints it and exits `1` when a check fails.
 
 `getHealthSummary` (`src/health-summary.js`) builds one level (`ok`, `warn`, or `fail`) from the TVHeadend connection, failed recordings in the last day, the last sync, and the doctor checks of the last `6 h`. It is cached for `10 s` and served at `GET /api/health-summary`. `src/web-assets.js` inlines it into `index.html` as `<meta name="freetvarr-health">`; the client then polls every `60 s`.
 

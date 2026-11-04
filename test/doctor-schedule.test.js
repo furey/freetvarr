@@ -20,3 +20,9 @@ test('scheduleDoctorChecks keeps going after a failed run', async () => {
   stop()
   assert.ok(runs >= 2)
 })
+
+test('server.js runs the scheduled health check with the live encoder and stream deps', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const source = await readFile(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /scheduleDoctorChecks\(\{ run: \(\) => getDoctorReport\(\{ fresh: true, deps: liveDoctorDeps \}\) \}\)/)
+})

@@ -21,6 +21,7 @@ import { describeSyncSchedule } from './web/sync-schedule.js'
 import { detectDockerVm } from './docker-host.js'
 import { measureJob } from './event-loop-lag.js'
 import { activity, trackJob } from './activity.js'
+import { guideFeedUrl, isGuideFeedUrl, localAddressToward, serverPort } from './guide-feed.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -294,6 +295,14 @@ const LATER_CHECKS = [
         guideReach({ lastStopMs, now: ctx.now }),
         ...(coverage?.channels ? [guideListings(coverage)] : []),
       ].join(' ')
+      const staleFeed = await staleGuideFeedOf(ctx)
+      if (staleFeed) {
+        return {
+          status: status === 'pass' ? 'warn' : status,
+          detail: `${staleFeed.detail} ${detail}`,
+          fix: staleFeed.fix,
+        }
+      }
       if (status === 'pass') return { status, detail }
       const shortGuide = !lastStopMs || lastStopMs - ctx.now < GUIDE_WARN_MS
       return {
@@ -897,6 +906,7 @@ const defaultDeps = () => ({
   schedulerExpression: getSchedulerExpression,
   liveEncoder: async () => null,
   liveStreams: async () => null,
+  currentGuideFeedUrl,
   which: findOnPath,
   envTimeZone: timeZoneFromEnv,
   systemTimeZone: currentTimeZone,
@@ -904,6 +914,40 @@ const defaultDeps = () => ({
   dockerVm: () => detectDockerVm(),
   uid: () => process.getuid?.() ?? null,
 })
+
+const URL_GRABBER_TITLE = /XMLTV URL grabber/i
+
+const staleGuideFeedOf = async (ctx) => {
+  try {
+    return await readStaleGuideFeed(ctx)
+  } catch {
+    return null
+  }
+}
+
+const readStaleGuideFeed = async (ctx) => {
+  const list = await ctx.read('epggrab/module/list')
+  const entry = (list?.entries || []).find((m) => URL_GRABBER_TITLE.test(m.title || ''))
+  if (!entry) return null
+  const node = (await ctx.read('idnode/load', { uuid: entry.uuid }))?.entries?.[0]
+  const value = (id) => (node?.params || []).find((p) => p.id === id)?.value
+  const grabberUrl = value('args') || ''
+  if (value('enabled') !== true || !isGuideFeedUrl(grabberUrl)) return null
+  const currentUrl = await ctx.deps.currentGuideFeedUrl(ctx.conn)
+  if (!currentUrl || new URL(currentUrl).host === new URL(grabberUrl).host) return null
+  return {
+    detail: `The TVHeadend guide grabber reads ${grabberUrl}, but the Freetvarr guide feed is now at ${currentUrl}.`,
+    fix: 'Open Settings → SYSTEM → Setup and press Guide to point the grabber at the new address.',
+  }
+}
+
+const currentGuideFeedUrl = async (conn) => {
+  try {
+    return guideFeedUrl({ address: await localAddressToward(conn.url), port: serverPort() })
+  } catch {
+    return null
+  }
+}
 
 const memoiseReads = ({ read, conn }) => {
   const seen = new Map()

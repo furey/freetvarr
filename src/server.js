@@ -32,8 +32,6 @@ import {
   getRecordingsRoot,
   getTvhRecordingsPath,
   rebaseFilePaths,
-  resetInterruptedImports,
-  closeInterruptedSyncs,
   airingOf,
 } from './sync.js'
 import { LIBRARY_STATES, libraryChoicePatchOf, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
@@ -99,6 +97,7 @@ import {
   GUIDE_SOURCE_KEY,
   createRequestWatch,
   guideFeedUrl,
+  serverPort,
   isGuideFeedUrl,
   localAddressToward,
   serveShiftedFeed,
@@ -178,6 +177,7 @@ import {
 import { BUILD_HEADER, readBuildId } from './build-id.js'
 import { webAssets } from './web-assets.js'
 import { getDoctorReport, scheduleDoctorChecks } from './doctor.js'
+import { reconcileInterruptedSyncs } from './startup-reconcile.js'
 import { getHealthSummary, healthSummaryRoute, pageHealthOf } from './health-summary.js'
 import {
   isTvheadendUnconfigured,
@@ -262,7 +262,7 @@ const BUILD_ID = await readBuildId({ webRoot: WEB_ROOT, version: APP_VERSION })
 const STARTUP_TIME_ZONE = await applyStoredTimeZone({ getSetting })
 console.log(`[server] time zone ${STARTUP_TIME_ZONE.zone} (${STARTUP_TIME_ZONE.source})`)
 
-const PORT = Number(process.env.PORT || 3733)
+const PORT = serverPort()
 const DB_FILE = process.env.DB_PATH || path.join(__dirname, '..', 'config', 'state.db')
 const CONFIG_DIR = path.dirname(DB_FILE)
 const loadCsrfSecret = async () => {
@@ -1257,12 +1257,14 @@ app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {
 
 const doctorLimiter = createRateLimiter({ limit: 10 })
 
+const liveDoctorDeps = { liveEncoder: () => liveEncoderReady, liveStreams: async () => liveStreams.describe() }
+
 app.get('/api/doctor', doctorLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
     res.json(await getDoctorReport({
       fresh: req.query.fresh === '1',
-      deps: { liveEncoder: () => liveEncoderReady, liveStreams: async () => liveStreams.describe() },
+      deps: liveDoctorDeps,
     }))
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -2444,19 +2446,27 @@ const escapesMediaRoot = (value) =>
   || value.startsWith('\\')
   || value.split(/[/\\]+/).includes('..')
 
+const closeSyncsLeftByRestart = async () => {
+  try {
+    const closedSyncs = await reconcileInterruptedSyncs()
+    if (closedSyncs) console.log(`[sync] closed ${closedSyncs} sync(s) left running by a restart`)
+  } catch (err) {
+    console.error('[sync] failed to reconcile interrupted syncs:', err.message)
+  }
+}
+
+await closeSyncsLeftByRestart()
+
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
   loopMonitor.start()
   activity.useStore(createJobRunStore()).catch((err) => console.warn(`[activity] could not load failed runs: ${err.message}`))
-  scheduleDoctorChecks()
+  scheduleDoctorChecks({ run: () => getDoctorReport({ fresh: true, deps: liveDoctorDeps }) })
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
     await keepOneOffFolder(await getOneOffRoot())
     const moved = await rebaseFilePaths()
     if (moved) console.log(`[sync] moved ${moved} recording path(s) to the new media folders`)
-    await resetInterruptedImports()
-    const closedSyncs = await closeInterruptedSyncs()
-    if (closedSyncs) console.log(`[sync] closed ${closedSyncs} sync(s) left running by a restart`)
     sweepLibraryStates().catch((err) => console.warn(`[sync] library check: ${err.message}`))
     shrinkStoredArtwork().then((n) => n && console.log(`[artwork] shrank ${n} saved image(s)`)).catch(() => {})
     prepareThumbnailCache()

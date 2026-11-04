@@ -70,7 +70,7 @@ Counts TVHeadend's channels. It fails at `0` (the **Channels** step of [setup](/
 
 ## Guide depth {#guide-depth}
 
-Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the last programme in TVHeadend's TV guide and counts the channels with nothing in the next `24` hours. It fails when the TV guide ends within `12` hours. It warns when the TV guide ends within `48` hours, or when more than a quarter of the channels are empty. See [Empty guide](/guide/troubleshooting#empty-guide).
+Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the last programme in TVHeadend's TV guide and counts the channels with nothing in the next `24` hours. It fails when the TV guide ends within `12` hours. It warns when the TV guide ends within `48` hours, or when more than a quarter of the channels are empty. It also warns when the TVHeadend guide grabber reads Freetvarr's own +1 guide feed at an address that is not Freetvarr's address now (for example after the NAS address changed), and names both addresses; run the guide step again to fix it. See [Empty guide](/guide/troubleshooting#empty-guide).
 
 ## Channel logos {#guide-logos}
 

@@ -35,3 +35,16 @@ test('interruptedSyncSummaryOf keeps earlier errors and survives bad JSON', () =
   assert.deepEqual(interruptedSyncSummaryOf('not json'), { errors: [INTERRUPTED_SYNC_ERROR] })
   assert.deepEqual(interruptedSyncSummaryOf(null), { errors: [INTERRUPTED_SYNC_ERROR] })
 })
+
+test('reconcileInterruptedSyncs closes syncs left running', async () => {
+  const { reconcileInterruptedSyncs } = await import('../src/startup-reconcile.js')
+  await db('syncs').insert({ status: 'running', summary_json: '{}' })
+  assert.equal(await reconcileInterruptedSyncs(), 1)
+})
+
+test('server.js reconciles interrupted syncs before it listens', async () => {
+  const source = await fs.readFile(new URL('../src/server.js', import.meta.url), 'utf8')
+  const reconcileAt = source.indexOf('await closeSyncsLeftByRestart()')
+  const listenAt = source.indexOf('app.listen(PORT')
+  assert.ok(reconcileAt > -1 && reconcileAt < listenAt)
+})
