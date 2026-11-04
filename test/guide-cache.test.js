@@ -166,3 +166,28 @@ test('a failed load with no cached guide throws', async () => {
   const cache = createGuideCache({ load: async () => { throw new Error('down') }, staleRetryMs: 60_000 })
   await assert.rejects(cache.get(0), /down/)
 })
+
+test('a failed new-day load serves the previous guide as stale and waits before trying again', async () => {
+  let clock = 0
+  let loads = 0
+  let down = false
+  const load = async (startMs) => {
+    loads += 1
+    if (down) throw new Error('ECONNREFUSED')
+    return { startMs, expiresAt: clock + 10 * HOUR }
+  }
+  const cache = createGuideCache({ load, staleRetryMs: 60_000, now: () => clock })
+  await cache.get(0)
+  down = true
+  clock = 1000
+  const first = await cache.get(DAY)
+  assert.equal(first.startMs, 0)
+  assert.equal(first.stale, true)
+  const second = await cache.get(DAY)
+  assert.equal(second.stale, true)
+  assert.equal(loads, 2)
+  clock = 62_000
+  down = false
+  assert.equal((await cache.get(DAY)).startMs, DAY)
+  assert.equal(loads, 3)
+})

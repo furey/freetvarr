@@ -65,7 +65,7 @@ import { loadExternalIds } from './external-ids-store.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
-  const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: guide.startMs, day })
+  const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: localMidnightMs(nowMs), day })
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: spillEnd, nowMs })
     .catch(logHistoryError('load'))
   const merged = guide.channels.map((channel) => {

@@ -24,7 +24,7 @@ import { formatDate } from '/time-format.js'
 import { cellMarksOf, clockWithoutPeriod } from '/programme-sheet.js'
 import { watchForOfferOf } from '/watch-for.js'
 import { guideSearchOutcomeOf } from '/search-results.js'
-import { dayLoadWritesOf } from '/guide-day-load.js'
+import { dayAfterMidnightOf, dayLoadWritesOf } from '/guide-day-load.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
 import { openWatchFor } from '/components/watch-for-sheet.js'
 import { api } from '/shared/api.js'
@@ -851,6 +851,14 @@ export const EpgView = {
     watch(nowMs, (ms) => {
       if (day.value !== 0 || loading.value || !guide.value || ms < guide.value.dayEnd) return
       rollOverToToday()
+    })
+
+    watch(todayNumber, (todayNow, todayBefore) => {
+      const sameDay = dayAfterMidnightOf({ day: day.value, todayBefore, todayNow })
+      if (sameDay == null) return
+      guideByDay.clear()
+      day.value = sameDay
+      loadDay(sameDay, { force: true })
     })
 
     const setDay = async (d, { atMs = null } = {}) => {
