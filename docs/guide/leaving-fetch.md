@@ -57,22 +57,22 @@ Fetch's paid channel packs and streamed international channels have no free repl
 
 ## The deadline
 
-The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of `4 November 2026`:
+The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of `5 November 2026`:
 
-- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack; these are Fetch's monthly subscriptions). Apps billed through Fetch, such as Netflix, do not count. The cheapest subscription that avoids the levy is Movie Box at `$3.99` a month.
+- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack; these are Fetch's monthly subscriptions). Apps billed through Fetch, such as Netflix, do not count. The cheapest subscription that avoids the levy is Movie Box at `$3.99` a month. Fetch checks the account on `1 December 2026`: if you have upgraded, started an eligible subscription, or cancelled by then, Fetch does not charge the levy. If you get Fetch through an internet provider such as Optus or Aussie Broadband, you do not pay the levy.
 - **More than one box**: a second box needs Multiroom at `$4.49` a month, so most homes with two or more boxes do not pay the levy. They already pay Fetch `$53.88` a year.
 - **How much**: `$29.99` once per household, however many Gen 3 boxes you have.
-- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in). Fetch's levy FAQ gave the deadline as `31 October 2026` and still shows that date (checked `4 November 2026`). Fetch support replies seen by members say Fetch extended it to the end of November 2026. Submit the form as soon as you can. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026.
+- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in). The deadline is `30 November 2026`. Submit the form as soon as you can, and update your payment details by the same date. From `1 December 2026`, Fetch charges the payment details it holds with at least 7 days' notice, or emails a payment link.
 - **Concessions and hardship**: pensioners, eligible concession card holders, and households in financial difficulty can ask Fetch Customer Support to review their circumstances. Members of Fetch user groups report that Fetch asks for evidence (e.g. a letter from a financial counsellor, a bank statement, or a statutory declaration), and that some had to raise a concession card more than once.
 - **Credit if you upgrade**: if you buy a new Fetch box or start an eligible subscription within 30 days of the levy charge, Fetch credits the full levy to your account. There is no credit after 30 days, or while the account is suspended.
 - **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that. Members report that some Fetch support replies give "at least 31 October 2027" instead, so check the date in your own Fetch email or account.
 - **Free trials**: levy payers can claim one month of the Ultimate Pack and Movie Box at `$0`. Each trial continues at the full monthly price unless you cancel it before the month ends.
-- **If you do nothing**: Fetch suspends the box in November 2026, then deactivates it permanently. A Mighty loses its recordings for good. While the account is suspended, Fetch can still restore it on request.
+- **If you do nothing**: Fetch suspends the box from `1 December 2026`, then deactivates it permanently. A Mighty loses its recordings for good. While the account is suspended, Fetch can still restore it on request.
 - **If you cancel**: Fetch says a cancelled box "cannot be reactivated in the future by you or anyone else". The box still turns on, but it restarts at Fetch's setup screen and asks for an activation code, which needs an active Fetch account, so it shows no TV and lists no recordings.
 - **Used boxes**: Fetch says Gen 3 boxes "should not be re-sold", because Fetch does not reactivate a cancelled box. Members report that a Gen 3 box bought secondhand was deactivated and factory reset remotely when its original account was unknown. Do not buy or sell a used Gen 3 box.
 - **Apps**: Fetch removes some apps from Gen 3 boxes whether you pay the levy or not. [CyberShack reports](https://cybershack.com.au/consumer-advice/fetch-tv-gen-3/) that the Mini loses Netflix, Paramount+, SBS On Demand, and Hayu, and the Mighty loses Paramount+.
 
-Fetch changed these terms in October 2026. Its September emails said Fetch would charge the card automatically on `1 November 2026` and cover the box until 2027. If your email says that, the FAQ is newer.
+Fetch changed these terms in October 2026, then moved the opt-in deadline from `31 October 2026` to `30 November 2026`. Its September emails said Fetch would charge the card automatically on `1 November 2026` and cover the box until 2027. If your email says that, the FAQ is newer.
 
 Members report that Fetch emailed opt-in links on 28 and 29 October, and that some cannot sign in or reset their password. If that happens to you, contact Fetch through its [contact page](https://www.fetchtv.com.au/contact-us) (an email form or Live Chat) as soon as you can, and keep a copy of what you send.
 
@@ -545,7 +545,7 @@ flowchart LR
   split --> tuner
 ```
 
-If the new setup will not be ready in time, the `$29.99` levy (if Fetch still accepts your opt-in) keeps the Fetch box going until at least `30 June 2028` while you finish. Fetch's levy FAQ gave the opt-in deadline as `31 October 2026`; Fetch support replies say the end of November 2026 ([The deadline](#the-deadline)).
+If the new setup will not be ready in time, the `$29.99` levy keeps the Fetch box going until at least `30 June 2028` while you finish. The opt-in deadline is `30 November 2026` ([The deadline](#the-deadline)).
 
 ## FAQ
 
@@ -575,7 +575,7 @@ If the Fetch box gets a clear picture now, the tuner will too: it uses the same 
 
 ### Staying with Fetch
 
-For many households the cheapest choice is the `$29.99` levy: it keeps the box you already have until at least `30 June 2028` (if Fetch still accepts your opt-in), against about `A$280–1,400` for the two paths. It does not keep the apps Fetch removes ([The deadline](#the-deadline)). This guide is for people who want to leave Fetch anyway.
+For many households the cheapest choice is the `$29.99` levy: it keeps the box you already have until at least `30 June 2028`, against about `A$280–1,400` for the two paths. It does not keep the apps Fetch removes ([The deadline](#the-deadline)). This guide is for people who want to leave Fetch anyway.
 
 A new Fetch box can also come out cheaper than either path. Fetch's prices from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in `October 2026`:
 
