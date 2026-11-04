@@ -662,6 +662,38 @@ test('sessions: another device or a shared held session is not ended by a new st
   await h.sessions.stopAll()
 })
 
+test('sessions: a held session that another device joined is not ended by the first device next start', async () => {
+  const h = fakeHarness({ maxSessions: 2, bufferMinutes: 30 })
+  const first = await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'phone' })
+  await h.sessions.hold(first.session.id)
+  await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'tablet' })
+  await h.sessions.leave(first.session.id)
+  await h.sessions.start({ channelId: 'c2', plan: PLAN, clientToken: 'phone' })
+  assert.equal(first.session.status, 'tuning')
+  await h.sessions.stopAll()
+})
+
+test('sessions: a held picture that a second tab on the same device joined survives a Multiview start', async () => {
+  const h = fakeHarness({ maxSessions: 2, bufferMinutes: 30 })
+  const main = await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'laptop' })
+  await h.sessions.hold(main.session.id)
+  await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'laptop' })
+  await h.sessions.leave(main.session.id)
+  await h.sessions.start({ channelId: 'c2', plan: PLAN, clientToken: 'laptop' })
+  assert.equal(main.session.status, 'tuning')
+  await h.sessions.stopAll()
+})
+
+test('sessions: a held session that is still attended, as in Picture in Picture, is not ended', async () => {
+  const h = fakeHarness({ maxSessions: 2, bufferMinutes: 30 })
+  const first = await h.sessions.start({ channelId: 'c1', plan: PLAN, clientToken: 'phone' })
+  await h.sessions.hold(first.session.id)
+  h.sessions.setAttending(first.session.id, true, 'page-1')
+  await h.sessions.start({ channelId: 'c2', plan: PLAN, clientToken: 'phone' })
+  assert.equal(first.session.status, 'tuning')
+  await h.sessions.stopAll()
+})
+
 test('sessions: an unhold ends the hold, so the reaper ends the session 20 s later', async () => {
   const h = fakeHarness({ bufferMinutes: 30 })
   const { session } = await h.sessions.start({ channelId: 'c1', plan: PLAN })

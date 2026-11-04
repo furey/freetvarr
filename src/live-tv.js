@@ -320,10 +320,11 @@ export const createLiveSessions = ({
     const existing = forChannel(channelId)
     if (existing) {
       existing.viewers += 1
+      existing.joined = true
       touch(existing.id)
       return { session: existing, shared: true }
     }
-    releaseHeld({ clientToken, keepChannelId: channelId })
+    await releaseHeld({ clientToken, keepChannelId: channelId })
     const playing = [...labels(), ...streamsElsewhere()]
     const limit = limitOf(maxSessions)
     if (playing.length >= limit) {
@@ -338,6 +339,7 @@ export const createLiveSessions = ({
       userAgent: `Freetvarr-live/${id}`,
       client,
       clientToken,
+      joined: false,
       status: 'tuning',
       reason: null,
       startedAt: now(),
@@ -535,7 +537,9 @@ export const createLiveSessions = ({
   const heldBy = (clientToken) => [...sessions.values()].filter((s) => clientToken
     && !s.ending
     && s.clientToken === clientToken
+    && !s.joined
     && s.viewers === 1
+    && !s.attending
     && s.heldUntil > now())
 
   const releaseHeld = ({ clientToken, keepChannelId = null }) => Promise.all(heldBy(clientToken)
