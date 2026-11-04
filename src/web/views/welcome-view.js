@@ -55,6 +55,7 @@ import { tz, browserTimeZone } from '/shared/time.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
 import { SetupRunList, SetupStatusIcon, BOOTSTRAP_REVEAL_POLL_MS } from '/views/welcome-shared.js'
 import { SystemTour } from '/components/system-tour.js'
+import { createBootstrapCheck, leaveTvheadendStep, nextStepAfter } from '/setup-wizard-flow.js'
 
 const syncFrequency = (cron) => {
   const preset = SYNC_SCHEDULE_PRESETS.find((p) => p.cron === syncSchedulePreset(cron))
@@ -814,9 +815,7 @@ export const WelcomeView = {
           tz.value = timeZone.value
           tzSource.value = 'setting'
         } else if (from === 2) {
-          await settleBootstrap()
-          if (showSecure.value) return
-          const connected = await testTvh()
+          const connected = await leaveTvheadendStep({ settleBootstrap, showsSecure: () => showSecure.value, testTvh })
           if (!connected) return
         } else if (from === 4) {
           await guideStep.value?.saveLinks()
@@ -825,7 +824,7 @@ export const WelcomeView = {
         } else if (from === 6) {
           await savePlex()
         }
-        if (step.value === from) step.value = from + 1
+        step.value = nextStepAfter({ from, current: step.value })
       } catch (err) {
         setSaveStatus(`Save failed: ${err.message}`, 'err', 5000)
       } finally {
@@ -1013,8 +1012,6 @@ export const WelcomeView = {
     }))
     const secureReady = computed(() => !secureInputProblem.value)
 
-    let bootstrapCheckTimer = null
-    let bootstrapCheck = null
     const readBootstrap = async (url) => {
       const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
       if (url !== tvhUrl.value.trim()) return
@@ -1026,20 +1023,9 @@ export const WelcomeView = {
         }).join(', ')
       }
     }
-    const checkBootstrap = () => {
-      clearTimeout(bootstrapCheckTimer)
-      bootstrapCheck = null
-      const url = tvhUrl.value.trim()
-      if (!url || step.value !== 2) return
-      bootstrapCheckTimer = setTimeout(() => { bootstrapCheck = readBootstrap(url) }, BOOTSTRAP_CHECK_DELAY_MS)
-    }
-    const settleBootstrap = async () => {
-      const url = tvhUrl.value.trim()
-      if (!url || bootstrap.value) return
-      clearTimeout(bootstrapCheckTimer)
-      bootstrapCheck ??= readBootstrap(url)
-      await bootstrapCheck
-    }
+    const bootstrapChecks = createBootstrapCheck({ read: readBootstrap, delayMs: BOOTSTRAP_CHECK_DELAY_MS })
+    const checkBootstrap = () => bootstrapChecks.schedule(step.value === 2 ? tvhUrl.value.trim() : '')
+    const settleBootstrap = () => bootstrapChecks.settle({ url: tvhUrl.value.trim(), known: Boolean(bootstrap.value) })
     watch(tvhUrl, () => {
       bootstrap.value = null
       checkBootstrap()

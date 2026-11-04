@@ -7,6 +7,7 @@ import {
   watch,
 } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
+import { guideLinksSaver } from '/guide-links.js'
 import { usePacedJob, SETUP_POLL_MS, SetupRunList } from '/views/welcome-shared.js'
 
 export const GuideSetupStep = {
@@ -218,22 +219,20 @@ export const GuideSetupStep = {
 
     const savingLinks = ref(false)
     const linksError = ref('')
+    const sendLinks = async (links) => {
+      await api('POST', '/api/tvh-guide/links', { links })
+      for (const { channel_id } of links) delete picks[channel_id]
+      const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
+      if (progress) job.value = progress
+    }
+    const saveLinksOnce = guideLinksSaver({
+      send: sendLinks,
+      onBusy: (busy) => { savingLinks.value = busy },
+      onError: (text) => { linksError.value = text },
+    })
     const saveLinks = async () => {
-      if (!pickedCount.value || savingLinks.value) return
-      savingLinks.value = true
-      linksError.value = ''
-      try {
-        const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
-        await api('POST', '/api/tvh-guide/links', { links })
-        for (const { channel_id } of links) delete picks[channel_id]
-        const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
-        if (progress) job.value = progress
-      } catch (err) {
-        linksError.value = `Could not save the guide choices: ${err.message}`
-        throw err
-      } finally {
-        savingLinks.value = false
-      }
+      if (!pickedCount.value) return
+      await saveLinksOnce(Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id })))
     }
     const saveLinksHere = () => saveLinks().catch(() => {})
 
