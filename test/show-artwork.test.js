@@ -386,3 +386,33 @@ test('TVmaze image lookups go through the shared client', async () => {
   assert.deepEqual(await tvmazeImages(42, { client }), [{ type: 'poster' }])
   assert.deepEqual(requests, ['https://api.tvmaze.com/shows/42/images'])
 })
+
+test('sourcesFor: a refresh with no guide details does not wipe a cached picture', async () => {
+  let clock = 1_000
+  let searches = 0
+  const writes = []
+  const cache = memoryCache()
+  const write = cache.write
+  cache.write = async (row) => {
+    writes.push(row)
+    return write(row)
+  }
+  const artwork = artworkWith({
+    cache,
+    now: () => clock,
+    hitTtlMs: 100,
+    failureBackoffMs: 500,
+    searchTvmaze: async () => {
+      searches += 1
+      return searches === 1 ? [tvmazeShow({ id: 4, name: 'Pooch Perfect' })] : []
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
+  clock += 101
+  assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: ['https://tvmaze.test/4.jpg'], pending: false })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(searches, 2)
+  assert.equal(writes.length, 1)
+  assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
+  assert.equal(searches, 2)
+})

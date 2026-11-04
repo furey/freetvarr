@@ -45,6 +45,7 @@ export const createFallbackArtwork = ({
   now = Date.now,
   hitTtlMs = HIT_TTL_MS,
   missTtlMs = MISS_TTL_MS,
+  tmdbRetryTtlMs = TMDB_RETRY_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
@@ -89,18 +90,25 @@ export const createFallbackArtwork = ({
   }
 
   const refreshStale = ({ cached, title, settings }) => {
-    if (cached.stale && !recentlyFailed(settings.cacheKey)) startLookup({ title, ...settings })
+    if (cached.stale && !recentlyFailed(settings.cacheKey)) startLookup({ title, ...settings, refreshingHit: Boolean(cached.sources?.length) })
   }
 
-  const startLookup = ({ title, kind, apiKey, ids = null, cacheKey }) => {
+  const expiryOf = ({ sources, found }) => (sources.length && found?.retrySoon
+    ? now() + tmdbRetryTtlMs
+    : lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs }))
+
+  const startLookup = ({ title, kind, apiKey, ids = null, cacheKey, refreshingHit = false }) => {
     if (inflight.has(cacheKey)) return inflight.get(cacheKey)
-    const pending = lookupLimiter.run(async () =>
-      lookUp({ title, kind, ids, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }))
-      .then(async (found) => {
+    const pending = lookupLimiter.run(async () => {
+      const hints = hintsForKind({ hints: await hintsFor(title), kind })
+      return { hints, found: await lookUp({ title, kind, ids, hints, apiKey }) }
+    })
+      .then(async ({ hints, found }) => {
         const sources = found?.sources || []
-        const expiresAt = lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs })
+        if (!sources.length && refreshingHit && !hints && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
         const reference = sources.length ? found?.reference || null : MISS_REFERENCE
-        await cache.write({ key: sizedKeyOf(cacheKey), sources, reference, expiresAt }).catch(() => {})
+        await cache.write({ key: sizedKeyOf(cacheKey), sources, reference, expiresAt: expiryOf({ sources, found }) }).catch(() => {})
+        if (found?.retrySoon) noteFailure({ cacheKey })
         return sources
       })
       .catch((error) => {
@@ -316,11 +324,13 @@ export const createArtworkLookup = ({
       throw attempt.error
     }
     const { match } = attempt
-    if (match && apiKey) {
-      const fromTmdb = await tmdbForEntity({ apiKey, entity: match.entity }).catch(() => null)
-      if (fromTmdb) return fromTmdb
+    const fromTmdb = match && apiKey
+      ? await tmdbForEntity({ apiKey, entity: match.entity }).then((found) => ({ found }), (error) => ({ error }))
+      : {}
+    if (fromTmdb.found) return fromTmdb.found
+    if (match?.page.image) {
+      return { sources: [match.page.image], reference: `wikidata:${match.entity.id}`, ...(fromTmdb.error ? { retrySoon: true } : {}) }
     }
-    if (match?.page.image) return { sources: [match.page.image], reference: `wikidata:${match.entity.id}` }
     if (!match && apiKey) return tmdbSearch({ apiKey, title, hints })
     return null
   }
@@ -391,6 +401,7 @@ const PENDING_ARTWORK = { sources: [], pending: true }
 const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000
+const TMDB_RETRY_TTL_MS = 6 * 60 * 60 * 1000
 const MISS_REFERENCE = 'miss:guide-network-v2'
 const LOOKUP_CONCURRENCY = 2
 const LOOKUP_MAX_QUEUE = 300

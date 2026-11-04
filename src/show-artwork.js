@@ -3,7 +3,7 @@ import axios from 'axios'
 import { db, getSetting } from './db.js'
 import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
-import { externalIdsOf, idKeyedCacheKeyOf } from './external-ids.js'
+import { externalIdsOf, hasExternalIds, idKeyedCacheKeyOf } from './external-ids.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
@@ -65,16 +65,21 @@ export const createShowArtwork = ({
     if (!(await isTvmazeEnabled())) return []
     const lookup = await tvmazeLookupOf({ key, title })
     const cached = await cachedTvmazeSources(lookup.cacheKey)
-    if (cached.stale && !recentlyFailed(lookup.cacheKey)) startTvmazeLookup(lookup)
+    refreshStale({ cached, lookup })
     if (cached.sources) return cached.sources
     if (recentlyFailed(lookup.cacheKey)) return []
     return startTvmazeLookup(lookup)
   }
 
-  const startTvmazeLookup = ({ cacheKey, ids, title }) => {
+  const refreshStale = ({ cached, lookup }) => {
+    if (cached.stale && !recentlyFailed(lookup.cacheKey)) startTvmazeLookup({ ...lookup, refreshingHit: Boolean(cached.sources?.length) })
+  }
+
+  const startTvmazeLookup = ({ cacheKey, ids, title, refreshingHit = false }) => {
     if (inflight.has(cacheKey)) return inflight.get(cacheKey)
     const pending = runSpaced(() => lookUpTvmaze({ title, ids }))
       .then(async ({ sources, hinted }) => {
+        if (!sources.length && refreshingHit && !hinted && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
         const missMs = hinted ? missTtlMs : unhintedMissTtlMs
         const expiresAt = now() + (sources.length ? hitTtlMs : missMs)
         await cache.write({ key: sizedKeyOf(cacheKey), sources, expiresAt }).catch(() => {})
@@ -115,7 +120,7 @@ export const createShowArtwork = ({
     if (!(await isTvmazeEnabled())) return NO_ARTWORK
     const lookup = await tvmazeLookupOf({ key, title })
     const cached = await cachedTvmazeSources(lookup.cacheKey)
-    if (cached.stale && !recentlyFailed(lookup.cacheKey)) startTvmazeLookup(lookup)
+    refreshStale({ cached, lookup })
     if (cached.sources) return { sources: cached.sources, pending: false }
     if (recentlyFailed(lookup.cacheKey)) return NO_ARTWORK
     startTvmazeLookup(lookup)
