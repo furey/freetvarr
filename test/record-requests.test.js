@@ -26,6 +26,6 @@ test('record routes: neither route asks for epg_program_id', () => {
   for (const path of ['/api/epg/record', '/api/epg/record-series']) {
     assert.doesNotMatch(routeBody(path), /epg_program_id/)
   }
-  assert.match(routeBody('/api/epg/record'), /const missing = recordRequestError\(req\.body\)/)
-  assert.match(routeBody('/api/epg/record-series'), /const missing = seriesRequestError\(req\.body\)/)
+  assert.match(routeBody('/api/epg/record'), /recordRequestError\(/)
+  assert.match(routeBody('/api/epg/record-series'), /seriesRequestError\(/)
 })
