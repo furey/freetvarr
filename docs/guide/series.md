@@ -7,7 +7,7 @@ description: >-
 
 # Series rules and folders
 
-A series has two parts: a [series recording](#how-a-series-recording-works) in TVHeadend and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync (a [sync](/guide/syncs) is one pass over TVHeadend's finished recordings). Settings → RECORDING → **Series rules** lists both parts together. Settings → RECORDING → **Title matches** lists the [title matches](#title-matches).
+A series has two parts: a [series recording](#how-a-series-recording-works) in [TVHeadend](https://tvheadend.org) and a folder in your media library. TVHeadend records each episode. Freetvarr imports every recording TVHeadend finishes, and files the episodes of a series into its own folder at the next sync (a [sync](/guide/syncs) is one pass over TVHeadend's finished recordings). Settings → RECORDING → **Series rules** lists both parts together. Settings → RECORDING → **Title matches** lists the [title matches](#title-matches).
 
 [Recording options](/guide/recordings#recording-options) on a show page change one show.
 
@@ -26,18 +26,18 @@ A series has two parts: a [series recording](#how-a-series-recording-works) in T
 
 Freetvarr creates the series folder at the same time, unless you first turn off **Add to library** under **Advanced** in the programme sheet. The default for **Add to library** is in Settings → RECORDING → Media library. [Series folder names](#series-folder-names) explains how Freetvarr names the folder.
 
-Matching is by title: a recording goes to the folder whose title appears in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
+Matching is by title: a recording goes to the folder whose title appears as whole words in the recording's title. When more than one folder matches, the longest title wins, so `NRL Grand Final` beats `NRL`.
 
 ## Series folder names
 
-Freetvarr looks up each new series on [TVmaze](https://www.tvmaze.com) and names its folder after the show it finds, with the show's TVDB number (its ID on TheTVDB, an online TV database) in curly brackets:
+Freetvarr looks up each new series on [TVmaze](https://www.tvmaze.com) and names its folder after the show it finds, with the show's TVDB number (its ID on [TheTVDB](https://thetvdb.com), an online TV database) in curly brackets:
 
 ```text
 Gruen {tvdb-83281}
 Big Brother (AU) {tvdb-76237}
 ```
 
-The country code in brackets, such as `(AU)` or `(UK)`, appears only when shows from other countries have the same title. Freetvarr uses the channel, the air time, and the country of your time zone to choose between them. The TVDB number tells Plex which show the folder holds, so Plex does not mix up `Big Brother` from Australia with `Big Brother` from the US. TVmaze needs no account or key. When TVmaze has no TVDB number for the show and you added a [TMDB key](/guide/tv-guide#tmdb-key), the folder carries the TMDB number instead, such as `{tmdb-12345}`.
+The country code in brackets, such as `(AU)` or `(UK)`, appears only when shows from other countries have the same title. Freetvarr uses the channel, the air time, and the country of your time zone to choose between them. The TVDB number tells [Plex](https://www.plex.tv) which show the folder holds, so Plex does not mix up `Big Brother` from Australia with `Big Brother` from the US. TVmaze needs no account or key. When TVmaze has no TVDB number for the show and you added a [TMDB key](/guide/tv-guide#tmdb-key), the folder carries the [TMDB](https://www.themoviedb.org) number instead, such as `{tmdb-12345}`.
 
 Freetvarr uses an existing folder first:
 
@@ -50,7 +50,7 @@ When TVmaze finds no show, finds more than one with no clear winner, or does not
 Folders that already exist keep their names. New episodes of a series keep going to its folder until you rename it.
 
 > [!NOTE]<br>
-> Plex reads the TVDB number in the folder name. Jellyfin reads `{tvdb-…}` from Jellyfin 12; older Jellyfin versions ignore it and match the show by name, where the country code helps. Infuse, reading the share directly, matches by the folder and file names; if it picks the wrong show, correct the match in Infuse's own metadata editor.
+> Plex reads the TVDB number in the folder name. [Jellyfin](https://jellyfin.org) reads `{tvdb-…}` from Jellyfin 12; older Jellyfin versions ignore it and match the show by name, where the country code helps. [Infuse](https://firecore.com/infuse), reading the share directly, matches by the folder and file names; if it picks the wrong show, correct the match in Infuse's own metadata editor.
 
 ### Check which show this is
 
@@ -85,7 +85,7 @@ Freetvarr does not offer **Rename folder**:
 - For a [title match](#title-matches).
 - For a folder you typed into **Saves to** yourself.
 - While a sync runs, while [ad removal](/guide/ad-removal) works on one of its episodes, or while Freetvarr moves recordings into their library folders. Try again when it finishes.
-- When Sonarr also saves episodes in the folder. Renaming it would break Sonarr's path to the series, so rename the series in Sonarr instead.
+- When [Sonarr](https://sonarr.tv) (a program that downloads TV episodes) also saves episodes in the folder. Renaming it would break Sonarr's path to the series, so rename the series in Sonarr instead.
 - When a folder with the new name already exists in your TV library.
 
 The edit form says which of the last two applies.
@@ -105,7 +105,7 @@ To change the setting on an existing series, open its show page, press **Recordi
 A series recording is one TVHeadend autorec entry (an automatic recording rule in TVHeadend). It matches on **title plus channel** (or on title alone, with [any channel](#record-on-any-channel)), across all days and all start times. It skips an episode whose episode number it has already recorded. The **Keep the latest** option in [Recording options](/guide/recordings#recording-options) (**Keep** in the programme sheet) maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
 
 - **One channel**: an SD channel and its HD simulcast are separate channels, so a series recording on the HD channel does not cover SD airings. Series rules shows both as one series.
-- **Episode numbers**: duplicate detection needs them. XMLTV feeds carry them inconsistently, so your TV guide source decides what you get. Where they are missing, TVHeadend records every airing.
+- **Episode numbers**: duplicate detection needs them. [XMLTV](https://wiki.xmltv.org) feeds (TV guide data files) carry them inconsistently, so your TV guide source decides what you get. Where they are missing, TVHeadend records every airing.
 
 ## Series rows
 
@@ -177,7 +177,7 @@ Each folder has a season template that decides where episodes are saved. The def
 
 ## Filenames
 
-Freetvarr renames every file as it imports it, into the shape Plex, Jellyfin, and Kodi read:
+Freetvarr renames every file as it imports it, into the shape Plex, Jellyfin, and [Kodi](https://kodi.tv/download) read:
 
 ```text
 Show Name - S01E02 - Episode Title.ts
@@ -223,7 +223,7 @@ To add a title:
 
 ## Recordings with no series
 
-A programme that airs once, such as a sports final or a special, goes to the one-off folder. So does sport with no entry on TheTVDB or TMDB, such as each game of a tournament. The one-off folder is `/data/media/one-offs` in the Docker compose file that the install script downloads. Each title gets its own folder, and the file name carries the air date and start time:
+A programme that airs once, such as a sports final or a special, goes to the one-off folder. So does sport with no entry on TheTVDB or TMDB, such as each game of a tournament. The one-off folder is `/data/media/one-offs` in the [Docker](https://docs.docker.com/compose/) compose file that the install script downloads. Each title gets its own folder, and the file name carries the air date and start time:
 
 ```text
 NRL Grand Final/NRL Grand Final - 2026-10-04 1930.ts

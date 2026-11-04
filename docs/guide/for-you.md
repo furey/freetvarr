@@ -29,7 +29,7 @@ The page groups its suggestions under these headings, and leaves out any heading
 - **Coming up this week for you**, sorted by air time.
 - **New seasons and returning**.
 - **You might like**.
-- **Top rated movies this week**: up to 10 films from the next 7 days with the best user scores on TMDB (The Movie Database, an online film database), weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**.
+- **Top rated movies this week**: up to 10 films from the next 7 days with the best user scores on [TMDB](https://www.themoviedb.org) (The Movie Database, an online film database), weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**. Each card shows its TMDB score.
 - **Movies for you**.
 - **Premieres and movies this week**.
 
@@ -45,9 +45,10 @@ Press a card to act on it. What happens depends on the suggestion:
 
 Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
-- **Watch live**, **Record this episode**, **Record series**, and **Go to show**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
+- **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
 - **More like this** and **Fewer like this**: tell Freetvarr what you think of the show.
 - **Not interested in** the show: hides it from For you for 90 days.
+- **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
 
 The reason under a card names how you came to the show:
@@ -101,12 +102,12 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 The suggestion level decides how much of the processor For you uses:
 
 - **Basic** compares genres, channels, times, and the words in programme descriptions. It suits any computer.
-- **Standard** adds a small language model that runs on your computer and compares what descriptions mean, not only their words. Matches are better. Freetvarr picks it when the nightly work takes under about five minutes.
+- **Standard** adds a small language model (a program that reads text for its meaning) that runs on your computer and compares what descriptions mean, not only their words. Matches are better. Freetvarr picks it when the nightly work takes under about five minutes.
 - **Plus** uses a larger language model. It is slower, so Freetvarr picks it only when the nightly work with it takes under about two minutes.
 
-**Auto**, the default, picks the level from a short test of your computer. The setting shows the result, such as `Standard, detected on this box`, and the reason, such as how many seconds a day the work would take. A computer with less than `400MB` of free memory stays at Basic. Press **Check again** to run the test again, for example after a hardware change. To choose a level yourself, press **Basic**, **Standard**, or **Plus**.
+**Auto**, the default, picks the level from a short test of your computer. The setting shows the result, such as `Standard, detected on this box`, and the reason, such as how many seconds a day the work would take. A computer with less than `400MB` of free memory stays at Basic. Press **Check again** to run the test again, for example after a hardware change. If Ollama (a program that runs language models on a computer) holds an embedding model on the host, Auto picks **Plus** and uses that model. To choose a level yourself, press **Basic**, **Standard**, or **Plus**.
 
-The first time it uses Standard or Plus, Freetvarr downloads the language model from Hugging Face into its config folder (`${CONFIG_PATH}/freetvarr/models` on the host; `CONFIG_PATH` is set in the `.env`, see [Configuration](/guide/configuration#compose-environment)). After that it works offline.
+The first time it uses Standard or Plus, Freetvarr downloads the language model from [Hugging Face](https://huggingface.co) into its config folder (`${CONFIG_PATH}/freetvarr/models` on the host; `CONFIG_PATH` is set in the `.env`, see [Configuration](/guide/configuration#compose-environment)). After that it works offline.
 
 ## Viewing history
 

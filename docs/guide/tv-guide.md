@@ -10,9 +10,9 @@ description: >-
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="8CAIgknGnho" title="Record free-to-air TV from the Freetvarr TV guide" duration="2:35" />
 
-The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after TVHeadend records it.
+The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after [TVHeadend](https://tvheadend.org) records it.
 
-The TV guide shows only the listings you loaded into TVHeadend. With the XMLTV guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
+The TV guide shows only the listings you loaded into TVHeadend. With the [XMLTV](https://wiki.xmltv.org) guide feed (a standard TV guide data file that a guide service supplies) set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)) you get seven days with episode numbers. Without it you get what the broadcast carries: about a day, with little detail.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -26,18 +26,20 @@ Channels run down the page and time runs across. The TV guide opens at the curre
 
 - The **day chips** switch between today and the next six days. **Now** and **Tonight** jump within the day.
 - **Zoom** has three levels, **S**, **M**, and **L**, that change the time scale. In a narrower window, **Zoom** shows **−** and **+** instead. **Images** shows a programme picture on each cell that is wide enough. Each browser remembers both.
-- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. When nothing matches, **Add to watchlist** lists the show for later. See [Watchlist](#watchlist).
+- The **search** button searches all 7 days on the grid. It finds a show by nickname, initials, or a close spelling too, as [Search](/guide/home#search) does. Each result shows its state when there is one, such as `Recording now`, `One-off recording scheduled`, `Recorded`, or `On watchlist`. When nothing matches, **Add to watchlist** lists the show for later. See [Watchlist](#watchlist).
 - The **Channels** button opens the channel settings (see [Favourites](#favourites)).
 - The `N scheduled` chip opens [Scheduled](/guide/recordings#scheduled). On a phone it shows only the number.
 - A dot on a cell marks a scheduled recording, and a ring marks a recording now. A programme on your watchlist has its own dot; the legend names it **On watchlist**. On a tablet or computer the legend sits above the grid, on the right; on a phone it sits under the grid. Past programmes are dimmed, and programmes on air have a lighter cell.
 - A line marks the current time.
+- When favourites scroll out of view, a chip such as `↑ 3 favourites` appears. Press it to scroll back to the top.
+- On the seventh day, a `Guide ends` label with the date marks where the guide stops.
 - At zoom **L**, a movie has a `Movie` tag beside its start time when the cell is wide enough.
 - Programmes that ended earlier today stay in the grid. TVHeadend drops a programme once it ends, but Freetvarr keeps its own copy.
 - Hover over a programme, or tab to it, to see its full title, times, and synopsis.
 - The **Filter** box narrows the grid to channels whose name contains what you type, or whose number starts with it. On a tablet or computer it sits beside **CHANNELS** above the grid, and the top corner of the grid shows how many channels match. On a phone it sits at the top of the channel column. Press **×** in the box, or the **×** in the count, to clear it. Type `film`, `movie`, `series`, or `one-off` to see only channels with that kind of programme on now or next; the list under the box also offers **Channels named** to match the word in channel names instead.
 - Drag the edge of the channel column to make it wider or narrower. At its narrowest the column shows only the stars and channel logos. Each browser remembers the width.
 - A dimmed channel with `OFF AIR` beside its name is not broadcasting right now: TVHeadend has switched off every service for it. The note clears by itself once TVHeadend sees the channel again, after a channel scan.
-- Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. Where TVHeadend reports no type, a name with `HD` in it (such as `9GemHD Sydney`) counts as HD. **Hide SD simulcasts** uses it to pair an SD channel with its HD twin. The pairing ignores spaces, punctuation, `HD`, and the word Channel, so `ABC TV` pairs with `ABCTV` and `Channel 9 Sydney` with `9HD Sydney`.
+- Each channel in the channel settings shows `HD` or `SD` before its name, read from the TV service type that TVHeadend reports. Where TVHeadend reports no type, a name with `HD` in it (such as `9GemHD Sydney`) counts as HD. **Hide SD simulcasts** (see [Favourites](#favourites)) uses it to pair an SD channel with its HD twin. The pairing ignores spaces, punctuation, `HD`, and the word Channel, so `ABC TV` pairs with `ABCTV` and `Channel 9 Sydney` with `9HD Sydney`.
 - While **Hide SD simulcasts** and **Hide SD channels** are both off, each channel logo shows a small `HD` or `SD` tag: in the grid, on Live TV, in the player, in the Multiview channel list, and on Home. While either setting is on, the tags are gone.
 
 ## After midnight
@@ -57,8 +59,8 @@ Press a programme's cell to open its programme sheet: the programme image, title
 A switch in the sheet picks what to do. One line under it says what the main button does.
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
-- **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** follows the show to another channel. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library. The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
+- **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** records the show on whichever channel airs it. See [How a series recording works](/guide/series#how-a-series-recording-works).
+- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library (the folder where your TV shows live). The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Watch from the start** shows when TVHeadend is recording the programme. It plays the recording from its first minute while it keeps recording. The line under it says the time it plays from.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
@@ -72,11 +74,11 @@ The same sheet opens from [Home](/guide/home), [For you](/guide/for-you), [Live 
 
 Freetvarr decides from the guide whether a programme is a movie, part of a series, or a one-off:
 
-- **Movie**: it runs `75` minutes or more and has no season number, episode number, or episode title, and it airs no more than twice in the next 7 days. A programme the guide lists as a movie counts even when it airs more often. A long documentary special counts as a movie too. News and sport never count, unless the movie lookups for [For you](/guide/for-you) know the title as a film.
-- **Series**: it has a season number, an episode number, or an episode title, or it airs `3` or more times in the next 7 days, or [TVmaze](https://www.tvmaze.com) (a free online TV database) knows it as a TV show. A show with a series recording always counts as a series.
+- **Movie**: it runs `75` minutes or more and has no season number, episode number, or episode title, and it airs no more than four times in the next 7 days. A programme the guide lists as a movie counts even when it airs more often. A long documentary special counts as a movie too. News and sport never count, unless the movie lookups for [For you](/guide/for-you) know the title as a film.
+- **Series**: it has a season number, an episode number, or an episode title, or it airs `3` or more times in the next 7 days (a programme that meets the movie rule is a movie first), or [TVmaze](https://www.tvmaze.com) (a free online TV database) knows it as a TV show. A show with a series recording always counts as a series.
 - **One-off**: anything else, such as a sports final or a short special.
 
-When Freetvarr gets it wrong, the programme sheet has a link to correct it. A programme with no season, episode, or episode title that Freetvarr counts as a movie shows **Not a movie**. A programme of `75` minutes or more that is not news or sport, and that Freetvarr does not count as a movie, shows **This is a movie**. The same choice is in the **⋯** menus on Home and For you. The correction applies to every airing with that title. Settings → WATCHING → Film and TV info lists your corrections under **Movie corrections**, each with **Undo**.
+When Freetvarr gets it wrong, the programme sheet has a link to correct it. A programme with no season, episode, or episode title that Freetvarr counts as a movie shows **Not a movie**. A programme of `75` minutes or more that is not news or sport, has no season, episode, or episode title, and that Freetvarr does not count as a movie, shows **This is a movie**. The same choice is in the **⋯** menus on Home and For you. The correction applies to every airing with that title. Settings → WATCHING → Film and TV info lists your corrections under **Movie corrections**, each with **Undo**.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -155,7 +157,7 @@ Freetvarr saves the pick in TVHeadend, removes the channel's old shows, and asks
 
 Freetvarr also turns off TVHeadend's **Auto EPG channel** setting (EPG: electronic programme guide) for a channel you change. TVHeadend then does not add a guide channel to it again by name or number.
 
-Shows that already ended stay in the TV guide under their old listings. A scheduled recording on the channel stays at its time, but no longer follows a guide programme.
+Shows that already ended stay in the TV guide under their old listings. A scheduled recording on the channel stays at its time, but no longer matches a guide programme.
 
 If the pencils are missing, the TV guide is not set up yet. Open Settings → SYSTEM → Setup and press **Guide**.
 
@@ -176,7 +178,7 @@ The Live TV page lists every channel with what is on now and next, favourites fi
 Some programmes in a guide feed have no image, or an image link that no longer works. Freetvarr then looks for a picture in this order:
 
 1. Another airing of the same programme in the guide.
-2. The show's background or poster in your Plex TV or movies library, matched by title.
+2. The show's background or poster in your [Plex](https://www.plex.tv) TV or movies library, matched by title.
 3. The show's picture on [TVmaze](https://www.tvmaze.com), matched by exact title.
 4. With a [TMDB key](#tmdb-key), the film or show's backdrop or poster on [TMDB](https://www.themoviedb.org).
 5. The lead picture of the film or show's English [Wikipedia](https://en.wikipedia.org) article.
@@ -216,7 +218,7 @@ The programme sheet can show a score, a classification, and a review line for a 
 - **Score**: a star and a score out of `10` on the bottom-left of the picture. Press the score to see the source (TMDB users with the number of votes, or TVmaze users) and a link that opens the programme on that site in a new tab. Press outside the card or `Esc` to close it.
 - **Review line**: one sentence from a TMDB review, below the synopsis, with a **Read N reviews** link to the reviews on TMDB. Freetvarr picks a sentence that judges the programme and skips ones that give away the plot. It shows no reviewer name.
 
-Scores and reviews appear only after you open a programme or a show. They never appear on the TV guide, Home, For you, Live TV, or the Recordings library.
+Scores and reviews appear only after you open a programme or a show. They never appear on the TV guide, Home, Live TV, or the Recordings library. The [For you](/guide/for-you) page shows a score on each **Top rated movies this week** card.
 
 Only films and scripted, animated, documentary, and miniseries shows get a score or a review line. Reality, game shows, talk, news, sport, variety, panel shows, and lifestyle programmes never do. When no source gives a show's type, Freetvarr uses the guide genre: film and drama count; game show, news, and sport do not.
 
@@ -251,4 +253,4 @@ Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settin
 
 ## Caching
 
-Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. The TV guide fetches them again every 5 minutes while it is open, and when you come back to it after 5 minutes or more. If TVHeadend stops answering, the TV guide shows its cached copy with a note, and updates when TVHeadend is back.
+Freetvarr keeps a copy of the TV guide for an hour and the recording state for 45 seconds, to limit the requests to TVHeadend. The TV guide fetches them again every 5 minutes while it is open, and when you come back to it after 1 minute or more. If TVHeadend stops answering, the TV guide shows its cached copy with the note `Showing the saved guide. TVHeadend did not answer, so Freetvarr tries again shortly.`, and updates when TVHeadend is back.
