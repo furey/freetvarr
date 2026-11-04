@@ -7,6 +7,7 @@ import {
   bufferedAhead,
   isReadyToStart,
   seekFloorOf,
+  liveErrorActionOf,
 } from '../src/web/live-start.js'
 
 test('bufferedAhead measures the range under the playhead', () => {
@@ -43,4 +44,12 @@ test('seekFloorOf keeps the floor a margin behind the live target', () => {
   assert.equal(seekFloorOf({ oldest: 0, target: 6 }), 6 - SEEK_FLOOR_MARGIN_S)
   assert.equal(seekFloorOf({ oldest: 0, target: 2 }), 0)
   assert.equal(seekFloorOf({ oldest: 3, target: 4 }), 3)
+})
+
+test('liveErrorActionOf: a network drop reattaches while the server keeps the session, up to a cap', () => {
+  assert.equal(liveErrorActionOf({ type: 'networkError', eager: false, reattaches: 0 }), 'reattach')
+  assert.equal(liveErrorActionOf({ type: 'networkError', eager: false, reattaches: 2 }), 'end')
+  assert.equal(liveErrorActionOf({ type: 'networkError', eager: true, reattaches: 0 }), 'abandon')
+  assert.equal(liveErrorActionOf({ type: 'mediaError', eager: false, reattaches: 0 }), 'recover')
+  assert.equal(liveErrorActionOf({ type: 'otherError', eager: false, reattaches: 0 }), 'end')
 })

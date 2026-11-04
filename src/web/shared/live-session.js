@@ -12,12 +12,15 @@ import {
   captionsShowing,
   captionPreferenceAfterChange,
 } from '/live-captions.js'
-import { isReadyToStart } from '/live-start.js'
+import { isReadyToStart, liveErrorActionOf } from '/live-start.js'
+import { fromStartGoneAction, fromStartResumeSecondsOf } from '/from-start-timeline.js'
+import { deviceTokenFrom } from '/device-token.js'
 import { fromStartProgrammeOf } from '/from-start-programme.js'
 import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
 import { captionLineOf, closePictureInPictureOf } from '/mini-player.js'
 import { initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
+import { browserStorage } from '/shared/storage.js'
 import { postRecordingPosition } from '/shared/recording-position.js'
 import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
 import {
@@ -47,6 +50,13 @@ let liveEdgeAnchor = null
 let livePollTimer = null
 let liveRun = 0
 let fromStartBeatTimer = null
+let fromStartRestarts = 0
+let liveReattaches = 0
+
+export const DEVICE_TOKEN = deviceTokenFrom({
+  storage: browserStorage(),
+  newToken: () => crypto.randomUUID?.() ?? String(Math.random()).slice(2),
+})
 
 export const liveStopHooks = new Set()
 
@@ -71,7 +81,8 @@ export const watchLive = ({ channel, nowTitle }) => {
   startLiveSession(liveRun)
 }
 
-export const watchRecordingFromStart = ({ channel, recording, nowTitle = '' }) => {
+export const watchRecordingFromStart = ({ channel, recording, nowTitle = '', resumeAt = 0 }) => {
+  fromStartRestarts = 0
   if (playback.open) playbackHooks.stopPlayback()
   stopLive()
   playerWindowed.value = false
@@ -81,7 +92,7 @@ export const watchRecordingFromStart = ({ channel, recording, nowTitle = '' }) =
     phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
   })
   unlockLiveVideo()
-  watchFromStart(recording)
+  watchFromStart(recording, { resumeAt })
 }
 
 const unlockLiveVideo = () => {
@@ -135,7 +146,7 @@ export const retuneLive = ({ channel, nowTitle = '' }) => {
   startLiveSession(liveRun)
 }
 
-export const watchFromStart = async (recording) => {
+export const watchFromStart = async (recording, { resumeAt = 0 } = {}) => {
   saveFromStartPosition()
   liveRun += 1
   const run = liveRun
@@ -146,6 +157,7 @@ export const watchFromStart = async (recording) => {
   Object.assign(live, {
     sessionId: null, phase: 'tuning', message: '', holders: [], conflict: null, tuningStartedAt: Date.now(),
     fromStart: {
+      recording, resumeAt, playlist: null,
       dvrUuid: recording.dvrUuid, title: recording.title, sessionId: null, programme: fromStartProgrammeOf(recording),
       recordingStartedAt: recording.recordingStartedAt ?? recording.startPadded ?? recording.start,
       scheduledEndAt: recording.stopPadded ?? recording.stop ?? null,
@@ -162,12 +174,13 @@ export const watchFromStart = async (recording) => {
     }
     Object.assign(live.fromStart, {
       sessionId: r.session.id,
+      playlist: r.session.playlist,
       recordingStartedAt: r.session.recordingStartedAt ?? live.fromStart.recordingStartedAt,
       scheduledEndAt: r.session.scheduledEndAt ?? live.fromStart.scheduledEndAt,
       edgeSeconds: r.session.liveEdgeSeconds || 0,
     })
     live.captions = Boolean(r.session.captions)
-    attachLiveVideo(run, r.session.playlist, { config: FROM_START_HLS_CONFIG })
+    attachLiveVideo(run, r.session.playlist, { config: { ...FROM_START_HLS_CONFIG, startPosition: resumeAt } })
     scheduleFromStartBeat(run)
   } catch (err) {
     if (run !== liveRun) return
@@ -210,12 +223,24 @@ const beatFromStart = async (run) => {
     if (run !== liveRun || !live.fromStart) return
     live.fromStart.edgeSeconds = r.session?.liveEdgeSeconds ?? live.fromStart.edgeSeconds
     live.fromStart.growing = r.session?.growing !== false
+    fromStartRestarts = 0
     saveFromStartPosition()
   } catch (err) {
     if (run !== liveRun) return
-    if (err.status === 404) return endLive(run, { code: 'gone' })
+    if (err.status === 404) return onFromStartGone(run)
   }
   scheduleFromStartBeat(run)
+}
+
+const onFromStartGone = (run) => {
+  if (fromStartGoneAction({ restarts: fromStartRestarts }) === 'end') return endLive(run, { code: 'gone' })
+  fromStartRestarts += 1
+  restartFromStart()
+}
+
+const restartFromStart = () => {
+  const { recording, savedSeconds } = live.fromStart
+  watchFromStart(recording, { resumeAt: fromStartResumeSecondsOf({ currentTime: liveVideo?.currentTime, savedSeconds }) })
 }
 
 const fromStartErrorText = (err) => {
@@ -234,7 +259,7 @@ const streamLimitText = (err) => {
 
 const startLiveSession = async (run) => {
   try {
-    const r = await api('POST', '/api/live', { channel_id: live.channel.id })
+    const r = await api('POST', '/api/live', { channel_id: live.channel.id, client_token: DEVICE_TOKEN })
     if (run !== liveRun) {
       api('DELETE', `/api/live/${r.session.id}`).catch(() => {})
       return
@@ -297,13 +322,16 @@ const attachLiveVideo = async (run, playlist, { eager = false, config = LIVE_HLS
 }
 
 const keepRecordingStart = (run) => {
-  if (run !== liveRun || !live.fromStart || liveVideo.currentTime <= FROM_START_TOLERANCE_S) return
-  liveVideo.currentTime = 0
+  if (run !== liveRun || !live.fromStart) return
+  const target = live.fromStart.resumeAt || 0
+  if (Math.abs(liveVideo.currentTime - target) <= FROM_START_TOLERANCE_S) return
+  liveVideo.currentTime = target
 }
 
 const markLiveStarted = (run) => {
   if (run !== liveRun || !liveAttached || live.phase === 'ended') return
   liveStarted = true
+  liveReattaches = 0
   live.phase = 'live'
 }
 
@@ -335,6 +363,24 @@ const abandonEagerAttach = (run) => {
   detachLiveVideo()
 }
 
+const reattachLive = (run) => {
+  liveReattaches += 1
+  if (live.fromStart?.playlist) return reattachFromStart(run)
+  detachLiveVideo()
+  clearTimeout(livePollTimer)
+  pollLive(run)
+}
+
+const reattachFromStart = (run) => {
+  const resumeAt = fromStartResumeSecondsOf({ currentTime: liveVideo?.currentTime, savedSeconds: live.fromStart.savedSeconds })
+  detachLiveVideo()
+  live.fromStart.resumeAt = resumeAt
+  setTimeout(() => {
+    if (run !== liveRun || !live.fromStart?.playlist) return
+    attachLiveVideo(run, live.fromStart.playlist, { config: { ...FROM_START_HLS_CONFIG, startPosition: resumeAt } })
+  }, FROM_START_REATTACH_MS)
+}
+
 const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false, config = LIVE_HLS_CONFIG } = {}) => {
   const { default: Hls } = await import('/vendor/hls.mjs')
   if (run !== liveRun) return
@@ -348,8 +394,10 @@ const attachHlsJs = async (run, playlist, { rebuilt = false, eager = false, conf
   })
   liveHls.on(Hls.Events.ERROR, (event, data) => {
     if (!data.fatal || run !== liveRun) return
-    if (eager && data.type === Hls.ErrorTypes.NETWORK_ERROR) return abandonEagerAttach(run)
-    if (data.type !== Hls.ErrorTypes.MEDIA_ERROR) return endLive(run, { code: 'playback', detail: data.details })
+    const action = liveErrorActionOf({ type: data.type, eager, reattaches: liveReattaches })
+    if (action === 'abandon') return abandonEagerAttach(run)
+    if (action === 'reattach') return reattachLive(run)
+    if (action === 'end') return endLive(run, { code: 'playback', detail: data.details })
     if (!recovered) {
       recovered = true
       return liveHls.recoverMediaError()
@@ -437,6 +485,7 @@ export const liveReasonText = (reason) => {
   if (reason.code === 'no-input') return 'Stopped: TVHeadend gets no signal for this channel.'
   if (reason.code === 'gone') return 'Stopped: TVHeadend ended the stream.'
   if (reason.code === 'idle') return 'Stopped: nobody was watching.'
+  if (reason.code === 'replaced') return 'Stopped: this device started another stream.'
   if (reason.code === 'shutdown') return 'Stopped: Freetvarr restarted.'
   if (reason.code === 'no-tuner') return 'No free tuner.'
   if (reason.code === 'no-source') return "Stopped: TVHeadend can't tune this channel. It isn't broadcasting, or every tuner is busy."
@@ -493,15 +542,20 @@ addAttentionSource(() => [
 watch(liveCaptionsShown, reportAttention)
 
 window.addEventListener('pagehide', (event) => {
+  saveFromStartPosition({ keepalive: true })
   if (event.persisted) return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
   sendLiveBeacon({ method: 'DELETE' })
   sendFromStartBeacon()
 })
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
+  if (document.visibilityState === 'hidden') {
+    saveFromStartPosition({ keepalive: true })
+    return sendLiveBeacon({ method: 'POST', suffix: '/hold' })
+  }
   if (live.fromStart?.sessionId) return beatFromStart(liveRun)
   if (!live.sessionId) return
+  api('POST', `/api/live/${live.sessionId}/unhold`).catch(() => {})
   clearTimeout(livePollTimer)
   pollLive(liveRun)
 })
@@ -727,6 +781,7 @@ const FROM_START_HLS_CONFIG = {
 }
 const FROM_START_HEARTBEAT_MS = 15_000
 const FROM_START_TOLERANCE_S = 2
+const FROM_START_REATTACH_MS = 2_000
 const FROM_START_PLAYER = `from-start-${crypto.randomUUID?.() ?? String(Math.random()).slice(2)}`
 const LIVE_START_CHECK_MS = 100
 const LIVE_POLL_PLAYING_MS = 10_000
