@@ -262,8 +262,7 @@ export const episodeFilename = ({ item, show }) => {
     const ee = String(item.episode).padStart(2, '0')
     return `${base} - S${ss}E${ee}${numberedSuffix}.${ext}`
   }
-  const aired = new Date(item.start).toISOString().slice(0, 10)
-  return `${base} - ${aired}${suffix}.${ext}`
+  return `${base} - ${localDate(item.start)}${suffix}.${ext}`
 }
 
 export const oneOffFilename = (item) => {
@@ -301,11 +300,17 @@ const guardWithinRoot = ({ dest, root, label = dest }) => {
   return dest
 }
 
+const localDate = (ms) => {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 const localStamp = (ms) => {
   const d = new Date(ms)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}${pad(d.getMinutes())}`
+  return `${localDate(ms)} ${pad(d.getHours())}${pad(d.getMinutes())}`
 }
+
+const pad = (n) => String(n).padStart(2, '0')
 
 export const classifyImport = ({ expectedSize, actualSize, tolerance = SIZE_TOLERANCE_BYTES }) => {
   const expectedKnown = Number.isFinite(expectedSize) && expectedSize > 0
