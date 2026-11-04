@@ -129,11 +129,11 @@ test('diagramHrefOf: a known piece opens the map focused on it, anything else op
 test('pieceStatuses: derives the current value of each piece from settings and live data', () => {
   const statuses = pieceStatuses({
     settings: {
-      tvh_url: 'http://synnas:9981',
+      tvh_url: 'http://nas:9981',
       recordings_root: '/data/recordings',
       media_root: '/data/media/tv',
       ad_removal_enabled: false,
-      plex_url: 'http://synnas:32400',
+      plex_url: 'http://nas:32400',
       show_artwork_lookup: true,
       ratings_lookup_enabled: true,
       reviews_lookup_enabled: true,
@@ -145,12 +145,12 @@ test('pieceStatuses: derives the current value of each piece from settings and l
     version: '2.0.0',
   })
   assert.deepEqual(statuses, {
-    tvheadend: { text: 'Connected · synnas:9981' },
+    tvheadend: { text: 'Connected · nas:9981' },
     recordings: { text: '/data/recordings', mono: true },
     library: { text: '/data/media/tv', mono: true },
     'ad-removal': { text: 'Off' },
     metadata: { text: 'On' },
-    player: { text: 'Plex · synnas:32400' },
+    player: { text: 'Plex · nas:32400' },
     tuner: { text: '4 tuners · 1 recording' },
     guide: { text: 'Sydney · 41 of 43 channels' },
     freetvarr: { text: 'Version 2.0.0' },
@@ -174,9 +174,9 @@ test('pieceStatuses: names missing and partial setups plainly', () => {
 })
 
 test('pieceStatuses: TVHeadend states and tuner-less setups', () => {
-  const url = 'http://synnas:9981'
-  assert.equal(pieceStatuses({ settings: { tvh_url: url }, tvheadendState: 'fail' }).tvheadend.text, 'Not answering · synnas:9981')
-  assert.equal(pieceStatuses({ settings: { tvh_url: url } }).tvheadend.text, 'synnas:9981')
+  const url = 'http://nas:9981'
+  assert.equal(pieceStatuses({ settings: { tvh_url: url }, tvheadendState: 'fail' }).tvheadend.text, 'Not answering · nas:9981')
+  assert.equal(pieceStatuses({ settings: { tvh_url: url } }).tvheadend.text, 'nas:9981')
   assert.equal(pieceStatuses({ tuners: { configured: false } }).tuner.text, 'TVHeadend not set up')
   assert.equal(pieceStatuses({ tuners: { configured: true, total: 0 } }).tuner.text, 'No tuner found')
   assert.equal(pieceStatuses({ guide: { available: false } }).guide.text, 'Broadcast guide only')
