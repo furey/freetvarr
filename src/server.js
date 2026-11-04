@@ -206,6 +206,7 @@ import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { clearableRows, mountRecordingLogRoutes, whereInLog } from './recording-log-routes.js'
 import { recordOptionsFrom } from './recording-padding.js'
+import { recordRequestError, seriesRequestError } from './record-requests.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf, MISSES_RETRIED_AFTER_MS } from './artwork-match.js'
 import { listWatchlist, mountWatchlist } from './watchlist.js'
@@ -781,17 +782,15 @@ app.get('/api/epg/programme-credits', ratingsLimiter, async (req, res) => {
 })
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
-  const { channel_id, program_id, epg_program_id, lead_time, lag_time, add_to_library } = req.body || {}
-  if (channel_id == null || program_id == null || epg_program_id == null) {
-    return res.status(400).json({ error: 'channel_id, program_id and epg_program_id are required' })
-  }
+  const missing = recordRequestError(req.body)
+  if (missing) return res.status(400).json({ error: missing })
+  const { channel_id, program_id, lead_time, lag_time, add_to_library } = req.body
   const { error, options } = recordOptionsFrom({ lead_time, lag_time })
   if (error) return res.status(400).json({ error })
   try {
     const result = await recordProgram({
       channelId: channel_id,
       programId: program_id,
-      epgProgramId: epg_program_id,
       ...options,
       addToLibrary: add_to_library !== false,
     })
@@ -813,22 +812,18 @@ app.post('/api/epg/cancel', epgLimiter, doubleCsrfProtection, async (req, res) =
 })
 
 app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
+  const missing = seriesRequestError(req.body)
+  if (missing) return res.status(400).json({ error: missing })
   const {
-    series_link, channel_id, epg_program_id, program_id,
+    series_link, channel_id, program_id,
     lead_time, lag_time, episodes_to_keep, add_show_rule, any_channel, paused,
-  } = req.body || {}
-  if (series_link == null || channel_id == null || program_id == null || epg_program_id == null) {
-    return res.status(400).json({
-      error: 'series_link, channel_id, program_id and epg_program_id are required',
-    })
-  }
+  } = req.body
   const { error, options } = recordOptionsFrom({ lead_time, lag_time, episodes_to_keep })
   if (error) return res.status(400).json({ error })
   try {
     const result = await recordSeries({
       seriesLink: series_link,
       channelId: channel_id,
-      epgProgramId: epg_program_id,
       programId: program_id,
       anyChannel: any_channel === true,
       paused: paused === true,
@@ -2018,14 +2013,20 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
   const tunerIds = Array.isArray(body.tuner_ids) ? body.tuner_ids.map(String) : []
   const networkId = body.network_id ? String(body.network_id) : null
   if (!tunerIds.length) return res.status(400).json({ ok: false, error: 'Choose at least one tuner.' })
+  const previousSetupRun = setupRun
+  setupRun = { running: true, steps: [], result: null }
   let setup
   try {
     setup = await readChannelSetup()
   } catch (err) {
+    setupRun = previousSetupRun
     return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
   }
   const transmitter = setup.transmitters.find((t) => t.key === body.transmitter_key) || null
-  if (!networkId && !transmitter) return res.status(400).json({ ok: false, error: 'Choose a transmitter.' })
+  if (!networkId && !transmitter) {
+    setupRun = previousSetupRun
+    return res.status(400).json({ ok: false, error: 'Choose a transmitter.' })
+  }
   const steps = planChannelSetup({ networkId }).steps.map((step) => ({ ...step, status: 'pending', detail: null }))
   setupRun = { running: true, steps, result: null }
   res.status(202).json({ ok: true, steps })
@@ -2185,10 +2186,13 @@ app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (
   if (!/^https?:\/\/[^\s]+$/i.test(url)) {
     return res.status(400).json({ ok: false, error: 'Enter a guide address that starts with http:// or https://.' })
   }
+  const previousGuideRun = guideRun
+  guideRun = { running: true, steps: [], result: null }
   let conn
   try {
     conn = await resolveConnection()
   } catch (err) {
+    guideRun = previousGuideRun
     return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
   }
   const steps = planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null }))
