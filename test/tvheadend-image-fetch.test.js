@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 
-import { fetchProgrammeImage } from '../src/tvheadend.js'
+import { fetchProgrammeImage, fetchProgrammeImageOrThrow } from '../src/tvheadend.js'
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)])
 
@@ -61,4 +61,9 @@ test('fetchProgrammeImage: a redirect on the same host still fetches the image',
 
 test('fetchProgrammeImage: a redirect loop stops after a few hops', async () => {
   assert.equal(await fetchProgrammeImage({ source: `${base}/loop`, conn }), null)
+})
+
+test('fetchProgrammeImageOrThrow: a refused redirect is no image, not an error to retry', async () => {
+  assert.equal(await fetchProgrammeImageOrThrow({ source: `${base}/to-other-host`, conn }), null)
+  assert.equal(await fetchProgrammeImageOrThrow({ source: `${base}/loop`, conn }), null)
 })

@@ -924,10 +924,13 @@ const fetchGuideImage = ({ source, limits }) => {
       }
     },
   }).catch((err) => {
-    if (err.code === IMAGE_REDIRECT_REFUSED || err.code === 'ERR_FR_TOO_MANY_REDIRECTS') return null
+    if (isRefusedRedirect(err)) return null
     throw err
   })
 }
+
+const isRefusedRedirect = (err) => err?.code === 'ERR_FR_TOO_MANY_REDIRECTS'
+  || [err, err?.cause, err?.cause?.cause].some((cause) => cause?.code === IMAGE_REDIRECT_REFUSED)
 
 const channelNumber = (raw) => {
   const n = Number(raw)
