@@ -21,6 +21,7 @@ import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
 import { currentJob, trackJob } from './activity.js'
+import { importSubjectOf } from './activity-subject.js'
 import { isMostlySport, rowAiringOf, seriesKindOf } from './series-kind.js'
 import { loadSeriesEvidence } from './series-evidence.js'
 import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
@@ -749,7 +750,7 @@ const processItem = async ({ item, show, kind, roots, rootProblemOf }) => {
 
   const { filePath, takenPath } = await destinationFor({ item, show, kind, roots })
   return trackJob(
-    { kind: 'import', title: `Import · ${itemLabelOf(item)}`, ref: { recordingId: item.id } },
+    { kind: 'import', title: `Import · ${item.title}`, ref: { recordingId: item.id }, subject: importSubjectOf({ item, kind, filePath }) },
     (job) => importItem({ item, show, filePath, takenPath, sourceStat, job }),
   )
 }
@@ -768,7 +769,7 @@ const rootProblemMessage = ({ kind, root, problem }) => (problem === ROOT_EMPTY
   : `${ROOT_NAMES[kind]} folder ${root} not found; mount it or change it in Settings`)
 
 const importItem = async ({ item, show, filePath, takenPath, sourceStat, job }) => {
-  job.fact('Recording', recordingFactOf(item)).fact('File', filePath).fact('Size', formatBytes(sourceStat.size))
+  job.fact('Size', formatBytes(sourceStat.size))
   if (takenPath) noteTakenPath({ takenPath, filePath, job })
   job.step('Copy from TVHeadend')
   await upsertRecording({ item, show, file_path: filePath, status: 'importing', error: null })
@@ -806,7 +807,7 @@ const importItem = async ({ item, show, filePath, takenPath, sourceStat, job }) 
     const adRemovalEnabled = (await getSetting('ad_removal_enabled')) === 'true'
     if (adRemovalEnabled) {
       job.fact('Ad removal', show.ad_removal === 'cut' ? 'Cut ads' : 'Mark ads')
-      adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id, title: itemLabelOf(item) })
+      adResult = await processRecordingAds({ filePath, mode: show.ad_removal, recordingId: item.id })
     }
   }
   job.outcome(importOutcomeOf({ outcome, adResult }))
@@ -1063,13 +1064,6 @@ export const importOutcomeOf = ({ outcome, adResult }) => {
   const ads = AD_OUTCOMES[adResult?.status]
   return ads ? `Imported · ${ads}` : 'Imported'
 }
-
-const itemLabelOf = (item) => {
-  const number = item.season != null && item.episode != null ? `S${item.season} E${item.episode}` : null
-  return [item.title, number].filter(Boolean).join(' ')
-}
-
-const recordingFactOf = (item) => [item.title, item.episode_title, item.channelName].filter(Boolean).join(' · ')
 
 const formatBytes = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${Math.round(bytes / 1e6)} MB`)
 

@@ -1615,7 +1615,7 @@ a.settings-row-link:hover {
     margin-top: 1px;
   }
 
-  .activity-sub {
+  .activity-sub.is-fail {
     white-space: normal;
   }
 

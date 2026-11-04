@@ -1,6 +1,9 @@
 import { formatClock } from './time-format.js'
 import { syncTook } from './sync-when.js'
 import { localDayNumber } from './guide-time.js'
+import { episodeMetaParts } from './scheduled-groups.js'
+import { shortDayOf } from './show-page.js'
+import { showHrefOf } from './show-key.js'
 
 export const UP_NEXT_SOON_MS = 60 * 60 * 1000
 
@@ -8,7 +11,7 @@ export const jobRowOf = ({ run, nowMs, timeZone }) => ({
   id: run.id,
   kind: run.kind,
   title: run.title,
-  sub: run.state === 'running' ? runningSubOf(run) : finishedSubOf(run),
+  sub: [subjectLineOf({ subject: run.subject, timeZone }), run.state === 'running' ? runningSubOf(run) : finishedSubOf(run)].filter(Boolean).join(' · '),
   side: run.state === 'running' ? runningSideOf({ run, nowMs }) : finishedSideOf({ run, timeZone }),
   icon: iconOfRun(run),
   tone: toneOfRun(run),
@@ -24,8 +27,8 @@ export const recordingRowOf = ({ recording, nowMs, timeZone }) => {
   return {
     id: recording.id,
     kind: 'recording',
-    title: `Recording · ${episodeTitleOf(recording)}`,
-    sub: [recording.failed ? recording.statusText || 'Recording problem' : recording.channelName || 'TVHeadend', slot && [slot, stops].filter(Boolean).join(', '), recording.tuner].filter(Boolean).join(' · '),
+    title: `Recording · ${recording.title}`,
+    sub: [episodeCodeOf(recording), recording.failed ? recording.statusText || 'Recording problem' : recording.channelName || 'TVHeadend', slot && [slot, stops].filter(Boolean).join(', '), recording.tuner].filter(Boolean).join(' · '),
     side: endMs > nowMs ? `${durationText(endMs - nowMs)} left` : 'finishing',
     icon: 'live',
     tone: recording.failed ? 'fail' : null,
@@ -58,6 +61,30 @@ export const upNextRowOf = ({ plan, nowMs, timeZone }) => ({
   side: plan.nextAt - nowMs < UP_NEXT_SOON_MS ? soonText(plan.nextAt - nowMs) : laterText({ ms: plan.nextAt, nowMs, timeZone }),
   icon: 'idle',
 })
+
+export const subjectLineOf = ({ subject, timeZone }) => {
+  if (!subject) return null
+  if (subject.film) return subject.year ? String(subject.year) : airedDayOf({ subject, timeZone })
+  return episodeCodeOf(subject) || airedDayOf({ subject, timeZone }) || subject.episodeTitle || null
+}
+
+export const subjectFactsOf = ({ subject, timeZone }) => {
+  if (!subject) return []
+  const file = splitPath(subject.file)
+  return [
+    { label: subject.film ? 'Movie' : 'Show', value: subject.title },
+    subject.film ? { label: 'Year', value: subject.year ? String(subject.year) : null } : { label: 'Episode', value: episodeMetaParts(subject).join(' · ') },
+    { label: 'Aired', value: subject.airedAt ? `${shortDayOf({ ms: subject.airedAt, timeZone })}, ${formatClock(subject.airedAt, timeZone)}` : null },
+    { label: 'Channel', value: subject.channelName },
+    { label: 'File', value: file.name },
+    { label: 'Folder', value: file.folder },
+  ].filter((fact) => fact.value)
+}
+
+export const subjectLinkOf = (subject) => {
+  if (!subject?.title) return null
+  return { href: showHrefOf(subject.title), label: subject.film ? 'Open movie' : 'Open show' }
+}
 
 export const serverLineOf = (server = {}) => {
   const parts = []
@@ -137,9 +164,17 @@ const toneOfRun = (run) => {
   return run.tone === 'warn' ? 'warn' : null
 }
 
-const episodeTitleOf = (recording) => {
-  const number = recording.season != null && recording.episode != null ? ` S${recording.season} E${recording.episode}` : ''
-  return `${recording.title}${number}`
+const episodeCodeOf = ({ season, episode, episodeTitle }) => {
+  const [first] = episodeMetaParts({ season, episode, episodeTitle })
+  return first && first !== episodeTitle ? first : null
+}
+
+const airedDayOf = ({ subject, timeZone }) => (subject.airedAt ? shortDayOf({ ms: subject.airedAt, timeZone }) : null)
+
+const splitPath = (file) => {
+  if (!file) return { name: null, folder: null }
+  const cut = file.lastIndexOf('/')
+  return cut < 0 ? { name: file, folder: null } : { name: file.slice(cut + 1), folder: file.slice(0, cut) || '/' }
 }
 
 const clockRangeOf = ({ startMs, endMs, timeZone }) => `${formatClock(startMs, timeZone)}–${formatClock(endMs, timeZone)}`

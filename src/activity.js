@@ -46,7 +46,7 @@ export const createActivity = ({
     }
   }
 
-  const begin = ({ kind, title = null, trigger = null, total = null, unit = null, detail = null, ref = null }) => {
+  const begin = ({ kind, title = null, trigger = null, total = null, unit = null, detail = null, ref = null, subject = null }) => {
     counter += 1
     const parent = context.getStore() ?? null
     const run = {
@@ -57,6 +57,7 @@ export const createActivity = ({
       trigger: trigger ?? parent?.trigger ?? null,
       parentId: parent?.id ?? null,
       ref,
+      subject,
       detail,
       outcome: null,
       tone: null,
@@ -284,6 +285,7 @@ export const summaryOf = (run) => ({
   trigger: run.trigger,
   parentId: run.parentId,
   ref: run.ref,
+  subject: run.subject ?? null,
   detail: run.detail,
   step: run.state === 'running' ? run.steps.at(-1)?.label ?? null : null,
   stepIndex: run.steps.length,

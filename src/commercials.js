@@ -7,14 +7,15 @@ import { fileURLToPath } from 'url'
 import { db, getSetting } from './db.js'
 import { setProgress, clearProgress, formatEta } from './progress.js'
 import { currentJob, joinJob } from './activity.js'
+import { loadRecordingSubject } from './activity-subject.js'
 
-export const processRecordingAds = async ({ filePath, mode, recordingId, title = null, tools = defaultTools() }) => {
+export const processRecordingAds = async ({ filePath, mode, recordingId, tools = defaultTools() }) => {
   if (scansInFlight.has(recordingId)) return { status: 'busy', breaks: [], adSeconds: 0 }
   scansInFlight.add(recordingId)
   try {
-    const label = title ?? await adJobTitleOf(recordingId)
+    const subject = currentJob()?.run.kind === 'import' ? null : await loadRecordingSubject(recordingId)
     return await joinJob(
-      { kinds: ['import'], kind: 'ads', title: label ? `Ad removal · ${label}` : 'Ad removal', ref: { recordingId } },
+      { kinds: ['import'], kind: 'ads', title: subject?.title ? `Ad removal · ${subject.title}` : 'Ad removal', ref: { recordingId }, subject },
       async (job) => {
         const result = await scanRecordingAds({ filePath, mode, recordingId, tools })
         noteAdResult({ job, result })
@@ -32,11 +33,6 @@ const noteAdResult = ({ job, result }) => {
   if (job.run.kind !== 'ads') return
   job.outcome(text)
   if (result.status.endsWith('_failed')) job.fail(text)
-}
-
-const adJobTitleOf = async (recordingId) => {
-  const row = await db('recordings').where({ recording_id: recordingId }).first('title').catch(() => null)
-  return row?.title ?? null
 }
 
 const AD_RESULT_TEXT = {

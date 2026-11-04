@@ -33,6 +33,14 @@ The line above the jobs on **Now** shows how long the server has run, how often 
 
 Press a row to see its steps, details, and log, and press it again to close them. A job that belongs to a sync has an **Open sync** link to that sync on the **Syncs** tab.
 
+An import or an ad removal works on one recording. Its row names the show, and its second line starts with the episode:
+
+- the season and episode, such as `S17 E10`
+- the air date, such as `Mon 2 Nov`, when the guide gives no episode number
+- the year, such as `2000`, for a film
+
+Press the row to see the show, the episode and its title, when it aired, the channel, the file name, and the folder that holds the file. **Open show** (**Open movie** for a film) opens the recording's page in Recordings.
+
 ### Job types
 
 - **Sync**, with an **Import** row for each recording it copies. An import shows its steps (copy from TVHeadend, then check the file), and an **Ad removal** row under it when the show removes ads ([Ad removal](/guide/ad-removal)). When another file already has the episode's file name, the import saves under a new name and its log says so.

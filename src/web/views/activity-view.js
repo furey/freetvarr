@@ -1,7 +1,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
-  clientLabelOf, itemStateOf, jobRowOf, logLineOf, recordingRowOf, serverLineOf, sessionRowOf, startedByText, stepStateOf, upNextRowOf,
+  clientLabelOf, itemStateOf, jobRowOf, logLineOf, recordingRowOf, serverLineOf, sessionRowOf, startedByText, stepStateOf, subjectFactsOf,
+  subjectLinkOf, upNextRowOf,
 } from '/activity-rows.js'
+import { episodeMetaParts } from '/scheduled-groups.js'
 import { syncTook } from '/sync-when.js'
 import { api } from '/shared/api.js'
 import { fmtBytes } from '/shared/format.js'
@@ -101,7 +103,10 @@ const JobDetail = {
         <h4 class="activity-detail-label">Log</h4>
         <pre class="activity-log">{{ logText }}</pre>
       </template>
-      <div v-if="syncHref" class="activity-detail-actions"><a class="btn-link" :href="syncHref">Open sync</a></div>
+      <div v-if="subjectLink || syncHref" class="activity-detail-actions">
+        <a v-if="subjectLink" class="btn-link" :href="subjectLink.href">{{ subjectLink.label }}</a>
+        <a v-if="syncHref" class="btn-link" :href="syncHref">Open sync</a>
+      </div>
     </div>
   `,
   setup(props) {
@@ -113,9 +118,12 @@ const JobDetail = {
       const d = props.detail
       const startedBy = props.parent ? `${props.parent.title}` : startedByText(d.trigger)
       return [
+        ...subjectFactsOf({ subject: d.subject, timeZone: tz.value }),
         ...d.facts,
         { label: 'Started', value: formatClock(d.startedAt, tz.value) },
-        d.finishedAt ? { label: 'Took', value: syncTook(d.finishedAt - d.startedAt) } : null,
+        d.finishedAt
+          ? { label: 'Took', value: syncTook(d.finishedAt - d.startedAt) }
+          : { label: 'Running for', value: syncTook(now.value.getTime() - d.startedAt) },
         startedBy ? { label: 'Started by', value: startedBy } : null,
       ].filter(Boolean)
     })
@@ -124,7 +132,8 @@ const JobDetail = {
       const syncId = props.detail?.ref?.syncId ?? props.parent?.ref?.syncId
       return syncId ? `#/settings/system/activity/${syncId}` : null
     })
-    return { stepTime, facts, logText, syncHref, stepStateOf, itemStateOf }
+    const subjectLink = computed(() => subjectLinkOf(props.detail?.subject))
+    return { stepTime, facts, logText, syncHref, subjectLink, stepStateOf, itemStateOf }
   },
 }
 
@@ -218,7 +227,8 @@ const ActivityNow = {
       const recording = data.value.recordings.find((entry) => entry.id === id)
       if (!recording) return []
       return [
-        { label: 'Programme', value: [recording.title, recording.episodeTitle].filter(Boolean).join(' · ') },
+        { label: 'Show', value: recording.title },
+        { label: 'Episode', value: episodeMetaParts(recording).join(' · ') },
         { label: 'Channel', value: recording.channelName },
         { label: 'Time', value: `${formatClock(recording.start, tz.value)}–${formatClock(recording.stop, tz.value)}` },
         { label: 'Tuner', value: recording.tuner },
