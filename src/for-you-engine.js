@@ -70,12 +70,24 @@ export const probeIfStale = async ({ version }) => {
   return { probe: await runProbe({ version }), fresh: true }
 }
 
-export const runEmbeddings = async ({ nowMs = Date.now() } = {}) => {
-  embedding ??= embedNow({ nowMs }).finally(() => { embedding = null })
-  return embedding
+export const createLatestRun = ({ run, currentId, maxRuns = MAX_EMBED_RUNS }) => {
+  let active = null
+  const runUntilCurrent = async (options, runsLeft) => {
+    const result = await run(options)
+    const wanted = await currentId().catch(() => null)
+    const changed = Boolean(wanted && result?.model && wanted !== result.model)
+    return changed && runsLeft > 1 ? runUntilCurrent(options, runsLeft - 1) : result
+  }
+  const start = (options) => {
+    active ??= runUntilCurrent(options, maxRuns).finally(() => { active = null })
+    return active
+  }
+  return { start, isRunning: () => Boolean(active) }
 }
 
-export const isEmbedding = () => Boolean(embedding)
+export const runEmbeddings = async ({ nowMs = Date.now() } = {}) => embeddingRuns.start({ nowMs })
+
+export const isEmbedding = () => embeddingRuns.isRunning()
 
 export const readHeadroomMb = async () => (await readStaticCapability()).headroomMb
 
@@ -347,7 +359,6 @@ const parseJson = (text) => {
 }
 
 let probing = null
-let embedding = null
 let vectorCache = null
 let vectorVersion = 0
 const pruneVectors = createVectorPruner()
@@ -374,3 +385,6 @@ const OLLAMA_EMBED_TIMEOUT_MS = 60 * 1000
 const OLLAMA_BATCH = 32
 const OLLAMA_TAGS_MAX_BYTES = 1024 * 1024
 const OLLAMA_EMBED_MAX_BYTES = 32 * 1024 * 1024
+const MAX_EMBED_RUNS = 3
+
+const embeddingRuns = createLatestRun({ run: (options) => embedNow(options), currentId: async () => (await currentEmbedder())?.id ?? null })
