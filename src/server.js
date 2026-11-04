@@ -223,7 +223,8 @@ import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
-import { createTvLogin, deleteTvLoginRoute, TvLoginError } from './tv-login.js'
+import { TV_LOGIN_KEYS, createTvLoginRoute, deleteTvLoginRoute } from './tv-login.js'
+import { OPEN_ENTRY_BACKUP_KEY, resetFreetvarrData } from './reset.js'
 import { transmitterLabel } from './web/transmitter-label.js'
 import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
@@ -1782,7 +1783,6 @@ app.post('/api/tvh-detect', setupCheckLimiter, doubleCsrfProtection, async (req,
 const bootstrapLimiter = createRateLimiter({ limit: 10 })
 
 const bootstrapHttp = { get: tvhRead, post: tvhWrite, verifyLogin: verifyTvheadendLogin }
-const OPEN_ENTRY_BACKUP_KEY = 'tvh_open_entry_backup'
 let bootstrapRun = null
 
 const bootstrapUrlFrom = async (raw) => {
@@ -1889,22 +1889,13 @@ app.get('/api/tv-login', async (req, res) => {
   res.json(await readTvLogin())
 })
 
-app.post('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
-  try {
-    const login = await createTvLogin({
-      http: bootstrapHttp,
-      conn: await resolveConnection(),
-      username: req.body?.username,
-      fallbackPrefix: suggestLanPrefixes().join(','),
-    })
-    await Promise.all(Object.entries(TV_LOGIN_KEYS).map(([field, key]) => setSetting(key, login[field])))
-    console.log(`[tv-login] made the watch-only TVHeadend login ${login.username}`)
-    res.json({ ok: true, ...login })
-  } catch (err) {
-    if (err instanceof TvLoginError) return res.status(err.code === 'taken' ? 409 : 400).json({ ok: false, error: err.message, code: err.code })
-    res.status(502).json({ ok: false, error: `TVHeadend did not make the TV login: ${err.message}` })
-  }
-})
+app.post('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, createTvLoginRoute({
+  http: bootstrapHttp,
+  resolveConnection: () => resolveConnection(),
+  readLogin: () => readTvLogin(),
+  saveLogin: (login) => Promise.all(Object.entries(TV_LOGIN_KEYS).map(([field, key]) => setSetting(key, login[field]))),
+  fallbackPrefix: () => suggestLanPrefixes().join(','),
+}))
 
 app.delete('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, deleteTvLoginRoute({
   http: bootstrapHttp,
@@ -1912,8 +1903,6 @@ app.delete('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, deleteTvLogi
   readLogin: () => readTvLogin(),
   clearLogin: () => db('settings').whereIn('key', Object.values(TV_LOGIN_KEYS)).delete(),
 }))
-
-const TV_LOGIN_KEYS = { username: 'tv_login_username', password: 'tv_login_password', authCode: 'tv_login_auth_code' }
 
 const readTvLogin = async () => {
   const entries = await Promise.all(Object.entries(TV_LOGIN_KEYS).map(async ([field, key]) => [field, (await getSetting(key)) || '']))
@@ -2276,12 +2265,7 @@ app.post('/api/reset', doubleCsrfProtection, async (req, res) => {
   if (getActiveSyncId()) {
     return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }
-  await db.transaction(async (trx) => {
-    await trx('recordings').delete()
-    await trx('syncs').delete()
-    await trx('shows').delete()
-    await trx('settings').delete()
-  })
+  await resetFreetvarrData(db)
   try {
     await startScheduler()
   } catch (err) {
