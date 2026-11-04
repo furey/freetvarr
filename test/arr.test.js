@@ -88,6 +88,19 @@ test('arrSettingOf: a saved key wins over config.xml; an environment-only key ne
   assert.deepEqual(arrSettingOf({ url: null, savedKey: null, fileConfig: { apiKey: null } }), { url: null, apiKey: null, keySource: null, configFound: true })
 })
 
+test('arrSettingOf: uses the config.xml key only for a URL on this machine at the config port', () => {
+  const fileConfig = { apiKey: 'file-key', port: 8989, urlBase: '' }
+  const interfaces = { eth0: [{ address: '192.168.1.10', family: 'IPv4', internal: false }] }
+  const keyFor = (url) => arrSettingOf({ app: 'sonarr', url, savedKey: null, fileConfig, interfaces }).apiKey
+  assert.equal(keyFor('http://192.0.2.9:8989'), null)
+  assert.equal(keyFor('http://localhost:8989'), 'file-key')
+  assert.equal(keyFor('http://sonarr:8989/'), 'file-key')
+  assert.equal(keyFor('http://host.docker.internal:8989'), 'file-key')
+  assert.equal(keyFor('http://192.168.1.10:8989'), 'file-key')
+  assert.equal(keyFor('http://localhost:9999'), null)
+  assert.equal(keyFor('http://radarr:8989'), null)
+})
+
 test('findArr: tries each host on the config port and reports whether a key is readable', async () => {
   const pinged = []
   const found = await findArr({
