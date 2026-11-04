@@ -464,7 +464,9 @@ export const splitRepeats = ({ upcoming = [], pastAirings = [] }) => {
   const recordings = []
   const repeats = []
   for (const entry of upcoming.filter((e) => e.enabled)) {
-    const repeatOf = entry.schedStatus === 'scheduled' ? repeatOriginalOf({ entry, upcoming, pastAirings }) : null
+    const repeatOf = entry.schedStatus === 'scheduled' && (entry.duplicateOfStart || entry.autorecId != null)
+      ? repeatOriginalOf({ entry, upcoming, pastAirings })
+      : null
     if (repeatOf) repeats.push({ ...entry, repeatOf })
     else recordings.push(entry)
   }

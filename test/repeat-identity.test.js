@@ -151,3 +151,10 @@ test('withRecordedRepeatsSkipped: a failed skip keeps the state and retries next
   })
   assert.equal(state, original)
 })
+
+test('splitRepeats: a one-off the user scheduled stays a recording when an earlier airing recorded', () => {
+  const oneOff = { ...monday, autorecId: null }
+  const { recordings, repeats } = splitRepeats({ upcoming: [oneOff], pastAirings: [{ ...finishedSunday, removed: true }] })
+  assert.deepEqual(recordings.map((e) => e.uuid), [monday.uuid])
+  assert.deepEqual(repeats, [])
+})
