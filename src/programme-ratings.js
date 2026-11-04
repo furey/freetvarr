@@ -15,7 +15,6 @@ import {
   dominantFilmOf,
   episodeTitleKeyOf,
   hintsForKind,
-  lookupExpiryOf,
   matchEvidenceOf,
   programmeHintsByTitle,
   readSizedCache,
@@ -56,8 +55,9 @@ export const createProgrammeRatings = ({
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
   isAllowed = lookupAllowed,
   missesBeforeMs = 0,
+  unhintedMissTtlMs = UNHINTED_MISS_TTL_MS,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs, isAllowed, missesBeforeMs })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, unhintedMissTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksFilmLanguage, staleBeforeMs, isAllowed, missesBeforeMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
@@ -115,7 +115,7 @@ export const createProgrammeRatings = ({
 
 export const createBackgroundLookups = ({
   lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs = 0, isOutdated = () => false, staleBeforeMs = 0, isAllowed = async () => true,
-  missesBeforeMs = 0,
+  missesBeforeMs = 0, unhintedMissTtlMs = UNHINTED_MISS_TTL_MS,
 }) => {
   const inflight = new Map()
   const failedUntil = new Map()
@@ -137,22 +137,29 @@ export const createBackgroundLookups = ({
 
   const cachedFound = async (cacheKey) => {
     const cached = await cache.read(cacheKey).catch(() => null)
-    if (cached && !cached.found && cached.expiresAt - missTtlMs < missesBeforeMs) return null
+    if (cached && !cached.found && cached.expiresAt - missTtlOf(cached.missReason) < missesBeforeMs) return null
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.found), staleBeforeMs })
     return state === 'missing' ? null : { ...cached, stale: state === 'stale' }
   }
 
-  const startLookup = ({ title, kind, year, apiKey, ids = null, cacheKey, isBackground = false }) => {
+  const missTtlOf = (missReason) => (missReason === UNHINTED_MISS_REASON ? unhintedMissTtlMs : missTtlMs)
+
+  const startLookup = ({ title, kind, year, apiKey, ids = null, cacheKey, isBackground = false, refreshingHit = false }) => {
     if (inflight.has(cacheKey)) {
       if (!isBackground) lookupLimiter.promote?.(cacheKey)
       return inflight.get(cacheKey)
     }
-    const pending = lookupLimiter.run(async () =>
-      lookUp({ title, kind, year, ids, hints: hintsForKind({ hints: await hintsFor(title), kind }), apiKey }), { isBackground, id: cacheKey })
-      .then(async (found) => {
+    const pending = lookupLimiter.run(async () => {
+      const hints = hintsForKind({ hints: await hintsFor(title), kind })
+      return { hints, found: await lookUp({ title, kind, year, ids, hints, apiKey }) }
+    }, { isBackground, id: cacheKey })
+      .then(async ({ hints, found }) => {
         const result = found?.missReason ? null : found || null
-        const expiresAt = lookupExpiryOf({ found: Boolean(result), nowMs: now(), hitTtlMs, missTtlMs })
-        await cache.write({ key: cacheKey, found: result, expiresAt, missReason: found?.missReason ?? null }).catch(() => {})
+        const unhinted = !hints && !year && !hasExternalIds(ids)
+        if (!result && unhinted && refreshingHit) throw new Error('refresh had no guide details')
+        const missReason = found?.missReason ?? null
+        const expiresAt = result ? now() + hitTtlMs : now() + missTtlOf(missReason)
+        await cache.write({ key: cacheKey, found: result, expiresAt, missReason }).catch(() => {})
         return result
       })
       .catch((error) => {
@@ -167,7 +174,7 @@ export const createBackgroundLookups = ({
   const foundFor = async ({ cacheKey, wait = true, ...request }) => {
     const cached = await cachedFound(cacheKey)
     const refresh = cached && (cached.stale || isOutdated(cached.found)) && !recentlyFailed(cacheKey)
-    if (refresh) startLookup({ cacheKey, ...request })
+    if (refresh) startLookup({ cacheKey, ...request, refreshingHit: Boolean(cached.found) })
     if (cached) return { status: 'ready', found: cached.found }
     if (recentlyFailed(cacheKey)) return PENDING_LOOKUP
     if (!inflight.has(cacheKey) && !(await isAllowed(request.title))) return NO_LOOKUP
@@ -182,7 +189,7 @@ export const createBackgroundLookups = ({
     const cached = await cachedFound(cacheKey)
     if (cached && !cached.stale && !isOutdated(cached.found)) return
     if (recentlyFailed(cacheKey) || !(await isAllowed(request.title))) return
-    await startLookup({ cacheKey, ...request, isBackground: true })
+    await startLookup({ cacheKey, ...request, isBackground: true, refreshingHit: Boolean(cached?.found) })
   }
 
   const forget = async (cacheKey) => {
@@ -234,7 +241,7 @@ export const createRatingsLookup = ({
 } = {}) => {
   const filmRatings = async ({ title, hints, apiKey, year, ids }) => {
     const details = await matcher.matchedFilm({ title, hints, apiKey, year, ids })
-    if (!details) return missOf(hints || year || ids ? 'no-match' : 'no-guide-details')
+    if (!details) return missOf(hints || year || ids ? 'no-match' : UNHINTED_MISS_REASON)
     return filmRatingsOf(details) || missOf('no-score')
   }
 
@@ -563,7 +570,7 @@ export const storedTmdbReference = async ({ title, kind }) => {
 export const databaseCacheOf = (table) => ({
   read: async (key) => {
     const row = await db(table).where({ lookup_key: key }).first()
-    return row ? { found: JSON.parse(row.found_json), expiresAt: Number(row.expires_at) } : null
+    return row ? { found: JSON.parse(row.found_json), expiresAt: Number(row.expires_at), missReason: row.miss_reason ?? null } : null
   },
   write: ({ key, found, expiresAt, missReason = null }) => db(table)
     .insert({ lookup_key: key, found_json: JSON.stringify(found), expires_at: expiresAt, miss_reason: missReason })
@@ -591,6 +598,8 @@ const MIN_TMDB_VOTES = 50
 export const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 export const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const FAILURE_BACKOFF_MS = 10 * 60 * 1000
+const UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
+const UNHINTED_MISS_REASON = 'no-guide-details'
 export const LOOKUP_CONCURRENCY = 2
 export const LOOKUP_MAX_QUEUE = 300
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
