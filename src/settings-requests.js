@@ -1,4 +1,5 @@
 import { db, setSetting } from './db.js'
+import { getMoviesRoot } from './sync.js'
 import { isKnownTimeZone } from './time-zone.js'
 
 export const RETENTION_DAYS_ERROR = 'Enter a whole number of days, 1 or more, to keep the original after a cut.'
@@ -19,9 +20,13 @@ export const retentionDaysOf = (value) => {
 export const saveMoviesRoot = async (value) => {
   if (value === undefined) return
   const root = String(value).trim()
-  if (!root) return db('settings').where({ key: 'movies_root' }).delete()
-  return setSetting('movies_root', root)
+  if (root) return setSetting('movies_root', root)
+  await db('settings').where({ key: 'movies_root' }).delete()
+  const fallback = await getMoviesRoot()
+  if (fallback) await setSetting(LAST_MOVIES_ROOT_KEY, fallback)
 }
+
+const LAST_MOVIES_ROOT_KEY = 'last_movies_root'
 
 export const tvhTestRequestOf = (body = {}) => ({
   url: body.tvh_url !== undefined ? String(body.tvh_url).trim() : undefined,

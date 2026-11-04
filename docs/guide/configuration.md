@@ -81,7 +81,7 @@ The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/me
 
 The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example Docker Compose file) holds recordings that match no [series folder](/guide/series#recordings-with-no-series). On the host it is `${DATA_PATH}/media/one-offs`. The example Docker Compose file creates the host folder. Create it yourself only if you moved `oneoff_root`, and make `PUID:PGID` the owner. If the folder is missing, these recordings show as **SKIPPED** with a note.
 
-The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in the `.env`) takes [films](/guide/series#films) with no series folder. Leave both empty to send films to the one-off folder. It must sit inside the same [shared mount](#one-shared-mount) as the recordings, for example `/data/media/movies`.
+The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in the `.env`) takes [films](/guide/series#films) with no series folder. Leave both empty to send films to the one-off folder. It must sit inside the same [shared mount](#one-shared-mount) as the recordings, for example `/data/media/movies`. Clear the movies folder in Settings to use `MOVIES_ROOT` again. Films already filed stay where they are, and new films go to `MOVIES_ROOT`. If `MOVIES_ROOT` seems ignored, press **Save settings** once with the movies folder empty, or enter the folder in Settings.
 
 When a title moves between the Shows and One-offs shelves of [Recordings](/guide/recordings), Freetvarr moves its files between the TV library and the one-off folder.
 

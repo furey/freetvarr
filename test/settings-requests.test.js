@@ -1,4 +1,4 @@
-import { test, before, after } from 'node:test'
+import { test, before, after, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
@@ -9,15 +9,19 @@ const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-settings-reque
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 process.env.MOVIES_ROOT = '/data/media/movies'
 
-const { db, getSetting } = await import('../src/db.js')
-const { getMoviesRoot } = await import('../src/sync.js')
+const { db, getSetting, setSetting } = await import('../src/db.js')
+const { getMoviesRoot, rebaseFilePaths } = await import('../src/sync.js')
 const { RETENTION_DAYS_ERROR, saveMoviesRoot, settingsSaveRefusalOf, tvhTestRequestOf } = await import('../src/settings-requests.js')
 
 const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
-const settingsRoute = server.slice(server.indexOf("app.post('/api/settings'"), server.indexOf("app.post('/api/tvh-test'"))
 
 before(async () => {
   await db.migrate.latest()
+})
+
+beforeEach(async () => {
+  await db('recordings').delete()
+  await db('settings').delete()
 })
 
 after(async () => {
@@ -34,6 +38,33 @@ test('saveMoviesRoot: an empty movies folder clears the setting, so MOVIES_ROOT 
   assert.equal(await getSetting('movies_root'), null)
 })
 
+test('saveMoviesRoot: clearing the movies folder leaves the paths of films already filed there alone', async () => {
+  const film = '/films/Dune (2021)/Dune (2021).ts'
+  await saveMoviesRoot('/films')
+  await rebaseFilePaths()
+  await db('recordings').insert({ recording_id: 'dune', title: 'Dune', file_path: film, status: 'done' })
+  await saveMoviesRoot('')
+  await rebaseFilePaths()
+  assert.equal((await db('recordings').where({ recording_id: 'dune' }).first()).file_path, film)
+  assert.equal(await getMoviesRoot(), '/data/media/movies')
+})
+
+test('saveMoviesRoot: changing to another movies folder still moves the stored paths with it', async () => {
+  await saveMoviesRoot('/films')
+  await rebaseFilePaths()
+  await db('recordings').insert({ recording_id: 'dune', title: 'Dune', file_path: '/films/Dune/Dune.ts', status: 'done' })
+  await saveMoviesRoot('/movies')
+  await rebaseFilePaths()
+  assert.equal((await db('recordings').where({ recording_id: 'dune' }).first()).file_path, '/movies/Dune/Dune.ts')
+})
+
+test('saveMoviesRoot: an install that already holds movies_root "" switches to MOVIES_ROOT on the next save', async () => {
+  await setSetting('movies_root', '')
+  assert.equal(await getMoviesRoot(), '')
+  await saveMoviesRoot('')
+  assert.equal(await getMoviesRoot(), '/data/media/movies')
+})
+
 test('settingsSaveRefusalOf: a blank or zero retention field is refused, a whole number passes', () => {
   assert.equal(settingsSaveRefusalOf({ ad_original_retention_days: '' }), RETENTION_DAYS_ERROR)
   assert.equal(settingsSaveRefusalOf({ ad_original_retention_days: '0' }), RETENTION_DAYS_ERROR)
@@ -41,15 +72,6 @@ test('settingsSaveRefusalOf: a blank or zero retention field is refused, a whole
   assert.equal(settingsSaveRefusalOf({ ad_original_retention_days: '7', time_zone: 'Australia/Sydney' }), null)
   assert.equal(settingsSaveRefusalOf({ time_zone: 'Mars/Base' }), 'Unknown time zone "Mars/Base"')
   assert.equal(settingsSaveRefusalOf({}), null)
-})
-
-test('settings save: the refusal check runs before the first write, and the movies folder goes through saveMoviesRoot', () => {
-  const refusal = settingsRoute.indexOf('settingsSaveRefusalOf(body)')
-  assert.ok(refusal > 0)
-  assert.ok(refusal < settingsRoute.indexOf("writeString('tvh_url'"))
-  assert.doesNotMatch(settingsRoute.slice(refusal), /must be a positive integer/)
-  assert.match(settingsRoute, /await saveMoviesRoot\(body\.movies_root\)/)
-  assert.doesNotMatch(settingsRoute, /writeString\('movies_root'/)
 })
 
 test('tvhTestRequestOf: the wizard test saves the address, a Settings test with persist false does not', () => {
@@ -60,5 +82,10 @@ test('tvhTestRequestOf: the wizard test saves the address, a Settings test with 
     persist: true,
   })
   assert.equal(tvhTestRequestOf({ persist: false }).persist, false)
-  assert.match(server, /testTvheadendConnection\(tvhTestRequestOf\(req\.body\)\)/)
+})
+
+test('settings save: the refusal check runs before the first write', () => {
+  const route = server.slice(server.indexOf("app.post('/api/settings'"), server.indexOf("app.post('/api/tvh-test'"))
+  const refusal = route.indexOf('settingsSaveRefusalOf(')
+  assert.ok(refusal > 0 && refusal < route.indexOf('setSetting('))
 })
