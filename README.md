@@ -7,8 +7,8 @@
 
 <p align="center">
   <strong>Record free-to-air TV.<br/>Watch it on your TV in any media player, ad free.*</strong><br/>
-  A self-hosted companion for TVHeadend and compatible tuner (e.g. HDHomeRun).<br/>
-  <sub>*optional via <code>comskip</code></sub>
+  A self-hosted companion for <a href="https://tvheadend.org/">TVHeadend</a> and compatible tuner (e.g. <a href="https://www.silicondust.com/hdhomerun/">HDHomeRun</a>).<br/>
+  <sub>*optional via Comskip</sub>
 </p>
 
 <p align="center">
@@ -29,11 +29,11 @@
 </p>
 
 <p align="center">
-  Leaving Fetch TV? See the <a href="https://furey.github.io/freetvarr/guide/leaving-fetch">step-by-step guide</a> to save your recordings and own your setup before the levy.
+  Leaving Fetch TV? See the <a href="https://furey.github.io/freetvarr/guide/leaving-fetch">step-by-step guide</a> to save your recordings and own your setup before Fetch's Gen 3 Extended Service Levy.
 </p>
 
 <p align="center">
-  Have a Plex Pass? Plex's own DVR may be all you need. See <a href="#plex-dvr">Plex DVR</a>.
+  Have a <a href="https://www.plex.tv/plex-pass/">Plex Pass</a>? Plex's own DVR may be all you need. See <a href="#plex-dvr">Plex DVR</a>.
 </p>
 
 ## Contents
@@ -60,13 +60,13 @@
 
 ## Overview
 
-**Freetvarr** records free-to-air TV through TVHeadend and files each episode into your media library. Watch the recordings on your TV in your media player (e.g. Plex, Jellyfin, Kodi, etc.), with pause, rewind, and skip.
+**Freetvarr** records free-to-air TV through TVHeadend (free recording software that runs on your home computer) and files each episode into your media library. Watch the recordings on your TV in your media player (e.g. [Plex](https://www.plex.tv/), [Jellyfin](https://jellyfin.org/), [Kodi](https://kodi.tv/), etc.), with pause, rewind, and skip.
 
 TVHeadend names each recording after the programme title only, such as `The Block.ts`. A media player matches a file to an episode only when the name has a season and episode number or an air date. Freetvarr finds each finished recording and files it as `Show/Season 01/Show - S01E02.ts`, or by air date when the TV guide has no episode number. A one-off, such as a sports final, goes to a separate folder. If you use Plex, Freetvarr tells Plex to scan for the new episode.
 
-Freetvarr is also a TV app for your home network. Schedule recordings from a 7-day TV guide on a TV, tablet, or phone. Watch live TV or your recordings in the browser, and pause and rewind live TV up to `30` minutes.
+Freetvarr is also a TV app for your home network. Schedule recordings from a 7-day TV guide on a TV, tablet, or phone. Watch live TV or your recordings in the browser, and pause and rewind live TV for `30` minutes by default (set `LIVE_TV_BUFFER_MINUTES` for more).
 
-Freetvarr runs in Docker next to TVHeadend, on a computer that stays on, such as a NAS or a mini PC. Any TVHeadend-compatible tuner works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP, or IPTV.
+Freetvarr runs in [Docker](https://www.docker.com/) next to TVHeadend, on a computer that stays on, such as a NAS (a small storage box with hard drives) or a mini PC. Any TVHeadend-compatible tuner works: a network tuner, a USB DVB stick (a USB digital TV receiver), a PCIe card, SAT>IP (TV over your home network), or IPTV (TV streamed over the internet).
 
 ## Demo
 
@@ -74,7 +74,7 @@ A walkthrough of the app: Home, Live TV, the TV guide, and Recordings.
 
 <https://github.com/user-attachments/assets/a571ba9b-0077-4004-8f97-b73ad2d8b0a9>
 
-The one-line install, from the `curl` command to the address of the setup wizard.
+The one-line install, from the [`curl`](https://curl.se/) command to the address of the setup wizard.
 
 <https://github.com/user-attachments/assets/5c557238-4642-4603-aaee-d707e70e3c6f>
 
@@ -139,8 +139,8 @@ The setup wizard, from the time zone to the ready step.
 ## Prerequisites
 
 - A **TVHeadend-compatible tuner**. The [Hardware requirements](https://furey.github.io/freetvarr/guide/hardware-requirements) page covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
-- **Docker with Compose v2** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or Raspberry Pi). Docker Desktop and OrbStack on a Mac cannot find a network tuner on their own; enter the tuner's IP address in the Channels step of setup instead. Freetvarr is untested on Windows, and the install script does not run there.
-- **Plex Media Server** is optional. Sonarr and Radarr are optional too.
+- **[Docker with Compose v2](https://docs.docker.com/compose/)** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS, mini PC, or [Raspberry Pi](https://www.raspberrypi.com/)). [Docker Desktop](https://docs.docker.com/desktop/) and [OrbStack](https://orbstack.dev) on a Mac cannot find a network tuner on their own; enter the tuner's IP address in the Channels step of setup instead. Freetvarr is untested on Windows, and the install script does not run there.
+- **Plex Media Server** is optional. [Sonarr](https://sonarr.tv) and [Radarr](https://radarr.video) are optional too.
 
 ## Quick start
 
@@ -195,7 +195,7 @@ To back up first, go back to an older version, or see what changes in each relea
 
 ### Recording
 
-- **Series recording**: a series becomes one TVHeadend autorec rule that matches the title and the channel. TVHeadend's own duplicate detection skips repeats, and the default padding is `2` minutes before and `10` after, because free-to-air broadcasts run late. Turn on **Any channel** to record a show on whichever channel airs it. Recording on an SD channel offers the HD simulcast instead.
+- **Series recording**: a series becomes one TVHeadend autorec rule that matches the title and the channel (TVHeadend's automatic recording rule). TVHeadend's own duplicate detection skips repeats, and the default padding is `2` minutes before and `10` after, because free-to-air broadcasts run late. Turn on **Any channel** to record a show on whichever channel airs it. Recording on an SD channel offers the HD simulcast instead.
 - **TV guide**: a 7-day programme guide. Schedule, cancel, and series-record in TVHeadend, search the week, and put your favourite channels first. Freetvarr keeps the programmes that already aired today (TVHeadend drops them), and each day runs on to 3am. A +1 channel gets the listings of its main channel one hour later.
 - **Watchlist**: **Add to watchlist** in search lists a show under **WATCHLIST** whenever it is in the TV guide. **Record when it appears** starts an any-channel series recording the first time the show is in the TV guide.
 - **Recording options**: each show's page has the channels, how many episodes to keep, the start and finish padding, ad removal, and pause. Settings → RECORDING → Series rules lists every rule with where its episodes save.
@@ -208,7 +208,7 @@ To back up first, go back to an older version, or see what changes in each relea
 - **Library-ready filenames**: `Show - S01E02 - Title.ts`, or `Show - YYYY-MM-DD - Title.ts` when the TV guide gave no episode number.
 - **Shows, one-offs, and films**: a programme counts as a series when it has a series recording, you recorded it on two or more days, or the TV guide numbers its episodes or seasons. A one-off goes to its own folder for a separate library. A film goes to the movies folder as `Title (Year)` when you set one. **Move to Shows** and **Move to One-offs** correct a wrong guess and move the files.
 - **Hardlink imports**: when Freetvarr sees the recordings folder and the media library through one mount, the import is a hardlink. A hardlink is instant and uses no extra disk space. Across mounts, the import is a copy.
-- **Short-file detection**: an import more than `1MB` short of what TVHeadend reported stays `partial`, and the next sync imports it again.
+- **Short-file detection**: an import more than `1MB` short of what TVHeadend reported stays `partial`, and the next sync (Freetvarr's regular check for new recordings) imports it again.
 - **Remove after import**: once Plex confirms its copy, Freetvarr can delete the recording's file from TVHeadend.
 
 ### Watching
@@ -216,8 +216,8 @@ To back up first, go back to an older version, or see what changes in each relea
 - **Five destinations**: Home, Live TV, TV guide, Recordings, and Settings, on a tab bar on a phone and a rail on a wider screen.
 - **Home**: highlights such as the episode to carry on with, a new episode, and what records now; then rows for **For you**, new recordings, what is on now, and what records tonight.
 - **For you**: suggestions from the next week of the TV guide, worked out on your own computer from what you record and watch ([For you](https://furey.github.io/freetvarr/guide/for-you)).
-- **Live TV in the browser**: watch any channel on a TV, tablet, or phone. Freetvarr checks for a free tuner first and warns when a recording will need it within the hour. It converts channels a browser cannot play, in hardware through VAAPI when the host has it.
-- **Player**: pause and rewind live TV up to `30` minutes, **Start over** a programme, and **Go live** to return to now. Recordings resume where you stopped, and **Skip ad** jumps past a detected ad break. **Captions** shows the Teletext subtitles of the broadcast. A Miniplayer keeps playing while you browse, and Multiview shows up to four live channels at once.
+- **Live TV in the browser**: watch any channel on a TV, tablet, or phone. Freetvarr checks for a free tuner first and warns when a recording will need it within the hour. It converts channels a browser cannot play, in hardware through [VAAPI](https://github.com/intel/libva) (Intel and AMD hardware video encoding) when the host has it.
+- **Player**: pause and rewind live TV for `30` minutes by default (set `LIVE_TV_BUFFER_MINUTES` for more), **Start over** a programme, and **Go live** to return to now. Recordings resume where you stopped, and **Skip ad** jumps past a detected ad break. **Captions** shows the Teletext subtitles of the broadcast. A Miniplayer keeps playing while you browse, and Multiview shows up to four live channels at once.
 - **Watch on your TV**: Settings → WATCHING → **Watch on TV** makes a TVHeadend login for TV apps and shows each address to copy, so a TV app (e.g. Jellyfin, Kodi, etc.) plays live TV on the TV itself ([TV apps](https://furey.github.io/freetvarr/guide/tv-apps)).
 - **Search**: each page header has **Search**, which finds a show by its title, a nickname, its initials, or a close spelling.
 
@@ -237,7 +237,7 @@ To back up first, go back to an older version, or see what changes in each relea
 - **Scheduled and manual sync**: Freetvarr checks TVHeadend every `15` minutes, `30` minutes (the default), hour, or on your own cron expression. It also syncs about a minute after a recording finishes. **Sync now** runs a sync at once.
 - **Phone-friendly UI**: every page works on a phone. Add Freetvarr to the Home Screen to open it full screen from its own icon.
 - **Reset**: **Reset Freetvarr** under Settings → DANGER ZONE deletes Freetvarr's settings, series, list of recordings, and sync history, then returns to setup. Your video files and TVHeadend stay as they are.
-- **Single container**: SQLite-backed, one Docker container next to TVHeadend, no login, and no external runtime dependencies once configured.
+- **Single container**: [SQLite](https://www.sqlite.org)-backed, one Docker container next to TVHeadend, no login, and no external runtime dependencies once configured.
 
 ## Regions
 
@@ -246,8 +246,8 @@ Freetvarr works everywhere TVHeadend works. It talks only to TVHeadend's HTTP AP
 These differ by country, and all of them are TVHeadend settings:
 
 - the tuner model (a DVB-T tuner in Australia or the UK, an ATSC one in the US);
-- the TV guide source (a free XMLTV feed in Australia and New Zealand, over-the-air Freeview EIT in the UK, Schedules Direct in the US);
-- the mux scan list.
+- the TV guide source (a free [XMLTV](https://xmltv.org) feed in Australia and New Zealand, over-the-air Freeview EIT (guide data in the broadcast) in the UK, [Schedules Direct](https://www.schedulesdirect.org/) in the US);
+- the mux scan list (a mux is one broadcast frequency).
 
 > [!NOTE]<br>
 > The docs use Australian values in their examples, because that is where the author lives. Swap the time zone, the mux list, the TV guide source, and the tuner model for your own region's. The bundled `comskip.ini` and the HD/SD channel aliases are tuned for Australian channels but do no harm elsewhere.
@@ -276,7 +276,7 @@ If you don't have a Plex Pass, compare its price (`A$110` a year, or `A$1,190` l
 - **An indexer**: Freetvarr does not search the internet for content. It works with the recordings TVHeadend makes, and with the Plex library you already have. Sonarr and Radarr connect only so that a delete goes through them.
 - **A tuner**: TVHeadend drives the hardware, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never touches the tuner.
 - **Authentication**: Freetvarr has no login, so anyone who can reach it can change its settings. Do not expose it to the internet (see [Security](#security)).
-- **A converter**: files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`. Only the live TV player re-encodes, and only what it streams to the browser. Add Tdarr or similar afterwards if you need `.mkv`.
+- **A converter**: files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`. Only the live TV player re-encodes, and only what it streams to the browser. Add [Tdarr](https://home.tdarr.io/) or similar afterwards if you need `.mkv`.
 - **A notifier**: there is no Discord, ntfy, or push integration. **Add to watchlist** adds a show to a list in the app; it sends no message.
 
 > [!IMPORTANT]<br>
@@ -315,7 +315,7 @@ After a change, run `docker compose up -d` in the `freetvarr` folder to restart 
 
 Freetvarr keeps two settings for one folder: `recordings_root` is where Freetvarr sees TVHeadend's files, and `tvh_recordings_path` is the path TVHeadend reports. In the example Docker compose file, TVHeadend sees the folder at `/recordings` and Freetvarr at `/data/recordings`. Freetvarr rewrites the one prefix to the other. The full environment reference is in [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#full-environment-reference).
 
-**Ad removal** lives in Settings, not in the `.env`. Turn it on in Settings → RECORDING → Ad removal (off by default), then pick a mode for each series in Settings → RECORDING → Series rules. Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount.
+**Ad removal** lives in Settings, not in the `.env`. Turn it on in Settings → RECORDING → Ad removal (off by default), then pick a mode for each series in Settings → RECORDING → Series rules. Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount (a folder on the host that the container reads).
 
 <p align="center">
   <img src="https://furey.github.io/freetvarr/img/screenshot-settings.png" alt="Settings" width="100%"/>
@@ -324,7 +324,7 @@ Freetvarr keeps two settings for one folder: `recordings_root` is where Freetvar
 
 ## Security
 
-Freetvarr has no login. Anyone who can reach the port can see everything and change settings, including the TVHeadend, Sonarr, and Radarr credentials it holds. CSRF protection, rate limiting, a strict CSP, and `noindex` headers are in place, but the design assumes a home network you trust. Do not port-forward or reverse-proxy it to the internet. [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model) covers the supply-chain hardening, the HTTP security headers, and the reason for each measure. [SECURITY.md](SECURITY.md) covers vulnerability reporting and the accepted residual risks.
+Freetvarr has no login. Anyone who can reach the port can see everything and change settings, including the TVHeadend, Sonarr, and Radarr credentials it holds. CSRF protection (blocks forged requests from other sites), rate limiting, a strict CSP (a browser rule that limits which scripts run), and `noindex` headers are in place, but the design assumes a home network you trust. Do not port-forward or reverse-proxy it to the internet. [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model) covers the supply-chain hardening, the HTTP security headers, and the reason for each measure. [SECURITY.md](SECURITY.md) covers vulnerability reporting and the accepted residual risks.
 
 ## Technical deep dive
 
@@ -395,7 +395,7 @@ The [troubleshooting guide](https://furey.github.io/freetvarr/guide/troubleshoot
 This project:
 
 - Is licensed under the [GNU GPLv3 License](./LICENSE).
-- Is not affiliated with or endorsed by SiliconDust, TVHeadend, Plex, Sonarr, Radarr, or Fetch TV.
+- Is not affiliated with or endorsed by [SiliconDust](https://www.silicondust.com/), TVHeadend, Plex, Sonarr, Radarr, or Fetch TV.
 - Began as a fork of [Fetcharr](https://github.com/furey/fetcharr), with the Fetch TV backend replaced by TVHeadend.
 - Is written with the assistance of AI and may contain errors.
 - Is intended for educational and experimental purposes only.
