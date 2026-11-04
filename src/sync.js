@@ -28,6 +28,7 @@ import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
 import { isSameShowTitle } from './autorec-match.js'
+import { isLibraryChanging, libraryChangesSettled } from './library-busy.js'
 import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
 import { showIdentityFor } from './show-identity.js'
 import { ROOT_EMPTY, createRootCheck, getMediaRoot, getMoviesRoot, getOneOffRoot } from './library-roots.js'
@@ -36,8 +37,13 @@ export { getMediaRoot, getMoviesRoot, getOneOffRoot }
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
+export const isSyncBusy = () => starting != null || inFlight != null
+
 export const startSync = async (options = {}) => {
-  while (starting) await starting.catch(() => {})
+  do {
+    await libraryChangesSettled()
+    while (starting) await starting.catch(() => {})
+  } while (isLibraryChanging())
   if (inFlight) {
     if (options.followUp) followUpTrigger = options.trigger ?? 'manual'
     return { syncId: inFlight.syncId, alreadyRunning: true, ...(options.followUp ? { followUp: true } : {}) }

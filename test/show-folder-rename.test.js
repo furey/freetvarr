@@ -10,6 +10,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { db, setSetting } = await import('../src/db.js')
 const { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
 const { ensureShowFolder, settleShowIdentity } = await import('../src/show-folders.js')
+const { startSync } = await import('../src/sync.js')
 const { chooseShowIdentity, declineShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
 const { loadIdentityPick, saveIdentityPick } = await import('../src/show-identity-store.js')
 
@@ -96,6 +97,21 @@ test('renameShowFolder: renames the folder and updates every stored path in one 
   assert.equal((await db('recordings').where({ recording_id: 'r1' }).first()).file_path, moved)
   assert.equal((await db('recordings').where({ recording_id: 'r2' }).first()).file_path, path.join(mediaRoot, 'Big Brother Late', 'e1.ts'))
   assert.equal((await db('library_items').first()).file_path, moved)
+})
+
+test('renameShowFolder: a sync that starts during a rename waits and imports into the new folder', async () => {
+  let release
+  const held = new Promise((resolve) => { release = resolve })
+  const order = []
+  const slowFs = { ...fs, access: async (target) => { await held; return fs.access(target) } }
+  const rename = renameShowFolder(options({ to: NEW_FOLDER, fsApi: slowFs, isSyncRunning: undefined })).then(() => order.push('renamed'))
+  await new Promise(setImmediate)
+  const sync = startSync({ trigger: 'cron' }).then(() => order.push('sync'))
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.deepEqual(order, [])
+  release()
+  await Promise.all([rename, sync])
+  assert.deepEqual(order, ['renamed', 'sync'])
 })
 
 test('renameShowFolder: an existing target folder stops the rename', async () => {
