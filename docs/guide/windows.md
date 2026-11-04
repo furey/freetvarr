@@ -10,9 +10,9 @@ description: >-
 > [!WARNING]<br>
 > Everything on this page is untested and theoretical. The author has no Windows PC and has never run Freetvarr on Windows. The steps come from the Microsoft and Docker documentation and from forum reports, not from a working install. Expect to troubleshoot, and expect some parts not to work. The supported route is a NAS or a mini PC that runs Linux (see [The computer](/guide/hardware-requirements#the-computer)).
 
-Freetvarr and [TVHeadend](/guide/tvheadend) (the program that runs the tuner and records) are Linux programs in Docker containers. Windows runs Linux containers inside WSL (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
+Freetvarr and [TVHeadend](https://tvheadend.org/) (the program that runs the tuner and records; see [TVHeadend](/guide/tvheadend)) are Linux programs in [Docker](https://www.docker.com/) containers. Windows runs Linux containers inside [WSL](https://learn.microsoft.com/en-us/windows/wsl/) (Windows Subsystem for Linux), which is a small Linux virtual machine. That virtual machine is the source of most of the limits below: by default it has its own network address, and it has no access to a USB tuner or to the graphics chip in the way that Freetvarr uses them.
 
-The most likely route is Docker Engine inside an Ubuntu distribution in WSL, with WSL's mirrored networking turned on (Ubuntu then shares the PC's own network address). Docker Desktop is simpler to install but has more network limits.
+The most likely route is Docker Engine inside an [Ubuntu](https://ubuntu.com/) distribution in WSL, with WSL's mirrored networking turned on (Ubuntu then shares the PC's own network address). [Docker Desktop](https://www.docker.com/products/docker-desktop/) is simpler to install but has more network limits.
 
 ## The Windows PC
 
@@ -33,8 +33,8 @@ Windows 10 has no mirrored networking. On Windows 10 only the [Docker Desktop](#
 
 These steps install Docker Engine inside Ubuntu in WSL. Each step links to the source it comes from.
 
-1. In the PC's BIOS or UEFI firmware, turn on virtualisation.
-2. In PowerShell (as administrator), run:
+1. In the PC's BIOS or UEFI firmware, turn on virtualisation (see [The Windows PC](#the-windows-pc)).
+2. In [PowerShell](https://learn.microsoft.com/en-us/powershell/) (as administrator), run:
 
    ```powershell
    wsl --install
@@ -79,7 +79,7 @@ These steps install Docker Engine inside Ubuntu in WSL. Each step links to the s
    sudo nano /etc/wsl.conf
    ```
 
-7. In Ubuntu, install Docker Engine and the Docker Compose plugin from Docker's own instructions ([Docker: Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)). Then add your user to the `docker` group ([Docker: Linux post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
+7. In Ubuntu, install Docker Engine and the [Docker Compose](https://docs.docker.com/compose/) plugin from Docker's own instructions ([Docker: Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)). Then add your user to the `docker` group ([Docker: Linux post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
 8. In Ubuntu, move to your home folder:
 
    ```sh
@@ -101,15 +101,15 @@ The install script stops in Git Bash and other Windows terminals. Run it only in
 
 ### Tuner discovery
 
-TVHeadend finds an HDHomeRun by a network broadcast, so the TVHeadend container needs `network_mode: host` on the same network as the tuner. Microsoft lists multicast support and direct access from the network as features of mirrored networking ([Microsoft: WSL networking](https://learn.microsoft.com/en-us/windows/wsl/networking#mirrored-mode-networking)). Nobody has confirmed that an HDHomeRun broadcast reaches TVHeadend this way. If it does not, enter the tuner's address by hand, as in step 10. The tuner then sends each stream to the PC on UDP port `9983`, which the Windows firewall must also let through.
+TVHeadend finds an [HDHomeRun](https://www.silicondust.com/hdhomerun/) by a network broadcast, so the TVHeadend container needs `network_mode: host` on the same network as the tuner. Microsoft lists multicast support and direct access from the network as features of mirrored networking ([Microsoft: WSL networking](https://learn.microsoft.com/en-us/windows/wsl/networking#mirrored-mode-networking)). Nobody has confirmed that an HDHomeRun broadcast reaches TVHeadend this way. If it does not, enter the tuner's address by hand, as in step 10. The tuner then sends each stream to the PC on UDP port `9983`, which the Windows firewall must also let through.
 
 ### Phones and TVs
 
-With mirrored networking and the firewall setting in step 4, a phone or TV on your network opens Freetvarr at the Windows PC's address. Without mirrored networking, WSL has its own private address, and each port needs a Windows port forward (`netsh interface portproxy`) to that address. That address changes when WSL restarts ([Microsoft: WSL networking](https://learn.microsoft.com/en-us/windows/wsl/networking#accessing-a-wsl-2-distribution-from-your-local-area-network-lan)). Freetvarr uses port `3733`, and Plex (if you add it) uses `32400`.
+With mirrored networking and the firewall setting in step 4, a phone or TV on your network opens Freetvarr at the Windows PC's address. Without mirrored networking, WSL has its own private address, and each port needs a Windows port forward (`netsh interface portproxy`) to that address. That address changes when WSL restarts ([Microsoft: WSL networking](https://learn.microsoft.com/en-us/windows/wsl/networking#accessing-a-wsl-2-distribution-from-your-local-area-network-lan)). Freetvarr uses port `3733`, and [Plex](https://www.plex.tv/) (if you add it) uses `32400`.
 
 ### Live TV conversion
 
-Freetvarr's hardware conversion uses VAAPI (the Linux interface to the graphics chip's video encoder) on `/dev/dri`, the Linux graphics device. WSL shares the graphics chip in another way (through a Direct3D 12 driver), and Freetvarr does not set that up ([Microsoft: GPU video acceleration in WSL](https://devblogs.microsoft.com/commandline/d3d12-gpu-video-acceleration-in-the-windows-subsystem-for-linux-now-available/)). Plan for software conversion only, with the limits in [The computer](/guide/hardware-requirements#the-computer): live TV in the browser at `540` lines, and only as many live streams as the processor converts smoothly. Do not use the hardware override file from [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding). Recording needs no conversion, so recordings are not affected.
+Freetvarr's hardware conversion uses [VAAPI](https://github.com/intel/libva) (the Linux interface to the graphics chip's video encoder) on `/dev/dri`, the Linux graphics device. WSL shares the graphics chip in another way (through a Direct3D 12 driver), and Freetvarr does not set that up ([Microsoft: GPU video acceleration in WSL](https://devblogs.microsoft.com/commandline/d3d12-gpu-video-acceleration-in-the-windows-subsystem-for-linux-now-available/)). Plan for software conversion only, with the limits in [The computer](/guide/hardware-requirements#the-computer): live TV in the browser at `540` lines, and only as many live streams as the processor converts smoothly. Do not use the hardware override file from [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding). Recording needs no conversion, so recordings are not affected.
 
 ### USB tuners
 
@@ -127,7 +127,7 @@ TVHeadend records only while the PC is on and Ubuntu is running:
 
 - In Windows **Settings → SYSTEM → Power**, set sleep to **Never**.
 - Windows Update restarts the PC. Set **Active hours** in **Settings → Windows Update → Advanced options** to cover the times you record most.
-- After a restart, WSL does not start until something starts it. A Task Scheduler task that runs `wsl.exe -d Ubuntu` when you sign in starts Ubuntu, and Docker Engine then starts the containers. Forum reports say a task that runs before sign-in is unreliable, so sign-in after each restart may be necessary.
+- After a restart, WSL does not start until something starts it. A [Task Scheduler](https://learn.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page) task that runs `wsl.exe -d Ubuntu` when you sign in starts Ubuntu, and Docker Engine then starts the containers. Forum reports say a task that runs before sign-in is unreliable, so sign-in after each restart may be necessary.
 
 A desktop PC that stays on uses more power than a NAS or a mini PC.
 
@@ -145,4 +145,4 @@ Run the install command in the Ubuntu terminal, with Docker Desktop's WSL integr
 
 ## The supported route
 
-A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, Quick Sync (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware-requirements#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.
+A small NAS or a mini PC that runs Linux avoids every limit on this page: the tuner is found by itself, [Quick Sync](https://en.wikipedia.org/wiki/Intel_Quick_Sync_Video) (the video encoder in Intel processors) converts live TV, and the computer stays on with little power. See [The computer](/guide/hardware-requirements#the-computer) for specs and examples, and [Getting started](/guide/getting-started) for the install.

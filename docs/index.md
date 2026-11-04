@@ -7,10 +7,11 @@ hero:
   text: >-
     <span class="hero-line-1"><em class="hero-em">Live TV</em> on your devices.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
-    Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
+    Self-hosted TV for any tuner that <a href="https://tvheadend.org/">TVHeadend</a> (free
+    recorder software that drives the tuner) can use. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
     style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
-    <code>comskip</code></span>
+    Comskip</span>
   image:
     src: /logo.svg
     alt: Freetvarr
@@ -36,7 +37,7 @@ features:
   - title: Free to run
     illustration: free-to-run
     details: >-
-      A tuner you own and a free XMLTV guide. No subscription, no levy, no
+      A tuner you own and a free <a href="https://xmltv.org/">XMLTV</a> guide (a TV guide file format). No subscription, no levy, no
       vendor who can retire your recorder.
     link: /guide/hardware-requirements
     linkText: What to buy
@@ -59,38 +60,41 @@ features:
   - title: Hardlink imports
     illustration: hardlink-imports
     details: >-
-      Recordings are already on disk, so the import is a hardlink, not a
-      download: instant, and no second copy of a 3GB transport stream.
+      Recordings are already on disk. When the recordings and the library share
+      one Docker mount, the import is a hardlink: instant, and no second copy
+      of a 3GB transport stream (the <code>.ts</code> file TVHeadend records).
     link: /deep-dive#import-state-machine
     linkText: The state machine
   - title: Plex integration
     illustration: plex-integration
     details: >-
-      Refreshes your Plex library after each sync that imports something, and
+      Refreshes your <a href="https://www.plex.tv/">Plex</a> library after each sync that imports something, and
       keeps watched marks and resume points the same in Plex and Freetvarr.
     link: /guide/plex
     linkText: Set up Plex
   - title: Optional ad removal
     illustration: ad-removal
     details: >-
-      <code>comskip</code> commercial detection with a detect-only audit mode and
-      keyframe stream-copy cutting (no transcode), keeping an .orig backup of
+      Comskip commercial detection with a detect-only audit mode and
+      keyframe stream-copy cutting (cuts at keyframes without re-encoding the video), keeping an .orig backup of
       every cut.
     link: /deep-dive#ad-removal
     linkText: How it works
   - title: Removes that work
     illustration: removes-that-work
     details: >-
-      TVHeadend's DVR API deletes the file after the import (and the Plex
-      refresh, if you use Plex), and keeps the entry so TVHeadend's duplicate check still sees the
-      episode.
+      With <strong>Remove from TVHeadend after import</strong> on for a series, Freetvarr deletes
+      the file through TVHeadend's DVR API after the import (and the Plex
+      refresh, if you use Plex), and keeps the entry so TVHeadend's duplicate
+      check still sees the episode.
     link: /guide/remove-from-tvheadend
     linkText: The rules
   - title: Authless LAN service
     illustration: authless-lan
     details: >-
-      SQLite-backed, single Docker container, no external runtime dependencies.
-      CSRF, rate limiting, and a strict CSP, built for a trusted home network.
+      Backed by <a href="https://www.sqlite.org/">SQLite</a> in a single <a href="https://www.docker.com/">Docker</a> container, with no external runtime
+      dependencies. Built for a trusted home network, with rate limiting and
+      browser-side protections (details in the security model).
     link: /deep-dive#security-model
     linkText: The security model
 ---
