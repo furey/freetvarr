@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Record the homepage demo (docs/public/demo.mp4, demo-1x.mp4, and
-# demo-poster.jpg) frame by frame with HeadlessExperimental.beginFrame.
+# demo-poster.jpg) frame by frame with HeadlessExperimental.beginFrame, and cut
+# its Live TV shot into the README's docs/img/hero.webp.
 #
 # tour.mjs runs in Docker in chrome-headless-shell with virtual time, so every
 # frame is rendered on schedule at 60 fps however slow the machine is. It
@@ -65,7 +66,13 @@ FRAME_SECONDS=$(awk -v f="$FPS" 'BEGIN { printf "%.6f", 1 / f }')
 VIDEO_FPS="$FPS" "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" \
   "${REPO_ROOT}/docs/public/demo.mp4" "${REPO_ROOT}/docs/public/demo-poster.jpg" 0
 
+HERO="${REPO_ROOT}/docs/img/hero.webp"
+ffmpeg -y -loglevel error -ss "${HERO_START:-5.5}" -t "${HERO_SECONDS:-12}" \
+  -i "${REPO_ROOT}/docs/public/demo.mp4" -vf "fps=12,scale=800:-1:flags=lanczos" \
+  -c:v libwebp_anim -quality 65 -compression_level 6 -loop 0 -an "$HERO"
+
 echo "[demo] done:"
-ls -lh "${REPO_ROOT}/docs/public/demo.mp4" "${REPO_ROOT}/docs/public/demo-1x.mp4" "${REPO_ROOT}/docs/public/demo-poster.jpg"
+ls -lh "${REPO_ROOT}/docs/public/demo.mp4" "${REPO_ROOT}/docs/public/demo-1x.mp4" \
+  "${REPO_ROOT}/docs/public/demo-poster.jpg" "$HERO"
 
 "$REPO_ROOT/scripts/upload-docs-media.sh"

@@ -5,7 +5,7 @@ set -euo pipefail
 # Chromium. The host browser composites on the host GPU, so it paints the 2x
 # frames about twice as fast as the software renderer in a Docker container.
 #
-#   ./scripts/run-capture-tour.sh capture-walkthrough.mjs
+#   ./scripts/run-capture-tour.sh capture-wizard.mjs
 #
 # PLAYWRIGHT_VERSION (default 1.49.0) picks the Playwright release. Every other
 # variable in the environment passes through to the tour.
