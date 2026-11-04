@@ -934,7 +934,7 @@ Each target must be an absolute path inside the TV, one-off, or movies folder, i
 
 `sweepLibraryStates` (`src/library-files.js`) runs in each sync. For each `done` or `partial` row with a missing file, `library_state` becomes `replaced` (another video with the same `SxxEyy` in the same or a sibling `Season N` folder, stored in `library_replacement`) or `not_in_library`. `POST /api/recordings/:recording_id/library` with `choice: 'include'` resets a `not_in_library` row to `pending` and starts a `manual:import` sync.
 
-`POST /api/reset` needs the body `{ "confirm": "reset" }` (else `400`) and uses `syncLimiter`. It returns `409` while a sync runs. Otherwise `resetFreetvarrData` (`src/reset.js`) deletes all rows of `recordings`, `syncs`, and `shows`, and every setting except `tv_login_username`, `tv_login_password`, `tv_login_auth_code`, and `tvh_open_entry_backup`, because the TV login and the closed open-access entry stay in TVHeadend. The scheduler then restarts.
+`POST /api/reset` needs the body `{ "confirm": "reset" }` (else `400`) and uses `syncLimiter`. It returns `409` while a sync runs. Otherwise `resetFreetvarrData` (`src/reset.js`) deletes all rows of `recordings`, `syncs`, and `shows`, and every setting except `tv_login_username`, `tv_login_password`, `tv_login_auth_code`, `tvh_open_entry_backup`, and `allowed_hosts`. The TV login and the closed open-access entry stay in TVHeadend; the allowed hostnames stay so the reset page still loads through a reverse proxy name. The scheduler then restarts.
 
 ## Live TV
 
