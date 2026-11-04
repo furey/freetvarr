@@ -8,7 +8,7 @@ import path from 'node:path'
 const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-remove-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
-const { listFinished, removeRecordings } = await import('../src/tvheadend.js')
+const { forgetPastAirings, listFinished, removeRecordings } = await import('../src/tvheadend.js')
 const { startSync, getActiveSyncId, usePlaybackCheck } = await import('../src/sync.js')
 const { db } = await import('../src/db.js')
 
@@ -69,6 +69,7 @@ before(async () => {
       return res.end()
     }
     if (req.method === 'POST') tvh.posts.push({ path: url.pathname, form })
+    if (url.pathname === '/api/dvr/entry/grid_removed') tvh.removedReads++
     const page = (entries) => {
       const start = Number(url.searchParams.get('start') || 0)
       const limit = Number(url.searchParams.get('limit') || entries.length)
@@ -107,6 +108,8 @@ beforeEach(async () => {
   tvh.finished = []
   tvh.upcoming = []
   tvh.removed = []
+  tvh.removedReads = 0
+  forgetPastAirings()
   tvh.posts = []
   tvh.failRemove = new Set()
   tvh.plexStatus = 200
@@ -275,4 +278,11 @@ test('sync: remove after import skips a recording with an active playback sessio
   usePlaybackCheck(() => false)
   const second = await runSync()
   assert.deepEqual(second.delete.removed, ['rec-1'])
+})
+
+test('sync: back-to-back syncs share one read of the removed recordings', async () => {
+  tvh.removed = [finishedEntry('gone', { fileremoved: 1 })]
+  await runSync()
+  await runSync()
+  assert.equal(tvh.removedReads, 1)
 })

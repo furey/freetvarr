@@ -168,13 +168,25 @@ export const listUpcoming = async (conn) => {
 
 export const listFinished = (conn) => allGridEntries('dvr/entry/grid_finished', conn)
 
-export const listRemovedIds = async (conn) => (await allGridEntries('dvr/entry/grid_removed', conn))
-  .filter((e) => e.fileRemoved)
-  .map((e) => e.uuid)
+export const listRemovedIds = async (conn, nowMs = Date.now()) => {
+  const removed = pastAiringsCache?.url === conn.url && pastAiringsCache.expiresAt > nowMs
+    ? pastAiringsCache.value.filter((e) => e.removed)
+    : await cachedRemovedEntries(conn, nowMs)
+  return removed.filter((e) => e.fileRemoved).map((e) => e.uuid)
+}
+
+const cachedRemovedEntries = async (conn, nowMs) => {
+  if (removedCache?.url === conn.url && removedCache.expiresAt > nowMs) return removedCache.value
+  const generation = pastAiringsGeneration
+  const value = await allGridEntries('dvr/entry/grid_removed', conn)
+  if (generation === pastAiringsGeneration) removedCache = { url: conn.url, value, expiresAt: nowMs + PAST_AIRINGS_TTL_MS }
+  return value
+}
 
 export const forgetPastAirings = () => {
   pastAiringsGeneration++
   pastAiringsCache = null
+  removedCache = null
 }
 
 const listPastAirings = async (conn, nowMs = Date.now()) => {
@@ -210,6 +222,7 @@ const allGridEntries = async (path, conn) => {
 }
 
 let pastAiringsCache = null
+let removedCache = null
 let pastAiringsGeneration = 0
 
 export const listAutorecs = async (conn) => {
