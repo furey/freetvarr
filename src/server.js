@@ -247,7 +247,7 @@ import { loadExternalIds } from './external-ids-store.js'
 import { savePlexConnection, saveTvheadendConnection } from './connection-secrets.js'
 import { ownValueOf } from './query-lookup.js'
 import { restrictDatabaseFiles } from './database-file-modes.js'
-import { isResetConfirmed } from './web/confirm-copy.js'
+import { RESET_REFUSED_MESSAGE, isResetConfirmed } from './web/confirm-copy.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -2348,7 +2348,7 @@ app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
 })
 
 app.post('/api/reset', syncLimiter, doubleCsrfProtection, async (req, res) => {
-  if (!isResetConfirmed(req.body)) return res.status(400).json({ error: 'Send { "confirm": "reset" } to reset Freetvarr.' })
+  if (!isResetConfirmed(req.body)) return res.status(400).json({ error: RESET_REFUSED_MESSAGE })
   if (getActiveSyncId()) {
     return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }

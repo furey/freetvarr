@@ -6,6 +6,7 @@ import {
   deleteSyncConfirm,
   isResetConfirmed,
   RESET_CONFIRM_BODY,
+  RESET_REFUSED_MESSAGE,
   resetConfirm,
   restoreOpenAccessConfirm,
 } from '../src/web/confirm-copy.js'
@@ -39,6 +40,10 @@ test('clearSyncHistoryConfirm: says the running sync stays', () => {
 test('resetConfirm: names the media root and falls back to /media/tv', () => {
   assert.match(resetConfirm({ mediaRoot: '/data/media/tv' }).body[1], /^Your video files in \/data\/media\/tv /)
   assert.match(resetConfirm({ mediaRoot: '' }).body[1], /^Your video files in \/media\/tv /)
+})
+
+test('RESET_REFUSED_MESSAGE: tells the reader what to do in plain words', () => {
+  assert.equal(RESET_REFUSED_MESSAGE, 'Freetvarr did not reset. Reload the page, then press Reset again.')
 })
 
 test('isResetConfirmed: a reset needs the confirm body the Settings dialog sends', () => {
