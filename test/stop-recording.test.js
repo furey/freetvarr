@@ -43,7 +43,10 @@ test('stopConfirmOf: under 5 minutes is a red Stop and delete that names what go
   assert.equal(copy.title, 'Stop recording?')
   assert.equal(copy.danger, true)
   assert.equal(copy.goLabel, 'Stop and delete')
-  assert.deepEqual(copy.deleted, [{ icon: 'trash', title: 'The 3 minutes recorded so far', detail: 'Freetvarr keeps a stopped recording only after 5 minutes' }])
+  assert.deepEqual(copy.deleted, [
+    { icon: 'trash', title: 'The 3 minutes recorded so far', detail: 'Freetvarr keeps a stopped recording only after 5 minutes' },
+    { icon: 'trash', title: 'Repeats of this episode', detail: 'TVHeadend counts this episode as recorded, so its repeats do not record' },
+  ])
   assert.deepEqual(copy.stays, [{ icon: 'check', title: 'The series recording', detail: 'The next episode still records on 9HD Sydney' }])
   assert.equal(copy.undo, "You can't undo this.")
 })
@@ -51,6 +54,7 @@ test('stopConfirmOf: under 5 minutes is a red Stop and delete that names what go
 test('stopConfirmOf: a one-off under a minute has nothing that stays', () => {
   const copy = stopConfirmOf({ recordedMs: 20_000 })
   assert.equal(copy.deleted[0].title, 'What it recorded so far')
+  assert.equal(copy.deleted.length, 1)
   assert.deepEqual(copy.stays, [])
 })
 
