@@ -1143,7 +1143,7 @@ kbd {
   padding: 6px;
 }
 
-/* The hero image slot carries the iPad demo video, so let it grow
+/* The hero image slot carries the browser-framed demo video, so let it grow
    past the default VPImage box. */
 .VPHero .image {
   max-width: none;
@@ -1170,6 +1170,7 @@ kbd {
 
   .VPHero .container {
     gap: 40px;
+    align-items: flex-end;
   }
 
   .VPHero.VPHero {
@@ -1180,7 +1181,7 @@ kbd {
 @media (max-width: 959px) {
   .VPHero .image {
     margin-top: 0;
-    margin-bottom: 0;
+    margin-bottom: 32px;
   }
 
   .VPHero .image-container {

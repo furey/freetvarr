@@ -8,9 +8,14 @@ import { pickBigFive } from '../src/default-favourites.js'
 
 const BASE = (process.env.FREETVARR_URL || 'http://127.0.0.1:3801').replace(/\/$/, '')
 const GUIDE_DAYS = 7
+const titleList = (value) => String(value || '').split('|').map((title) => title.trim()).filter(Boolean)
+const CURATED_SHOWS = titleList(process.env.DEMO_SHOWS)
+const CURATED_FILMS = titleList(process.env.DEMO_FILMS)
+const CURATED = CURATED_SHOWS.length > 0
+const CURATED_MIN_ROW = 6
 const SHOW_COUNT = 14
-const FILM_COUNT = 3
-const ONE_OFF_COUNT = 2
+const FILM_COUNT = CURATED ? 6 : 3
+const ONE_OFF_COUNT = CURATED ? 0 : 2
 const PLEX_SHOW_COUNT = 2
 const PLEX_EPISODES_PER_SHOW = 3
 const MINUTE_MS = 60_000
@@ -37,8 +42,10 @@ export const seedCaptureLibrary = async () => {
   const airings = airingsOf(guide)
   const ruleChannels = new Map((series.series || []).map((s) => [s.title, (s.autorecs || []).map((a) => String(a.channelId))]))
   const onRuleChannel = ({ channel, program }) => !ruleChannels.has(program.title) || ruleChannels.get(program.title).includes(String(channel.id))
-  const shows = pickShows({ airings: airings.filter((a) => a.program.title !== scheduledOnly && onRuleChannel(a)), ruleTitles })
-  const films = pickFilms({ airings, shows })
+  const showAirings = airings.filter((a) => a.program.title !== scheduledOnly && onRuleChannel(a))
+  const { shows, films, plexFilms } = CURATED
+    ? await pickCurated({ airings, showAirings })
+    : pickByScore({ airings, showAirings, ruleTitles })
   const oneOffs = pickOneOffs({ airings, shows, films })
   const db = knex(knexConfig)
   try {
@@ -54,7 +61,7 @@ export const seedCaptureLibrary = async () => {
     await db.batchInsert('recordings', recordings.map(({ programId, ...row }) => row), 50)
     const sonarrCopy = sonarrCopyOf({ recordings, shows, nowMs })
     const plexItems = [
-      ...plexOnlyItems({ shows: shows.slice(0, PLEX_SHOW_COUNT), films: pickPlexFilms({ airings, shows, films, oneOffs }), nowMs, roots }),
+      ...plexOnlyItems({ shows: shows.slice(0, PLEX_SHOW_COUNT), films: plexFilms ?? pickPlexFilms({ airings, shows, films, oneOffs }), nowMs, roots }),
       ...(sonarrCopy ? [sonarrCopy] : []),
     ]
     await writeFiles(plexItems.map((item) => ({ file_path: item.file_path, size: item.size_bytes })))
@@ -141,14 +148,77 @@ const scheduledOnlyTitle = ({ series, nowMs }) => series
   .filter((s) => s.nextAiring?.startDate > nowMs + DAY_MS)
   .sort((a, b) => b.nextAiring.startDate - a.nextAiring.startDate)[0]?.title ?? null
 
-const pickShows = ({ airings, ruleTitles }) => {
+const pickByScore = ({ airings, showAirings, ruleTitles }) => {
+  const shows = pickShows({ airings: showAirings, ruleTitles })
+  return { shows, films: pickFilms({ airings, shows }), plexFilms: null }
+}
+
+const pickCurated = async ({ airings, showAirings }) => {
+  const shows = await withArt(curatedShows(showAirings), (group) => group.title, SHOW_COUNT)
+  const films = await withArt(curatedFilms({ airings, taken: [] }), (entry) => entry.program.title, FILM_COUNT, '&kind=movie')
+  const taken = films.map((entry) => entry.program.title)
+  const plexFilms = await withArt(curatedFilms({ airings, taken }), (entry) => entry.program.title, 2, '&kind=movie')
+  if (shows.length < CURATED_MIN_ROW) throw new Error(`only ${shows.length} curated shows have artwork`)
+  if (films.length + plexFilms.length < CURATED_MIN_ROW) throw new Error(`only ${films.length + plexFilms.length} curated films have artwork`)
+  return { shows, films, plexFilms }
+}
+
+const curatedShows = (airings) => latestSeasonGroups(airings)
+  .filter((group) => curatedIndex(CURATED_SHOWS, group.title) >= 0)
+  .sort((a, b) => curatedIndex(CURATED_SHOWS, a.title) - curatedIndex(CURATED_SHOWS, b.title))
+
+const curatedFilms = ({ airings, taken }) => uniqueTitles(airings.filter(isFilmAiring)
+  .filter(({ program }) => !taken.includes(program.title) && curatedIndex(CURATED_FILMS, program.title) >= 0)
+  .sort((a, b) => curatedIndex(CURATED_FILMS, a.program.title) - curatedIndex(CURATED_FILMS, b.program.title)))
+
+const curatedIndex = (list, title) => list.findIndex((entry) => titleKey(entry) === titleKey(title))
+
+const titleKey = (title) => String(title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+const withArt = async (entries, titleOf, count, kind = '') => {
+  const kept = []
+  for (const entry of entries) {
+    if (kept.length === count) break
+    if (await hasArt(titleOf(entry), kind)) kept.push(entry)
+  }
+  return kept
+}
+
+const hasArt = async (title, kind) => {
+  const query = `${encodeURIComponent(title)}${kind}`
+  const urls = [`${BASE}/api/epg/show-image?title=${query}&shape=poster`, `${BASE}/api/epg/show-image?title=${query}`]
+  const ok = (await Promise.all(urls.map(servesImage))).every(Boolean)
+  console.log(`[seed] art check ${ok ? 'kept' : 'dropped'} ${title}`)
+  return ok
+}
+
+const servesImage = async (url) => {
+  for (let attempt = 0; attempt < ART_ATTEMPTS; attempt += 1) {
+    if (await isImage(url)) return true
+    await new Promise((resolve) => setTimeout(resolve, ART_RETRY_MS))
+  }
+  return false
+}
+
+const isImage = (url) => fetch(url)
+  .then((reply) => reply.ok && (reply.headers.get('content-type') || '').startsWith('image/'))
+  .catch(() => false)
+
+const ART_ATTEMPTS = 8
+const ART_RETRY_MS = 1500
+
+const latestSeasonGroups = (airings) => {
   const latestSeason = new Map()
   for (const { channel, program } of airings) {
     const key = `${channel.id}|${program.title}`
     if (program.series_no != null && program.series_no < 100) latestSeason.set(key, Math.max(latestSeason.get(key) ?? 0, program.series_no))
   }
-  const groups = groupByTitle(airings.filter(isEpisodic)
+  return groupByTitle(airings.filter(isEpisodic)
     .filter(({ channel, program }) => program.series_no === latestSeason.get(`${channel.id}|${program.title}`)))
+}
+
+const pickShows = ({ airings, ruleTitles }) => {
+  const groups = latestSeasonGroups(airings)
     .sort((a, b) => showScore({ group: b, ruleTitles }) - showScore({ group: a, ruleTitles }))
   const perNetwork = new Map()
   const picked = []
