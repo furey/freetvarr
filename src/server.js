@@ -245,6 +245,7 @@ import {
 import { loadExternalIds } from './external-ids-store.js'
 import { savePlexConnection, saveTvheadendConnection } from './connection-secrets.js'
 import { ownValueOf } from './query-lookup.js'
+import { restrictDatabaseFiles } from './database-file-modes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -254,7 +255,8 @@ const STARTUP_TIME_ZONE = await applyStoredTimeZone({ getSetting })
 console.log(`[server] time zone ${STARTUP_TIME_ZONE.zone} (${STARTUP_TIME_ZONE.source})`)
 
 const PORT = Number(process.env.PORT || 3733)
-const CONFIG_DIR = path.dirname(process.env.DB_PATH || path.join(__dirname, '..', 'config', 'state.db'))
+const DB_FILE = process.env.DB_PATH || path.join(__dirname, '..', 'config', 'state.db')
+const CONFIG_DIR = path.dirname(DB_FILE)
 const loadCsrfSecret = async () => {
   try {
     const { secret, source, file } = await resolveCsrfSecret({ envSecret: process.env.CSRF_SECRET, configDir: CONFIG_DIR })
@@ -272,6 +274,8 @@ const loadCsrfSecret = async () => {
   }
 }
 const CSRF_SECRET = await loadCsrfSecret()
+await restrictDatabaseFiles({ dbPath: DB_FILE })
+  .catch((err) => console.warn(`[server] cannot restrict the database file modes (${err.code || err.message})`))
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const LIBRARY_CHOICES = ['include', 'exclude']
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
