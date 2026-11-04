@@ -37,6 +37,9 @@ export const isUserPageLoad = (req) => req.get('sec-fetch-mode') === 'navigate'
   && req.get('sec-fetch-dest') === 'document'
   && req.get('sec-fetch-site') === 'none'
 
+export const isRequestHostAllowed = ({ req, allowedHosts, machineNames = machineNamesOf() }) =>
+  isAllowedHost({ hostname: normaliseHostname(req.hostname), extra: allowedHosts.current(), machineNames })
+
 export const isExemptRequest = (req) => (req.method === 'GET' || req.method === 'HEAD') && EXEMPT_PATHS.includes(req.path)
 
 export const machineNamesOf = (hostname = os.hostname()) => {
@@ -186,8 +189,7 @@ export const mountAllowedHosts = ({ app, csrf, limiter, allowedHosts, seenHosts,
   })
 
   const fromAllowedHost = (req, res, next) => {
-    const hostname = normaliseHostname(req.hostname)
-    if (isAllowedHost({ hostname, extra: allowedHosts.current(), machineNames })) return next()
+    if (isRequestHostAllowed({ req, allowedHosts, machineNames })) return next()
     res.status(403).json({ error: LOCKED_LIST_MESSAGE, code: 'host-not-allowed' })
   }
 

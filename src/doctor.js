@@ -687,7 +687,7 @@ const LATER_CHECKS = [
   },
 ]
 
-export const hostNamesCheck = (report) => {
+export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {
   if (!report) return { status: 'skip', detail: 'Only the running server knows the names it was opened as.' }
   if (report.anyHost) {
     return {
@@ -706,14 +706,25 @@ export const hostNamesCheck = (report) => {
   return {
     status: 'warn',
     detail: `Freetvarr was opened as ${joinAnd(names)}. From 3.0.0 Freetvarr refuses names it does not know.`,
-    fix: `${addLineOf({ one, target })} ${unknownNameNote(one ? 'the name' : 'a name')}`,
-    action: target ? allowActionOf(target.name) : SETTINGS_HOSTNAMES,
+    fix: `${addLineOf({ one, target, hostAllowed })} ${unknownNameNote(one ? 'the name' : 'a name')}`,
+    action: actionFor({ target, hostAllowed }),
   }
+}
+
+export const withHostNamesCheck = ({ report, check }) => ({
+  ...report,
+  checks: report.checks.map((entry) => (entry.id === 'host.names' && entry.status !== 'skip' ? { ...entry, action: undefined, ...check } : entry)),
+})
+
+const actionFor = ({ target, hostAllowed }) => {
+  if (!target) return SETTINGS_HOSTNAMES
+  return hostAllowed ? allowActionOf(target.name) : undefined
 }
 
 const mostUsedOf = (entries) => (entries.length ? entries.reduce((a, b) => (b.count > a.count ? b : a)) : null)
 
-const addLineOf = ({ one, target }) => {
+const addLineOf = ({ one, target, hostAllowed }) => {
+  if (target && !hostAllowed) return `Open Freetvarr by its IP address, then press ${allowLabelOf(target.name)} here.`
   if (!one) return 'If you open Freetvarr by these names, allow each one in Allowed hostnames.'
   return target
     ? `If you open Freetvarr by this name, press ${allowLabelOf(target.name)}.`

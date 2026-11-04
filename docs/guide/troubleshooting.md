@@ -376,7 +376,7 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 
 ## Allowed hostnames
 
-A hostname is the name in the address bar, before the `:3733`: in `http://freetvarr.lan:3733`, the hostname is `freetvarr.lan`. Freetvarr checks the hostname of each browser request. In `2.8.0` it notes each name it does not know. From `3.0.0` the check blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
+A hostname is the name in the web address, such as `synnas` in `http://synnas:3733` or `tv.example.com` in `https://tv.example.com`. Freetvarr checks the hostname of each browser request. In `2.8.0` it notes each name it does not know. From `3.0.0` the check blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
 
 These names always work, with no setup:
 

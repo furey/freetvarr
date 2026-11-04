@@ -177,7 +177,7 @@ import {
 } from './playback.js'
 import { BUILD_HEADER, readBuildId } from './build-id.js'
 import { webAssets } from './web-assets.js'
-import { getDoctorReport, scheduleDoctorChecks } from './doctor.js'
+import { getDoctorReport, hostNamesCheck, scheduleDoctorChecks, withHostNamesCheck } from './doctor.js'
 import { reconcileInterruptedSyncs } from './startup-reconcile.js'
 import { getHealthSummary, healthSummaryRoute, pageHealthOf } from './health-summary.js'
 import {
@@ -257,7 +257,7 @@ import { savePlexConnection, saveTvheadendConnection } from './connection-secret
 import { ownValueOf } from './query-lookup.js'
 import { restrictDatabaseFiles } from './database-file-modes.js'
 import { RESET_REFUSED_MESSAGE, isResetConfirmed } from './web/confirm-copy.js'
-import { createAllowedHosts, createHostGate, createSeenHosts, hostCheckReport, machineNamesOf, mountAllowedHosts } from './host-gate.js'
+import { createAllowedHosts, createHostGate, createSeenHosts, hostCheckReport, isRequestHostAllowed, machineNamesOf, mountAllowedHosts } from './host-gate.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -1226,14 +1226,21 @@ const liveDoctorDeps = {
 app.get('/api/doctor', doctorLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
-    res.json(await getDoctorReport({
+    const report = await getDoctorReport({
       fresh: req.query.fresh === '1',
       deps: liveDoctorDeps,
-    }))
+    })
+    res.json(doctorReportFor({ req, report }))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
+
+const doctorReportFor = ({ req, report }) => {
+  if (isRequestHostAllowed({ req, allowedHosts, machineNames: MACHINE_NAMES })) return report
+  const check = hostNamesCheck(hostCheckReport({ allowedHosts, seenHosts, machineNames: MACHINE_NAMES }), { hostAllowed: false })
+  return withHostNamesCheck({ report, check })
+}
 
 app.post('/api/doctor/one-off-placeholder', doctorLimiter, doubleCsrfProtection, async (req, res) => {
   const oneOffRoot = await getOneOffRoot()

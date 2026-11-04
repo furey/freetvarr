@@ -15,6 +15,7 @@ import {
   guideCoverage,
   liveStreamsCheck,
   hostNamesCheck,
+  withHostNamesCheck,
 } from '../src/doctor.js'
 
 const HOUR_MS = 60 * 60 * 1000
@@ -651,6 +652,23 @@ test('host.names: with no name opened as a page, or none that can be saved, the 
   assert.match(fetched.fix, /^If you open Freetvarr by this name, add it in Allowed hostnames\./)
   const unsaveable = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName('user@attacker.example', { allowable: false })] })
   assert.equal(unsaveable.action.href, '#/settings/system/setup/hostnames')
+})
+
+test('host.names: on a page opened by a name that is not allowed, Allow is dropped and the fix says to open the IP address first', () => {
+  const seen = [seenName('nas.tail1234.ts.net', { count: 12 })]
+  const check = hostNamesCheck({ anyHost: false, added: 0, seen }, { hostAllowed: false })
+  assert.equal(check.status, 'warn')
+  assert.equal(check.action, undefined)
+  assert.match(check.fix, /^Open Freetvarr by its IP address, then press Allow nas\.tail1234\.ts\.net here\. /)
+  const allowed = hostNamesCheck({ anyHost: false, added: 0, seen })
+  const report = { summary: {}, checks: [{ id: 'tvh.reach', status: 'pass' }, { id: 'host.names', group: 'host', title: 'Allowed hostnames', ...allowed }] }
+  const swapped = withHostNamesCheck({ report, check })
+  const hostNames = swapped.checks.find((entry) => entry.id === 'host.names')
+  assert.equal(hostNames.action, undefined)
+  assert.equal(hostNames.title, 'Allowed hostnames')
+  assert.equal(hostNames.fix, check.fix)
+  assert.deepEqual(swapped.checks[0], report.checks[0])
+  assert.ok(report.checks[1].action.post)
 })
 
 test('host.names: a long name is cut in the button label but not in the request', () => {
