@@ -37,6 +37,7 @@ An import or an ad removal works on one recording. Its row names the show, and i
 
 - the season and episode, such as `S17 E10`
 - the air date, such as `Mon 2 Nov`, when the guide gives no episode number
+- the episode title, when the guide gives no episode number and no air date
 - the year, such as `2000`, for a film
 
 Press the row to see the show, the episode and its title, when it aired, the channel, the file name, and the folder that holds the file. **Open show** (**Open movie** for a film) opens the recording's page in Recordings.

@@ -454,7 +454,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
       })
       const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames, identityFor }) : null
       const itemStartedAt = Date.now()
-      const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, roots, rootProblemOf })
+      const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, override, roots, rootProblemOf })
       summary[summaryKey]++
       if (summaryKey !== 'skipped') {
         noteItem({ summary, item, kind, outcome: summaryKey, size, error, adResult, ms: Date.now() - itemStartedAt })
@@ -724,7 +724,7 @@ const recordingIdsAt = (filePath) => db('recordings')
 
 const statOrNull = (filePath) => fs.stat(filePath).catch(() => null)
 
-const processItem = async ({ item, show, kind, roots, rootProblemOf }) => {
+const processItem = async ({ item, show, kind, override = null, roots, rootProblemOf }) => {
   const existing = await db('recordings').where({ recording_id: item.id }).first()
   if (existing?.status === 'done') return { summaryKey: 'skipped' }
   if (existing?.deleted_from_tvh_at) return { summaryKey: 'skipped' }
@@ -749,8 +749,9 @@ const processItem = async ({ item, show, kind, roots, rootProblemOf }) => {
   if (rootProblem) return skipItem({ item, show, existing, error: rootProblemMessage({ kind, root: kindRoot, problem: rootProblem }) })
 
   const { filePath, takenPath } = await destinationFor({ item, show, kind, roots })
+  const showTitle = existing?.show_title_override ?? item.title
   return trackJob(
-    { kind: 'import', title: `Import · ${item.title}`, ref: { recordingId: item.id }, subject: importSubjectOf({ item, kind, filePath }) },
+    { kind: 'import', title: `Import · ${showTitle}`, ref: { recordingId: item.id }, subject: importSubjectOf({ item, kind, filePath, showTitle, kindOverride: override }) },
     (job) => importItem({ item, show, filePath, takenPath, sourceStat, job }),
   )
 }

@@ -1,9 +1,39 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { recordingSubjectOf, importSubjectOf } from '../src/activity-subject.js'
+import { recordingSubjectOf, importSubjectOf, loadRecordingSubject } from '../src/activity-subject.js'
 
 const aired = Date.parse('2026-11-02T19:00:00+11:00')
+
+const blockRow = { recording_id: 'r9', title: 'The Block', file_path: '/media/tv/The Block/Season 22/e.ts' }
+
+test('a failed settings read keeps the show title of the recording', async () => {
+  const subject = await loadRecordingSubject('r9', {
+    loadRow: async () => blockRow,
+    loadMoviesRoot: async () => { throw new Error('settings locked') },
+    loadKindOverride: async () => { throw new Error('settings locked') },
+  })
+  assert.equal(subject.title, 'The Block')
+  assert.equal(subject.film, false)
+})
+
+test('a failed recording read gives no subject', async () => {
+  const subject = await loadRecordingSubject('r9', { loadRow: async () => { throw new Error('locked') } })
+  assert.equal(subject, null)
+})
+
+test('a show marked as a movie is a film wherever its file is filed', async () => {
+  const seen = []
+  const subject = await loadRecordingSubject('r9', {
+    loadRow: async () => ({ ...blockRow, title: 'The Dish' }),
+    loadMoviesRoot: async () => '/media/movies',
+    loadKindOverride: async (key) => { seen.push(key); return 'movie' },
+  })
+  assert.deepEqual(seen, ['the-dish'])
+  assert.equal(subject.film, true)
+  assert.equal(importSubjectOf({ item: { id: 'd', title: 'The Dish' }, kind: 'tv', filePath: '/m/d.ts', kindOverride: 'movie' }).film, true)
+  assert.equal(importSubjectOf({ item: { id: 'd', title: 'The Dish' }, kind: 'tv', filePath: '/m/d.ts', kindOverride: 'show' }).film, false)
+})
 
 test('a recording row becomes the subject an activity job shows', () => {
   const subject = recordingSubjectOf({
