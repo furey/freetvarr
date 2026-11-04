@@ -5,8 +5,8 @@ import { showFieldErrorOf } from '../src/show-fields.js'
 
 test('showFieldErrorOf: an empty, blank, or "." folder or title match is refused', () => {
   for (const value of ['', '   ', '.', ' . ']) {
-    assert.equal(showFieldErrorOf({ key: 'dest_folder', value }), 'dest_folder must not be empty')
-    assert.equal(showFieldErrorOf({ key: 'show_pattern', value }), 'show_pattern must not be empty')
+    assert.equal(showFieldErrorOf({ key: 'dest_folder', value }), 'The folder must not be empty.')
+    assert.equal(showFieldErrorOf({ key: 'show_pattern', value }), 'The title match must not be empty.')
   }
   assert.equal(showFieldErrorOf({ key: 'season_template', value: '' }), null)
 })
