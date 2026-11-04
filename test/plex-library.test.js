@@ -134,6 +134,21 @@ test('localPathOf: keeps a path inside a library folder and maps another contain
   assert.equal(localPathOf({ plexFile: '/elsewhere/x.mkv', roots: ['/data/media/tv'] }), '/elsewhere/x.mkv')
 })
 
+test('libraryItemRowsOf: a film links to its recording when the Plex mount uses another folder name', () => {
+  const recordingFiles = [
+    { recordingId: 'film1', filePath: '/data/media/movies/Dune (2021)/Dune (2021).ts' },
+    { recordingId: 'ep1', filePath: '/data/media/tv/Gruen/Gruen - 2026-05-06.ts' },
+  ]
+  const roots = ['/data/media/tv', '/data/media/movies', '/data/media/oneoffs']
+  const part = (key, file) => ({ ratingKey: key, title: 'x', Media: [{ id: 1, Part: [{ id: key, file }] }] })
+  const [film] = libraryItemRowsOf({ items: [part('10', '/films/Dune (2021)/Dune (2021).ts')], section: MOVIES, recordingFiles, roots, seenAt: NOW })
+  const [show] = libraryItemRowsOf({ items: [part('11', '/tvshows/Gruen/Gruen - 2026-05-06.ts')], section: TV, recordingFiles, roots, seenAt: NOW })
+  const [other] = libraryItemRowsOf({ items: [part('12', '/films/Dune (1984)/Dune (2021).ts')], section: MOVIES, recordingFiles, roots, seenAt: NOW })
+  assert.equal(film.recording_id, 'film1')
+  assert.equal(show.recording_id, 'ep1')
+  assert.equal(other.recording_id, null)
+})
+
 test('isSameFileByTail: needs the file, its folder, and the show folder to match', () => {
   assert.equal(isSameFileByTail('/data/media/tv/A/Season 01/x.ts', '/media/tv/A/Season 01/x.ts'), true)
   assert.equal(isSameFileByTail('/data/media/tv/A/Season 01/x.ts', '/data/media/tv/B/Season 01/x.ts'), false)
@@ -185,6 +200,33 @@ test('mergeWithRecordings: the same season and episode as a recording becomes a 
   })
   assert.deepEqual(rows.map((row) => row.recording_id), ['r1', 'plex-8'])
   assert.equal(rows[0].other_versions[0].itemId, 'plex-7')
+})
+
+test('mergeWithRecordings: a failed recording does not hide the Plex copy of the same episode', () => {
+  const rows = mergeWithRecordings({
+    rows: [recording({ status: 'failed', file_path: null })],
+    itemRows: [itemRow({ rating_key: '7', show_title: 'The Block', season: 22, episode: 41, file_path: '/x/The Block S22E41.mkv', manager: 'sonarr' })],
+    keyOf: groupKeyOf,
+    nowMs: NOW,
+  })
+  assert.deepEqual(rows.map((row) => row.recording_id), ['plex-7'])
+})
+
+test('getLibraryShow: the Plex copy of a failed episode counts as unwatched and is next to resume', async () => {
+  const show = await getLibraryShow({
+    ...libraryDeps({
+      rows: [recording({ status: 'failed', file_path: null })],
+      items: [itemRow({ rating_key: '7', show_title: 'The Block', season: 22, episode: 41, file_path: '/x/The Block S22E41.mkv', manager: 'sonarr' })],
+    }),
+    key: 'the-block',
+    resolvePlayable: async (row) => row.file_path,
+  })
+  const episodes = show.seasons.flatMap((season) => season.episodes)
+  assert.equal(episodes.length, 1)
+  assert.equal(episodes[0].recordingId, 'plex-7')
+  assert.equal(episodes[0].playable, true)
+  assert.equal(show.counts.unwatched, 1)
+  assert.equal(show.resumeNext?.recordingId, 'plex-7')
 })
 
 test('getLibraryShows: Plex shows and films join the shelves; a Sonarr show with a recorded twin is one show', async () => {
