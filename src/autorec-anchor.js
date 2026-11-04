@@ -34,7 +34,11 @@ const anchorRules = async ({ read = tvhRead, write = tvhWrite, log = console }) 
     read('dvr/autorec/grid', { limit: GRID_LIMIT }),
     read('dvr/entry/grid_upcoming', { limit: GRID_LIMIT }),
   ])
-  const plan = anchorPlanOf({ autorecs: autorecs?.entries || [], upcoming: upcoming?.entries || [] })
+  const rules = autorecs?.entries || []
+  const plan = anchorPlanOf({ autorecs: rules, upcoming: upcoming?.entries || [] })
+  for (const rule of rules.filter(isLeftAsItIs)) {
+    log.log(`[rules] series rule "${rule.name}" (${rule.uuid}) keeps its title "${rule.title}": it is a pattern or was changed in TVHeadend`)
+  }
   const failed = []
   for (const change of plan) {
     logChange({ change, log })
@@ -66,6 +70,8 @@ const isAnchorable = (rule) => {
   const title = literalTitleOf(rule.title)
   return Boolean(title) && title === rule.name
 }
+
+const isLeftAsItIs = (rule) => rule?.comment === CREATOR_COMMENT && !anchoredLiteralOf(rule.title) && !isAnchorable(rule)
 
 const timerSummaryOf = (entry) => ({
   uuid: entry.uuid,

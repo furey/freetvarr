@@ -106,6 +106,15 @@ test('runAutorecAnchorOnce: saves only the title, logs each dropped timer first,
   assert.equal(tvh.saves.length, 4)
 })
 
+test('runAutorecAnchorOnce: logs each Freetvarr rule it leaves alone', async () => {
+  const autorecs = { entries: [{ uuid: 'regex', name: 'Doctor Who', title: 'Doctor Who|Torchwood', comment: 'freetvarr' }, { uuid: 'user', name: 'Bluey', title: 'Bluey', comment: '' }] }
+  const tvh = fakeTvh({ autorecs, upcoming: { entries: [] } })
+  const { lines, ...log } = quietLog()
+  assert.deepEqual(await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log }), { changed: 0, failed: [] })
+  assert.deepEqual(lines, ['[rules] series rule "Doctor Who" (regex) keeps its title "Doctor Who|Torchwood": it is a pattern or was changed in TVHeadend'])
+  assert.deepEqual(tvh.saves, [])
+})
+
 test('runAutorecAnchorOnce: a failed save keeps the old rule, notes it for Health, and retries next start', async () => {
   const failing = fakeTvh({ failSave: (node) => node.uuid === '83b683ddddb106a932ea3d3204571810' })
   const { log, warn } = quietLog()
