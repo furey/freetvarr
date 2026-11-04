@@ -217,7 +217,7 @@ const fakeChild = (events) => {
 
 const PLAN = planForFile({ probe: HD_PROBE, encoder: { kind: 'copy' } })
 
-const playbackHarness = ({ streamsElsewhere, readText = async () => null, onAttention } = {}) => {
+const playbackHarness = ({ streamsElsewhere, readText = async () => null, onAttention, maxSessions } = {}) => {
   const events = []
   const children = []
   let clock = 1_000_000
@@ -230,6 +230,7 @@ const playbackHarness = ({ streamsElsewhere, readText = async () => null, onAtte
     removeDir: async (dir) => { events.push(`rm ${dir}`) },
     readText,
     streamsElsewhere,
+    ...(maxSessions ? { maxSessions } : {}),
     spawnProcess: () => {
       const child = fakeChild(events)
       children.push(child)
@@ -306,6 +307,55 @@ test('playback sessions: a finished encode keeps serving and ends its playlist',
   assert.equal(h.sessions.activeCount(), 1)
   assert.match(await h.sessions.playlistFor(session.id, 'play.m3u8'), /#EXT-X-ENDLIST\n$/)
   assert.equal((await h.sessions.status(session.id)).producedSeconds, 6)
+})
+
+const TWO_SEGMENTS = '#EXTM3U\n#EXTINF:6.0,\nseg0.ts\n#EXTINF:6.0,\nseg1.ts\n'
+
+test('playback sessions: ffmpeg exiting non-zero part-way ends the session, not the playlist', async () => {
+  const h = playbackHarness({ readText: async () => TWO_SEGMENTS })
+  const session = await start(h.sessions)
+  h.children[0].emit('exit', 1, null)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(session.finished, false)
+  assert.equal(session.status, 'ended')
+  assert.equal(session.reason.code, 'ffmpeg')
+})
+
+test('playback sessions: ffmpeg killed by a signal part-way ends the session', async () => {
+  const h = playbackHarness({ readText: async () => TWO_SEGMENTS })
+  const session = await start(h.sessions)
+  h.children[0].emit('exit', null, 'SIGSEGV')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(session.finished, false)
+  assert.equal(session.status, 'ended')
+})
+
+test('playback sessions: a non-zero exit near the file end still finishes', async () => {
+  const h = playbackHarness({ readText: async () => TWO_SEGMENTS })
+  const session = await start(h.sessions, { offset: 3560 })
+  h.children[0].emit('exit', 1, null)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(session.finished, true)
+  assert.match(await h.sessions.playlistFor(session.id, 'play.m3u8'), /#EXT-X-ENDLIST\n$/)
+})
+
+test('playback sessions: a start during the previous session teardown is not refused by the stream limit', async () => {
+  const h = playbackHarness({ maxSessions: 1 })
+  const first = await start(h.sessions)
+  const stopping = h.sessions.stop(first.id)
+  const second = await start(h.sessions, { recordingId: 'r2' })
+  assert.equal(second.status, 'starting')
+  await stopping
+})
+
+test('playback sessions: a stop while the exit handler reads the playlist spawns no new ffmpeg', async () => {
+  const h = playbackHarness({ readText: () => new Promise((resolve) => setTimeout(() => resolve(null), 20)) })
+  const plan = planForFile({ probe: SD_PROBE, encoder: { kind: 'software' } })
+  const session = await start(h.sessions, { plan })
+  h.children[0].emit('exit', 1, null)
+  await h.sessions.stop(session.id)
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  assert.equal(h.children.length, 1)
 })
 
 test('playback sessions: ffmpeg failing with captions starts again without them', async () => {
