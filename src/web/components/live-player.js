@@ -22,7 +22,7 @@ import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
-import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT } from '/start-over.js'
+import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT, retryActionOf } from '/start-over.js'
 import {
   behindPillText,
   liveEdgeOf,
@@ -40,6 +40,7 @@ import {
   liveVideo,
   liveHls,
   watchLive,
+  watchRecordingFromStart,
   stopLive,
   applyLiveCaptions,
   syncCaptionPreferenceFromTracks,
@@ -375,7 +376,11 @@ export const LivePlayer = {
       getVideo: () => liveVideo,
     })
 
-    const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+    const retryLive = () => {
+      if (retryActionOf({ fromStart: live.fromStart }) === 'live') return watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+      const { recording, savedSeconds } = live.fromStart
+      watchRecordingFromStart({ channel: live.channel, recording, nowTitle: live.nowTitle, resumeAt: savedSeconds || 0 })
+    }
 
     const onTextTrackAdded = (e) => {
       e.track?.addEventListener?.('cuechange', placeLiveCaptions)
