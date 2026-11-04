@@ -49,6 +49,21 @@ test('saveMoviesRoot: clearing the movies folder leaves the paths of films alrea
   assert.equal(await getMoviesRoot(), '/data/media/movies')
 })
 
+test('saveMoviesRoot: clearing with no MOVIES_ROOT, then setting MOVIES_ROOT and restarting, leaves film paths alone', async (t) => {
+  const film = '/films/Dune (2021)/Dune (2021).ts'
+  delete process.env.MOVIES_ROOT
+  t.after(() => { process.env.MOVIES_ROOT = '/data/media/movies' })
+  await saveMoviesRoot('/films')
+  await rebaseFilePaths()
+  await db('recordings').insert({ recording_id: 'dune', title: 'Dune', file_path: film, status: 'done' })
+  await saveMoviesRoot('')
+  await rebaseFilePaths()
+  assert.equal(await getSetting('last_movies_root'), null)
+  process.env.MOVIES_ROOT = '/data/media/movies'
+  await rebaseFilePaths()
+  assert.equal((await db('recordings').where({ recording_id: 'dune' }).first()).file_path, film)
+})
+
 test('saveMoviesRoot: changing to another movies folder still moves the stored paths with it', async () => {
   await saveMoviesRoot('/films')
   await rebaseFilePaths()

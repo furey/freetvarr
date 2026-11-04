@@ -23,7 +23,8 @@ export const saveMoviesRoot = async (value) => {
   if (root) return setSetting('movies_root', root)
   await db('settings').where({ key: 'movies_root' }).delete()
   const fallback = await getMoviesRoot()
-  if (fallback) await setSetting(LAST_MOVIES_ROOT_KEY, fallback)
+  if (fallback) return setSetting(LAST_MOVIES_ROOT_KEY, fallback)
+  await db('settings').where({ key: LAST_MOVIES_ROOT_KEY }).delete()
 }
 
 const LAST_MOVIES_ROOT_KEY = 'last_movies_root'
