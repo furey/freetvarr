@@ -36,6 +36,7 @@ import {
   airingOf,
 } from './sync.js'
 import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
+import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
 import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
@@ -1736,6 +1737,8 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   if (timeZone !== undefined && !isKnownTimeZone(timeZone)) {
     return res.status(400).json({ error: `Unknown time zone "${timeZone}"` })
   }
+  const rootsError = libraryRootsSaveError({ before: await loadLibraryRoots(), after: await rootsAfterSaveOf(body) })
+  if (rootsError) return res.status(400).json({ error: rootsError })
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))

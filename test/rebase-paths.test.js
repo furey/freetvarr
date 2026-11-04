@@ -8,7 +8,8 @@ const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-rebase-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db, setSetting } = await import('../src/db.js')
-const { rebaseFilePaths, resetInterruptedImports } = await import('../src/sync.js')
+const { rebaseFilePaths, rebasePrefix, resetInterruptedImports } = await import('../src/sync.js')
+const { libraryRootsSaveError, nestedRootsError, rootsAfterSaveOf } = await import('../src/library-roots.js')
 
 before(async () => {
   await db.migrate.latest()
@@ -51,4 +52,56 @@ test('resetInterruptedImports: an import cut off by a restart goes back to pendi
   const row = await db('recordings').where({ recording_id: 'stuck' }).first()
   assert.equal(row.status, 'pending')
   assert.equal(row.error, null)
+})
+
+test('rebaseFilePaths: a TV folder moved to its parent and back keeps one-off and film paths', async () => {
+  await db('recordings').delete()
+  await setSetting('media_root', '/data/media/tv')
+  await setSetting('oneoff_root', '/data/media/one-offs')
+  await setSetting('movies_root', '/data/media/movies')
+  await rebaseFilePaths()
+  await insertRecording('tv', { file_path: '/data/media/tv/The Block/Season 22/The Block - S22E36.ts', status: 'done' })
+  await insertRecording('oneoff', { file_path: '/data/media/one-offs/Footy/Footy - 2026-10-04 1930.ts', status: 'done' })
+  await insertRecording('film', { file_path: '/data/media/movies/Dune (2021)/Dune (2021).ts', status: 'done' })
+  await setSetting('media_root', '/data/media')
+  await rebaseFilePaths()
+  await setSetting('media_root', '/data/media/tv')
+  await rebaseFilePaths()
+  assert.deepEqual(await filePaths(), {
+    tv: '/data/media/tv/The Block/Season 22/The Block - S22E36.ts',
+    oneoff: '/data/media/one-offs/Footy/Footy - 2026-10-04 1930.ts',
+    film: '/data/media/movies/Dune (2021)/Dune (2021).ts',
+  })
+})
+
+test('rebasePrefix: matches the old folder exactly, not as a pattern', async () => {
+  await db('recordings').delete()
+  await insertRecording('exact', { file_path: '/data/my_tv/A.ts', status: 'done' })
+  await insertRecording('wildcard', { file_path: '/data/myXtv/B.ts', status: 'done' })
+  await insertRecording('upper', { file_path: '/DATA/my_tv/C.ts', status: 'done' })
+  assert.equal(await rebasePrefix({ from: '/data/my_tv', to: '/media/tv' }), 1)
+  assert.deepEqual(await filePaths(), { exact: '/media/tv/A.ts', wildcard: '/data/myXtv/B.ts', upper: '/DATA/my_tv/C.ts' })
+})
+
+test('nestedRootsError: refuses library folders that are the same or sit inside each other', () => {
+  assert.equal(nestedRootsError({ mediaRoot: '/data/media/tv', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }), null)
+  assert.match(nestedRootsError({ mediaRoot: '/data/media', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }), /one-off folder \/data\/media\/one-offs is inside the TV folder \/data\/media\./)
+  assert.match(nestedRootsError({ mediaRoot: '/data/tv/', oneOffRoot: '/data/tv', moviesRoot: '' }), /same folder/)
+  assert.equal(nestedRootsError({ mediaRoot: '/data/tv', oneOffRoot: '/data/tv-extra', moviesRoot: '' }), null)
+})
+
+test('libraryRootsSaveError: checks the folders only when the save changes one', () => {
+  const nested = { mediaRoot: '/data/media', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }
+  assert.equal(libraryRootsSaveError({ before: nested, after: nested }), null)
+  assert.match(libraryRootsSaveError({ before: { ...nested, mediaRoot: '/data/media/tv' }, after: nested }), /inside the TV folder/)
+})
+
+test('rootsAfterSaveOf: uses the posted folders and falls back to the stored ones', async () => {
+  const stored = { media_root: '/data/media/tv', oneoff_root: '/data/media/one-offs', movies_root: '/data/media/movies' }
+  const read = async (key) => stored[key] ?? null
+  assert.deepEqual(await rootsAfterSaveOf({ media_root: ' /data/media ' }, read), {
+    mediaRoot: '/data/media',
+    oneOffRoot: '/data/media/one-offs',
+    moviesRoot: '/data/media/movies',
+  })
 })

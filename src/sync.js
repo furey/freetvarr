@@ -28,6 +28,9 @@ import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
 import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
 import { showIdentityFor } from './show-identity.js'
+import { getMediaRoot, getMoviesRoot, getOneOffRoot } from './library-roots.js'
+
+export { getMediaRoot, getMoviesRoot, getOneOffRoot }
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
@@ -119,23 +122,29 @@ export const rebaseFilePaths = async () => {
     { key: 'last_oneoff_root', current: await getOneOffRoot() },
     { key: 'last_movies_root', current: await getMoviesRoot() },
   ].filter((root) => root.current)
+  const currentRoots = roots.map((root) => root.current)
   let moved = 0
   for (const { key, current } of roots) {
     const previous = await getSetting(key)
     if (previous === current) continue
-    if (previous) moved += await rebasePrefix({ from: previous, to: current })
+    if (previous) moved += await rebasePrefix({ from: previous, to: current, keepUnder: currentRoots })
     await setSetting(key, current)
   }
   return moved
 }
 
-export const rebasePrefix = ({ from, to }) => {
-  const oldRoot = from.replace(/\/+$/, '')
-  const newRoot = to.replace(/\/+$/, '')
-  return db('recordings')
-    .where('file_path', 'like', `${oldRoot}/%`)
+export const rebasePrefix = ({ from, to, keepUnder = [] }) => {
+  const oldRoot = withoutTrailingSlash(from)
+  const newRoot = withoutTrailingSlash(to)
+  const nestedRoots = keepUnder.map(withoutTrailingSlash).filter((root) => root.startsWith(`${oldRoot}/`))
+  return nestedRoots
+    .reduce((query, root) => query.whereRaw('substr(file_path, 1, ?) <> ?', [root.length + 1, `${root}/`]), startsWithFolder(db('recordings'), oldRoot))
     .update({ file_path: db.raw('? || substr(file_path, ?)', [newRoot, oldRoot.length + 1]) })
 }
+
+const startsWithFolder = (query, root) => query.whereRaw('substr(file_path, 1, ?) = ?', [root.length + 1, `${root}/`])
+
+const withoutTrailingSlash = (root) => root.replace(/\/+$/, '')
 
 export const resetInterruptedImports = () =>
   db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
@@ -161,12 +170,6 @@ export const closeInterruptedSyncs = async () => {
 
 const parseSummary = (summaryJson) => {
   try { return JSON.parse(summaryJson || '{}') || {} } catch { return {} }
-}
-
-export const getMoviesRoot = async () => {
-  const fromSetting = await getSetting('movies_root')
-  if (fromSetting != null) return fromSetting.trim()
-  return (process.env.MOVIES_ROOT || '').trim()
 }
 
 export { looksLikeFilm }
@@ -209,18 +212,6 @@ export const hasUserRule = ({ show, item }) => Boolean(item?.autorecId) || (Bool
 const isFiled = (existing) => existing?.status === 'done' || Boolean(existing?.deleted_from_tvh_at)
 
 const IMPORT_KINDS = { show: 'tv', movie: 'film', oneoff: 'oneOff' }
-
-export const getOneOffRoot = async () => {
-  const fromSetting = await getSetting('oneoff_root')
-  if (fromSetting && fromSetting.trim()) return fromSetting.trim()
-  return process.env.ONEOFF_ROOT || DEFAULT_ONEOFF_ROOT
-}
-
-export const getMediaRoot = async () => {
-  const fromSetting = await getSetting('media_root')
-  if (fromSetting && fromSetting.trim()) return fromSetting.trim()
-  return process.env.MEDIA_ROOT || DEFAULT_MEDIA_ROOT
-}
 
 export const getRecordingsRoot = async () => {
   const fromSetting = await getSetting('recordings_root')
@@ -940,9 +931,7 @@ const SYNC_STEP_LABELS = {
 }
 
 const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished']
-const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
-const DEFAULT_ONEOFF_ROOT = '/media/one-offs'
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',
   recordedOff: 'Recorded with Add to library off',
