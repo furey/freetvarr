@@ -804,6 +804,7 @@ export const SettingsView = {
           tvhPassword.value = ''
         }
         if (saved?.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
+        if (saved?.cleared?.includes('plex_token')) plexTokenSet.value = false
         flash({ msg: 'Saved.' })
         await refreshSyncSchedule()
       } catch (err) {
@@ -927,7 +928,7 @@ export const SettingsView = {
         const r = await api('POST', '/api/plex-detect-token')
         if (r.ok) {
           plexTokenSet.value = true
-          plexToken.value = r.token || ''
+          plexToken.value = ''
           setPlexTokenStatus(`Token detected from ${r.source}.`, 'ok', 5000)
         } else {
           setPlexTokenStatus(`Auto-detect failed: ${r.reason}`, 'err', 8000)

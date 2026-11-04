@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
-import { listPlexSections } from './plex.js'
+import { listPlexSections, storedPlexToken } from './plex.js'
 import { loadWholeLibrarySettings, saveWholeLibrarySettings } from './plex-library-store.js'
 
 export const mountPlexLibraryRoutes = ({ app, csrf, limiter, sync, fetchImage = fetchPlexImage }) => {
@@ -87,7 +87,7 @@ const wholeLibraryBody = async () => {
 }
 
 const fetchPlexImage = async ({ source, width }) => {
-  const [url, token] = await Promise.all([getSetting('plex_url'), getSetting('plex_token')])
+  const [url, token] = await Promise.all([getSetting('plex_url'), storedPlexToken()])
   if (!url || !token) return null
   const height = Math.round(width * 1.5)
   const response = await axios.get(`${url.replace(/\/$/, '')}/photo/:/transcode`, {

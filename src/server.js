@@ -243,7 +243,7 @@ import {
   stopUserEvents,
 } from './user-events-log.js'
 import { loadExternalIds } from './external-ids-store.js'
-import { saveTvheadendConnection } from './connection-secrets.js'
+import { savePlexConnection, saveTvheadendConnection } from './connection-secrets.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -1744,9 +1744,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const cleared = await saveTvheadendConnection({ body })
   await writeString('recordings_root', body.recordings_root, { trim: true })
   await writeString('tvh_recordings_path', body.tvh_recordings_path, { trim: true })
-  await writeString('plex_url', body.plex_url, { trim: true })
-  // Empty token/pin preserves the stored value.
-  if (body.plex_token) await setSetting('plex_token', String(body.plex_token))
+  cleared.push(...(await savePlexConnection({ body })))
   await writeString('plex_tv_section_id', body.plex_tv_section_id, { trim: true })
   await writeString('plex_prefs_path', body.plex_prefs_path, { trim: true })
   await writeString('media_root', body.media_root, { trim: true })

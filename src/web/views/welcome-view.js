@@ -37,6 +37,7 @@ import {
   plexNoTokenProblem,
   plexUnreachableProblem,
   LOCAL_PLEX_URL,
+  detectedPlexTokenState,
 } from '/setup-folders.js'
 import { formatClock } from '/time-format.js'
 import { api, fetchSettings } from '/shared/api.js'
@@ -794,7 +795,8 @@ export const WelcomeView = {
         ...changedSettings([['plex_prefs_path', plexPrefsPath.value, saved.plexPrefsPath]]),
         ...(plexToken.value ? { plex_token: plexToken.value } : {}),
       }
-      await api('POST', '/api/settings', body)
+      const result = await api('POST', '/api/settings', body)
+      if (result?.cleared?.includes('plex_token')) plexTokenSet.value = false
       Object.assign(saved, {
         plexUrl: plexUrl.value,
         plexSectionId: plexPicks.tv,
@@ -882,11 +884,16 @@ export const WelcomeView = {
       return { problem: plexNoTokenProblem(url) }
     }
 
+    const applyDetectedPlexToken = (response) => {
+      const state = detectedPlexTokenState(response)
+      plexTokenSet.value = state.plexTokenSet
+      plexToken.value = state.plexToken
+    }
+
     const detectPlexTokenQuietly = async () => {
       const r = await api('POST', '/api/plex-detect-token').catch(() => ({}))
       if (!r.ok) return
-      plexToken.value = r.token || ''
-      plexTokenSet.value = true
+      applyDetectedPlexToken(r)
     }
 
     const discoverPlexServers = () => api('POST', '/api/discover-plex')
@@ -935,7 +942,7 @@ export const WelcomeView = {
         }
         const r = await api('POST', '/api/plex-detect-token')
         if (r.ok) {
-          plexToken.value = r.token || ''
+          applyDetectedPlexToken(r)
           setPlexTokenStatus(`Token detected from ${r.source}.`, 'ok', 5000)
         } else {
           setPlexTokenStatus(`Auto-detect failed: ${r.reason}`, 'err', 8000)

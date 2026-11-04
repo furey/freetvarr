@@ -6,6 +6,7 @@ import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { externalIdsOf, idKeyedCacheKeyOf } from './external-ids.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
+import { storedPlexToken } from './plex.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 
 export const showTitleKey = (title) => String(title || '')
@@ -182,7 +183,7 @@ export const plexSourcesOf = ({ items = [], url, token }) => {
 
 const plexShowSources = async () => {
   const url = ((await getSetting('plex_url')) || '').replace(/\/$/, '')
-  const token = await getSetting('plex_token')
+  const token = await storedPlexToken()
   const sectionIds = [await getSetting('plex_tv_section_id'), await getSetting('plex_movies_section_id')]
     .filter(Boolean)
   if (!url || !token || !sectionIds.length) return new Map()
