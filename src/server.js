@@ -7,10 +7,10 @@ import express from 'express'
 import helmet from 'helmet'
 import compression from 'compression'
 import cookieParser from 'cookie-parser'
-import rateLimit from 'express-rate-limit'
 import { doubleCsrf } from 'csrf-csrf'
 
 import { db, getSetting, setSetting } from './db.js'
+import { EPG_LIMIT, ROW_ACTION_LIMIT, SETUP_CHECK_LIMIT, createRateLimiter } from './rate-limits.js'
 import { isWelcomeDismissed, setWelcomeDismissed } from './welcome.js'
 import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
@@ -373,12 +373,11 @@ const { doubleCsrfProtection, generateToken } = doubleCsrf({
   size: 32,
 })
 
-const syncLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 5,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const syncLimiter = createRateLimiter({ limit: 5 })
+
+const rowActionLimiter = createRateLimiter({ limit: ROW_ACTION_LIMIT })
+
+const setupCheckLimiter = createRateLimiter({ limit: SETUP_CHECK_LIMIT })
 
 app.get('/healthz', (req, res) => res.json({ ok: true }))
 
@@ -469,7 +468,7 @@ app.delete('/api/syncs/:id', doubleCsrfProtection, async (req, res) => {
 
 app.post(
   '/api/recordings/:recording_id/delete-from-tvh',
-  syncLimiter,
+  rowActionLimiter,
   doubleCsrfProtection,
   async (req, res) => {
     const recordingId = req.params.recording_id
@@ -494,11 +493,11 @@ app.post(
   },
 )
 
-mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: syncLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
+mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
 
 mountRecordingLogRoutes({ app, csrf: doubleCsrfProtection })
 
-app.post('/api/recordings/:recording_id/library', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/recordings/:recording_id/library', rowActionLimiter, doubleCsrfProtection, async (req, res) => {
   const recordingId = req.params.recording_id
   const choice = req.body?.choice
   if (!LIBRARY_CHOICES.includes(choice)) {
@@ -613,12 +612,7 @@ app.get('/api/recordings', async (req, res) => {
   })
 })
 
-const epgLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 20,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const epgLimiter = createRateLimiter({ limit: EPG_LIMIT })
 
 const epgError = (res, err, context) => {
   const stage = err instanceof TvheadendError ? err.stage : 'unknown'
@@ -709,12 +703,7 @@ const showImageRoute = imageRouteFor({
   }),
 })
 
-const showImageLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 1200,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const showImageLimiter = createRateLimiter({ limit: 1200 })
 
 app.get(showImageRoute.path, showImageLimiter)
 for (const route of [channelLogoRoute, programmeImageRoute, personImageRoute, showImageRoute]) app.get(route.path, serveImage(route))
@@ -765,12 +754,7 @@ setTimeout(warmUpcomingRatingsTagged, RATINGS_WARM_DELAY_MS).unref?.()
 setInterval(warmUpcomingRatingsTagged, RATINGS_WARM_WINDOW_MS / 24).unref?.()
 activity.planEvery({ kind: 'ratings', every: 'every hour', firstDelayMs: RATINGS_WARM_DELAY_MS, everyMs: RATINGS_WARM_WINDOW_MS / 24 })
 
-const ratingsLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 240,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const ratingsLimiter = createRateLimiter({ limit: 240 })
 
 app.get('/api/epg/programme-ratings', ratingsLimiter, async (req, res) => {
   const title = String(req.query.title || '').trim().slice(0, MAX_SHOW_TITLE_LENGTH)
@@ -999,12 +983,7 @@ liveStreams.load()
   .then((outcome) => outcome.benchmark && console.log(`[live] ${describeBenchmark(outcome.benchmark)}`))
   .catch((err) => console.warn(`[live] stream capacity check failed: ${err.message}`))
 
-const liveLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 20,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const liveLimiter = createRateLimiter({ limit: 20 })
 
 const liveError = (res, err, context) => {
   if (err instanceof LiveTvError) {
@@ -1099,19 +1078,9 @@ app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, left })
 })
 
-const playLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 30,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const playLimiter = createRateLimiter({ limit: 30 })
 
-const playPingLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 120,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const playPingLimiter = createRateLimiter({ limit: 120 })
 
 const isLibraryFilePresent = async (filePath) => {
   if (!filePath) return false
@@ -1266,12 +1235,7 @@ app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, stopped })
 })
 
-const doctorLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const doctorLimiter = createRateLimiter({ limit: 10 })
 
 app.get('/api/doctor', doctorLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
@@ -1603,7 +1567,7 @@ app.post('/api/recordings-root-test', doubleCsrfProtection, async (req, res) => 
   res.json(result)
 })
 
-app.post('/api/tvh-recordings-path-check', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-recordings-path-check', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
     const tvhStorage = await getRecordingStorage()
     res.json({ ok: true, ...compareRecordingPaths({ configured: req.body?.path, tvhStorage }) })
@@ -1613,7 +1577,7 @@ app.post('/api/tvh-recordings-path-check', syncLimiter, doubleCsrfProtection, as
   }
 })
 
-app.post('/api/tvh-shows', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-shows', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
     const conn = await resolveConnection()
     const finished = await listFinished(conn)
@@ -1801,7 +1765,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true })
 })
 
-app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-test', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   const { tvh_url, tvh_username, tvh_password } = req.body || {}
   try {
     const result = await testTvheadendConnection({
@@ -1818,19 +1782,14 @@ app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) =>
   }
 })
 
-app.post('/api/tvh-detect', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-detect', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   const result = await detectTvheadendServers({
     hintAddresses: [req.hostname, req.socket.localAddress],
   })
   res.status(result.ok ? 200 : 502).json(result)
 })
 
-const bootstrapLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const bootstrapLimiter = createRateLimiter({ limit: 10 })
 
 const bootstrapHttp = { get: tvhRead, post: tvhWrite, verifyLogin: verifyTvheadendLogin }
 const OPEN_ENTRY_BACKUP_KEY = 'tvh_open_entry_backup'
@@ -1860,12 +1819,7 @@ const readOpenEntryBackup = async () => {
   }
 }
 
-const bootstrapStatusLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 30,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const bootstrapStatusLimiter = createRateLimiter({ limit: 30 })
 
 app.get('/api/tvh-bootstrap/status', bootstrapStatusLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
@@ -2188,12 +2142,7 @@ const refreshGuideWhenListingsArrive = async ({ conn, channelIds }) => {
 
 const guideFeedRequests = createRequestWatch()
 
-const guideFeedLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const guideFeedLimiter = createRateLimiter({ limit: 10 })
 
 app.get(GUIDE_FEED_PATH, guideFeedLimiter, async (req, res) => {
   guideFeedRequests.note()
@@ -2351,7 +2300,7 @@ app.post('/api/reset', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true })
 })
 
-app.post('/api/discover-plex', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/discover-plex', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
     const servers = await discoverLocalPlexServers()
     res.json({ servers })
@@ -2388,7 +2337,7 @@ app.post('/api/plex-libraries', doubleCsrfProtection, async (req, res) => {
   }
 })
 
-app.post('/api/plex-libraries/create', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/plex-libraries/create', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   const libraries = Array.isArray(req.body?.libraries) ? req.body.libraries : []
   if (!libraries.length) return res.status(400).json({ error: 'libraries is required' })
   try {
