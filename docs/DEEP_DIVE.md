@@ -842,7 +842,7 @@ flowchart TD
 3. `ffmpeg -f concat -safe 0 -i list.txt -map 0 -c copy` writes `out.ts`.
 4. `verifyCut` fails when `out.ts` is empty, or its duration differs from the summed keep length by more than `max(5, 2 × boundaries)` seconds (`boundaries` is twice the break count).
 5. `swapInCut` renames the file to `<file>.orig`, then renames `out.ts` to the file path. If the second rename fails, it renames the `.orig` back.
-6. The row gets `size`, `ad_cut_at`, and the backup columns.
+6. The row gets `size`, `ad_cut_at`, and the backup columns. A saved `playback_position_s` moves back by the break seconds before it (`cutTimeOf`); a cut from the `.orig` first maps it to the original time through the breaks of the last cut (`originalTimeOf`). Putting the `.orig` back maps it to the original time.
 
 The workdir is removed on every exit path. A cut that starts when a `.orig` exists runs on the `.orig` and leaves it in place. A failure at any step leaves the original file, logs `[ads] <file>: <message>`, and stores `cut_failed` or `detect_failed`.
 
@@ -922,7 +922,7 @@ flowchart LR
     api["status/inputs,<br>status/subscriptions,<br>service/streams"]
     stream["/stream/channel/&lt;id&gt;"]
   end
-  player -->|"POST, preflight, hold,<br>attention, DELETE"| routes
+  player -->|"POST, preflight, hold, unhold,<br>attention, DELETE"| routes
   player -->|"playlists and segments"| routes
   routes -->|"preflight and plan"| api
   routes --> reg
@@ -935,12 +935,13 @@ flowchart LR
 
 ### Live start
 
-`POST /api/live` takes `channel_id` and an optional `picture_rank`, and calls `startLiveChannel` (`liveLimiter`, CSRF):
+`POST /api/live` takes `channel_id`, an optional `picture_rank`, and an optional `client_token`, and calls `startLiveChannel` (`liveLimiter`, CSRF):
 
-1. When a session on the channel exists (`forChannel`), the viewer joins it and nothing else runs.
-2. `preflightChannel` checks the tuners. A refusal throws a `LiveTvError` with status `409`.
-3. `planForChannel` reads the first service of the channel from `service/streams` and the default languages from `config/load`, then calls `pickStreams`.
-4. `sessions.start` applies the [Stream limit](#stream-limit), spawns `ffmpeg`, and opens the TVHeadend stream.
+1. `releaseHeld` ends each held session on another channel that this `client_token` started and that has one viewer, with the reason `replaced`. The client keeps the token in `localStorage` (`freetvarr.deviceToken`), so it stays the same when a Home Screen app opens again.
+2. When a session on the channel exists (`forChannel`), the viewer joins it and nothing else runs.
+3. `preflightChannel` checks the tuners. A refusal throws a `LiveTvError` with status `409`.
+4. `planForChannel` reads the first service of the channel from `service/streams` and the default languages from `config/load`, then calls `pickStreams`.
+5. `sessions.start` applies the [Stream limit](#stream-limit), spawns `ffmpeg`, and opens the TVHeadend stream.
 
 | Code                     | Status | Cause                                                                                 |
 | ------------------------ | ------ | ------------------------------------------------------------------------------------- |
@@ -982,7 +983,7 @@ flowchart LR
 
 `GET /api/live/:session/:file` serves these names only (`LIVE_FILE_PATTERN`), with `Cache-Control: no-store`. A playlist request waits up to `15 s` for the session to go live. The server rewrites files before it sends them: caption labels in `index.m3u8`, the first segment out of the copy-mode playlists, program date-times into `live_vtt.m3u8`, and two-row roll-up cues into each `live<N>.vtt` (`servedCaptionSegment`).
 
-When `ffmpeg` exits while the session is still `tuning`, the session restarts it once per fallback: first with the full probe (for missing codec parameters), then without teletext (for teletext errors).
+When `ffmpeg` exits while the session is still `tuning`, the session restarts it once per fallback: first with the full probe (for missing codec parameters), then without teletext (for teletext errors). A stop during a restart ends it before the new `ffmpeg` starts.
 
 ### TVHeadend stream request
 
@@ -993,8 +994,11 @@ When `ffmpeg` exits while the session is still `tuning`, the session restarts it
 `createLiveSessions` keeps one session per channel, shared by every viewer. A session has a `16`-hex-character id, the plan, the weight, a viewer count, `lastSeenAt`, `lastByteAt`, and `heldUntil`. Playlist, segment, and preflight requests refresh `lastSeenAt`.
 
 - `DELETE /api/live/:session` takes one viewer off; the last viewer ends the session.
-- `POST /api/live/:session/hold` keeps the session for `LIVE_TV_BUFFER_MINUTES`; with a buffer of `0` it acts as a `DELETE`.
-- `POST /api/live/:session/attention` takes `{ attending }` for [Watch tracking](#watch-tracking).
+- `POST /api/live/:session/hold` keeps the session for `LIVE_TV_BUFFER_MINUTES`; with a buffer of `0` it does nothing, and the `20 s` idle rule ends a session that nobody fetches.
+- `POST /api/live/:session/unhold` ends the hold, so the idle rule applies again. A preflight or a file request does not end the hold.
+- `POST /api/live/:session/attention` takes `{ attending, viewer }` for [Watch tracking](#watch-tracking). `viewer` is a token for each page load; a shared session is attended while any viewer attends.
+
+A session that is ending stays in the registry until its teardown is done, but it no longer counts against the [Stream limit](#stream-limit).
 
 The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and has no request for `20 s` ends with `idle`. No bytes for `10 s`, or the end of the TVHeadend response, is a stall. A stall reads `status/subscriptions`: a newer DVR subscription gives `preempted` with the recording title, the session's own subscription gives `no-input`, and neither gives `gone`. Teardown aborts the request, sends `SIGTERM` to `ffmpeg` (then `SIGKILL` after `3 s`), and deletes the session folder. Startup deletes `LIVE_ROOT`.
 
@@ -1009,7 +1013,8 @@ The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and h
 - The client uses native HLS only when `MediaSource` is absent and the browser can play `application/vnd.apple.mpegurl`. Otherwise it imports [hls.js](https://github.com/video-dev/hls.js) from `/vendor/hls.mjs` when a stream starts.
 - The hls.js config is `liveSyncDuration: 4`, `liveMaxLatencyDuration: Infinity`, and `backBufferLength: 30`. Video starts when `2 s` are buffered, or `4 s` after metadata loads.
 - The player draws its own controls. A scrubber appears when the buffer allows at least `4 s` of rewind. Double taps on the left or right third skip `10 s` (`src/web/double-tap.js`).
-- A hidden page sends `POST .../hold` with `keepalive`. A `pagehide` that does not persist sends `DELETE`.
+- A hidden page sends `POST .../hold` with `keepalive`, and a page that is visible again sends `POST .../unhold`. A `pagehide` that does not persist sends `DELETE`.
+- A fatal hls.js network error detaches the video and lets the preflight poll attach it again while the session lives, at most `2` times in a row (`liveErrorActionOf`). The count resets when the video starts.
 
 ### Stream limit
 
@@ -1055,13 +1060,13 @@ The player plays a recording, or a Plex library item, as HLS from a per-file `ff
 4. With no `offset`, `resumeStartFor` resumes from `playback_position_s` unless it is within `30 s` of the end (`RESUME_END_MARGIN_S`).
 5. `planForFile` maps the probe onto `pickStreams`, so the plan rules match [Live stream plan](#live-stream-plan).
 
-`playbackArgsFor` puts `-ss <offset>` before `-i <file>`, maps streams by index, and writes `6 s` segments (`PLAY_SEGMENT_SECONDS`) as an `event` playlist into `LIVE_ROOT/play/<session>`. The served playlist gains `#EXT-X-ENDLIST` once `ffmpeg` finishes. Before the first segment, a failed `ffmpeg` restarts with the full probe, then without teletext, then with the software plan for `vaapi`.
+`playbackArgsFor` puts `-ss <offset>` before `-i <file>`, maps streams by index, and writes `6 s` segments (`PLAY_SEGMENT_SECONDS`) as an `event` playlist into `LIVE_ROOT/play/<session>`. The served playlist gains `#EXT-X-ENDLIST` once `ffmpeg` finishes: it exits with code `0` and no signal, or the offset plus the produced seconds reaches `30 s` before the file length. Any other exit after the first segment ends the session with `ffmpeg`, so the client heartbeat gets `404` and the client starts again at its position. Before the first segment, a failed `ffmpeg` restarts with the full probe, then without teletext, then with the software plan for `vaapi`.
 
 The client sends a heartbeat every `15 s` and saves the position on each heartbeat while it plays. The reaper ends a session after `60 s` with no request. `seekPlan` (`src/web/playback.js`) seeks inside the produced part, or starts a new session at the target offset with `replace` set.
 
 ### Playback positions
 
-The position route writes `playback_position_s`, `played_at`, and `watched_at`. For a Plex item it calls `saveItemPosition`. A DVR entry that is still recording has no row yet; `rememberInProgressPosition` keeps its position in the setting `in_progress_positions` for `3` days, and `applyInProgressPositions` copies it onto the new row after each sync.
+The position route writes `playback_position_s`, `played_at`, and `watched_at`. `watched_at` is set when the position is within `30 s` of the shorter of `duration_s` and the file length of the active playback session (`playedDurationOf`), so a file with cut ads can still count as watched. At the end of a recording, the client posts the offset plus the played time, not the file length. For a Plex item it calls `saveItemPosition`. A DVR entry that is still recording has no row yet; `rememberInProgressPosition` keeps its position in the setting `in_progress_positions` for `3` days, and `applyInProgressPositions` copies it onto the new row after each sync.
 
 ### Watch tracking
 
@@ -1082,6 +1087,8 @@ The position route writes `playback_position_s`, `played_at`, and `watched_at`. 
 2. `growingSourceFor` uses the local file when `localPathFor` maps the path, else `GET /dvrfile/<uuid>` with a `Range` header.
 3. Probe the source. An HTTP source copies its first `2 MB` to a temporary `head.ts` for `ffprobe`.
 4. Start a playback session with a feed: `ffmpeg` reads `pipe:0` and writes `2 s` segments.
+
+The client saves the position with `keepalive` when the page hides. When a heartbeat gets `404`, the client starts **From the start** again and seeks to the played time, at most `2` times in a row (`fromStartGoneAction`). **Try again** in the player starts **From the start** again at the saved position (`retryActionOf`).
 
 `feedGrowing` copies new bytes into `ffmpeg` every `1 s` (`IN_PROGRESS_POLL_MS`). When a read copies nothing, it checks whether the entry still records, at most every `5 s` (`RECORDING_CHECK_MS`). After two empty reads with the entry no longer recording, the feed ends the input. The session view adds `growing`, `recordingStartedAt`, `scheduledEndAt`, and `liveEdgeSeconds`.
 
