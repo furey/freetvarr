@@ -363,7 +363,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
   const built = await forYouWorker.build({ guide, vectorsByHash, request })
     .catch((err) => (err.code === WORKER_TIMED_OUT ? Promise.reject(err) : forYouWorker.build({ guide, vectorsByHash, request })))
   job?.step('Add classifications')
-  const result = await withClassifications({ result: built.result, programmes: guide.programmes })
+  const result = await withClassifications({ result: built.result, programmes: guide.programmes, channels: guide.channels })
   result.computeMs = Date.now() - started
   return withLazyExplanations({ result, explanationsJson: built.explanationsJson })
 }
@@ -470,14 +470,14 @@ const hashOf = (text) => crypto.createHash('sha1').update(text).digest('hex')
 
 const logRefreshError = (err) => console.warn(`[for-you] refresh failed: ${err.message}`)
 
-export const withClassifications = async ({ result, programmes, store = classificationStore }) => {
+export const withClassifications = async ({ result, programmes, channels = [], store = classificationStore }) => {
   const items = [result.topPick, ...result.sections.flatMap((section) => section.items)].filter(Boolean)
   const wanted = new Set(items.map((item) => item.programmeKey))
   const ratingByKey = new Map(programmes
     .map((programme) => [`${programme.channel_id}:${programme.start}`, programme.rating])
     .filter(([key]) => wanted.has(key)))
-  const sourceOf = (item) => ({ title: item.title, start: item.start, rating: ratingByKey.get(item.programmeKey) })
-  const classificationOf = await createClassificationLookup({ programmes: items.map(sourceOf), store })
+  const sourceOf = (item) => ({ title: item.title, start: item.start, channelId: item.channelId, rating: ratingByKey.get(item.programmeKey) })
+  const classificationOf = await createClassificationLookup({ programmes: items.map(sourceOf), store, channels })
   const classified = (item) => item && { ...item, classification: classificationOf(sourceOf(item)) }
   return {
     ...result,

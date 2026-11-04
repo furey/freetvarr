@@ -214,7 +214,7 @@ import { recordingTitlesOf } from './recording-now-library.js'
 import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
-import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
+import { classificationKeyOf, createClassificationStore, isRatingsLikely, shiftHoursByChannelOf } from './classification-labels.js'
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
@@ -755,7 +755,8 @@ const warmUpcomingRatings = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
   const upcoming = upcomingProgrammesOf({ guide, nowMs: Date.now(), windowMs: RATINGS_WARM_WINDOW_MS })
   const categories = await programmeCategories.categoriesAt(upcoming.map((programme) => programme.start)).catch(() => new Map())
-  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start }))
+  const shiftHoursOf = shiftHoursByChannelOf(guide?.channels)
+  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start, shiftHours: shiftHoursOf(programme) }))
   programmeRatings.warm(upcoming.filter((programme) => isRatingsLikely({ kind: programme.kind, category: categoryOf(programme) })))
 }
 const warmWeekFilmRatings = async () => {

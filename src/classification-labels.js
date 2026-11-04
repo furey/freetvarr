@@ -1,4 +1,5 @@
 import { db as defaultDb } from './db.js'
+import { timeshiftHours } from './tvheadend-guide.js'
 
 export const CLASSIFICATIONS = ['G', 'PG', 'M', 'MA15+', 'R18+', 'P', 'C', 'AV15+']
 
@@ -22,7 +23,19 @@ export const classificationOfProgramme = (programmeXml) => {
 
 export const classificationTitleKey = (title) => String(title ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
 
-export const classificationKeyOf = ({ title, startMs }) => `${classificationTitleKey(title)}|${Number(startMs)}`
+export const classificationKeyOf = ({ title, startMs, shiftHours = 0 }) => (shiftHours
+  ? `${classificationTitleKey(title)}|${Number(startMs)}|+${shiftHours}`
+  : `${classificationTitleKey(title)}|${Number(startMs)}`)
+
+export const channelShiftHours = (channelName) => timeshiftHours(channelName ?? '')
+
+export const shiftHoursByChannelOf = (channels = []) => {
+  const names = new Map()
+  for (const channel of channels) {
+    for (const id of [channel.epgId, channel.id]) if (id != null) names.set(String(id), channel.name)
+  }
+  return (programme) => channelShiftHours(programme?.channelName ?? names.get(String(programme?.channel_id ?? programme?.channelId)))
+}
 
 export const fallbackClassification = ({ rating, ratingLabel } = {}) =>
   normaliseClassification(ratingLabel) ?? classificationFromAgeRating(rating)
@@ -41,7 +54,7 @@ export const programmeClassificationEntry = ({ programmeXml, parseTime }) => {
   const title = programmeXml.match(TITLE_ELEMENT)?.[1]
   const startMs = parseTime(programmeXml.match(START_ATTRIBUTE)?.[1])
   if (!title || startMs === null) return null
-  return { titleKey: classificationTitleKey(decodeEntities(title)), startMs, label, category }
+  return { titleKey: classificationTitleKey(decodeEntities(title)), startMs, shiftHours: 0, label, category }
 }
 
 export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_MS } = {}) => {
@@ -50,7 +63,7 @@ export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_M
     for (let i = 0; i < rows.length; i += WRITE_BATCH) {
       await db(table)
         .insert(rows.slice(i, i + WRITE_BATCH))
-        .onConflict(['title_key', 'start_ms'])
+        .onConflict(['title_key', 'start_ms', 'shift_hours'])
         .merge()
     }
   }
@@ -61,11 +74,11 @@ export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_M
   const categoriesAt = async (startTimes) => {
     const starts = [...new Set(startTimes.map(Number).filter(Number.isFinite))]
     if (!starts.length) return new Map()
-    const query = db('programme_categories').select('title_key', 'start_ms', 'category')
+    const query = db('programme_categories').select('title_key', 'start_ms', 'shift_hours', 'category')
     const rows = starts.length > MAX_LISTED_STARTS
       ? await query.whereBetween('start_ms', [Math.min(...starts), Math.max(...starts)])
       : await query.whereIn('start_ms', starts)
-    return new Map(rows.map((row) => [`${row.title_key}|${Number(row.start_ms)}`, row.category]))
+    return new Map(rows.map((row) => [rowKeyOf(row), row.category]))
   }
   const queue = (work) => {
     writes = writes.then(work).catch((err) => console.warn(`[classification] could not save labels: ${err.message}`))
@@ -74,17 +87,17 @@ export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_M
   const labelsAt = async (startTimes) => {
     const starts = [...new Set(startTimes.map(Number).filter(Number.isFinite))]
     if (!starts.length) return new Map()
-    const query = db('programme_classifications').select('title_key', 'start_ms', 'label')
+    const query = db('programme_classifications').select('title_key', 'start_ms', 'shift_hours', 'label')
     const rows = starts.length > MAX_LISTED_STARTS
       ? await query.whereBetween('start_ms', [Math.min(...starts), Math.max(...starts)])
       : await query.whereIn('start_ms', starts)
-    return new Map(rows.map((row) => [`${row.title_key}|${Number(row.start_ms)}`, row.label]))
+    return new Map(rows.map((row) => [rowKeyOf(row), row.label]))
   }
   const copyToRecordings = async () => {
     const recordings = await db('recordings')
       .whereNull('classification')
       .whereNotNull('aired_at')
-      .select('recording_id', 'title', 'aired_at')
+      .select('recording_id', 'title', 'aired_at', 'channel_name')
     const labels = await labelsAt(recordings.map((row) => row.aired_at))
     const idsByLabel = groupIdsByLabel({ recordings, labels })
     for (const [label, ids] of idsByLabel) {
@@ -106,16 +119,16 @@ export const createClassificationStore = ({ db = defaultDb, keepMs = KEEP_PAST_M
     copyToRecordings,
     labelsAt,
     categoriesAt,
-    categoryAt: async ({ title, startMs }) => {
+    categoryAt: async ({ title, startMs, shiftHours = 0 }) => {
       const row = await db('programme_categories')
-        .where({ title_key: classificationTitleKey(title), start_ms: startMs })
+        .where({ title_key: classificationTitleKey(title), start_ms: startMs, shift_hours: shiftHours })
         .first('category')
       return row?.category ?? null
     },
     settled: () => writes,
-    lookup: async ({ title, startMs }) => {
+    lookup: async ({ title, startMs, shiftHours = 0 }) => {
       const row = await db('programme_classifications')
-        .where({ title_key: classificationTitleKey(title), start_ms: startMs })
+        .where({ title_key: classificationTitleKey(title), start_ms: startMs, shift_hours: shiftHours })
         .first('label')
       return row?.label ?? null
     },
@@ -140,30 +153,34 @@ export const createClassificationRecorder = ({ store, batchSize = RECORD_BATCH, 
   }
 }
 
-export const programmeClassification = async ({ programme, store }) => {
+export const programmeClassification = async ({ programme, store, channels = [] }) => {
   if (!programme) return null
-  const label = await store.lookup({ title: programme.title, startMs: programme.start }).catch(() => null)
+  const shiftHours = shiftHoursByChannelOf(channels)(programme)
+  const label = await store.lookup({ title: programme.title, startMs: programme.start, shiftHours }).catch(() => null)
   return label ?? classificationFromAgeRating(programme.rating)
 }
 
-export const createClassificationLookup = async ({ programmes, store }) => {
+export const createClassificationLookup = async ({ programmes, store, channels = [] }) => {
   const labels = await store.labelsAt(programmes.map((programme) => programme.start)).catch(() => new Map())
-  return (programme) => labels.get(classificationKeyOf({ title: programme.title, startMs: programme.start }))
+  const shiftHoursOf = shiftHoursByChannelOf(channels)
+  return (programme) => labels.get(classificationKeyOf({ title: programme.title, startMs: programme.start, shiftHours: shiftHoursOf(programme) }))
     ?? fallbackClassification(programme)
 }
 
 const groupIdsByLabel = ({ recordings, labels }) => {
   const idsByLabel = new Map()
   for (const row of recordings) {
-    const label = labels.get(classificationKeyOf({ title: row.title, startMs: row.aired_at }))
+    const label = labels.get(classificationKeyOf({ title: row.title, startMs: row.aired_at, shiftHours: channelShiftHours(row.channel_name) }))
     if (label) idsByLabel.set(label, [...(idsByLabel.get(label) || []), row.recording_id])
   }
   return idsByLabel
 }
 
-const toRow = ({ titleKey, startMs, label }) => ({ title_key: titleKey, start_ms: startMs, label })
+const toRow = ({ titleKey, startMs, shiftHours = 0, label }) => ({ title_key: titleKey, start_ms: startMs, shift_hours: shiftHours, label })
 
-const toCategoryRow = ({ titleKey, startMs, category }) => ({ title_key: titleKey, start_ms: startMs, category })
+const toCategoryRow = ({ titleKey, startMs, shiftHours = 0, category }) => ({ title_key: titleKey, start_ms: startMs, shift_hours: shiftHours, category })
+
+const rowKeyOf = (row) => classificationKeyOf({ title: row.title_key, startMs: row.start_ms, shiftHours: Number(row.shift_hours) || 0 })
 
 const isAustralianSystem = (system) => !system || AUSTRALIAN_SYSTEM.test(system)
 
