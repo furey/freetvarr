@@ -4,7 +4,7 @@ import { db } from './db.js'
 import { getRecordingNow } from './recording-now.js'
 import { getRecordingState, updateSeriesRule } from './epg.js'
 import { refreshLibraryStates } from './library-files.js'
-import { MAX_PADDING_MINUTES } from './recording-padding.js'
+import { MAX_EPISODES_TO_KEEP, MAX_PADDING_MINUTES } from './recording-padding.js'
 import { RESUME_END_MARGIN_S } from './playback.js'
 import { getSeries } from './series.js'
 import { loadKindOverrides } from './programme-kind.js'
@@ -734,7 +734,6 @@ const loadShowFolders = () => db('shows').select('id', 'show_pattern', 'enabled'
 
 const DEFAULT_RETENTION_DAYS = 7
 const AD_REMOVAL_TEXT = { cut: 'ads removed', detect: 'ad breaks marked' }
-const MAX_EPISODES_TO_KEEP = 999
 const DEFAULT_EPISODE_LIMIT = 20
 const MAX_EPISODE_LIMIT = 50
 const CARD_IMAGE_WIDTH = 384

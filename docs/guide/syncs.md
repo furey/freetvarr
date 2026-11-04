@@ -9,11 +9,11 @@ description: >-
 
 <Illustration name="activity" />
 
-**Activity** shows what the Freetvarr server does now, and every sync it has run. A sync is one pass over TVHeadend's finished recordings: list them, match them against your [series folders](/guide/series), import anything new, then refresh [Plex](/guide/plex) if you use it and something imported.
+**Activity** shows what the Freetvarr server does now, and every sync it has run. A sync is one pass over [TVHeadend](https://tvheadend.org/)'s finished recordings: list them, match them against your [series folders](/guide/series), import anything new, then refresh [Plex](/guide/plex) if you use it and something imported.
 
 Open Activity from Settings → SYSTEM → **Activity**. While jobs run, the Settings menu shows how many beside **Activity**, such as "2 running".
 
-The page has two tabs:
+A job is a task the server runs, such as a sync, an import, or an ad removal scan. The page has two tabs:
 
 - **Now**: what the server does at this moment, and what it did in the last `24` hours. Its address is `#/settings/system/activity`.
 - **Syncs**: the history of syncs, with **Sync now**. Its address is `#/settings/system/activity/syncs`.
@@ -59,7 +59,7 @@ In the Freetvarr Home Screen app on an iPhone ([Save it as an app](/guide/gettin
 
 ## Scheduled and manual
 
-Choose how often Freetvarr checks TVHeadend in Settings → SYSTEM → **Schedule**, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a cron expression (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and [title match](/guide/series#title-matches) at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
+Choose how often Freetvarr checks TVHeadend in Settings → SYSTEM → **Schedule**, with **Sync schedule**: `Every 15 minutes`, `Every 30 minutes` (the default), `Every hour`, or `Custom`. **Custom** opens a field for a [cron expression](https://crontab.guru/) (the `* * * * *` timing string), such as `0 */2 * * *` for every two hours. A saved change takes effect without a restart. Until the [setup](/guide/getting-started#_2-run-setup) connects TVHeadend, scheduled syncs skip without an entry in the Activity list. You can also press **Sync now** to sync every series and [title match](/guide/series#title-matches) at once, or press **Sync** on a single series in [Series rules](/guide/series#series-rows).
 
 Activity states the schedule in plain words, such as "Syncs run every 30 minutes." A schedule that has no plain description shows its cron expression instead.
 
@@ -78,7 +78,7 @@ Activity groups syncs under a heading for each day: `Today`, `Yesterday`, or a d
 
 A failed sync also shows its first error under the row. On a wider screen, a **Details** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
 
-A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
+A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording, whose file came up more than `1MB` short of the TVHeadend recording file) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
 
 ## Sync details
 
@@ -110,4 +110,4 @@ Two filters choose which syncs Activity lists:
 
 The browser remembers your choice. A running sync always shows.
 
-After each sync, Freetvarr trims the history, drops removed recordings older than 30 days, and deletes expired `.orig` backups (the originals that [ad removal](/guide/ad-removal#backups-and-retention) keeps after a cut).
+After each sync, Freetvarr trims the history, drops recordings that TVHeadend removed more than 30 days ago and that are not in your library, and deletes expired `.orig` backups (the originals that [ad removal](/guide/ad-removal#backups-and-retention) keeps after a cut).

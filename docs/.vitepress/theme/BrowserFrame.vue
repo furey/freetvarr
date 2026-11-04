@@ -262,7 +262,7 @@ onUnmounted(() => {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--vp-c-text-2);
+  color: var(--vp-c-text-3);
   cursor: pointer;
 }
 

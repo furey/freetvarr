@@ -168,8 +168,15 @@ const tourReady = async (page) => {
 const openWizard = async (page) => {
   await page.goto(`${BASE}/#/welcome`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Start setup' }).waitFor({ timeout: 20_000 })
+  await waitForStillPage(page)
   await page.waitForTimeout(600)
 }
+
+const waitForStillPage = (page) => page.waitForFunction(() => {
+  const isFinite = (animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)
+  const isMoving = (animation) => animation.playState === 'running' && isFinite(animation)
+  return !document.querySelector('.brand-intro') && !document.getAnimations().some(isMoving)
+}, null, { timeout: 15_000 })
 
 const waitForSecureForm = (page) =>
   page.waitForSelector('text=This TVHeadend has no logins yet', { timeout: 15_000 })

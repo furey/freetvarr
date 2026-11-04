@@ -53,14 +53,14 @@ const RULES = [
     }),
   },
   {
-    pattern: /short copy: on-disk (\d+) bytes vs TVHeadend (\d+) bytes/,
+    pattern: /short copy: on-disk (\d+) bytes vs (?:TVHeadend|source) (\d+) bytes/,
     explain: ([, actual, expected]) => ({
       title: 'Import came up short',
-      meaning: `The imported file is ${formatGb(actual)}, but TVHeadend reported ${formatGb(expected)}.`,
+      meaning: `The imported file is ${formatGb(actual)}, but the TVHeadend recording file is ${formatGb(expected)}.`,
       steps: [
         'Wait for the next sync. It imports the file again.',
-        'Check that the disk with your media library has free space.',
-        'If the recording stays PARTIAL, the TVHeadend file itself is short. In TVHeadend\'s web interface, check the entry\'s status for data errors, which usually come from a weak signal.',
+        'If the recording stays PARTIAL, the copy keeps failing. Check that the disk with your media library has free space, and that Freetvarr can write to the media library folder.',
+        DOCTOR_STEP,
       ],
       doc: 'guide/troubleshooting#partial-recordings',
     }),

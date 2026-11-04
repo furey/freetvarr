@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "2.6.3",
+  "version": "2.6.4",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
   "license": "GPL-3.0-or-later",
@@ -51,7 +51,7 @@
     "dev": "npm run migrate && node --env-file-if-exists=.env --watch src/server.js",
     "build:css": "tailwindcss -i src/tailwind.css -o src/web/tailwind.css --minify",
     "test": "node --test --import ./test/setup/no-outbound-network.js 'test/*.test.js'",
-    "test:integration": "node --test --import ./test/setup/no-outbound-network.js --test-concurrency=1'test/integration/*.test.js'",
+    "test:integration": "node --test --import ./test/setup/no-outbound-network.js --test-concurrency=1 'test/integration/*.test.js'",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs"
   },
   "dependencies": {

@@ -1,806 +1,1695 @@
 # Technical deep dive
 
-The technical companion to [`README.md`](https://github.com/furey/freetvarr/blob/main/README.md): how Freetvarr works inside, and why.
+Reference for the Freetvarr implementation: the modules, the data they keep, the calls they make, and the constants they use. The user-facing companion is the [guide](/guide/); the project summary is [`README.md`](https://github.com/furey/freetvarr/blob/main/README.md).
 
 ## Contents
 
+- [Overview](#overview)
 - [Architecture](#architecture)
-- [The TVHeadend API surface](#the-tvheadend-api-surface)
+- [Startup order](#startup-order)
+- [Storage](#storage)
+- [TVHeadend client](#tvheadend-client)
+- [TVHeadend setup](#tvheadend-setup)
+- [Guide](#guide)
+- [Recording rules](#recording-rules)
+- [Sync pipeline](#sync-pipeline)
 - [Import state machine](#import-state-machine)
-- [Why the import is a hardlink](#why-the-import-is-a-hardlink)
-- [Shows, one-offs, and movies](#shows-one-offs-and-movies)
-- [Series recordings as autorec rules](#series-recordings-as-autorec-rules)
-- [Remove after import](#remove-after-import)
-- [Stop a recording](#stop-a-recording)
+- [Library kinds](#library-kinds)
 - [Ad removal](#ad-removal)
-- [Live progress indicators](#live-progress-indicators)
-- [Activity](#activity)
-- [Guide days and history](#guide-days-and-history)
-- [Programme pictures](#programme-pictures)
-- [Ratings and reviews](#ratings-and-reviews)
+- [Removal from TVHeadend](#removal-from-tvheadend)
 - [Live TV](#live-tv)
-- [Library delete](#library-delete)
-- [Plex watched sync](#plex-watched-sync)
-- [Whole Plex library](#whole-plex-library)
+- [Recording playback](#recording-playback)
+- [Pictures and programme info](#pictures-and-programme-info)
+- [Plex](#plex)
 - [Sonarr and Radarr](#sonarr-and-radarr)
-- [For you](#for-you)
+- [For you and Home hero](#for-you-and-home-hero)
 - [Search](#search)
-- [Layout](#layout)
+- [Jobs and health](#jobs-and-health)
+- [Web client](#web-client)
+- [Security model](#security-model)
 - [Full environment reference](#full-environment-reference)
 - [Docker deployment](#docker-deployment)
-- [Security model](#security-model)
-- [Local development](#local-development)
-- [Project layout](#project-layout)
-- [Scripts](#scripts)
-- [Testing](#testing)
-- [Screenshots](#screenshots)
-- [Docs media](#docs-media)
-- [Documentation site](#documentation-site)
+- [Build and test](#build-and-test)
+
+## Overview
+
+Freetvarr is one [Node.js](https://nodejs.org/en/docs) process. It runs an [Express](https://expressjs.com/) server that serves a REST API under `/api` and a static [Vue 3](https://vuejs.org/guide/introduction.html) single-page app. The process reads the [TVHeadend](https://docs.tvheadend.org/documentation/development/json-api) API, the TVHeadend recordings folder, [Plex](https://support.plex.tv/articles/categories/your-media/), optional [Sonarr](https://sonarr.tv/) and [Radarr](https://radarr.video/), and third-party lookup services. It writes files into the media library folders, rows into a [SQLite](https://www.sqlite.org/docs.html) database, and DVR entries and rules into TVHeadend.
 
 ## Architecture
 
+The first diagram shows the modules inside the process and what starts them.
+
 ```mermaid
 flowchart TB
-  subgraph lan["Home LAN"]
-    hdhr["Tuner<br>e.g. HDHomeRun Flex Quatro"]
-
-    subgraph tvh["tvheadend container"]
-      tvhsrv["TVHeadend<br>HTTP API on 9981"]
-      rec[("recordings/<br>.ts")]
-    end
-
-    plex["Plex Media Server"]
-    browser["Browser<br>Vue 3 SPA"]
-
-    subgraph app["Freetvarr container"]
-      server["Express server<br>REST API + static UI"]
+  spa["Browser<br>Vue 3 SPA"]
+  subgraph app["Freetvarr process"]
+    server["Express server<br>/api, static SPA,<br>/guide/xmltv.xml"]
+    subgraph timers["Timers"]
       sched["Scheduler<br>node-cron"]
-      sync["Sync engine"]
-      epg["Guide cache"]
-      live["Live TV sessions<br>ffmpeg → HLS"]
-      matcher["Folder matcher<br>Fuse.js"]
-      plexclient["Plex client<br>GDM discovery · section refresh<br>watched sync · library scan"]
-      jobs["Job registry<br>/api/activity"]
-      arrclient["Sonarr and Radarr client<br>optional"]
-      foryou["For you<br>nightly upkeep · child process"]
-      db[("state.db<br>SQLite via Knex")]
+      auto["Auto-import<br>60 s poll"]
     end
-
-    media[("Media library<br>media/tv")]
+    subgraph library["Recording and library"]
+      sync["Sync"]
+      ads["Ad removal"]
+      plexc["Plex clients"]
+      arrc["Sonarr and<br>Radarr client"]
+    end
+    subgraph watching["Watching"]
+      guide["Guide cache"]
+      live["Live TV"]
+      play["Recording playback"]
+      fy["For you,<br>Home hero"]
+    end
+    subgraph ops["Setup and health"]
+      setup["Setup modules"]
+      health["Health checks"]
+    end
+    lookups["Lookup clients"]
   end
-
-  arr["Sonarr · Radarr<br>optional"]
-  xmltv["XMLTV feed<br>e.g. i.mjh.nz/au/&lt;Region&gt;/epg.xml"]
-  lookups["TVmaze · Wikidata · Wikipedia · TMDB<br>pictures, genres, ratings, reviews"]
-
-  hdhr --> tvhsrv
-  xmltv -->|"tv_grab_ script, on cron"| tvhsrv
-  tvhsrv --> rec
-  browser -->|"REST + CSRF token"| server
-  server --> sync
-  server --> epg
-  server --> live
-  live -->|"stream/channel · status/*"| tvhsrv
-  sched -->|"cron trigger"| sync
-  epg -->|"epg/events/grid · dvr/*"| tvhsrv
-  sync -->|"dvr/entry/grid_finished"| tvhsrv
-  sync --> db
-  rec -->|"hardlink or copy"| media
-  sync --> matcher
-  matcher -->|"scans show folders"| media
-  sync -->|"refresh section after imports"| plexclient
-  plexclient --> plex
-  plex -->|"serves library"| media
-  sync -->|"dvr/entry/prevrec/set · dvr/entry/remove"| tvhsrv
-  server --> foryou
-  foryou --> db
-  foryou -->|"title lookups, optional"| lookups
-  epg -->|"picture lookups, optional"| lookups
-  sync --> jobs
-  plexclient -->|"watched state, both ways"| plex
-  server --> arrclient
-  arrclient -->|"file lists, unmonitor, delete"| arr
+  db[("state.db<br>SQLite")]
+  spa -->|"/api"| server
+  server --> library
+  server --> watching
+  server --> ops
+  sched -->|"cron tick"| sync
+  sched -->|"cron tick"| guide
+  sched -->|"cron tick"| fy
+  auto -->|"recording ended"| sync
+  sync --> ads
+  sync --> plexc
+  sync --> lookups
+  watching --> lookups
+  app --> db
 ```
 
-A single Node process runs everything. The Express server (`src/server.js`) serves the Vue 3 SPA and the REST API; the scheduler (`src/scheduler.js`) wires `node-cron` to the sync engine and reloads whenever the cron setting changes; the sync engine (`src/sync.js`) lists TVHeadend's finished recordings, matches them to series folders, imports new episodes into the media library, and persists every outcome to SQLite. The guide layer (`src/epg.js`) caches TVHeadend's EPG and recording state for the TV guide, Home, and the Scheduled list in Recordings. After any sync that imported something, the Plex client (`src/plex.js`) refreshes the configured library section, and only then is a remove queued back to TVHeadend ([Remove after import](#remove-after-import)). The live TV layer (`src/live-tv.js`) pulls a channel's transport stream from TVHeadend, pipes it through ffmpeg into rolling HLS files under the system temp folder, and serves them to the browser player ([Live TV](#live-tv)). The For you layer (`src/for-you*.js`) scores the next week of the guide against the viewing history in the `user_events` table, and runs its heavy work once a night ([For you](#for-you)). Every background job reports to one job registry (`src/activity.js`), which Settings → SYSTEM → Activity reads ([Activity](#activity)). The Plex watched sync (`src/plex-watch*.js`) copies watched marks and resume points between Freetvarr and Plex, and can list the rest of the Plex library in Recordings ([Plex watched sync](#plex-watched-sync)). An optional Sonarr and Radarr client (`src/arr-*.js`) lets a delete remove a downloaded copy through the app that manages it ([Sonarr and Radarr](#sonarr-and-radarr)).
+The second diagram shows the external systems and the data paths between them.
 
-The database is SQLite in WAL mode with `synchronous = NORMAL` (set in `knexfile.js`). Recent writes sit in `state.db-wal` beside `state.db` until a checkpoint, so a backup needs the whole config folder (`/config` in the container, see [Docker deployment](#docker-deployment)): `state.db`, `state.db-wal`, and `state.db-shm`, not `state.db` alone.
+```mermaid
+flowchart TB
+  subgraph tvhost["TVHeadend"]
+    tvh["HTTP API<br>port 9981"]
+    rec[("Recordings folder")]
+  end
+  subgraph ft["Freetvarr"]
+    setup["Setup and<br>health"]
+    guide["Guide cache"]
+    sync["Sync and<br>ad removal"]
+    live["Live TV and<br>playback"]
+    feed["/guide/xmltv.xml"]
+    lookups["Lookup clients"]
+  end
+  subgraph lib["Library and media apps"]
+    media[("Media library<br>tv, one-offs, movies")]
+    plex["Plex Media Server"]
+    arr["Sonarr, Radarr"]
+  end
+  subgraph net["Internet"]
+    xmltv["XMLTV source feed"]
+    external["TVmaze, Wikidata,<br>Wikipedia, TMDB"]
+  end
+  tvh <-->|"mpegts/*, epggrab/*,<br>access/*"| setup
+  tvh -->|"epg/events/grid,<br>dvr/entry/grid_*"| guide
+  tvh <-->|"grid_finished,<br>dvr/entry/remove"| sync
+  tvh -->|"/stream/channel"| live
+  feed -->|"read by the<br>XMLTV URL grabber"| tvh
+  rec -->|"hardlink or copy"| media
+  sync -->|"comskip, ffmpeg"| media
+  sync -->|"section refresh"| plex
+  sync -->|"file lists, delete"| arr
+  live -->|"ffprobe, ffmpeg"| media
+  xmltv -->|"source feed"| feed
+  lookups --> external
+```
 
-The main difference from [Fetcharr](https://github.com/furey/fetcharr), which this forked from, is that the recorder is on the same filesystem. Fetcharr downloaded each episode from a set-top box over HTTP and could only delete the source through a vendor cloud service. Freetvarr reads a local file and removes it through authenticated calls to TVHeadend's API.
+### Module map
 
-## The TVHeadend API surface
+| Modules                                                                                                                                          | Job                                                                                                                                                                                  | Talks to                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `src/server.js`                                                                                                                                  | Builds the Express app: security middleware, `/api` routes, `/healthz`, the guide feed at `/guide/xmltv.xml`, the static SPA, the startup sequence                                   | Every module below                                                                          |
+| `src/scheduler.js`, `src/schedule-runs.js`                                                                                                       | Runs one [node-cron](https://github.com/node-cron/node-cron) task from the setting `sync_cron`; each tick starts a sync, a guide refresh, viewing-history upkeep, and For you upkeep | `src/sync.js`, `src/epg.js`, `src/user-events-log.js`, `src/for-you-service.js`             |
+| `src/sync.js`                                                                                                                                    | Lists finished TVHeadend recordings, matches them to show rules, imports them, refreshes Plex, removes imported recordings from TVHeadend                                            | `src/tvheadend.js`, `src/plex.js`, `src/commercials.js`, `src/show-folders.js`, `src/db.js` |
+| `src/show-folders.js`, `src/show-identity*.js`, `src/database-ids.js`                                                                            | Name a new show folder; find the TVmaze, TVDB, and TMDB ids of a show                                                                                                                | TVmaze, TMDB, `shows`, `show_identity_picks`                                                |
+| `src/auto-import.js`, `src/recording-now.js`                                                                                                     | Poll the running recordings, then start a sync after a recording ends                                                                                                                | `src/tvheadend.js`, `src/sync.js`                                                           |
+| `src/tvheadend.js`, `src/http-auth.js`                                                                                                           | HTTP client for the TVHeadend API with Digest or Basic auth                                                                                                                          | TVHeadend                                                                                   |
+| `src/tvheadend-bootstrap.js`, `src/tvheadend-setup.js`, `src/tvheadend-guide.js`, `src/tv-login.js`                                              | Wizard steps: lock an open TVHeadend, set up tuners and channels, set up the guide, create a watch-only TV app login                                                                 | TVHeadend `access/*`, `passwd/*`, `mpegts/*`, `epggrab/*`                                   |
+| `src/guide-feed.js`, `src/guide-sources.json`                                                                                                    | Serve the source [XMLTV](https://wiki.xmltv.org/index.php/XMLTVFormat) feed with time-shifted copies of programmes                                                                   | XMLTV source feed                                                                           |
+| `src/epg.js`, `src/guide-cache.js`, `src/guide-history.js`, `src/guide-search.js`                                                                | Cache the TVHeadend guide and recording state; save airings; search the guide                                                                                                        | `src/tvheadend.js`, `src/db.js`                                                             |
+| `src/pending-skips.js`, `src/watchlist.js`, `src/repeat-match.js`, `src/autorec-match.js`                                                        | Single-episode skips, watchlist titles, and matching of airings to rules and repeats                                                                                                 | `src/epg.js`, `src/tvheadend.js`                                                            |
+| `src/live-tv.js`, `src/live-encoder.js`, `src/live-streams.js`, `src/live-benchmark.js`, `src/tuner-status.js`                                   | Pipe a TVHeadend channel stream through [FFmpeg](https://ffmpeg.org/documentation.html) into HLS files; pick the encoder; set the stream limit; read tuner use                       | TVHeadend, `ffmpeg`                                                                         |
+| `src/playback.js`, `src/in-progress-playback.js`, `src/in-progress-positions.js`                                                                 | Play library files and running recordings as HLS sessions                                                                                                                            | `ffmpeg`, `ffprobe`, media library, TVHeadend `/dvrfile`                                    |
+| `src/commercials.js`, `src/ad-original-routes.js`                                                                                                | Detect and cut ad breaks with [Comskip](https://github.com/erikkaashoek/Comskip) and `ffmpeg`                                                                                        | `comskip`, `ffmpeg`, `ffprobe`, media library                                               |
+| `src/plex*.js`, `src/external-ids*.js`                                                                                                           | Plex discovery and section refresh; watched-state sync; whole-library listing                                                                                                        | Plex, `plex_watch_state`, `library_items`, `external_ids`                                   |
+| `src/arr-*.js`, `src/foreign-delete.js`, `src/delete-manager-check.js`                                                                           | Optional Sonarr and Radarr client for file lists, unmonitor, and delete                                                                                                              | Sonarr, Radarr                                                                              |
+| `src/for-you*.js`, `src/top-rated.js`, `src/user-events*.js`, `src/watch-tracker.js`                                                             | Record viewing events; score the guide against them; run the heavy work in a child process                                                                                           | `user_events`, `text_embeddings`, Hugging Face models, optional Ollama                      |
+| `src/home-hero-service.js`, `src/hero-picture-proof.js`, `src/art-pool.js`                                                                       | Build the Home hero snapshot                                                                                                                                                         | `src/epg.js`, `src/for-you-service.js`, `settings`                                          |
+| `src/artwork*.js`, `src/show-artwork.js`, `src/fallback-artwork.js`, `src/programme-images.js`, `src/image-thumbnails.js`, `src/image-focus*.js` | Find, store, resize, and crop pictures                                                                                                                                               | TVmaze, TMDB, Wikidata, Wikipedia, Plex, config folder                                      |
+| `src/programme-ratings.js`, `src/programme-credits.js`, `src/classification-labels.js`, `src/genre-enrichment.js`, `src/known-as.js`             | Look up ratings, cast, classifications, genres, and alternative titles                                                                                                               | `src/outbound-http.js`, lookup tables                                                       |
+| `src/outbound-http.js`, `src/lookup-gate.js`, `src/cache-prune.js`                                                                               | Shared client for third-party requests; hourly lookup limit; daily deletion of expired lookup rows                                                                                   | Third-party hosts, lookup tables                                                            |
+| `src/library*.js`, `src/show-folder-rename.js`                                                                                                   | Library listing, watched marks, folder moves, deletes, and folder renames                                                                                                            | `recordings`, `shows`, media library                                                        |
+| `src/doctor.js`, `src/health-summary.js`, `src/path-check.js`, `src/docker-host.js`                                                              | Health checks and the health level in the navigation                                                                                                                                 | TVHeadend, Plex, media library                                                              |
+| `src/activity*.js`, `src/progress.js`, `src/event-loop-lag.js`                                                                                   | Job registry, live progress, job-run storage, and event-loop monitoring                                                                                                              | `job_runs`                                                                                  |
+| `src/web/`, `src/web-assets.js`, `src/build-id.js`                                                                                               | Vue 3 client files, asset caching, and the build id                                                                                                                                  | Browser                                                                                     |
+| `src/db.js`, `knexfile.js`, `migrations/`                                                                                                        | [Knex](https://knexjs.org/) connection, settings helpers, and schema                                                                                                                 | `state.db`                                                                                  |
 
-Everything goes through TVHeadend's JSON API at `<tvh_url>/api/<path>` (`tvh_url` is the TVHeadend address saved in Settings), with HTTP Digest auth (or Basic, whichever challenge TVHeadend sends; `src/http-auth.js` builds the header), a `15 s` timeout, and `application/x-www-form-urlencoded` bodies on writes. `src/tvheadend.js` is the only module that speaks it.
+## Startup order
 
-| Endpoint                                 | Used for                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `serverinfo`                             | **Test connection**; reports the version and API version. Also the unauthenticated probe behind **Auto-discover TVHeadend**, which tries port `9981` on the address the browser used to reach Freetvarr, then each host LAN address, `tvheadend`, `host.docker.internal`, and `127.0.0.1`, in parallel with a `1.5 s` timeout. A `200` with `sw_version` or a `401` with the `tvheadend` realm counts as a hit; loopback hits are dropped when a LAN address answers |
-| `channel/grid`                           | The channel lineup, sorted by number, disabled channels dropped                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `epg/events/grid`                        | The guide, paged `2000` events at a time until the window is covered                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `epg/events/load`                        | One programme's detail                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `dvr/entry/grid_upcoming`                | Scheduled and in-progress recordings                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `dvr/entry/grid_finished`                | The import queue: everything TVHeadend has finished                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `dvr/entry/create_by_event`              | **Record**                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `dvr/entry/cancel`, `dvr/entry/stop`     | **Cancel recording** for a scheduled entry; **Stop recording** for a running one (see [Stop a recording](#stop-a-recording))                                                                                                                                                                                                                                                                                                                                         |
-| `dvr/entry/remove`                       | Remove after import and library delete: deletes the file and keeps the entry, which moves to TVHeadend's Removed Recordings tab ([Remove after import](#remove-after-import))                                                                                                                                                                                                                                                                                        |
-| `dvr/entry/prevrec/set`                  | Remove after import: marks the entry previously recorded, so it stays a completed recording across TVHeadend restarts and never re-records                                                                                                                                                                                                                                                                                                                           |
-| `dvr/autorec/grid`, `dvr/autorec/create` | Series recordings (TVHeadend autorec rules, see [Series recordings as autorec rules](#series-recordings-as-autorec-rules))                                                                                                                                                                                                                                                                                                                                           |
-| `idnode/save`, `idnode/delete`           | Applying padding to a new entry; removing an autorec rule. Before remove after import: setting the entry's retention to `Forever`, and deleting a scheduled re-record of it                                                                                                                                                                                                                                                                                          |
-| `dvr/config/grid`                        | Finding the default DVR profile, cached after the first call                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `epggrab/channel/grid`                   | Channel logo fallback: the guide feed's channel icons, used when TVHeadend reports no `icon_public_url` for a channel. Admin only in TVHeadend; a failure leaves the logos to TVHeadend's own icons                                                                                                                                                                                                                                                                  |
-| `status/inputs`, `hardware/tree`         | Tuner count and signal readings for the [Health](/guide/doctor) page; the multiplex each tuner carries, for the live TV preflight                                                                                                                                                                                                                                                                                                                                    |
-| `status/subscriptions`                   | What holds each tuner, and why a live stream stalled                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `mpegts/service/grid`                    | The multiplex of every service, cached for `10` minutes                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `service/streams`                        | A channel's elementary streams and their PIDs, which set the live TV codec choice                                                                                                                                                                                                                                                                                                                                                                                    |
-| `config/load`                            | TVHeadend's default language, for the live TV audio track                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `/dvrfile/<uuid>`                        | **From the start** ([From the start](#from-the-start)): reads a recording while TVHeadend still writes it, with a `Range` header, when Freetvarr cannot read the file from the recordings folder. Not under `/api`                                                                                                                                                                                                                                                   |
-| `/stream/channel/<uuid>`                 | Live TV. Not under `/api`; requested with `profile=pass`, `weight=50`, a `Freetvarr-live/<session>` user agent, and no timeout                                                                                                                                                                                                                                                                                                                                       |
-
-Two translations happen at this boundary:
-
-- **Series identity.** TVHeadend has no single series ID, so Freetvarr synthesises one: `` `${channelUuid}|${title.toLowerCase()}` ``. The UI uses that key to check whether a programme's series already has a series recording.
-- **Season and episode.** `dvr/entry/*` returns a human-readable `episode_disp` (`Season 3.Episode 7`) rather than numeric fields, so `parseEpisodeDisp` regexes the numbers back out. Guide events, by contrast, carry `seasonNumber` and `episodeNumber` directly.
-
-Errors come back as a `TvheadendError` carrying a `stage` (the API path) and a `code`, so a failure logs where it happened. HTTP `401` and `403` are mapped to `code: 'auth'` and surfaced as a credentials problem rather than a generic HTTP error.
-
-## Import state machine
-
-The sync engine lists `dvr/entry/grid_finished` and saves each entry's details (channel, air time, synopsis) on its row in the `recordings` table. It matches the entry to a series folder (a row in the `shows` table), longest pattern first. A row the user made (`shows.origin` is `user`) matches its pattern as whole words anywhere in the title, case-insensitive. A row the import made by itself (`origin` is `auto`) matches the same way, except for a sport-coded recording, where it matches only the same show key, so `Rugby League World Cup 2026` does not catch `Women's Rugby League World Cup 2026`. Then the entry runs through this decision tree:
+`docker-entrypoint.sh` runs `node node_modules/.bin/knex migrate:latest`, then `exec node src/server.js`. `src/server.js` runs these steps in order.
 
 ```mermaid
 flowchart TD
-  entry["Finished DVR entry"] --> decide{"libraryDecision:<br>import or hold?"}
-  decide -->|hold| held["row: not_imported<br>reason in the error"]
-  decide -->|import| donecheck{"recordings row<br>already done, or<br>not in TVHeadend?"}
-  donecheck -->|yes| skip["skip immediately"]
-  donecheck -->|no| pathcheck{"filename maps inside<br>recordings_root?"}
-  pathcheck -->|no| skiprow["row: skipped<br>error names the path problem"]
-  pathcheck -->|yes| statcheck{"file exists on disk?"}
-  statcheck -->|no| skipmissing["row: skipped<br>check the recordings mount"]
-  statcheck -->|yes| imp["row: importing<br>hardlink, else copy"]
-  imp --> classify{"classifyImport"}
-  classify -->|"shortfall within 1MB"| ok["row: done<br>store on-disk size"]
-  classify -->|"shortfall over 1MB"| partial["row: partial<br>next sync redoes it"]
+  subgraph load["Module load"]
+    build["readBuildId"]
+    tz["applyStoredTimeZone"]
+    csrf["resolveCsrfSecret<br>exit 1 if the config folder is not writable"]
+    enc["liveEncoderReady starts<br>detectLiveEncoder, detectCaptionDecoder"]
+    gate["useLookupGate,<br>startCachePruning"]
+    bench["liveStreams.load, then measure"]
+    web["webAssets"]
+    listen["app.listen"]
+  end
+  subgraph callback["Listen callback"]
+    loop["loopMonitor.start, activity.useStore,<br>scheduleDoctorChecks"]
+    reconcile["remove LIVE_ROOT, keepOneOffFolder,<br>rebaseFilePaths, resetInterruptedImports,<br>closeInterruptedSyncs"]
+    sweep["sweepLibraryStates, shrinkStoredArtwork,<br>prepareThumbnailCache, imageFocus.startRefresh"]
+    adrec["recoverInterruptedCuts,<br>resetInterruptedScans"]
+    warm["keepGuideWarm, watchPendingSkips,<br>homeHero.start, onSyncFinished hooks"]
+    start["startUserEvents, startScheduler,<br>startAutoImport"]
+  end
+  build --> tz --> csrf --> enc --> gate --> bench --> web --> listen
+  listen --> loop --> reconcile --> sweep --> adrec --> warm --> start
 ```
 
-1. **Library decision.** `libraryDecision` is a pure function, exported for tests. A choice saved on the row (`library_choice`, set by **Import** in the [Recording log](/guide/recordings#recording-log)) wins. Next comes the **Add to library** choice made when the recording was set, which TVHeadend keeps in the entry's `comment` field. Otherwise a recording that matches a series folder imports, and an unmatched recording imports unless the `import_unmatched` setting is `false`. Where it goes (the TV folder, the one-off folder, or the movies folder) comes from `libraryKind` ([Shows, one-offs, and movies](#shows-one-offs-and-movies)).
-2. **Already-done short-circuit.** A `recordings` row with `status='done'`, or one with `deleted_from_tvh_at` set (not in TVHeadend), is skipped without touching the disk.
-3. **Path translation.** `localPathFor` rewrites the filename TVHeadend reported from `tvh_recordings_path` to `recordings_root` (these and the other path settings are in the [Full environment reference](#full-environment-reference)). A filename outside that prefix returns `null` and the row is written `skipped` with the reason, because the container cannot see that path.
-4. **Existence check.** A `fs.stat` failure means the recording is still running, or failed, or the mount is wrong. The row goes `skipped` with the path in the error.
-5. **Import.** For a show, `buildDestPath` composes `<media_root>/<dest_folder>/<season dir>/<filename>`. `episodeFilename` names the file `<folder> - SxxEyy - <episode title>.ts`, or `<folder> - <air date> - <episode title>.ts` without episode numbers; a guide episode title that only repeats the number (`Episode 6` or `Episode 6 of Season 2`) is left out. A show with no series folder yet gets one on its first import (`ensureShowFolder` in `src/show-folders.js`), which reuses an existing folder with the same name, or the only one with a year or country suffix. For a one-off, `buildOneOffPath` composes `<oneoff_root>/<title>/<title> - <YYYY-MM-DD HHMM>.ts`; for a film, `buildFilmPath` composes `<movies_root>/<Title (Year)>/<Title (Year)>.ts`. All three throw if the result resolves outside their root, and a missing one-off root gives `skipped`, so nothing is written inside the container's own filesystem. The file is then hardlinked or copied ([below](#why-the-import-is-a-hardlink)).
-6. **Classify.** `classifyImport({ expectedSize, actualSize })` is a pure function, exported for tests. A shortfall over `1MB` against the size TVHeadend reported gives `partial` with the byte gap in the error, and the row counts as a failure in the sync summary, not a skip. Anything else gives `done`.
+The module load step registers the routes between `resolveCsrfSecret` and `webAssets`. `liveEncoderReady` and `liveStreams.load` run without a wait; the live routes await `liveEncoderReady` when a session starts.
 
-A `statusText` from TVHeadend other than `Completed OK` is recorded on the row even when the import succeeded, so a recording with data errors from a weak signal says so.
+### Boot timers
 
-Each sync also saves the programme image of every scheduled recording to `<config>/artwork/recordings/<uuid>`, because guide image links often expire once the programme airs. Channel logos are saved to `artwork/channels/` whenever one loads. Artwork leaves with its row; an orphan file older than 14 days is pruned.
+| Timer               | Started by                   | First run                 | Repeat                          | Effect                                                      |
+| ------------------- | ---------------------------- | ------------------------- | ------------------------------- | ----------------------------------------------------------- |
+| Cron tick           | `startScheduler`             | Next match of `sync_cron` | Cron (default `*/30 * * * *`)   | Sync, guide refresh, viewing-history upkeep, For you upkeep |
+| Recording poll      | `watchForFinishedRecordings` | `60 s`                    | `60 s`                          | Detects a finished recording ([Auto-import](#auto-import))  |
+| Reapers             | Module load                  | `5 s`                     | `5 s`                           | End idle or stalled live and playback sessions              |
+| Doctor checks       | `scheduleDoctorChecks`       | `2` min                   | `3` h                           | Refresh the health report                                   |
+| Ratings warm-up     | Module load                  | `2` min                   | `1` h                           | Look up ratings for upcoming programmes                     |
+| Cache prune         | `startCachePruning`          | `10` min                  | `24` h                          | Delete expired lookup rows                                  |
+| Home hero build     | `homeHero.start`             | `20 s`                    | `5` min                         | Rebuild the hero snapshot                                   |
+| Library folder sort | Listen callback              | `3` min                   | None                            | `runReclassificationOnce` ([Folder moves](#folder-moves))   |
+| Guide warm-up       | `keepGuideWarm`              | Immediate                 | `5 s` after each local midnight | Reload the guide and recording state                        |
+| Pending skips       | `watchPendingSkips`          | After each guide load     | `5` min                         | Reload the recording state while a skip or a repeat waits   |
+| Watchlist sweep     | `mountWatchlist`             | None                      | `15` min                        | Create a series rule for a title in mode `record`           |
 
-The sync itself is single-flight: a module-level `inFlight` holds the running sync's ID, and a second request returns that ID rather than starting a second pass. Each sync, and each import and ad scan inside it, is a job in the [Activity](#activity) registry.
+## Storage
 
-## Why the import is a hardlink
+Freetvarr stores state in SQLite through Knex and [better-sqlite3](https://github.com/WiseLibs/better-sqlite3). `knexfile.js` sets `useNullAsDefault: true` and runs two pragmas on each new connection: `journal_mode = WAL` ([WAL mode](https://www.sqlite.org/wal.html)) and `synchronous = NORMAL`.
 
-`importFile` tries `fs.link` first and falls back to `fs.copyFile` on any error. A hardlink is a second name for the same bytes: instant, no extra disk, and both names stay valid until the last one is removed. With [Remove after import](#remove-after-import) on, TVHeadend's copy is deleted once Plex confirms the file, so a second name is all the import needs.
+`DB_PATH` sets the database file; the default is `config/state.db` in the repository root. The config folder is the directory of `DB_PATH`. `src/db.js` exports the Knex instance, `getSetting(key)` (the `value`, or `null`), `setSetting(key, value)` (upsert), and `deleteInChunks` (deletes by `rowid` in chunks of `200` and yields between chunks).
 
-The fallback exists because a hardlink cannot cross filesystems, and Linux also refuses one between two bind mounts (`EXDEV`), even when both mounts show one disk. Docker makes each `volumes:` entry a separate bind mount. A container that mounts `recordings/` and `media/tv` as two entries copies every import, a multi-gigabyte transport stream that takes minutes. The example compose file mounts `${DATA_PATH}` (the host data folder, see [Docker deployment](#docker-deployment)) once, at `/data`, so both folders sit inside one mount and every import is a link.
+### Tables
 
-The [Hardlinks](/guide/doctor#paths-hardlink) health check makes a real test link from the recordings folder into the media folder and the one-off folder. It reports one disk with separate mounts as a different case from separate disks.
+| Table                       | Migrations                     | Holds                                                                                                                                                                                                                                                                        | Main writer                            |
+| --------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `settings`                  | `0001`                         | Key and text value of every setting                                                                                                                                                                                                                                          | `src/db.js`                            |
+| `shows`                     | `0001`, `0037`, `0038`, `0039` | Series folders: `show_pattern`, `dest_folder`, `season_template`, `enabled`, `delete_after_import`, `ad_removal`; identity ids and `identity_state`; `kept_folder`; `origin` (`user` or `auto`)                                                                              | `src/show-folders.js`, `src/server.js` |
+| `recordings`                | `0001` and later, `0040`       | One row per TVHeadend recording: status, paths, sizes, ad status and backups, episode details, playback position, watched time, library state, classification, `genres_json`, `show_title_override`, `log_cleared_at` (hidden from the Recordings log, still in the library) | `src/sync.js`                          |
+| `syncs`                     | `0001`                         | One row per sync: start, finish, status, `summary_json`                                                                                                                                                                                                                      | `src/sync.js`                          |
+| `guide_programs`            | `0002`                         | Saved guide airings keyed by `channel_id` and `start`, with `program_json`                                                                                                                                                                                                   | `src/guide-history.js`                 |
+| `show_artwork`              | `0005`                         | Cached picture sources per `title_key`                                                                                                                                                                                                                                       | `src/show-artwork.js`                  |
+| `watchlist`                 | `0008`, `0014`                 | Titles to notify or record, with optional channel and padding                                                                                                                                                                                                                | `src/watchlist.js`                     |
+| `user_events`               | `0010`                         | Viewing-history events                                                                                                                                                                                                                                                       | `src/user-events-log.js`               |
+| `text_embeddings`           | `0011`                         | Embedding vectors per `text_hash` and `model_id`                                                                                                                                                                                                                             | `src/for-you-engine.js`                |
+| `title_genres`              | `0011`                         | Cached genres per `title_key`                                                                                                                                                                                                                                                | `src/genre-enrichment.js`              |
+| `show_nicknames`            | `0012`                         | User-added search names per `show_key`                                                                                                                                                                                                                                       | `src/search-aliases.js`                |
+| `title_known_as`            | `0012`                         | Cached alternative titles per `title_key`                                                                                                                                                                                                                                    | `src/known-as.js`                      |
+| `artwork_lookups`           | `0013`                         | Cached Wikipedia and TMDB picture lookups                                                                                                                                                                                                                                    | `src/fallback-artwork.js`              |
+| `programme_ratings`         | `0015`, `0020`                 | Cached rating lookups, with `miss_reason`                                                                                                                                                                                                                                    | `src/programme-ratings.js`             |
+| `programme_classifications` | `0016`                         | Classification label per `title_key` and `start_ms`                                                                                                                                                                                                                          | `src/classification-labels.js`         |
+| `programme_credits`         | `0017`, `0020`                 | Cached cast and crew lookups, with `miss_reason`                                                                                                                                                                                                                             | `src/programme-credits.js`             |
+| `programme_categories`      | `0019`                         | XMLTV category per `title_key` and `start_ms`                                                                                                                                                                                                                                | `src/classification-labels.js`         |
+| `art_pools`                 | `0021`                         | Cached picture pools per `pool_key`                                                                                                                                                                                                                                          | `src/art-pool.js`                      |
+| `show_artwork_choices`      | `0022`                         | The chosen picture per `show_key` and `kind`                                                                                                                                                                                                                                 | `src/artwork-choices.js`               |
+| `image_focus`               | `0024`, `0027`                 | Focus point and face box per picture URL                                                                                                                                                                                                                                     | `src/image-focus-service.js`           |
+| `pending_skips`             | `0025`, `0031`                 | Skipped single airings by `program_id`                                                                                                                                                                                                                                       | `src/pending-skips.js`                 |
+| `programme_kind_overrides`  | `0028`, `0029`                 | User-set kind per `show_key`                                                                                                                                                                                                                                                 | `src/programme-kind.js`                |
+| `job_runs`                  | `0032`                         | Finished job runs as `run_json`                                                                                                                                                                                                                                              | `src/activity-store.js`                |
+| `series_evidence`           | `0033`, `0039`                 | Series facts per `show_key`; `database_ids` and `database_ids_at`                                                                                                                                                                                                            | `src/series-evidence.js`               |
+| `plex_watch_state`          | `0034`                         | Watched snapshot of both sides per `recording_id`                                                                                                                                                                                                                            | `src/plex-watch.js`                    |
+| `library_items`             | `0035`                         | Plex library items keyed by `rating_key` and `part_id`                                                                                                                                                                                                                       | `src/plex-library-store.js`            |
+| `external_ids`              | `0036`                         | TVDB, TMDB, and IMDb ids per `title_key`, `kind`, and `source`                                                                                                                                                                                                               | `src/external-ids-store.js`            |
+| `show_identity_picks`       | `0037`                         | The picked or declined identity per `title_key` and `network_family`                                                                                                                                                                                                         | `src/show-identity-store.js`           |
 
-An import never overwrites a file that is not its own. `freeDestination` in `src/sync.js` checks the planned path first: it is free when no other `recordings` row holds that `file_path` and the file is missing or is the same inode as the source (an earlier hardlink of this recording). Otherwise it tries `- copy 2`, `- copy 3`, and so on before the extension (`(2)` for a film), saves there, and logs which file it left alone. An import whose free destination already exists at exactly the source size returns early, so a re-run does nothing.
+### Config folder
 
-## Shows, one-offs, and movies
+| Path                                       | Holds                                                                                              | Set by                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `state.db`, `state.db-wal`, `state.db-shm` | The database and its WAL files; back them up together                                              | `DB_PATH`                                         |
+| `csrf-secret`                              | The CSRF secret when `CSRF_SECRET` is unset ([CSRF](#csrf))                                        | `src/csrf-secret.js`                              |
+| `artwork/`                                 | Saved pictures of recordings (`recordings/<uuid>.<ext>`) and channel logos (`channels/<id>.<ext>`) | `ARTWORK_PATH`, else `artwork/` beside `state.db` |
+| `uploads/artwork/`                         | Pictures that a user uploads                                                                       | `src/artwork-uploads.js`                          |
+| `image-cache/`                             | Resized WebP pictures, `IMAGE_CACHE_MAX_MB` limit                                                  | `src/image-thumbnails.js`                         |
+| `models/`                                  | Downloaded For you models                                                                          | `src/for-you-engine.js`                           |
+| `comskip.ini`                              | Optional Comskip settings; replaces the bundled `assets/comskip.ini`                               | `src/commercials.js`                              |
 
-One rule decides whether a title is a show, a one-off, or a movie: `seriesKindOf` in `src/series-kind.js`. The import uses it (`libraryKind` in `src/sync.js`) to pick a folder, and the [Library](/guide/recordings#library) in Recordings uses it (`kindOf` in `src/library.js`) to pick a shelf, so the two always agree. The first rule that matches wins:
+## TVHeadend client
 
-1. A choice the user made (**Move to Shows**, **Move to One-offs**, **This is a movie**, or **Not a movie**), stored in `programme_kind_overrides` (migrations `0028` and `0029`).
-2. A series rule, or a series folder or title match the user made (`shows.origin` is `user`, migration `0039`), gives a show. **Record series**, **Add title**, a saved edit, and a picked show identity mark a row `user`; a row that a sync or a folder move made by itself is `auto`. Migration `0039` marks the existing rows with `identity_state` `none` as `auto` (only the import path writes that state), unless `user_events` holds a **Record series** request for the title or the watchlist holds a series link for it; every other row is `user`.
-3. An `auto` series folder for the title, or a Plex episode, gives a show, unless rule 5 gives a one-off.
-4. A film, by the guide's film rules, gives a movie when a movies folder is set.
-5. Sport with no TVDB or TMDB id gives a one-off. Sport means more than half of the title's own recordings carry a DVB sport genre (`0x40`–`0x4F`); the merged `sports` flag in `series_evidence` is too broad for this (quiz shows carry it). The id fact is `series_evidence.database_ids` (`none` or `found`, migration `0039`): an identity lookup that settles as `none` or `choose`, or as a match without a TVDB or TMDB id, stores `none`, with the time in `database_ids_at`. A `none` older than `30` days is looked up again; a later `found` moves the title back to Shows. While the fact is unknown, a sport title with a four-digit year in it is a one-off; any other sport title goes on to the next rules.
-6. Recordings on two or more local days give a show.
-7. Evidence gives a show: the title recurs in the guide on two or more days with different episodes, or it has a real season number (not a year, such as `2026` or `26`).
-8. An event title (for example a grand final, an awards night, a telethon, or a title that starts `Live:`) or a TVmaze award show gives a one-off.
-9. An episode number on a year season gives a show, except for sport, where only episode `2` or above does.
-10. Anything else is a one-off.
+TVHeadend exposes a JSON API at `<tvh_url>/api/<path>`. `src/tvheadend.js` holds the HTTP client and the normalisers for TVHeadend objects.
 
-Guide evidence is saved per show key in `series_evidence` (migration `0033`) as the guide loads, because TVHeadend drops each event once it ends. The saved facts only ever add to what is known.
+### Transport
 
-The sync asks for the id fact before it picks the folder: for a sport recording with no user rule, no override, and no stored fact, it calls the shared show identity lookup (TVmaze, with TMDB when a key is set) and waits up to `5 s`. A lookup still running after that keeps today's filing and saves the fact when it settles. The folder-move pass fills missing facts too, from the identity of the title's `auto` series folder or with up to `5` lookups per pass; a title whose lookup did not settle waits `30` minutes, so the next pass asks about other titles first. The TV guide's labels (`src/display-kind.js`) read the same fact, so a sport airing with no id shows as a one-off there.
+- `apiGet(path, params, conn)` sends a `GET` with the parameters in the query string. `apiPost(path, form, conn)` sends a form-encoded `POST`; object fields travel as JSON strings in one field (`node` or `conf`).
+- `tvhRead` and `tvhWrite` export `apiGet` and `apiPost`. The setup, guide, bootstrap, and doctor modules build their own paths and call TVHeadend through these two functions.
+- `resolveConnection` reads the settings `tvh_url`, `tvh_username`, and `tvh_password`.
+- `sendAuthenticated` sends every request. With a username set, it sends the cached `Authorization` header. On a `401` it stores the `www-authenticate` challenge, signs the request, and sends it once more.
+- `authorizationFor` in `src/http-auth.js` gives a Basic header, or a Digest response (MD5 or SHA-256, `qop=auth`). The challenge cache keys by `<url>|<username>` and drops an entry idle for `90 s`.
 
-### Folder moves
+| Request or cache                          | Value                                                      |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons   |
+| Discovery probe                           | `1.5 s` timeout                                            |
+| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, `image/*` only               |
+| Live stream (`openChannelStream`)         | No timeout                                                 |
+| Past airings cache                        | `10` min; `apiPost` clears it before and after every write |
+| Tuner count and service multiplex caches  | `10` min                                                   |
+| Default DVR profile and default languages | Process lifetime                                           |
 
-When a title changes shelf, its recorded files move to match. `src/library-reclassify.js` plans the moves: a show's files in the one-off folder move into its TV folder (creating the folder and its `shows` row when needed), and a one-off's files in the TV folder move into the one-off folder. Each move is a `rename`, or a copy, size check, and delete across filesystems (`EXDEV`). The `.edl` skip file and any `.orig` ad-removal backup move with the video. A move is skipped, and tried again next time, when ad removal is running on that recording, the row changed since the plan, or a file already exists at the target. After any move, Freetvarr refreshes the Plex TV and one-off sections. When TVHeadend's series recordings cannot be read, the pass moves nothing and switches nothing off, because a missing series recording would look like no rule. For each title that is now a one-off, by the rules or by **Move to One-offs**, the pass switches off its `auto` series folder and removes that folder from the TV folder when it holds no files. After it moves files out of the one-off folder, and at each start, Freetvarr writes an empty `.freetvarr-keep` file to the one-off folder, because Plex keeps the items of a library whose folder is empty.
+### Auto-discovery
 
-The moves run in these cases:
+`detectServers` serves `POST /api/tvh-detect`:
 
-- Once, 3 minutes after the first start of a version with this feature; the setting `library_reclassify_v1` records that it ran.
-- After every sync.
-- After a shelf choice on a show page.
+1. When `TVH_URL` is set, it returns that URL with `source: 'env'` and probes nothing.
+2. `rankCandidates` lists URLs on port `9981`: the request hostname and local socket address, then the host IPv4 addresses (private first; `172.17.0.0–172.31.255.255` and `169.254.x.x` excluded), then `tvheadend`, `host.docker.internal`, and `127.0.0.1`.
+3. `probeServer` requests `/api/serverinfo` on every candidate in parallel. A hit is a `200` with `sw_version`, or a `401` whose `www-authenticate` contains `tvheadend`.
+4. Loopback hits drop when another hit exists. Alias hosts drop when their `serverinfo` body equals that of a numeric-address hit.
 
-Each run is a **Library folders** job in [Activity](#activity). `node scripts/reclassify-library.mjs --db <copy of state.db> --dry-run` prints the planned moves from a database copy and changes nothing.
+With no hit, the route answers `502`.
 
-**Merge into another show** is separate: it sets `recordings.show_title_override` (migration `0023`), so the episodes group under the other show's title on its shelf and in later folder moves.
+### Error mapping
 
-## Series recordings as autorec rules
+`TvheadendError` carries `stage`, `status`, and `code`. `stage` is the API path for transport errors.
 
-**Record series** creates one TVHeadend autorec rule through `dvr/autorec/create`:
+| Condition                                          | `stage`                         | `code`                                           |
+| -------------------------------------------------- | ------------------------------- | ------------------------------------------------ |
+| Network failure                                    | The path                        | The Node error code (for example `ECONNREFUSED`) |
+| HTTP `401` or `403`                                | The path                        | `auth`                                           |
+| Other HTTP status of `400` or more                 | The path                        | None                                             |
+| No `tvh_url` setting                               | `config`                        | `no-url`                                         |
+| Stream refused with `401` or `403` / `503` / other | `stream`                        | `auth` / `no-tuner` / `http`                     |
+| Connection reset before video                      | `stream`                        | `no-source`                                      |
+| Guide load finds no channels                       | `epg`                           | `no-channels`                                    |
+| A create call returns no `uuid`                    | `record` or `series`            | `no-uuid`                                        |
+| No matching entry or rule                          | `cancel`, `series`, or `remove` | `not-found`                                      |
 
-```json
-{
-  "enabled": true,
-  "title": "<show title>",
-  "fulltext": false,
-  "channel": "<channel uuid>",
-  "start": "Any",
-  "start_window": "Any",
-  "weekdays": [1, 2, 3, 4, 5, 6, 7],
-  "pri": 2,
-  "record": 1,
-  "start_extra": 2,
-  "stop_extra": 10,
-  "maxcount": "<episodes to keep>",
-  "comment": "freetvarr"
-}
+### Normalised values
+
+- Series key: `seriesKey` returns `` `${channelId}|${title.trim().toLowerCase()}` ``. Events carry it as `series_link`; autorec rules carry it as `seriesLinkId`. An any-channel rule has an empty channel part.
+- Season and episode: `parseEpisodeDisp` reads `episode_disp` (for example `Season 3.Episode 7`) with the patterns `Season\s+(\d+)` and `Episode\s+(\d+)`. Guide events carry `seasonNumber` and `episodeNumber`.
+- Guide text: `normaliseEvent` and `normaliseEntry` pass the subtitle and synopsis through `cleanGuideText` in `src/consumer-advice.js`. It strips `Consumer Advice: ...`, `Audio Described (AD).`, and a leading `From: <country>.`, and returns the advice letters as a list.
+- Channels: `listChannels` drops disabled channels. `hd` follows the DVB service type (`0x11`, `0x19`, `0x1f` give HD; `0x01`, `0x16` give SD), else the channel name. `offAir` is true when every service is disabled.
+
+### Endpoints
+
+`src/tvheadend.js` calls these endpoints.
+
+| Endpoint                                                                          | Use                                                                                                                    |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `serverinfo`                                                                      | **Test connection**, discovery probe, `verifyLogin`                                                                    |
+| `channel/grid`                                                                    | Channel lineup, `limit 1000`                                                                                           |
+| `epg/events/grid`, `epg/events/load`                                              | Guide events, `2000` per page; one programme by `eventId`                                                              |
+| `dvr/entry/grid_upcoming`, `dvr/entry/grid_finished`                              | Scheduled and running entries; finished entries (`limit 5000`), the import queue                                       |
+| `dvr/entry/grid_failed`, `dvr/entry/grid_removed`                                 | Past airings for repeat checks, cached `10` min                                                                        |
+| `dvr/entry/create_by_event`                                                       | **Record** ([Single recordings](#single-recordings))                                                                   |
+| `dvr/entry/cancel`, `dvr/entry/stop`, `dvr/entry/remove`, `dvr/entry/prevrec/set` | Cancel, stop, and remove entries ([Removal from TVHeadend](#removal-from-tvheadend))                                   |
+| `dvr/autorec/grid`, `dvr/autorec/create`                                          | Series rules ([Series recordings](#series-recordings))                                                                 |
+| `idnode/save`, `idnode/delete`, `idnode/load`                                     | Padding, enable and disable, rule updates, retention; rule and child-entry deletes; one entry for in-progress playback |
+| `dvr/config/grid`                                                                 | Default DVR profile (empty name, else the first) and its `storage` path                                                |
+| `epggrab/channel/grid`                                                            | Channel logo fallback                                                                                                  |
+| `status/inputs`, `status/subscriptions`, `hardware/tree`                          | Tuner readings, tuner holders, tuner count, and the multiplex of each tuner                                            |
+| `mpegts/service/grid`, `service/streams`                                          | Multiplex and DVB type of each service; elementary streams of a channel                                                |
+| `config/load`                                                                     | Default language for the live audio track                                                                              |
+| `/dvrfile/<uuid>`                                                                 | A recording that TVHeadend still writes ([From the start](#from-the-start)); outside `/api`                            |
+| `/stream/channel/<uuid>`                                                          | Live TV ([TVHeadend stream request](#tvheadend-stream-request)); outside `/api`                                        |
+
+The setup modules use these endpoint groups:
+
+| Module                       | Endpoints                                                                                                                                                                                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/tvheadend-bootstrap.js` | `access/entry/grid`, `passwd/entry/grid`, `access/entry/create`, `passwd/entry/create`, `idnode/load`, `idnode/delete`, `serverinfo`                                                                                                                                            |
+| `src/tvheadend-setup.js`     | `hardware/tree`, `mpegts/network/grid`, `mpegts/input/network_list`, `dvb/scanfile/list`, `mpegts/network/create`, `mpegts/network/scan`, `mpegts/mux/grid`, `mpegts/service/grid`, `service/mapper/save`, `service/mapper/status`, `idnode/save`, `config/load`, `config/save` |
+| `src/tvheadend-guide.js`     | `epggrab/module/list`, `idnode/load`, `idnode/save`, `epggrab/config/load`, `epggrab/config/save`, `epggrab/internal/rerun`, `epggrab/channel/grid`, `channel/grid`, `epg/events/grid`                                                                                          |
+| `src/tv-login.js`            | `access/entry/grid`, `passwd/entry/grid`, `access/entry/create`, `passwd/entry/create`, `idnode/delete`                                                                                                                                                                         |
+| `src/doctor.js`              | Read-only grids and `config/load`; `status/inputs` and `dvr/entry/grid_upcoming` as rights probes (a `403` names the missing right)                                                                                                                                             |
+
+## TVHeadend setup
+
+The setup wizard runs three modules against TVHeadend in order: `src/tvheadend-bootstrap.js` (logins), `src/tvheadend-setup.js` (tuners and channels), and `src/tvheadend-guide.js` (guide). Each module takes an `http` object with `get` and `post`; `src/server.js` supplies `tvhRead`, `tvhWrite`, and `verifyLogin`. Each apply runs as a background job with a step list that the `progress` route returns.
+
+```mermaid
+flowchart TD
+  subgraph boot["tvheadend-bootstrap.js"]
+    fresh{"detectFreshInstance:<br>one open entry,<br>no passwords?"}
+    plan["applyBootstrap"]
+    undo["undoBootstrap"]
+  end
+  subgraph tuners["tvheadend-setup.js"]
+    inspect["inspectSetup<br>tuners, networks, channels"]
+    run["applyChannelSetup<br>network, tuners, scan, map, recording"]
+    fav["applyDefaultFavourites<br>au only"]
+  end
+  subgraph guide["tvheadend-guide.js, guide-feed.js"]
+    shifts{"readTimeshifts:<br>+N channels found?"}
+    direct["enableGrabber<br>args = source feed URL"]
+    shifted["pointGrabberAtShiftedFeed<br>args = /guide/xmltv.xml"]
+    rerun["epggrab/internal/rerun"]
+    link["matchGuideChannels,<br>applyGuideLinks"]
+  end
+  fresh -->|"yes"| plan
+  fresh -->|"no"| inspect
+  plan --> inspect
+  plan -.->|"user undo"| undo
+  inspect --> run --> fav --> shifts
+  shifts -->|"no"| direct --> rerun
+  shifts -->|"yes"| shifted --> rerun
+  rerun --> link
 ```
 
-The design decisions in that payload:
+| Route group         | Routes                                                                                        | Limiter                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Bootstrap           | `GET /api/tvh-bootstrap/status`, `GET .../progress`, `POST .../apply`, `POST .../undo`        | `bootstrapStatusLimiter` (reads), `bootstrapLimiter` (writes) |
+| Tuners and channels | `GET /api/tvh-setup/status`, `GET .../progress`, `POST .../tuner-address`, `POST .../apply`   | Same                                                          |
+| Guide               | `GET /api/tvh-guide/status`, `GET .../progress`, `POST .../apply`, `GET` and `POST .../links` | Same                                                          |
+| TV app login        | `GET`, `POST`, and `DELETE /api/tv-login`                                                     | `bootstrapLimiter` (writes)                                   |
 
-- **Title plus channel, any time, any day.** A time window would silently miss episodes whenever a broadcaster moves the timeslot. `fulltext: false` keeps the match on the title field rather than the synopsis, which otherwise catches every programme that mentions the show.
-- **`record: 1`** is TVHeadend's duplicate detection by episode number. Where the XMLTV feed supplies episode numbers this stops repeats cleanly. Where it doesn't, every airing records and Freetvarr's own already-done check catches the repeats.
-- **`start_extra: 2` / `stop_extra: 10`** are minutes of padding. The end gets more because free-to-air programmes overrun far more often than they start early.
-- **`comment: "freetvarr"`** tags every entry and rule Freetvarr created, so entries made by hand in TVHeadend's own UI are distinguishable.
+The setup and guide `apply` routes answer `202`. Every `apply` route answers `409` while a run is active.
 
-Single recordings take a second call. `dvr/entry/create_by_event` does not accept padding, so Freetvarr creates the entry, then patches `start_extra` and `stop_extra` onto it with `idnode/save`.
+### Bootstrap
 
-## Remove after import
+`detectFreshInstance` requests `access/entry/grid` and `passwd/entry/grid` without credentials. The result `reason` is `secured` (TVHeadend answers `401` or `403`), `has-users`, or `open-default-entry` (one access entry with username `*` and `admin: true`, and no password entries; only this one is fresh).
 
-Remove after import is a per-series switch: once Plex confirms an imported file, Freetvarr removes TVHeadend's copy of the recording ([Remove from TVHeadend](/guide/remove-from-tvheadend)). TVHeadend's duplicate check (`_dvr_duplicate_event` in `src/dvr/dvr_db.c` of the TVHeadend source) compares a new autorec entry with the DVR entries TVHeadend still holds. It skips entries in the `MISSED_TIME` or `NOSTATE` state and failed recordings, but it counts a successful recording whose file is gone. The duplicate check therefore needs the entry, not the file. `removeRecordings` in `src/tvheadend.js` makes these calls for each finished recording, in this order:
+`applyBootstrap` runs these steps in order: `check-fresh`, `create-admin`, `create-freetvarr`, `verify-freetvarr`, `verify-admin`, `back-up-open-entry`, `save-connection`, `remove-open-entry`, `confirm-locked`.
 
-1. `idnode/delete` on each upcoming entry whose `parent` is this recording. A DVR profile with a re-record error limit schedules such a child when a recording has too many data errors. For a child that has not started, this is the same as `dvr/entry/cancel`: TVHeadend destroys the child and sets the parent's `norerecord`. For a child already recording, it also aborts the recording and deletes the partial file. `dvr/entry/cancel` would leave that child linked to the parent, and TVHeadend's re-record logic can then delete the parent entry.
-2. `idnode/save` with `retention: 2147483647` (`Forever`) on the entry. `dvr/entry/remove` destroys the entry together with the file when the retention is `On file removal` (`dvr_entry_delete_retention_expired`), and that is the default DVR profile setting.
-3. `dvr/entry/prevrec/set`. This sets `noresched`, `norerecord`, and `fileremoved`, and completes the entry with the `previously recorded` code. Without `noresched`, the next TVHeadend start turns a completed entry with no files into `MISSED_TIME` (`dvr_entry_set_timer`), and the duplicate check then ignores it.
-4. `dvr/entry/remove`. TVHeadend deletes the file and keeps the entry in `grid_removed`.
+- The user `freetvarr` gets a random password of `24` bytes. Each verify step signs in with `11` attempts, `1 s` apart.
+- Both access entries get the comment `Created by Freetvarr`, admin, web UI, streaming, and DVR rights, and the network prefixes from the request.
+- `back-up-open-entry` saves the open entry as JSON in the setting `tvh_open_entry_backup`. `save-connection` saves `tvh_url`, `tvh_username`, and `tvh_password`.
+- A failure before `remove-open-entry` deletes the created entries. `confirm-locked` waits for an anonymous `serverinfo` to answer `401`.
+- `undoBootstrap` posts the saved entry to `access/entry/create`; the undo route then deletes the setting.
 
-The order sets the failure mode. If a call fails part-way, the file stays on disk and TVHeadend still holds the entry, so the duplicate check still sees the episode. `idnode/delete` on a finished entry is never used: it deletes the entry together with the file, and the next autorec update schedules the next repeat of the episode.
+### Tuners and channels
 
-## Stop a recording
+`inspectSetup` reads tuners from `hardware/tree`, networks, the channel count, and recordings in progress. A tuner is a leaf of the hardware tree; its class suffix gives its delivery system (`dvbt`, `dvbc`, `atsc_t`, `atsc_c`, or `isdb_t`). `src/zone-countries.js` maps the time zone to a country code, and `pickTransmitter` ranks the `dvb/scanfile/list` transmitters of that country by the time-zone city.
 
-**Stop recording** keeps or deletes the part already recorded, by how long the entry has recorded. `src/web/stop-recording.js` holds the rule for the server and the dialog text: `STOP_RECORDING_KEEP_MIN_MS` is `5` minutes. The recording start is the later of the entry's `start_real` and its `create` time, because an entry made part-way through a programme has a `start_real` before it existed. `stopRecordingEntry` in `src/tvheadend.js` then makes these calls:
+`applyChannelSetup` runs these steps:
 
-| Recorded            | Entry from          | Calls                                                                                      |
-| ------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `5` minutes or more | Any                 | `dvr/entry/stop`. The entry stays a finished recording, and the next sync imports it       |
-| Under `5` minutes   | A series recording  | `dvr/entry/stop`, then the last three steps of [Remove after import](#remove-after-import) |
-| Under `5` minutes   | A one-off recording | `dvr/entry/stop`, then `dvr/entry/remove`                                                  |
+| Step id     | Action                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `network`   | Use the chosen network, or create one with `mpegts/network/create` from the transmitter key                  |
+| `tuners`    | Turn on each tuner and add the network to it                                                                 |
+| `scan`      | Poll every `2 s`; fail with `no-signal` (no services) or `scan-timeout` (`30` min)                           |
+| `map`       | Map enabled, unencrypted TV services that have no channel; fail with `map-empty` or `map-timeout` (`20` min) |
+| `recording` | When the default DVR profile has `rerecord-errors` of `10`, set it to `0`                                    |
 
-A series episode keeps its entry in both cases, so TVHeadend's duplicate check still sees it and the autorec does not schedule that airing again.
+After a successful run, the apply route calls `applyDefaultFavourites` (`src/default-favourites.js`). For time zones that map to `au`, with no pinned channel and the setting `default_favourites_applied` unset, it pins one channel each of ABC, Seven, Nine, Ten, and SBS (HD first).
 
-**Cancel series** with **Stop the episode on now** lists the autorec's entries that are recording, deletes the autorec with `idnode/delete`, then stops each listed entry. The list comes first because deleting the autorec unlinks its running entries. TVHeadend cancels the autorec's scheduled entries itself and keeps the running ones, which are one-offs by the time Freetvarr stops them. With **Keep title match** off, the same request deletes the `shows` row last.
+`tunerAddressConfig` saves a manual [HDHomeRun](https://info.hdhomerun.com/info/hdhomerun_flex_quatro) address as `hdhomerun_ip` through `config/save`. Inside a Docker VM it also saves `local_ip` and `local_port` `9983`.
 
-## Ad removal
+### Guide feed
 
-Free-to-air recordings carry their commercial breaks. Plex has no marker API for non-DVR library items and doesn't read EDL (edit decision list) sidecar files, so for Plex, Freetvarr cuts the breaks out of the file. Kodi reads an EDL sidecar, so the detect mode (below) also writes one for Kodi to skip. It spawns two binaries (`comskip` for detection, `ffmpeg`/`ffprobe` for cutting; both in the Docker image, not npm deps), and every step assumes detection is sometimes wrong.
+`src/guide-sources.json` lists XMLTV feeds from [i.mjh.nz](https://i.mjh.nz/) per country: `au` has eight city feeds and `nz` has one. `suggestGuide` picks the feed whose region equals the time-zone city.
 
-The feature is double-gated: a global `ad_removal_enabled` setting (Settings → RECORDING → Ad removal, default off) and a per-show mode (`off` / `detect` / `cut`, default `off`). Processing runs inline in the sync loop, immediately after an import classifies `done` (never on `partial`), and a failure never stops the sync or damages the recording.
+`applyGuideSetup` runs three steps:
 
-**Detect** runs comskip against the file with an EDL output forced on (the resolved ini is copied to a temp file with `output_edl=1` appended; last key wins in comskip, so a user-supplied ini can't silently disable it), parses the EDL, and stores the breaks as JSON on the `recordings` row (`ad_status='detected'`, `ad_breaks_json`). The video is untouched. `syncSkipMarkers` writes the breaks to `<name>.edl` beside the video, one `start end 3` row per break: action `3` is Kodi's commercial break (skipped once, can be rewound into), and the Jellyfin EDL plugins map `3` to a Commercial segment. Action `0` would be a hidden cut in Kodi, so it is never written. A `cut` or `no_breaks` result deletes that `.edl`, because its times no longer match the video; a failed scan leaves it. This mode exists so users can audit comskip's accuracy on their channels before letting it cut anything.
+1. `feed`: find the module titled `XMLTV URL grabber` (else `no-grabber`), and read the feed channels (`feed-unreachable`, `feed-empty`). Then enable the grabber with `priority` `3` and start an import (below).
+2. `download`: poll `epggrab/channel/grid` every `3 s` until every feed channel exists; `download-timeout` after `5` min unless some exist.
+3. `link`: match TV channels to guide channels by LCN, then by normalised name; save the links and return unmatched channels with a guess.
 
-**Cut** continues from detection:
+The grabber `args` depend on time-shifted channels:
 
-1. `ffprobe` reads the container duration; `computeKeepSegments` inverts the merged, clamped break list into keep segments. An empty keep list (breaks covering the whole file) is treated as a failure; Freetvarr never produces an empty output.
-2. Each keep segment is extracted with `ffmpeg -ss … -to … -c copy`, mapping only the video, audio and subtitle streams (`-map 0:v -map 0:a -map 0:s?`). AU DVB-T recordings carry a private data stream the mpegts muxer can't stream-copy, so a blanket `-map 0` aborts the cut; dropping that stream is harmless for playback. Keyframe stream-copy, no transcode; output stays `.ts`, then the segments are concatenated with ffmpeg's concat demuxer. All intermediate files live in a hidden `.freetvarr-adcut/` workdir next to the recording: same filesystem, so the final swap is an atomic rename, and hidden so Plex ignores it. The workdir is removed on every exit path.
-3. **Verify then swap**: the output must be non-empty and its ffprobe duration must match the summed keep-segment duration within a tolerance that scales with boundary count (`max(5, 2 × boundaries)` seconds; keyframe snapping costs up to a couple of seconds per cut point). Only then does the swap happen: original → `<file>.ts.orig`, output → original name; if the second rename fails the `.orig` is rolled back. When a `.orig` already exists (a second cut, from **Remove ads again**), the output replaces the file and the `.orig` stays, so the backup is always the first copy that was cut. Plex ignores the unknown `.orig` extension.
-4. Any caught failure at any step leaves the original file in place and marks the row `cut_failed`; the sync carries on. The one gap the rollback can't cover is a process death *between* the two renames of the swap; that would leave no file at the real path. `recoverInterruptedCuts` on startup closes it: for any recording row whose `file_path` is missing on disk but whose `<file>.ts.orig` exists, it renames the `.orig` back, so the next start repairs a crash mid-swap.
+- `readTimeshifts` finds TVHeadend channels named `+N` (pattern `\+\s*(\d+)\s*(hd)?$`) that the feed does not carry, and matches each to a base channel.
+- With none, the grabber `args` is the source feed URL.
+- With some, `pointGrabberAtShiftedFeed` stores the source URL in the setting `guide_source_url` and sets `args` to the Freetvarr URL of `/guide/xmltv.xml`. When TVHeadend does not request that URL within `150 s`, the grabber falls back to the source URL.
+- `keepGuideSaved` turns on `epgdb_periodicsave` and `epgdb_saveafterimport`.
 
-> [!NOTE]<br>
-> The cut rewrites the file in your library, not the TVHeadend copy. TVHeadend's own entry still points at its original file, and deleting through `dvr/entry/remove` removes that one.
+`GET /guide/xmltv.xml` (`serveShiftedFeed` in `src/guide-feed.js`) answers `404` when `guide_source_url` is empty and `502` when the source fails before output. Otherwise it streams the source (gunzipped for `.gz`) through `createShiftedFeedStream`. That stream adds a `<channel>` per shifted channel with the id `<baseId>.plus<hours>`, and writes each base programme twice: the original and a copy moved by the shift hours. It also passes ratings and categories to the classification store ([Classification](#classification)).
 
-Sync housekeeping deletes `.orig` backups after `ad_original_retention_days` (default 7). Until then, **Put the original back** (`POST /api/recordings/:recording_id/restore-original`) renames the `.orig` over the cut file, deletes the `.edl`, clears the ad status, and refreshes Plex. The columns `ad_cut_at`, `ad_backup_saved_at`, and `ad_backup_uncut` (migration `0026`) record when the file was cut and whether the backup is the uncut recording.
+After a successful apply, the server clears the guide cache now and again after `2` min (`GUIDE_IMPORT_SETTLE_MS`).
 
-**Remove gating**: for a `cut`-mode show, the TVHeadend copy is the last pristine source once the local file has been rewritten. Remove after import is therefore only queued when the cut verified (or no breaks were found); a `cut_failed` or detect-only outcome keeps the TVHeadend copy. This composes with the Plex-refresh guard (`delete_after_plex_refresh_only`, default on), which skips the remove entirely when a Plex refresh was attempted and failed.
+### TV app login
 
-**comskip.ini resolution**: Freetvarr bundles `assets/comskip.ini`, tuned for Australian free-to-air DVB-T (detection method, break-length windows, brightness/silence thresholds, logo detection). Detect-mode runs on Network 10 captures (July 2026) found the expected pattern (five 2.5–4-minute ad blocks per ~75-minute episode, plus short pre-roll and tail slivers); other channels are untested. If `comskip.ini` exists in the config dir (the `/config` bind mount), it wins. `GET /api/settings` reports which one is active, and Settings shows it.
+`createTvLogin` (`src/tv-login.js`) makes a TVHeadend login for a TV app such as Kodi ([TV apps](/guide/tv-apps)). The access entry has the comment `TV apps login, created by Freetvarr`, streaming rights only, and the prefix list of the connected user. The password is `12` random bytes in base64url. The settings `tv_login_username`, `tv_login_password`, and `tv_login_auth_code` store the result. `deleteTvLogin` deletes only entries with the stored username and that comment.
 
-**Manual scans**: `POST /api/recordings/:recording_id/ad-scan` (re)processes an already-imported recording using the show's mode (detect-only when the show is `off`), so existing files can be trialled without re-importing. The endpoint responds `202` immediately and processes in the background; the UI polls the recordings list for the resulting `ad_status`. Both entry points (this endpoint and the sync loop's inline call) share one single-flight guard, a module-level `Set` keyed by recording ID inside `processRecordingAds`. A given recording is therefore only ever processed by one `comskip`/`ffmpeg` pipeline at a time; the endpoint returns `409` if that recording is already in flight. Different recordings may still process concurrently.
+## Guide
 
-Comskip is CPU-bound; expect roughly half an hour for a 75-minute 1080i broadcast `.ts` (`~2.7GB`) on NAS-class hardware. The scan timeout scales with the recording's duration (1.5× realtime, 60-minute floor, 6-hour cap) so a long recording isn't killed mid-scan and misreported as producing no EDL. It runs under `nice -n 10` so a scan does not slow a concurrent import. Per-recording statuses (`scanning`, `detected`, `no_breaks`, `cut`, `detect_failed`, `cut_failed`) show in the Recording log. In [Activity](#activity), a manual scan is its own **Ad removal** job, and a scan during an import reports as steps of that import job. A scan interrupted by a restart leaves no stuck `scanning` row: startup resets any in-flight status back to unscanned.
+### Guide cache
 
-## Live progress indicators
+`getCachedGuide` in `src/epg.js` returns one in-memory guide for the current local day (`createGuideCache` in `src/guide-cache.js`).
 
-An ad scan, a cut, and a cross-filesystem import can each take minutes. `src/progress.js` keeps an in-memory progress registry that these operations write to and `GET /api/recordings` merges into each row. Nothing is persisted and there is no WebSocket; the recording log polls faster while an operation runs.
+- `loadGuide` runs `listChannels`, `listEvents`, `loadTitleGenres`, and `loadSeriesEvidence` in parallel. The window runs from local midnight to the end of day `7` (`GUIDE_DAYS`).
+- `listEvents` reads `epg/events/grid` sorted by start, `2000` events a page (`EVENT_PAGE_SIZE`), `4` pages at a time (`EVENT_PAGE_CONCURRENCY`).
+- `GUIDE_TTL_MS` is `60` min; an empty guide expires after `60 s`. An expired guide of the same day serves while a reload runs. A failed reload serves the cached guide with `stale: true`.
+- One load runs at a time. `clearGuideCache` drops the cache. `onGuideLoaded` listeners run after each load.
+- The cron tick (`cron:guide`), `keepGuideWarm`, and guide setup trigger reloads.
 
-The registry is a module-level `Map` keyed by recording ID, shared by every request handler and the sync loop because it's all one Node process. Entries are ephemeral, present only while an operation runs:
+`getRecordingState` caches the merged TVHeadend recording state for `45 s`. After a failure it serves the last state with `stale: true` for `60 s`. `invalidateRecordingState` clears it after each write.
+
+### Guide history
+
+`saveGuidePrograms` (`src/guide-history.js`) writes every loaded event to `guide_programs` in one transaction. It deletes rows that overlap the loaded span per channel, inserts the events in chunks of `500`, and deletes rows that ended before the start of yesterday. The columns are `channel_id` and `start` (primary key), `end`, `program_id`, `dvr_state`, `dvr_uuid`, and `program_json`.
+
+`getGuideDay` merges saved rows with live events. A saved row stays only when no live event overlaps it. `toGuideCell` adds `past` and `recorded` (past, with a `dvr_uuid`).
+
+`GET /api/epg/guide?day=0..6` returns one day. `guideDayWindow` gives `dayStart`, `dayEnd`, and `spillEnd` from calendar dates in the process time zone. A daylight-saving day lasts `23` or `25` hours. `spillEnd` is `dayEnd` plus `180` min (`EPG_SPILL_MIN`). A programme that crosses midnight appears in both days.
+
+### Series evidence
+
+`loadGuide` gives each event a `kind` through `displayKindOf` (`src/display-kind.js`), first match wins:
+
+1. `movie` when `isFilmAiring` holds.
+2. `one-off` for a sports airing whose stored `databaseIds` is `none`, or is unset and the title has a year.
+3. `series` when the title has a TVmaze record, or the event has a season, an episode, or an episode title.
+4. `series` when the title airs `3` or more times in the loaded week; otherwise `one-off`.
+
+`saveGuideEvidence` writes per-title facts to `series_evidence`. `facts_json` holds `recurs`, `realSeason`, `sports`, `awardShow`, and `minDatedEpisode`. `recurs` is true when at least `2` distinct episodes first air on `2` different local days. New facts merge with stored facts by logical OR. The sync and the library read the table through `loadSeriesEvidence` ([Library kinds](#library-kinds)).
+
+### Channel order
+
+`getChannelPrefs` reads the settings `epg_pinned_channels` and `epg_hidden_channels` (JSON id arrays), `epg_channel_sort` (`default`, `number`, or `name`), `epg_hide_sd_simulcasts`, and `epg_hide_sd_channels`. `GET` and `PUT /api/epg/channel-prefs` read and write them.
+
+`orderChannels` (`src/web/channel-order.js`, re-exported by `src/channel-order.js`) puts pinned channels first in pin order, then sorts the rest. A channel is hidden when it is not pinned and is in the hidden list, is a hidden SD simulcast, or is SD while `epg_hide_sd_channels` is on.
+
+`GET /api/epg/logo/:channelId` serves the channel's `icon_public_url`, then the `epggrab/channel/grid` icons, then the saved artwork. The memory cache keeps a hit for `24 h` and a miss for `10` min.
+
+### Skipped episodes
+
+A series-rule airing that TVHeadend has not scheduled yet cannot be cancelled. `cancelProgram` then stores a row in `pending_skips` (`program_id`, `channel_id`, `title`, `start_ms`, `end_ms`). On each recording-state load, `withPendingSkipsApplied` disables a newly scheduled entry that matches a row by channel, start, and event id or title (`idnode/save` with `enabled: false`), then deletes the row. Rows whose `end_ms` passed are deleted. `watchPendingSkips` reloads the recording state every `5` min while a skip waits.
+
+### Repeats and rules
+
+- `isSameIdentity` (`src/repeat-match.js`) decides whether two airings are the same episode: equal episode URIs; else equal season and episode numbers; else equal titles with equal real subtitles and agreeing descriptions.
+- `earlierAiringOfEntry` finds an earlier airing of the same episode for an upcoming entry. `splitRepeats` marks the entry as a repeat. `withRecordedRepeatsSkipped` disables each enabled repeat whose original is recorded.
+- `autorecMatchesAiring` (`src/autorec-match.js`) tests a guide airing against an autorec rule: channel, title (substring, or a regular expression of up to `200` characters with a cost cap), `serieslink`, weekday, start window, and duration. A rule that sets `tag`, `content_type`, `cat1`–`cat3`, `star_rating`, `btype`, `brand`, or `season` is unsupported and never matches.
+- `airingIdentityOf` (`src/airing-identity.js`) groups airings of one broadcast on twin channels: the same title in one channel family (an SD and HD pair, or a channel and its `+N` channels) with base starts `60 s` or less apart (`TWIN_START_TOLERANCE_MS`).
+
+## Recording rules
+
+Freetvarr writes two kinds of rule to TVHeadend: single DVR entries and autorec rules (series recordings). `src/tvheadend.js` makes every call. `src/epg.js` wraps each call and clears the cached recording state after it.
+
+### Single recordings
+
+`POST /api/epg/record` takes `channel_id`, `program_id`, `epg_program_id`, and optional `lead_time`, `lag_time`, and `add_to_library`. When the programme has a row in `pending_skips`, `recordProgram` deletes the row and makes no TVHeadend call. Otherwise `scheduleRecording` runs:
+
+1. When a disabled entry for the same programme exists in `dvr/entry/grid_upcoming`, send `idnode/save` with `enabled: true` and the padding, and stop.
+2. Otherwise send `dvr/entry/create_by_event` with `event_id`, `config_uuid` (the default DVR profile), and `comment`.
+3. Send `idnode/save` with `start_extra` and `stop_extra` on the new entry.
+
+The `comment` is the library tag: `freetvarr: add to library`, or `freetvarr: not for the library` when `add_to_library` is `false`. `normaliseEntry` reads it back as `libraryChoice` (`include` or `exclude`). The padding defaults are `DEFAULT_LEAD_MINUTES` (`2`) and `DEFAULT_LAG_MINUTES` (`10`). `src/recording-defaults.js` stores the **Add to library** default in the setting `add_to_library_default`.
+
+`POST /api/epg/cancel` calls `cancelRecording`. A running entry stops ([Stop a recording](#stop-a-recording)). A scheduled entry from an autorec is disabled with `idnode/save`. A scheduled single entry gets `dvr/entry/cancel`, then `dvr/entry/remove`.
+
+### Series recordings
+
+`POST /api/epg/record-series` takes `series_link`, `channel_id`, `program_id`, and optional `lead_time`, `lag_time`, `episodes_to_keep`, `any_channel`, `paused`, and `add_show_rule`. `enableSeriesTag` returns an existing autorec with the same series key (`existed: true`). Otherwise it sends `dvr/autorec/create` with `conf` from `newAutorecConfOf`:
 
 ```javascript
 {
-  phase: 'importing' | 'scanning' | 'cutting' | 'verifying',
-  percent: number | null,   // 0..100, or null when the phase is indeterminate
-  etaSeconds: number | null,
-  etaLabel: string | null,  // preformatted with pretty-ms; the SPA has no build step
-  detail: string | null,    // '12.4MB/s', 'segment 2/5', '18s elapsed'
-  startedAt: number,
-  updatedAt: number,
+  enabled: !paused,
+  name: title,
+  title: escapeAutorecTitle(title),
+  fulltext: false,
+  channel: channelId,
+  start: 'Any',
+  start_window: 'Any',
+  weekdays: [1, 2, 3, 4, 5, 6, 7],
+  pri: 2,
+  record: 1,
+  start_extra: leadTime,
+  stop_extra: lagTime,
+  maxcount: episodesToKeep,
+  config_name: configName,
+  comment: 'freetvarr',
 }
 ```
 
-`setProgress(recordingId, patch)` shallow-merges and stamps `updatedAt`; `clearProgress` deletes; `getProgress` returns the entry or `null` if it's missing or older than `PROGRESS_STALE_MS` (`30 s`), deleting it on staleness; `snapshotProgress(recordingIds)` collects the fresh entries for the API merge. The staleness check covers a process that dies before its cleanup runs: the API stops serving a leaked entry after 30 seconds. The server preformats rate strings and ETA durations, because the SPA has no bundler to format them.
+- `channel` is `''` when `any_channel` is `true`. `maxcount` defaults to `0` (keep all).
+- `record: 1` (`DUPLICATE_DETECTION_EPISODE_NUMBER`) turns on TVHeadend duplicate detection by episode number.
+- `comment: 'freetvarr'` (`CREATOR_TAG`) marks the rules that Freetvarr made. `listAutorecs` turns each escaped `title` back into the literal title.
+- Unless `add_show_rule` is `false`, the route calls `ensureShowFolder` with origin `user` ([Show origin](#show-origin)).
 
-The three sources:
+| Route                                | Function               | TVHeadend call                                                             |
+| ------------------------------------ | ---------------------- | -------------------------------------------------------------------------- |
+| `POST /api/epg/pause-series`         | `setSeriesTagsEnabled` | `idnode/save` with `enabled` on each autorec                               |
+| `PATCH /api/library/shows/:key/rule` | `updateSeriesTags`     | `idnode/save` with `maxcount` and padding on every autorec of the show key |
+| `POST /api/epg/cancel-series`        | `disableSeriesTag`     | `idnode/delete` on the autorec ([Stop a recording](#stop-a-recording))     |
 
-- **Import**: `makeImportProgress(recordingId)` runs on the copy path only, because a hardlink is instant. A `1 s` ticker stats the growing destination file and computes percentage, rate, and ETA against the source size.
-- **Cut**: `cutBreaks` already loops over keep segments, so it writes a `cutting` entry with `segment i/N` per segment and switches to `verifying` before the duration check. Stream-copy takes seconds per segment, so neither phase carries a percentage.
-- **Scan**: `comskip` runs through a buffered `execFileP` and gives no live output, so the percentage is an estimate from the recording's duration. `detectBreaks` already probes duration (for the timeout); a 1-second ticker writes `percent = clamp(0, 99, elapsed / expectedScanMs × 100)` where `expectedScanMs = durationSeconds × SCAN_REALTIME_FACTOR × 1000`. `SCAN_REALTIME_FACTOR` is `0.5`, above the `~0.39` measured on the author's NAS, so the estimate runs slow rather than fast. It clamps at 99 while comskip runs, including when the scan over-runs. If the duration probe failed, the entry has `percent: null` and shows elapsed time. `computeScanPercent` and `expectedScanMs` are pure exports, unit-tested.
+`rulePatchFrom` in `src/library.js` limits `episodes_to_keep` to `0–999`, and the padding to `0–240` minutes (`MAX_PADDING_MINUTES`).
 
-Cleanup is in one place per source. The scan ticker clears its own `setInterval` in a `finally` inside `detectBreaks`; `processRecordingAds` clears the registry entry in a single `finally` around the whole detect/cut sequence; the import shim clears on `stop()`. On the API side, `GET /api/recordings` calls `snapshotProgress` over the returned rows and attaches `progress` (the entry or `null`) to each one without mutating the query result.
+### Watchlist
 
-The recording log shows each entry as a progress bar with percent and ETA. Its poll is a self-scheduling `setTimeout` that picks the next interval from the rows it just fetched: `RECORDINGS_ACTIVE_POLL_MS` (`2 s`) when any row has a non-null `progress`, otherwise `RECORDINGS_POLL_MS` (`60 s`). After a restart no stale progress remains: the registry starts empty and `resetInterruptedScans` clears any persisted `scanning` row.
+`src/watchlist.js` holds the routes (`GET`, `POST`, `PATCH`, and `DELETE /api/watchlist`) and the sweeper. A `watchlist` row has `title`, `title_key` (unique), `mode` (`notify` or `record`), an optional `channel_id`, padding, `seen_through`, `fulfilled_at`, and `series_link_id`. `guideMatchesFor` lists up to `20` future airings on visible channels with the same show key.
 
-## Activity
+The record sweeper runs every `15` minutes, before each `GET /api/watchlist`, and after each write that sets `record` mode. For each unfulfilled `record` row, it takes the first match with a `series_link`, calls `recordSeries` with `anyChannel: true`, and sets `fulfilled_at` and `series_link_id`. It then calls `ensureShowFolder` with origin `user` when `add_to_library_default` reads as `true`.
 
-`src/activity.js` is an in-memory job registry. Each job is a run with a kind, a title, a trigger (such as `cron`, `manual`, `recording-finished`, or `sync`), steps with their times, a progress count or percentage, facts, up to `200` items, up to `100` log lines, and an outcome. A job started inside another job (an import inside a sync, an ad scan inside an import) carries its parent's id, through `AsyncLocalStorage`. The kinds are listed in `JOB_KINDS`: sync, import, ad removal, TV guide refresh, viewing history upkeep, For you rebuild, Home hero rebuild, picture focus, ratings warm-up, cache prune, health checks, library folders, and the Plex watched sync. Many reach the registry through `measureJob` in `src/event-loop-lag.js`, which also feeds the stall monitor at `GET /api/health/loop`.
+## Sync pipeline
 
-- **Finished jobs** stay in a ring of `200` for 24 hours. A quiet kind (the guide refresh, viewing history, For you, Home hero, picture focus, ratings warm-up, and Plex watched sync) keeps only its latest finished run for each outcome, so frequent background jobs do not crowd out syncs.
-- **Failed jobs** stay for 7 days and are also saved to the `job_runs` table (migration `0032`), so they survive a restart.
-- **UP NEXT** comes from each scheduled job's plan (`plan` and `planEvery`): the sync schedule, health checks every 3 hours, the daily cache prune, and the hourly ratings warm-up.
+`src/sync.js` runs the sync. A sync imports each new finished recording into the library and refreshes Plex. It then removes imported recordings from TVHeadend where the series folder asks for it.
 
-The routes:
+### Triggers
 
-| Route                       | Returns                                                                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/activity`         | Running, up next, and recent jobs, plus the recordings TVHeadend is making now, the live and playback sessions, and a few server facts |
-| `GET /api/activity/summary` | The count of running jobs that are not quiet, for the number beside **Activity** in the Settings menu                                  |
-| `GET /api/activity/stream`  | A server-sent event stream that pushes the job lists at most every `500 ms`, with a heartbeat every `15 s`                             |
-| `GET /api/activity/:id`     | One job with its steps, facts, items, and log, or `404` once it has left the list                                                      |
+`startSync({ trigger, showId })` starts a sync:
 
-Settings → SYSTEM → Activity has two tabs. **Now** reads these routes. **Syncs** is the sync history from the `syncs` table, `50` rows to a page; Freetvarr keeps the latest `500` syncs and only the latest `100` that found nothing.
+| Trigger              | Caller                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| `cron`               | `src/scheduler.js`, on each tick of the setting `sync_cron`                             |
+| `recording-finished` | `src/auto-import.js`, after a recording ends                                            |
+| `manual`             | `POST /api/sync` with no `show_id`                                                      |
+| `manual-single`      | `POST /api/sync` with an integer `show_id`; imports only entries that match that folder |
+| `manual:import`      | `POST /api/recordings/:recording_id/library` with `choice: 'include'`                   |
 
-## Guide days and history
+`POST /api/sync` returns `202` for a new sync and `200` when one already runs. `syncLimiter` allows `5` requests a minute. For `cron` and `recording-finished`, a missing TVHeadend URL gives `{ skipped: true }` and no `syncs` row.
 
-TVHeadend deletes a guide event once it ends, so on its own the guide has nothing before now. Freetvarr saves every event it fetches into the `guide_history` table (`src/guide-history.js`, migration `0002`), and the scheduler fetches the guide at most once an hour so history builds even when nobody has the app open. Rows that ended before the start of yesterday are pruned on each save. `GET /api/epg/guide` merges saved past events with TVHeadend's live ones (live data wins on overlap) and marks each event `past`; `recorded` means the event had a DVR entry when it was last seen, not that the recording succeeded.
+`scheduleWith` in `src/scheduler.js` validates the expression with node-cron and falls back to `*/30 * * * *`. Each tick runs these jobs through `measureJob`, each independent of the others: `cron:sync`, `cron:guide` (`getGuideSnapshot`), `cron:viewing-history` (`pruneUserEvents`, `backfillUserEvents`), and `cron:for-you` (`runForYouUpkeep`). `startScheduler` runs again when `POST /api/settings` changes `sync_cron` or `time_zone`. `GET /api/sync-status` returns `activeSyncId`, `cron`, and `nextRunAt`.
 
-Each guide day is built from calendar dates in Freetvarr's time zone (`guideDayWindow` in `src/epg.js`, client helpers in `src/web/guide-time.js`), so a daylight-saving day is 23 or 25 hours long and its ruler labels stay right. The window runs from local midnight to 3am the next day (`spillEnd`); a programme that crosses midnight comes back once, at full width. At midnight the client reloads today. `test/guide-day.test.js` covers the Sydney changes on `2026-10-04` and `2027-04-04`.
+### Auto-import
 
-## Programme pictures
+`watchForFinishedRecordings` calls `getRecordingNow` (`src/recording-now.js`) every `60 s`; the answer is cached for `4 s`. When an active recording leaves the active list, it loads the entry with `idnode/load` and calls the `onRecordingFinished` listeners. The first poll also announces entries that ended in the last `60` minutes and have no `recordings` row.
 
-`GET /api/epg/image/:eventId` (guide cells, Live TV thumbnails, the programme sheet) and `GET /api/epg/show-image?title=` (For you, show pages) try these sources in order, and stop at the first image that loads:
+`createAutoImport` in `src/auto-import.js` waits for quiet before it starts a sync. Each finished recording resets a `60 s` timer (`QUIET_MS`); the timer never fires later than `5` min (`MAX_WAIT_MS`) after the first finish. When a sync already runs, one follow-up starts from the next `onSyncFinished` call. The poll and the auto-import start only when the cron expression runs on at least one day (`scheduleEverRuns` in `src/schedule-runs.js`).
 
-1. The event's own XMLTV image, then other airings with the same title (`imagesByTitle` in `src/epg.js`).
-2. Plex art for a show or film with the same title (`src/show-artwork.js`).
-3. TVmaze, series only, matched by exact title (`src/show-artwork.js`, table `show_artwork`).
-4. TMDB, only with a key in the `tmdb_api_key` setting (`src/fallback-artwork.js`).
-5. The lead image of the English Wikipedia article (`src/fallback-artwork.js`).
+### Single flight
 
-Steps 4 and 5 share one lookup. `wbsearchentities` finds Wikidata items whose label or alias matches the title; when none does, a Wikipedia search supplies articles with the same title, minus any bracketed disambiguation. One SPARQL query keeps items that are a film or a television programme (`P31/P279*`), and reads the release year (`P577` or `P580`), the English article, and the TMDB (`P4947`, `P4983`) and IMDb (`P345`) ids. An episode (season, episode number, or episode title) only matches a television programme. Candidates rank by year fit, then by database ids, then by search order. For each candidate, `prop=pageimages|extracts&pilicense=any` returns the article image and plain text, and `matchEvidenceOf` in `src/artwork-match.js` must accept the match against hints from the guide: a synopsis year within one year, a trailing cast list with at least one name in the text, or synopsis names and long words found in the text. With a key, the TMDB id (or `find` by IMDb id) gives the backdrop (`w1280`) and poster (`w780`), plus up to `8` of each from `append_to_response=images` (`include_image_language=en,null`, English first) for **Change picture**; with a key and no Wikidata match, `search/multi` candidates are checked the same way against the TMDB overview and cast. A programme without a synopsis gets no picture from these steps.
+`inFlight` in `src/sync.js` holds `{ syncId, promise }` of the running sync. `startSync` returns `{ syncId, alreadyRunning: true }` while `inFlight` is set. Each sync is a `sync` job in [Activity](#activity), titled `Sync #<id>`.
 
-Each answer is stored in `artwork_lookups` (migration `0013`) under `open:<title>` or `tmdb:<title>`, for 30 days on a hit and 7 days on a miss. An expired hit keeps answering while a background lookup replaces it, until its data is `6` months old (`cachedStateOf` in `src/artwork-match.js`); `show_artwork` and the **Change picture** pool follow the same rule. A failed lookup is not stored; the title waits 10 minutes in memory. The routes never wait for a lookup: an unresolved title returns a `404` with `Cache-Control: no-store`, the browser shows its title card, and it asks once more five seconds later. Images then go through the shared programme image cache and the thumbnail store (`src/image-thumbnails.js`).
+### Sync order
 
-Every request to Wikidata, Wikipedia, and TMDB goes through `src/outbound-http.js`:
+```mermaid
+flowchart TD
+  subgraph triggers["Triggers"]
+    cron["scheduler.js<br>cron tick"]
+    manual["POST /api/sync<br>POST .../library"]
+    finished["recording-now.js<br>auto-import.js"]
+  end
+  start["startSync<br>single flight"]
+  subgraph dosync["doSync"]
+    list["listFinished<br>dvr/entry/grid_finished"]
+    art["captureUpcomingArtwork"]
+    ctx["importContextOf<br>overrides, evidence, autorecs"]
+    each["each entry:<br>Import state machine"]
+    plex["Plex refresh<br>per kind imported"]
+    del["runAutoDelete"]
+    lib["sweepLibraryStates"]
+    fin["finishSync and prunes"]
+  end
+  subgraph after["onSyncFinished listeners"]
+    hero["homeHero.invalidate"]
+    recl["reclassifyLibrary"]
+    watch["plexWatchSync.request"]
+    pos["applyInProgressPositions"]
+  end
+  cron --> start
+  manual --> start
+  finished --> start
+  start --> list --> art --> ctx --> each
+  each -->|"next entry"| each
+  each --> plex
+  plex -->|"items to remove"| del --> lib
+  plex -->|"none to remove"| lib
+  lib --> fin --> after
+```
 
-- **Allow-list**: plain `https` to `www.wikidata.org`, `query.wikidata.org`, `en.wikipedia.org`, `upload.wikimedia.org`, `api.themoviedb.org`, `image.tmdb.org`, `api.tvmaze.com`, `static.tvmaze.com`, `www.tvmaze.com`, and `www.themoviedb.org` only, redirects included. The last two get only a `HEAD /` link check (`src/link-health.js`), at most once every 5 minutes.
-- **Limits**: `8 s` per JSON request (`20 s` for SPARQL), `10 s` per image, `2 MB` per JSON response, `4 MB` per image, and JPEG, PNG, WebP, or GIF only.
-- **Pacing**: a concurrency cap and a minimum gap per host (one SPARQL query a second), two title lookups at a time, and a bounded queue.
-- **Retries**: on a timeout, a network error, `429`, or `5xx` only, with exponential backoff and jitter, honouring `Retry-After` up to `8 s`.
-- **Backoff**: five failures in a row stop requests to that host for one minute, doubling up to 30 minutes; one success resets it.
-- **Identity**: the User-Agent `Freetvarr (https://github.com/furey/freetvarr)`, as the Wikimedia policy asks. Errors name the host and status, never the address, so the TMDB key never reaches a log.
+1. `listFinished` reads `dvr/entry/grid_finished` (`limit: 5000`). A failure here, or in the `shows` read, ends the sync with status `error`.
+2. `captureUpcomingArtwork` saves the image of each enabled upcoming entry ([Recording artwork](#recording-artwork)).
+3. `importContextOf` loads the kind overrides, the `series_evidence` facts, the `recordings` rows by show key, and the autorec names.
+4. Each finished entry runs through the [Import state machine](#import-state-machine).
+5. Each library kind with an import refreshes its Plex section ([Plex](#plex)).
+6. `runAutoDelete` removes the queued recordings from TVHeadend ([Remove after import](#remove-after-import)).
+7. `sweepLibraryStates` checks that each imported file still exists ([Library delete](#library-delete)).
+8. `finishSync` writes the status and summary, then runs `pruneSyncHistory`, `pruneTombstonedRecordings`, and `pruneCutOriginals`.
 
-The TMDB key is set through `PUT /api/artwork/tmdb`, which checks it against `GET /3/configuration` first. A key with a dot that is longer than 40 characters is sent as a bearer token; any other key goes as the `api_key` parameter. `GET /api/artwork/tmdb` returns only whether a key is set.
+The `finally` step clears `inFlight`, then calls each `onSyncFinished` listener with `{ syncId, trigger }`, also after an `error`. The status is `ok`, `partial` when any item failed, or `error`. `summary_json` holds the trigger, the counts `imported`, `skipped`, and `failed`, `errors`, up to `100` items (`SYNC_ITEMS_CAP`), milliseconds per step, the Plex results, the `delete` result, and the `ads` counts.
 
-## Ratings and reviews
+At startup, `closeInterruptedSyncs` sets each `running` row to `error` with the message `Freetvarr restarted before this sync finished.`, and `resetInterruptedImports` sets each `importing` row back to `pending`.
 
-`GET /api/epg/programme-ratings?title=&kind=movie|` returns `{ status, score, votes, source, url, reviews }`, where `status` is `ready`, `pending`, or `none` and `reviews` is `{ snippet, count, url }` or `null`. A `pending` answer means the background lookup is still running, or the last one failed and the title is in its `10`-minute backoff; the client asks again after `1 s`, `2 s`, `4 s`, `8 s`, and `15 s`, and a later visit asks again. A failure never answers `none`. The route never waits for a third party. `GET /api/epg/programme` adds `programme.classification` (`G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, `AV15+`, or `null`).
+### Sync history
 
-Films use TMDB (`vote_average`, `vote_count`, `/movie/{id}/reviews`), which needs the `tmdb_api_key` setting. With a key, series try TMDB first (`matchedSeries` in `src/programme-ratings.js`): a stored `tmdb:tv:<id>` picture match, else `/search/tv` candidates (local country first) that `matchEvidenceOf` accepts, or that have no evidence either way and come from the local country on a network that shares a name with a guide channel (`tmdbAirsOnGuideChannel`). A TMDB `type` outside the cinematic set (Scripted, Animation, Documentary, or Miniseries) ends the lookup with no score. A TMDB score with at least `50` votes answers without TVmaze. Otherwise series use TVmaze (`type`, `rating.average`, `url`), which needs no key, with TMDB reviews from the TMDB match or through `externals.imdb` and TMDB `/find`. Matching reuses `matchEvidenceOf` and `programmeHintsOf` from `src/artwork-match.js`, so a title with no confident match gets no score and no reviews. Only films and series of type Scripted, Animation, Documentary, or Miniseries qualify; with no type, the guide genre decides. A TMDB score with fewer than `50` votes is dropped.
+`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
 
-`src/review-snippet.js` picks the review sentence: it strips HTML and markdown, keeps sentences of `50`–`170` characters, drops spoiler-risk sentences, and scores the rest by judgement words, the gap between the review's own rating and the average, and whether the sentence opens its review. The best score wins; none means no review line.
+## Import state machine
 
-Each answer is stored per title and kind (migration `0015`): `30` days on a hit, `7` days on a miss, and a `10`-minute in-memory backoff on a failure. An expired hit keeps answering while a background lookup replaces it; a failed refresh leaves the stored answer in place. No answer is served once its data is `6` months old, so TMDB data is never older than that. Each response drops a link (`url`, `reviews.url`) whose site failed its last link check. The settings `ratings_lookup_enabled` and `reviews_lookup_enabled` (default on, saved through the same settings routes as `show_artwork_lookup`) turn each lookup off; reviews also need a TMDB key.
+### Show matching
 
-### Cast and crew
+`matchShow(shows, title, { sport })` in `src/sync.js` picks the series folder (a `shows` row) for a title. It takes the longest matching `show_pattern`. A pattern matches as whole words anywhere in the title, case-insensitive (`wordBoundedPattern`). For a mostly-sport title, a row with `origin` `auto` matches only when its show key equals the title's show key. So the `auto` row `Rugby League World Cup 2026` does not match `Women's Rugby League World Cup 2026`. Sport means a DVB genre code from `0x40–0x4F`.
 
-`GET /api/epg/programme-credits?title=&kind=movie|&year=` returns `{ status, overview, cast, crew, source, url }`. Each cast entry is `{ name, character, image, url }`, up to `12` in billing order; `image` is `/api/epg/person-image?src=<TMDB w185 or TVmaze medium>&w=192` or `null`, and `url` is the TMDB or TVmaze page of the person, or `null` when that site failed its last link check. The person image route accepts only `https://image.tmdb.org/t/p/w185/` and `https://static.tvmaze.com/uploads/images/` sources, fetches them through `src/outbound-http.js`, and keeps a `192` px WebP in the thumbnail store, so the Content Security Policy ([CSP](#security-model)) `img-src` allows only `'self'` and `data:`. Films use TMDB credits and need a TMDB key; without one the route answers `none`. Films keep the director, up to `2` writers, and up to `2` producers. With a TMDB key, series try the same TMDB match as ratings; a match with a cast list answers with the TMDB current-season cast, `created_by` as creators, and executive producers, without TVmaze. Otherwise series use TVmaze for the show, crew, and fallback cast, and a TMDB match (or `/find` by IMDb id) replaces the cast with the TMDB cast of the current season. Series keep the creators and up to `2` executive producers. The cinematic rule of ratings does not apply, so reality hosts appear. Answers use the same pending, retry, cache, and backoff rules as ratings, in the table `programme_credits` (migration `0017`). The setting `credits_lookup_enabled` (default on) turns the lookup off.
+### Decision tree
 
-The show page (`src/web/views/show-view.js`) takes the About synopsis from the credits `overview`, or from the newest episode synopsis when there is none. `src/web/components/show-credits.js` renders the About and Cast and crew sections after the page shows.
+`doSync` runs each finished entry through these steps. `saveRecordingDetails` first upserts the entry's details on its `recordings` row (channel, air time, synopsis, genres, `tvh_filename`).
 
-### Classification
+```mermaid
+flowchart TD
+  entry["Finished DVR entry"] --> match["matchShow<br>saveRecordingDetails"]
+  match --> decide{"libraryDecision"}
+  decide -->|hold| held["holdRecording<br>row: not_imported"]
+  decide -->|import| ids["lookUpDatabaseIds<br>if needsDatabaseIds"]
+  ids --> kind["libraryKind<br>tv, oneOff, or film"]
+  kind --> folder["folderForSeries<br>tv with no folder match"]
+  folder --> donecheck{"row done, or<br>removed from TVHeadend?"}
+  donecheck -->|yes| skip["skipped<br>no row change"]
+  donecheck -->|no| pathcheck{"localPathFor<br>maps the filename?"}
+  pathcheck -->|no| skippath["row: skipped<br>path outside the mount"]
+  pathcheck -->|yes| statcheck{"fs.stat of<br>the source file"}
+  statcheck -->|fails| skipfile["row: skipped<br>file not found"]
+  statcheck -->|ok| rootcheck{"one-off or movies<br>folder exists?"}
+  rootcheck -->|no| skiproot["row: skipped<br>folder not found"]
+  rootcheck -->|"yes, or tv"| dest["freeDestination"]
+  dest --> imp["row: importing<br>importFile"]
+  imp --> classify{"classifyImport"}
+  classify -->|"shortfall over 1 MB"| partial["row: partial"]
+  classify -->|"else"| done["row: done"]
+  done --> ads{"ad removal on<br>for the folder?"}
+  ads -->|yes| adrun["processRecordingAds"]
+```
 
-A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`. `src/classification-labels.js` reads the `<rating>` elements of each XMLTV programme as the guide feed loads (an Australian system first) and keeps the label per title and start time in a store (migration `0016`). When the feed has no label, `fallbackClassification` maps the TVHeadend `rating` age to `MA15+` (age `15`) or `R18+` (age `18`) only. A recording gets its label when `src/sync.js` creates or imports it (migration `0018`, column `recordings.classification`) and keeps it; recordings from before the migration hold `null`. `/api/library/shows/:key` returns the latest episode label as `classification`, and each episode row returns its own.
+1. `libraryDecision` decides import or hold, first match wins:
+    1. `library_choice` `exclude` on the row holds (`Kept out of the library`).
+    2. `library_choice` `include` on the row imports. **Import** in the [Recording log](/guide/recordings#recording-log) sets it.
+    3. The entry's library tag `exclude` holds (`Recorded with Add to library off`).
+    4. A matched folder, the setting `import_unmatched` not `false`, or the library tag `include` imports.
+    5. Anything else holds (`No series folder for this title, and Import every recording is off`).
+2. `holdRecording` sets `status` `not_imported`, `error` to the reason, and `file_path` to `null`. It leaves a `done` or `importing` row, or a row with `deleted_from_tvh_at`, unchanged.
+3. `lookUpDatabaseIds` runs when `needsDatabaseIds` is true ([Sport and database ids](#sport-and-database-ids)).
+4. `libraryKind` gives `tv`, `oneOff`, or `film` from `seriesKindOf` ([Library kinds](#library-kinds)). A film with no movies folder gives `oneOff`.
+5. For `tv` with no matched folder, `folderForSeries` calls `ensureShowFolder`. An entry from a series recording uses the autorec name and origin `user`; any other entry uses its title and origin `auto`.
+6. `processItem` writes `skipped` with the reason in `error` when the path does not map, the source file is missing, or the one-off or movies folder is missing.
+7. `importItem` imports the file and classifies it. It runs [Ad removal](#ad-removal) only for a `done` item with a series folder.
 
-Guide cells, live now/next, For you items, Home row items, and Recordings library items carry `classification`. The client decides where to show it: the programme sheet, the show header, the live info panel, and the live player (for `5 s` after tune-in or a change of programme) show it; no list or thumbnail does. Scores and reviews are never part of list payloads.
+Each import is an `import` job in [Activity](#activity), titled `Import · <title>`.
+
+### Path translation
+
+`localPathFor({ tvhFilename, tvhRecordingsPath, recordingsRoot })` replaces the `tvh_recordings_path` prefix of the TVHeadend filename with `recordings_root` ([Full environment reference](#full-environment-reference)). A filename outside that prefix gives `null` and the error `TVHeadend file path is outside the recordings mount`.
+
+### Destination paths
+
+| Kind     | Function          | Path                                                                          |
+| -------- | ----------------- | ----------------------------------------------------------------------------- |
+| `tv`     | `buildDestPath`   | `<media_root>/<dest_folder>/<season folder>/<episodeFilename>`                |
+| `oneOff` | `buildOneOffPath` | `<oneoff_root>/<title>/<title> - <YYYY-MM-DD HHMM>[ - <episode title>].<ext>` |
+| `film`   | `buildFilmPath`   | `<movies_root>/<name>/<name>.<ext>`; `<name>` is `Title (Year)`, or `Title`   |
+
+- The season folder comes from `shows.season_template`, default `Season {season}`. `{season}` and `{season_padded}` pad to two digits; `{season_unpadded}` does not. No season gives `00`.
+- `episodeFilename` gives `<folder> - SxxEyy[ - <episode title>].<ext>`, or `<folder> - <YYYY-MM-DD>[ - <episode title>].<ext>` without episode numbers. `<folder>` is `dest_folder` without a `{tvdb-…}`, `{tmdb-…}`, or `{imdb-…}` id hint.
+- `<ext>` is the extension of the TVHeadend file, or `ts`. `createValidFilename` removes `\ / : * ? " < > |`.
+- `guardWithinRoot` throws `destination escapes media root` when a path resolves outside its root.
+
+`ensureShowFolder` in `src/show-folders.js` returns the enabled folder that `matchShow` finds. With origin `user`, it changes an `auto` row to `user`. With no match, it looks up the show identity with a `5 s` wait ([Show identity](#show-identity)), then inserts a `shows` row. `newShowFolderOf` picks `dest_folder`, first match wins:
+
+1. An existing folder whose name holds the identity's `{tvdb-<id>}` or `{tmdb-<id>}`.
+2. An existing folder named as the identity name, or as the title (plus at most a year, country, or id suffix).
+3. The identity folder name: `<name> {tvdb-<id>}` or `<name> {tmdb-<id>}`.
+4. The title, through `createValidFilename`; else `Recordings`.
+
+### Free destination
+
+`freeDestination` in `src/sync.js` tries the planned path, then `- copy 2`, `- copy 3`, and so on before the extension (`(2)` for a film). A candidate is free when this row already holds its `file_path`, or when no row holds it and the file is missing or is the same inode as the source.
+
+### Hardlink or copy
+
+`importFile` returns at once when the destination exists with the source size. Otherwise it deletes the destination, then calls `fs.link`. On any error it calls `fs.copyFile`, and a `1 s` ticker (`PROGRESS_TICK_MS`) reports the copied size to the [Progress registry](#progress-registry).
+
+A hardlink fails across filesystems and across two bind mounts (`EXDEV`). The example compose file mounts `${DATA_PATH}` once at `/data`, with `RECORDINGS_ROOT=/data/recordings` and `MEDIA_ROOT=/data/media/tv` ([Docker deployment](#docker-deployment)). The [Hardlinks](/guide/doctor#paths-hardlink) health check makes a test link into each library folder.
+
+### Classify and status
+
+`classifyImport({ expectedSize, actualSize })` compares the source size with the imported size. A shortfall over `1,000,000` bytes (`SIZE_TOLERANCE_BYTES`) gives `partial`; the sync counts it as `failed`, and the next sync imports it again. Anything else gives `done`. Both set `imported_at`. When TVHeadend's `status` text is not `Completed OK`, `error` holds `TVHeadend reported: <status>`.
+
+### Recording artwork
+
+`src/artwork.js` stores recording pictures as `recordings/<uuid>.<ext>` in the artwork folder ([Config folder](#config-folder)). `saveArtwork` shrinks a picture over `150 KB` to `960 px` wide. `POST /api/epg/record`, `captureUpcomingArtwork`, and `saveRecordingDetails` save pictures. `pruneTombstonedRecordings` deletes `recordings` rows whose `deleted_from_tvh_at` is more than `30` days old (`RECORDING_TOMBSTONE_TTL_DAYS`), only when the row is out of the library (`purged_at` set, or `status` not `done` or `partial`) and `ad_backup_saved_at` is empty. `pruneRecordingArtwork` then deletes pictures with no row that are at least `14` days old.
+
+## Library kinds
+
+`seriesKindOf` in `src/series-kind.js` gives `show`, `oneoff`, or `movie` for a title. The import calls it through `libraryKind` in `src/sync.js`; the [Library](/guide/recordings#library) and the folder moves call it through `kindOf` in `src/library.js`. The first rule that applies gives the kind:
+
+1. A user choice in `programme_kind_overrides`: `show`, `one-off`, or `movie`. The choice `not-movie` only switches off rule 4.
+2. A user rule gives a show: a series recording for the title, or a folder with origin `user`.
+3. A title match (any matched folder) gives a show, or a one-off for a sport one-off (rule 5).
+4. A film by the guide's film rules (`looksLikeFilm`) gives a movie when a movies folder is set.
+5. A sport one-off gives a one-off ([Sport and database ids](#sport-and-database-ids)).
+6. Recordings on two or more local days give a show.
+7. Series facts give a show: the title recurs, or it has a real season number (not a year).
+8. An event title (`isEventTitle`: for example `grand final`, `awards`, `telethon`, `concert`, `election`), or a TVmaze award show, gives a one-off.
+9. An episode number on a year season gives a show. For sport, only episode `2` or above counts.
+10. Anything else gives a one-off.
+
+`seriesFactsOf` builds the facts from the recordings, and `mergeSeriesFacts` adds the facts stored in `series_evidence`.
+
+### Show origin
+
+`shows.origin` is `user` or `auto`. **Add title** (`POST /api/shows`), a saved edit (`PATCH /api/shows/:id`), a picked identity, **Record series** with a show rule, the watchlist sweeper, and an import from a series recording set `user`. An import of a title with no series recording, and a folder move to Shows, create `auto` rows.
+
+### Sport and database ids
+
+`isMostlySport` is true when more than half of a title's recordings carry a DVB sport genre. `isSportOneOff` is true for a mostly-sport title when `series_evidence.database_ids` is `none`, or when no fact is stored and the title holds a four-digit year. `databaseIdsOf` stores `found` when a settled identity lookup has a [TheTVDB](https://thetvdb.com/) or TMDB id, else `none`.
+
+`needsDatabaseIds` in `src/database-ids.js` is true for a mostly-sport title with no override and no user rule, when no fact is stored or a `none` fact is at least `30` days old. The import then waits up to `5 s` for the lookup; a lookup still pending saves its fact later, with a `60 s` wait. The folder-move pass settles up to `5` titles per pass, and retries a title after `30` min.
+
+### Show identity
+
+`showIdentityFor` in `src/show-identity.js` finds the TVmaze show, and a TVDB or TMDB id, for a title. It checks, in order: a pick in `show_identity_picks` (state `chosen`); a remembered result (hits `24 h`, misses `6 h`, up to `500` keys); state `unreachable` within `10` min after a failed lookup; state `off` with TVmaze lookups off; then a new lookup. A lookup longer than `wait` (default `15 s`) gives `pending` and keeps running.
+
+`createShowMatcher` in `src/show-match.js` searches [TVmaze](https://www.tvmaze.com/api) (`/search/shows`, with and without a country tag, then AKAs). It drops shows from another country and shows that premiered after the airing, then scores the rest:
+
+| Score item     | Points | Condition                                                     |
+| -------------- | ------ | ------------------------------------------------------------- |
+| `airTime`      | `100`  | `/shows/<id>/episodesbydate` has an episode within the airing |
+| `network`      | `40`   | A domestic show on the network family of the channel          |
+| `titleCountry` | `30`   | The show's country equals the country in the title            |
+| `domestic`     | `20`   | A domestic show with the `network` or `airTime` points        |
+| `running`      | `5`    | The show ran within a year of the airing                      |
+
+A single show wins. Otherwise the top show needs at least `10` points and a lead of at least `20`. The TVDB id comes from `externals.thetvdb`; with none and a TMDB key set, `tmdbShow` finds the TMDB id. No winner gives `choose` with up to `6` candidates, or `none`.
+
+`GET`, `POST`, and `DELETE /api/shows/:id/identity` show, pick (`tvmaze_id`), and decline an identity. The identity columns on `shows` are `tvmaze_id`, `tvdb_id`, `tmdb_id`, `database_title`, and `identity_state`.
+
+### Folder moves
+
+`src/library-reclassify.js` moves recorded files when a title changes kind. `runReclassification` runs one pass at a time. It groups the `done` and `partial` rows with a `file_path` by show key (`show_title_override`, else `title`). `planReclassification` plans the moves:
+
+- A `show` group: each file in the one-off folder moves to `buildDestPath` under the matched or a new folder.
+- A `oneoff` group: each file in the TV folder moves to `buildOneOffPath`.
+
+`applyMove` skips a move while ad removal runs, when `file_path` changed since the plan, when the file is missing, or when the target exists. `moveFile` calls `fs.rename`, or copies and deletes on `EXDEV`. The `.orig` backup and the `.edl` file move with the video. After moves, the Plex TV and one-off sections refresh. `planRetiredTitleMatches` disables each `auto` folder whose title is now a one-off and that keeps no file.
+
+The pass runs `3` min after startup when the setting `library_reclassify_v1` is unset (`runReclassificationOnce`), after every sync, and after `PUT` or `DELETE /api/programme-kind/:showKey`. When TVHeadend's series rules cannot be read, the pass changes nothing. `node scripts/reclassify-library.mjs --db <copy of state.db> --dry-run` prints the planned moves.
+
+### Folder name fix
+
+`src/show-folder-rename.js` renames a series folder to the identity folder name. `GET /api/shows/:id/folder-fix` returns a plan with a state: `not-found`, `kept`, `no-match`, `done`, `managed` (a Sonarr or Radarr file under the folder), `target-exists`, or `ready`. `POST /api/shows/:id/folder-fix` needs state `ready`. It refuses `busy` while a sync, a folder-move pass, or ad removal runs. In one transaction it sets `dest_folder`, rebases `recordings.file_path` and `library_items.file_path`, and renames the folder; a failure renames it back. `POST .../folder-fix/keep` sets `kept_folder` to `dest_folder`.
+
+**Merge into another show** (`POST /api/library/recordings/show`) sets `recordings.show_title_override` on each row. The override sets the show key of the row for the Library, the kind rules, and the folder moves.
+
+## Ad removal
+
+`src/commercials.js` runs Comskip (`comskip`) to find commercial breaks in an imported recording. In `cut` mode it removes the breaks with `ffmpeg` and [`ffprobe`](https://ffmpeg.org/ffprobe.html). The three binaries are in the Docker image. `src/ad-original-routes.js` holds the manual scan and restore routes.
+
+### Ad gates
+
+The sync calls `processRecordingAds` only when all of these hold:
+
+- The setting `ad_removal_enabled` is `'true'` (Settings → RECORDING → Ad removal).
+- `shows.ad_removal` is `detect` or `cut` (values `off`, `detect`, `cut`, default `off`; `AD_REMOVAL_MODES` in `src/server.js`).
+- The recording has a series folder; one-offs and films never reach ad removal.
+- The import classified `done`.
+
+A failure in ad removal never fails the import or the sync. `summary.ads` counts `scanned`, `detected`, `cut`, `failed`, and `adSeconds`. The manual scan route ignores `ad_removal_enabled` and uses `detect` when the show mode is `off`.
+
+### Ad columns
+
+| Column on `recordings` | Meaning                                                                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ad_status`            | `null` (not scanned), `scanning`, `detected` (breaks found, file unchanged, `.edl` written), `no_breaks`, `cut`, `detect_failed`, `cut_failed` |
+| `ad_breaks_json`       | JSON array of `{ start, end }` in seconds                                                                                                      |
+| `ad_processed_at`      | Time of the last scan result                                                                                                                   |
+| `ad_cut_at`            | Time of the last cut                                                                                                                           |
+| `ad_backup_saved_at`   | Time the `.orig` backup was made; `null` with no backup                                                                                        |
+| `ad_backup_uncut`      | `true` when the backup is the recording as imported                                                                                            |
+
+### Ad scan
+
+`scanRecordingAds` sets `ad_status = 'scanning'` and makes the workdir `<recording folder>/.freetvarr-adcut/<file name>`. `detectBreaks` then runs:
+
+1. Copy the ini file to the workdir and append `output_edl=1`. The ini file is `<config folder>/comskip.ini` when it exists, else the bundled `assets/comskip.ini`. `GET /api/settings` reports `comskip_ini_override`.
+2. Read the duration with `ffprobe`.
+3. Run `nice -n 10 comskip --ini=<workdir>/comskip.ini --output=<workdir> <file>`.
+4. Parse the EDL file (`parseEdl`): rows with action `0` or `3` and `end > start`.
+
+The scan timeout is `clamp(round(duration) × 1500 ms, 60 min, 6 h)` (`COMSKIP_TIMEOUT_PER_SECOND_MS`, `MIN_COMSKIP_TIMEOUT_MS`, `MAX_COMSKIP_TIMEOUT_MS`). The `ffmpeg` timeout is `30` min per call; the `ffprobe` timeout is `60 s`.
+
+In `detect` mode, `syncSkipMarkers` writes `<video name>.edl` beside the video, one tab-separated row per break with action `3` (the commercial break action of the [Kodi EDL format](https://kodi.wiki/view/Edit_decision_list)). A result of `cut` or `no_breaks` deletes the file.
+
+### Ad cut
+
+`cutBreaks` runs only in `cut` mode, after a scan finds breaks.
+
+```mermaid
+flowchart TD
+  probe["ffprobe duration"] --> keep["computeKeepSegments"]
+  keep --> extract["ffmpeg segment extract<br>seg-N.ts, stream copy"]
+  extract --> concat["ffmpeg concat demuxer<br>out.ts"]
+  concat --> verify{"verifyCut<br>duration within tolerance"}
+  verify -->|pass| swap["swapInCut<br>file to .orig, out.ts to file"]
+  verify -->|fail| failed["cut_failed<br>original stays"]
+  swap --> done["ad_status = cut"]
+```
+
+1. `computeKeepSegments` clamps, sorts, and merges the breaks, and returns the gaps between them. An empty keep list fails with `breaks cover the entire recording`.
+2. For each keep segment, `ffmpeg -ss <start> -to <end> -i <source> -map 0:v -map 0:a -map 0:s? -c copy -avoid_negative_ts make_zero` writes `seg-<i>.ts`.
+3. `ffmpeg -f concat -safe 0 -i list.txt -map 0 -c copy` writes `out.ts`.
+4. `verifyCut` fails when `out.ts` is empty, or its duration differs from the summed keep length by more than `max(5, 2 × boundaries)` seconds (`boundaries` is twice the break count).
+5. `swapInCut` renames the file to `<file>.orig`, then renames `out.ts` to the file path. If the second rename fails, it renames the `.orig` back.
+6. The row gets `size`, `ad_cut_at`, and the backup columns.
+
+The workdir is removed on every exit path. A cut that starts when a `.orig` exists runs on the `.orig` and leaves it in place. A failure at any step leaves the original file, logs `[ads] <file>: <message>`, and stores `cut_failed` or `detect_failed`.
+
+### Ad recovery
+
+At startup, `recoverInterruptedCuts` renames `<file>.orig` back when the file is missing, and otherwise reconciles the backup columns with the disk. `resetInterruptedScans` then sets every `ad_status = 'scanning'` to `null`.
+
+### Original backups
+
+A `.orig` backup stays for `ad_original_retention_days` days after `ad_backup_saved_at` (default `7`). `pruneCutOriginals` runs at the end of every sync: it deletes expired `.orig` files and clears the backup columns. It skips rows with a scan or restore in flight. `GET /api/recordings` and library rows carry `ad_backup_kept_until`.
+
+| Route                                                 | Success                                                               | Main refusals                                                                     |
+| ----------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `POST /api/recordings/:recording_id/ad-scan`          | `202` with `{ started: true, mode }`; the scan runs in the background | `404` unknown row; `409` not imported, no file, file gone, or a scan already runs |
+| `POST /api/recordings/:recording_id/restore-original` | `200` with `{ ok: true, uncut, size, plex }`                          | The same, plus `409` outside the library folders, busy, or `.orig` gone           |
+
+`restoreOriginal` renames the `.orig` over the file, deletes the `.edl` file, and clears the ad columns. After a restore, or a manual scan that changes the file, the route refreshes the Plex section of the file's library kind.
+
+`scansInFlight` is a module-level `Set` of recording ids. A second scan, cut, or restore for an id in the set returns `busy`; different recordings run at the same time. `isAdJobRunning(id)` and `adScansRunning()` read the set for the folder rename, the folder moves, and the stream benchmark.
+
+`processRecordingAds` runs as an `ads` job titled `Ad removal · <title>`, or joins the running `import` job. For a `cut` folder, [Remove after import](#remove-after-import) queues the TVHeadend remove only when the result is `cut` or `no_breaks` (`shouldQueueAutoDelete`).
+
+## Removal from TVHeadend
+
+`removeRecordings({ recordingIds })` in `src/tvheadend.js` removes finished recordings. An id not in `dvr/entry/grid_finished` goes to `unknown`; when no id is removed, it throws `not-found`. For each known id, `removeKeepingHistory` makes these calls in order:
+
+1. `idnode/delete` on each upcoming entry whose `parent` is this recording.
+2. `idnode/save` with `retention: 2147483647` (`RETAIN_FOREVER`).
+3. `dvr/entry/prevrec/set`, so duplicate detection keeps the episode as recorded.
+4. `dvr/entry/remove`, which deletes the file and keeps a removed entry.
+
+The user guide covers the switches ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
+
+### Remove after import
+
+An item goes on the removal list of a sync when it imported `done` in this sync, its series folder has `delete_after_import`, and `shouldQueueAutoDelete` passes. With `ad_removal_enabled` off, a `cut` folder keeps the TVHeadend copy. `runAutoDelete` skips the removal when the setting `delete_after_plex_refresh_only` is on (the default) and the TV section refresh did not return `triggered`, unless Plex is not set up. It sets `deleted_from_tvh_at` on each removed row.
+
+### Stop a recording
+
+`STOP_RECORDING_KEEP_MIN_MS` (`src/web/stop-recording.js`) is `5` min. `recordedMsOf` counts from the later of `start_real` and the entry's `create` time. `stopRecordingEntry` sends `dvr/entry/stop`. Under `5` min of recording, it also removes the entry: steps 2–4 of `removeRecordings` for a series recording, `dvr/entry/remove` for a single entry. Otherwise the next sync imports the stopped entry.
+
+**Cancel series** sends `POST /api/epg/cancel-series` with `series_link_id` or `series_link_ids`. With `stop_recording_now: true`, `disableSeriesTag` lists the rule's recording entries, deletes the autorec, then stops each listed entry. With `title_match_id`, the route also deletes that `shows` row.
+
+### Library delete
+
+`src/library-delete-routes.js` mounts `POST /api/library/delete/preview` and `POST /api/library/delete`, both with `epgLimiter` and CSRF. The body holds `recording_ids` (up to `1000`), or `show_key` with `scope` (`watched` or `all`); optional `versions` (`both`, `recording`, or `other` per id); and, for the delete, `expected_count` and optional `remove_series`.
+
+The delete answers `409` while a sync runs, while a target is `importing` or `scanning`, when Sonarr or Radarr cannot be reached to check file managers, or when the planned count differs from `expected_count`. It then runs in this order:
+
+1. `runForeign` (`src/foreign-delete.js`) deletes the other copies (Plex items that are not the recording). A copy with no manager is deleted under the root rules; a managed copy goes through its app ([Sonarr and Radarr](#sonarr-and-radarr)).
+2. `runDeletion` (`src/library-delete.js`) handles each recording. It refuses a file that TVHeadend still writes. It keeps a file that another live row holds (`kept_shared`) or a `library_replacement` file.
+3. It deletes the library file, its `.edl`, and its `.orig`, then up to `2` empty parent folders inside the root.
+4. It removes the TVHeadend copy with `removeRecordings`, unless `deleted_from_tvh_at` is set.
+
+Each target must be an absolute path inside the TV, one-off, or movies folder, its parent's `realpath` must stay in the root's `realpath`, and `lstat` must show a regular file. `deletionPatch` sets `library_deleted_at`, `library_choice` `exclude`, and, after a TVHeadend removal, `deleted_from_tvh_at` and `purged_at`. `bytesFreed` counts a file once per inode, only when the request removed all of its hardlinks. Each kind with a change refreshes its Plex section. The status is `200`, or `207` when any result is not `ok`.
+
+`sweepLibraryStates` (`src/library-files.js`) runs in each sync. For each `done` or `partial` row with a missing file, `library_state` becomes `replaced` (another video with the same `SxxEyy` in the same or a sibling `Season N` folder, stored in `library_replacement`) or `not_in_library`. `POST /api/recordings/:recording_id/library` with `choice: 'include'` resets a `not_in_library` row to `pending` and starts a `manual:import` sync.
+
+`POST /api/reset` returns `409` while a sync runs. Otherwise it deletes all rows of `recordings`, `syncs`, `shows`, and `settings`, and restarts the scheduler.
 
 ## Live TV
 
-The browser plays live TV as HLS that Freetvarr makes itself. TVHeadend streams MPEG-TS, which no browser plays, and TVHeadend's own transcoding profiles vary by build, so Freetvarr uses the ffmpeg already in its image.
+Freetvarr plays live TV in the browser as [HLS](https://datatracker.ietf.org/doc/html/rfc8216) that its own `ffmpeg` process writes. Each session reads one TVHeadend channel stream as [MPEG-TS](https://en.wikipedia.org/wiki/MPEG_transport_stream) and pipes it into `ffmpeg`. The server code is `src/live-tv.js`, `src/live-encoder.js`, and the `/api/live` routes in `src/server.js`. The guide page is [Live TV](/guide/live-tv).
 
 ```mermaid
 flowchart LR
   subgraph browser["Browser"]
-    player["LivePlayer<br>native HLS or hls.js"]
+    player["LivePlayer<br>hls.js or native HLS"]
   end
   subgraph app["Freetvarr"]
     routes["/api/live routes"]
-    reg["Session registry<br>reaper · watchdog"]
-    ff["ffmpeg<br>pipe:0 → HLS"]
-    dir[("os.tmpdir()/freetvarr-live/&lt;session&gt;")]
+    reg["Session registry<br>reaper"]
+    ff["ffmpeg<br>pipe:0 to HLS"]
+    dir[("LIVE_ROOT/&lt;session&gt;")]
   end
-  tvh["TVHeadend<br>/stream/channel"]
-  player -->|"POST · preflight · playlist and segments · DELETE"| routes
+  subgraph tvh["TVHeadend"]
+    api["status/inputs,<br>status/subscriptions,<br>service/streams"]
+    stream["/stream/channel/&lt;id&gt;"]
+  end
+  player -->|"POST, preflight, hold,<br>attention, DELETE"| routes
+  player -->|"playlists and segments"| routes
+  routes -->|"preflight and plan"| api
   routes --> reg
-  reg -->|"Digest-authenticated GET"| tvh
-  tvh -->|"MPEG-TS"| ff
+  reg -->|"authenticated GET"| stream
+  stream -->|"MPEG-TS body"| reg
+  reg -->|"stdin"| ff
   ff --> dir
-  routes -->|"playlists, seg&lt;N&gt;.ts, live&lt;N&gt;.vtt"| dir
+  routes -->|"reads, rewrites captions"| dir
 ```
 
-Start (`POST /api/live`):
+### Live start
 
-1. Check the channel id against the guide's channel list.
-2. Run the preflight (below). A `409` with `code: 'no-tuner'` lists what holds each tuner.
-3. Read the channel's first service from `service/streams` and pick the streams with `pickStreams`. `h264Plan` handles H.264 video: Chrome cannot decode interlaced H.264, so it is deinterlaced and re-encoded to progressive H.264 (`LIVE_TV_TRANSCODE=copy` keeps the old copy). `detectLiveEncoder` in `src/live-encoder.js` runs once at startup (`liveEncoderReady` in `src/server.js`). For `auto` and `hardware` it checks `LIVE_TV_VAAPI_DEVICE` (default `/dev/dri/renderD128`) is readable and writable, then runs a test encode through `deinterlace_vaapi` and `h264_vaapi` (low-power first, then full). A pass selects VAAPI: deinterlace only interlaced frames, `720`-line cap, `-qp 24`. Otherwise it selects software (`yadif`, `libx264`, `540`-line cap) and logs the reason on a `[live] video` line. NVENC is not supported. With VAAPI selected, HD HEVC, MPEG-2, and VC-1 video is decoded in VAAPI and encoded with `h264_vaapi`: `scale_vaapi` to `format=nv12` (so `10`-bit HEVC becomes `8`-bit), a `1080`-line cap above `1080` lines and a `720`-line cap otherwise, and `deinterlace_vaapi` for everything except HEVC. When a VAAPI recording encode exits before its first segment, `softwarePlanOf` gives the software plan and playback starts again with it. Other video, SD video, and all video without VAAPI goes to `libx264` (`veryfast`, `zerolatency`, CRF `23`, GOP `50`), with `yadif` and a `576`-line cap for SD and a `540`-line cap for HD. Audio is the first track with `audio_type` `0` (so never audio description), preferring TVHeadend's default language, always re-encoded to stereo AAC at `128k`. Streams are mapped by PID. When the service has both a `TELETEXT` and a `TEXTSUB` stream, the plan gains `teletext: { pid, page }`: the `TELETEXT` PID, and the page `TEXTSUB PID - 0x2000` (`8993` gives `801`; anything outside `100–899` falls back to `801`).
-4. Spawn ffmpeg reading `-f mpegts -i pipe:0` with a short probe (`-probesize 500000 -analyzeduration 500000`), so ffmpeg starts writing after about `1 s` instead of the default `5 s`. It writes `-hls_time 2` with `-hls_init_time 1` (the first segments are `1 s` long) and `-hls_list_size` set by `liveSegmentCount` (the `LIVE_TV_BUFFER_MINUTES` buffer in `2`-second segments, never fewer than `6`), plus `delete_segments`, `independent_segments`, `omit_endlist`, and `temp_file`, so a reader never sees a half-written playlist. The `libx264` and VAAPI paths add `-force_key_frames 'expr:lt(t,4)*gte(t,n_forced)'` so the first segments cut on a keyframe every second. Copy mode cuts on the broadcast's own keyframes. `-muxdelay 0` keeps the segment timestamps in line with the caption timestamps, and `-max_interleave_delta 500000` stops a silent caption stream from holding back segments. ffmpeg writes a master playlist `index.m3u8` (`-master_pl_name`, `-var_stream_map`) over the media playlist `live.m3u8`. With teletext, ffmpeg decodes the page (`-txt_page <page> -txt_format text -txt_duration 4000`) to WebVTT, and writes `live_vtt.m3u8` and `live<N>.vtt` beside the video segments. The server renames the caption track to `English` and adds `AUTOSELECT=YES` in the master. If ffmpeg exits before the stream is live, the session restarts it once for each fallback and reopens the TVHeadend stream: with the default probe when its error says it lacks stream parameters (`Could not find codec parameters`, `unspecified sample rate`, `unspecified size`), and without teletext when its error names the teletext PID.
-5. Open the TVHeadend stream through the same `sendAuthenticated` path as the API, with an `AbortSignal`, and pipe the body into ffmpeg's stdin. The credentials never appear in ffmpeg's arguments or in any URL.
+`POST /api/live` takes `channel_id` and an optional `picture_rank`, and calls `startLiveChannel` (`liveLimiter`, CSRF):
 
-Sessions are one per channel and shared by every viewer of it, up to the **Live streams at once** limit ([Stream limit](#stream-limit)). The playlist request waits up to `15 s` for the first segments, so the player asks for it straight after the start request returns. If that wait fails, the player falls back to polling the preflight until the session is live. The libx264 and VAAPI paths serve the first segment, because it opens on an encoder keyframe; copy mode leaves it out of the playlist, because it starts mid-GOP at the tuner cut-in. With hls.js, the player keeps the video paused under the tuning animation until `3 s` are buffered ahead of the playhead (or `4 s` after the stream's metadata loads), so playback does not stall when the `1 s` opening segments give way to `2 s` ones. hls.js holds `4 s` behind the newest segment (`liveSyncDuration`), and **Go live** returns to that point. Every playlist or segment request refreshes the session's last-seen time, and so does the player's preflight poll. A reaper runs every `5 s`:
+1. When a session on the channel exists (`forChannel`), the viewer joins it and nothing else runs.
+2. `preflightChannel` checks the tuners. A refusal throws a `LiveTvError` with status `409`.
+3. `planForChannel` reads the first service of the channel from `service/streams` and the default languages from `config/load`, then calls `pickStreams`.
+4. `sessions.start` applies the [Stream limit](#stream-limit), spawns `ffmpeg`, and opens the TVHeadend stream.
 
-- **Idle**: no request for `20 s` ends the session, unless the session is held (below).
-- **Stalled**: no bytes from TVHeadend for `10 s` marks it stalled, then `status/subscriptions` decides why. A DVR subscription that started after the stream means a recording preempted it. The stream's own subscription still present means no input. Neither means TVHeadend dropped it.
-- **ffmpeg exit**: the first line ffmpeg printed to stderr becomes the stop reason.
+| Code                     | Status | Cause                                                                                 |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------- |
+| `unknown-channel`        | `404`  | The channel id is not in the guide channel list                                       |
+| `off-air`                | `409`  | Every service of the channel is disabled                                              |
+| `no-tuner`               | `409`  | No tuner is on the channel's multiplex and no tuner is idle; the body lists `holders` |
+| `no-service`, `no-video` | `409`  | The channel has no mapped service, or the service has no video                        |
+| `stream-limit`           | `409`  | The live and playback sessions fill the stream limit                                  |
 
-Teardown runs in a fixed order: abort the upstream request, `SIGTERM` ffmpeg (`SIGKILL` after `3 s`), then delete the session folder. Server shutdown tears down every session, and startup deletes any folder a crash left behind. An ended session's reason stays readable for `60 s`, so the player can say why it stopped.
+### Live stream plan
 
-The preflight (`GET /api/live/preflight?channel=<uuid>`) reads `status/inputs` live and compares multiplex names. A tuner already on the channel's multiplex is shared; otherwise an idle tuner is needed. For recordings whose padded start falls in the next `60` minutes, it counts the distinct multiplexes needed at that start: recordings running then, that recording, and this stream. More than the tuner count is a conflict, returned with the recording's title and start. Recordings come from the `45 s` recording-state cache, so the player's poll every `10 s` costs TVHeadend only a few small status reads.
+`detectLiveEncoder` (`src/live-encoder.js`) runs once at startup. `LIVE_TV_TRANSCODE` selects the encoder: `auto` (default) or `hardware` give [VAAPI](https://ffmpeg.org/ffmpeg-codecs.html#VAAPI-encoders) when the device test passes, else software; `software` gives `libx264`; `copy` maps H.264 video with `-c:v copy`. The VAAPI test opens `LIVE_TV_VAAPI_DEVICE` (default `/dev/dri/renderD128`) and encodes two test frames, with a `20 s` timeout.
 
-The player is one Vue component mounted once in the app shell and teleported to `<body>`, so playback continues across page changes, in full screen or as the Miniplayer. It uses hls.js wherever Media Source Extensions exist and recovers a capped number of media errors. It uses native HLS only where they do not exist (iPhone Safari). It imports hls.js only when a stream starts: `/vendor/hls.mjs` is served from `node_modules` at a pinned version, with its worker at `/vendor/hls.worker.js`. iOS allows playback only from a tap, so the tap handler calls `video.play()` on the empty element at once and sets the source when the stream is ready. When the page becomes hidden (a locked phone, another app, another tab) it sends a `keepalive` `POST /api/live/:session/hold` with the CSRF header. A hold sets `heldUntil` to now plus the buffer length, and the reaper skips the idle check until then; with no buffer, a hold acts as a leave. On `pagehide` the page sends `DELETE` unless the page is going into the back-forward cache (`event.persisted`), in which case it sends a hold. When the page becomes visible again it polls at once, and that poll refreshes the last-seen time.
+`pickStreams` returns the streams, mapped by PID, and a `videoMode`:
 
-Pause and rewind work inside the playlist window. The session view carries `bufferSeconds`, and the player turns its controls off when it is `0`. The player measures how far behind live it is once a second (`timeupdate` stops while paused), against hls.js's `liveSyncPosition`, or `6 s` before the seekable end on native HLS. A `seeking` handler moves any seek before the oldest kept segment to `4 s` after it, because ffmpeg has deleted the older files. hls.js runs with `liveMaxLatencyDuration` set to `Infinity`, so it never jumps a paused viewer back to live. On touch screens, `touchend` on the player frame detects taps (under `10 px` of movement and `300 ms`); a double-tap in the left or right `40%` of the picture, above the native control bar, skips `10 s`, and further taps on that side within `0.7 s` add `10 s` each. Safari on an iPhone plays native HLS and shows no timeline for a live stream, so double-tap is its only way to rewind. hls.js through ManagedMediaSource would give a timeline, but hls.js then sets `disableRemotePlayback`, which turns AirPlay off.
+| Video                          | Encoder  | Plan                                                                         |
+| ------------------------------ | -------- | ---------------------------------------------------------------------------- |
+| H.264                          | VAAPI    | `vaapi`, `720`-line cap, deinterlace                                         |
+| H.264                          | Software | `transcode`, `540`-line cap, deinterlace                                     |
+| H.264                          | Copy     | `copy`                                                                       |
+| HEVC, MPEG-2, or VC-1 above SD | VAAPI    | `vaapi` with hardware decode, `1080`-line cap above `1080` lines, else `720` |
+| Other video, or no VAAPI       | Software | `transcode`; SD gets a `576`-line cap                                        |
+
+- [libx264](https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb) uses [yadif](https://ffmpeg.org/ffmpeg-filters.html#yadif-1), `-preset veryfast`, `-tune zerolatency`, `-crf 23`, and `-g 50`. VAAPI uses `deinterlace_vaapi`, `scale_vaapi`, and `h264_vaapi -qp 24`.
+- `pickAudio` takes the first normal audio track in a TVHeadend default language, else the first normal track. Audio is always stereo AAC at `128k`.
+- A service with `TELETEXT` and `TEXTSUB` streams gets captions when `ffmpeg` has the `libzvbi_teletextdec` decoder (`detectCaptionDecoder`). The page is the `TEXTSUB` PID minus `0x2000`; outside `100–899` it is `801`.
+
+### Live HLS output
+
+`ffmpegArgsFor` reads `-f mpegts -i pipe:0` with a short probe and writes HLS into `LIVE_ROOT/<session>`, where `LIVE_ROOT` is `os.tmpdir()/freetvarr-live`:
+
+| Option or file                         | Value                                                                                                                                                             |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-hls_time`, `-hls_init_time`          | `2`, `1`                                                                                                                                                          |
+| `-hls_list_size`                       | The `LIVE_TV_BUFFER_MINUTES` buffer in `2 s` segments, at least `6`                                                                                               |
+| `-hls_flags`                           | `delete_segments+independent_segments+omit_endlist+temp_file+program_date_time`                                                                                   |
+| `index.m3u8`, `live.m3u8`, `seg<N>.ts` | Master playlist, media playlist, video segments                                                                                                                   |
+| `live_vtt.m3u8`, `live<N>.vtt`         | Caption playlist and segments ([WebVTT](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API) from [DVB teletext](https://en.wikipedia.org/wiki/Teletext)) |
+
+`GET /api/live/:session/:file` serves these names only (`LIVE_FILE_PATTERN`), with `Cache-Control: no-store`. A playlist request waits up to `15 s` for the session to go live. The server rewrites files before it sends them: caption labels in `index.m3u8`, the first segment out of the copy-mode playlists, program date-times into `live_vtt.m3u8`, and two-row roll-up cues into each `live<N>.vtt` (`servedCaptionSegment`).
+
+When `ffmpeg` exits while the session is still `tuning`, the session restarts it once per fallback: first with the full probe (for missing codec parameters), then without teletext (for teletext errors).
+
+### TVHeadend stream request
+
+`openChannelStream` in `src/tvheadend.js` sends `GET /stream/channel/<id>?profile=pass&weight=<N>` with `User-Agent: Freetvarr-live/<session id>`. The request goes through `sendAuthenticated`, has no timeout, and uses the session's `AbortSignal`. The credentials never appear in `ffmpeg` arguments. A `503` ends the session with `no-tuner`, a reset before data with `no-source`, and any other refusal with `upstream`.
+
+### Live session registry
+
+`createLiveSessions` keeps one session per channel, shared by every viewer. A session has a `16`-hex-character id, the plan, the weight, a viewer count, `lastSeenAt`, `lastByteAt`, and `heldUntil`. Playlist, segment, and preflight requests refresh `lastSeenAt`.
+
+- `DELETE /api/live/:session` takes one viewer off; the last viewer ends the session.
+- `POST /api/live/:session/hold` keeps the session for `LIVE_TV_BUFFER_MINUTES`; with a buffer of `0` it acts as a `DELETE`.
+- `POST /api/live/:session/attention` takes `{ attending }` for [Watch tracking](#watch-tracking).
+
+The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and has no request for `20 s` ends with `idle`. No bytes for `10 s`, or the end of the TVHeadend response, is a stall. A stall reads `status/subscriptions`: a newer DVR subscription gives `preempted` with the recording title, the session's own subscription gives `no-input`, and neither gives `gone`. Teardown aborts the request, sends `SIGTERM` to `ffmpeg` (then `SIGKILL` after `3 s`), and deletes the session folder. Startup deletes `LIVE_ROOT`.
+
+### Live preflight
+
+`GET /api/live/preflight?channel=<id>` returns the tuner verdict and the session view. `tunerVerdict` gives `shared` (a tuner is on the channel's multiplex), `idle` (a tuner is free), or `no-tuner`. `findConflict` checks each recording that starts in the next `60` minutes; more distinct multiplexes than tuners at that start give a `conflict`. The client polls the preflight every `1 s` while tuning and every `10 s` while playing.
+
+### Live player
+
+`src/web/components/live-player.js` is one Vue component, mounted once in `src/web/app.js` and teleported to `<body>`, so playback continues across pages, in full screen, and in the Miniplayer. The session logic is in `src/web/shared/live-session.js`.
+
+- The client uses native HLS only when `MediaSource` is absent and the browser can play `application/vnd.apple.mpegurl`. Otherwise it imports [hls.js](https://github.com/video-dev/hls.js) from `/vendor/hls.mjs` when a stream starts.
+- The hls.js config is `liveSyncDuration: 4`, `liveMaxLatencyDuration: Infinity`, and `backBufferLength: 30`. Video starts when `2 s` are buffered, or `4 s` after metadata loads.
+- The player draws its own controls. A scrubber appears when the buffer allows at least `4 s` of rewind. Double taps on the left or right third skip `10 s` (`src/web/double-tap.js`).
+- A hidden page sends `POST .../hold` with `keepalive`. A `pagehide` that does not persist sends `DELETE`.
 
 ### Stream limit
 
-`src/live-streams.js` decides how many streams play at once. Live sessions and recording playback sessions share the limit. At startup Freetvarr runs a short benchmark (`src/live-benchmark.js`) with the encoder it chose and stores the result as the `live_benchmark` setting. The benchmark makes an `8 s` H.264 `1080i` MPEG-TS sample with AC-3 audio once (in the system temp folder), then runs the real live pipeline arguments on it (hardware decode, deinterlace, scale, and encode for VAAPI) as `1`, `2`, `3`, and `4` parallel `nice` ffmpeg processes. A round passes when every process runs at `1.2×` real time or faster; the estimate is the highest passing count, and the first failing round stops the run. The default is that estimate, capped at the tuner count and at `4`; without a benchmark it is `2` for VAAPI and `1` for software. A user choice (`max_live_streams`, `1` to `4`) overrides the default; `streamChoicesFor` offers only the choices up to the tuner count, and a stored choice above that count falls to it. `LIVE_TV_MAX_SESSIONS`, when set, caps both. **Measure again** (`POST /api/live/benchmark`) reruns the benchmark, and refuses with `409` while any stream plays or an ad scan runs.
+`src/live-streams.js` sets how many live and playback sessions run at once. Both session registries check the sum of their sessions against `liveStreams.current()`. The guide page is [Live streams at once](/guide/player#live-streams-at-once).
 
-### From the start
+At every startup, `liveStreams.measure()` runs `src/live-benchmark.js` unless a session or an ad scan runs. The benchmark encodes an `8 s` `1080i` H.264 sample with the live plan for `1`, `2`, `3`, then `4` parallel `nice -n 10 ffmpeg` processes. A round passes when every process runs at `1.2×` real time or faster; the estimate is the last passing round. The result is stored in the setting `live_benchmark`. The copy encoder skips the run and stores `4`.
 
-**From the start** plays a programme that TVHeadend is still recording. `POST /api/play/in-progress` takes the DVR entry's UUID and opens a playback session over the growing file. Freetvarr reads the file from the recordings folder when `localPathFor` can translate its path, and otherwise from TVHeadend's `/dvrfile/<uuid>` with a `Range` header. `feedGrowing` copies what is there, polls every `1 s` from the last offset, and ends the stream after two empty reads once the entry has stopped recording. The client offers the choice only for an active, unfailed recording on the same channel whose padded window covers now.
+| Source                     | Effect                                                                |
+| -------------------------- | --------------------------------------------------------------------- |
+| `LIVE_TV_MAX_SESSIONS`     | An integer `1` or more; replaces the default and caps the user choice |
+| Benchmark estimate         | Default, capped at the tuner count and at `4`                         |
+| No benchmark               | Default `2` for VAAPI, `1` for software                               |
+| Setting `max_live_streams` | User choice `1–4` up to the tuner count, or empty for the default     |
+
+`GET` and `PUT /api/live-streams` read and set the limit. `POST /api/live/benchmark` (**Measure again**) returns `409` with `code: 'busy'` while a stream plays or an ad scan runs.
 
 ### Multiview
 
-Multiview runs up to three live sessions beside the main player's session, one for each extra picture, so `N` pictures need a stream limit of `N`. Each session is an ordinary live session with its own tuner check. `GET /api/live/tuner-status` returns the tuners, what holds each one, the stream limit, and a cost for each channel: `free-tuner`, `no-extra-tuner` (its multiplex is already tuned, when TVHeadend reports a multiplex for each service), or `unavailable`. The picker shows these as tags.
+Multiview plays up to three companion live sessions beside the main player's session. Each companion is an ordinary live session with its own `<video>`, hls.js instance, and preflight. The guide page is [Multiview](/guide/player#multiview).
 
-The pure rules live in `src/web/multi-view.js`:
+- `GET /api/live/tuner-status` (`src/tuner-status.js`) returns the tuners, their holders, the stream capacity, and a cost per channel: `free-tuner`, `no-extra-tuner` (shares a tuner with `sharesWith`), or `unavailable`. The client polls it every `5 s` while Multiview is open.
+- `src/web/multi-view.js` holds the rules. `pictureLimitOf` caps a phone layout at `2` pictures and other screens at `4`, never above the stream limit. Layouts are **Side by side**, **Big and small**, and **Grid**. One picture at most has sound.
+- A companion sends `picture_rank` `1`, `2`, or `3`. `liveStreamWeightOf` gives the subscription weight `50 - 10 × rank`, so the main player has `50` and the companions `40`, `30`, and `20`. TVHeadend takes the lowest weight first when a recording needs a tuner.
 
-- **Pictures**: `primary` is the main player; `secondary`, `third`, and `fourth` are companions with their own `<video>`, hls.js instance, and preflight poll in `src/web/shared/multi-session.js`. `order` lists the pictures on screen; its first entry is the main picture.
-- **Limit**: `pictureLimitOf` caps a compact screen (`max-width: 767px` or `max-height: 500px`) at `2` and others at `4`, and never above the stream limit.
-- **Layouts**: up to `2` pictures keep **Side by side**, **Big and small** with a draggable inset, and the stacked phone layout. From `3`, `tileBoxesOf` returns 16:9 boxes for **Grid** (two by two) or **Big and small** (a main picture and a strip of up to three, right of it in a landscape area and below it in a portrait one). The boxes become `--mv-x`, `--mv-y`, `--mv-w`, and `--mv-h` on each picture and video, placed with `transform`. They change only on a resize, a layout change, or a change of pictures.
-- **Sound**: only one picture is ever audible; `soundAfterTap` holds the rule. When the audible picture stops or leaves, `soundAfterStop` moves the sound to the first picture in `order` that still plays.
-- **Recordings**: `POST /api/live` takes `picture_rank` (the picture's place in `PICTURES`), and `liveStreamWeightOf` turns it into the TVHeadend subscription weight: `50` for the main picture, then `40`, `30`, and `20`. When a recording needs a busy tuner, TVHeadend takes the one with the lowest weight, so the newest picture stops first. The stopped picture keeps its slot with `Stopped for a recording:` and the programme name, and offers **Pick a channel** and **Remove**.
+## Recording playback
 
-## Library delete
+The player plays a recording, or a Plex library item, as HLS from a per-file `ffmpeg` session. The server code is `src/playback.js` and its routes in `src/server.js`; the client code is `src/web/shared/playback-session.js`. Playback sessions count against the [Stream limit](#stream-limit). The guide page is [Playback](/guide/recordings#playback).
 
-`POST /api/library/delete/preview` lists what a delete would remove: each episode, whether its library file still exists, every other copy of it, and the total size. The dialog shows that list. `POST /api/library/delete` takes the same recording IDs plus the count the user saw, and refuses with `409` if the count changed in between, while a sync runs, or while one of the episodes imports or has an ad scan. For each recording, `src/library-delete.js` deletes the library file and its `.edl` and `.orig` sidecars, then removes the TVHeadend copy with the same `removeRecordings` calls as [Remove after import](#remove-after-import), so the kept entry still blocks a re-record. It marks the row `library_deleted_at` and excludes it from the library. A recording that TVHeadend is writing is refused. After the deletes, Freetvarr refreshes each affected Plex section once and returns a result for each recording.
+| Route                               | Purpose                                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------- |
+| `POST /api/recordings/:id/play`     | Start a session; body `offset`, `replace`, `player`, `part_id` (`playLimiter`)   |
+| `GET /api/play/:session/:file`      | Serve `index.m3u8`, `play.m3u8`, `play_vtt.m3u8`, `seg<N>.ts`, and `play<N>.vtt` |
+| `POST /api/play/:session/heartbeat` | Refresh the session; `404` with `code: 'gone'` after it ends                     |
+| `POST /api/play/:session/attention` | Set `attending` for watch tracking                                               |
+| `DELETE /api/play/:session`         | Stop the session                                                                 |
+| `POST /api/recordings/:id/position` | Save the position (`0–86400` seconds)                                            |
 
-These rules keep a delete to files Freetvarr owns:
+### Playback start
 
-- **Roots**: Freetvarr never deletes a file outside the media, movies, or one-off roots. Each path is resolved through `realpath` first, so a symlink cannot point a delete outside a root.
-- **Shared files**: when another live `recordings` row holds the same `file_path`, the file stays (`kept_shared`) and only this row and its TVHeadend copy go.
-- **Replacements**: when the recorded file is gone and another file for the same `SxxEyy` sits in the same or a sibling season folder (`findReplacement` in `src/library-files.js`), the row is `replaced` and a delete leaves that file alone.
+1. Load the `recordings` row, or the Plex item row for a Plex item id.
+2. `playbackCandidates` lists the library `file_path` (status `done` or `partial`), then the TVHeadend file through `localPathFor`. `resolvePlaybackFile` keeps the first whose real path is inside a media, one-off, movies, or recordings folder; none gives `410` with `code: 'missing'`.
+3. Probe the file with `ffprobe` (`30 s` timeout, cached by path, size, and time).
+4. With no `offset`, `resumeStartFor` resumes from `playback_position_s` unless it is within `30 s` of the end (`RESUME_END_MARGIN_S`).
+5. `planForFile` maps the probe onto `pickStreams`, so the plan rules match [Live stream plan](#live-stream-plan).
 
-An episode whose library file was deleted outside Freetvarr, with no replacement, gets `library_state = 'not_in_library'`. The Library hides it, and the Recording log keeps it with **Import again**.
+`playbackArgsFor` puts `-ss <offset>` before `-i <file>`, maps streams by index, and writes `6 s` segments (`PLAY_SEGMENT_SECONDS`) as an `event` playlist into `LIVE_ROOT/play/<session>`. The served playlist gains `#EXT-X-ENDLIST` once `ffmpeg` finishes. Before the first segment, a failed `ffmpeg` restarts with the full probe, then without teletext, then with the software plan for `vaapi`.
 
-When an episode has other copies from the [whole Plex library](#whole-plex-library), each row in the request takes a choice in `versions`: `both` (the default), `recording`, or `other`. A copy downloaded by Sonarr or Radarr is deleted through that app ([Sonarr and Radarr](#sonarr-and-radarr)); a copy with no manager is deleted from the disk under the same root rules; a copy whose manager is not connected is left alone with a reason. With `remove_series: true`, Freetvarr also deletes the Sonarr series (`deleteFiles=false`, `addImportListExclusion=true`), so Sonarr stops searching for it.
+The client sends a heartbeat every `15 s` and saves the position on each heartbeat while it plays. The reaper ends a session after `60 s` with no request. `seekPlan` (`src/web/playback.js`) seeks inside the produced part, or starts a new session at the target offset with `replace` set.
 
-## Plex watched sync
+### Playback positions
 
-`src/plex-watch-sync.js` copies watched marks and resume points between Freetvarr and Plex in both directions. It reads the Plex TV, movies, and one-off libraries chosen in Settings → RECORDING → Plex, and needs the Plex URL and token.
+The position route writes `playback_position_s`, `played_at`, and `watched_at`. For a Plex item it calls `saveItemPosition`. A DVR entry that is still recording has no row yet; `rememberInProgressPosition` keeps its position in the setting `in_progress_positions` for `3` days, and `applyInProgressPositions` copies it onto the new row after each sync.
 
-- **Matching**: each imported recording is matched to a Plex item by its file path, compared from the file name upward (`matchPlexItem` in `src/library-actions.js`), so Plex and Freetvarr can mount the library at different paths. A recording that matches two Plex items, or a Plex item that two recordings match, is left out and counted as ambiguous.
-- **Changes only**: `plex_watch_state` (migration `0034`) keeps a snapshot of both sides after each run. The next run compares each side with its snapshot, so only the side that changed is copied. When both changed, the watched mark set in Freetvarr wins; for two changed resume points, the newer one wins. Resume points within `15 s` count as equal, and a Plex resume point within `30 s` of the end marks the episode watched. The first run for a recording, with no snapshot, keeps any watched mark from either side.
-- **Writes to Plex**: `/:/scrobble`, `/:/unscrobble`, and `/:/progress` with the item's rating key, up to `4` at a time.
-- **Passes**: a full pass reads every item in the sections, `500` to a page; it runs on the first run, once a day, by **Sync watched now**, and hourly while some recordings have no match yet. Other runs read only items watched since the last run (with a `2`-minute overlap), plus the Plex items of recordings whose state changed in Freetvarr.
-- **Triggers**: after each sync, `10 s` after a watched or resume change in Freetvarr, when the Library opens (at most every `2` minutes), and after a settings change.
-- **Failures**: an unreachable Plex backs off from `5` minutes, doubling up to `2` hours. A rejected token stops automatic runs until the token changes; **Sync watched now** still tries. Reads time out after `15 s`, writes after `10 s`.
+### Watch tracking
 
-`GET /api/plex/watch-sync` returns the switches and the last result, `PUT` sets `from_plex` and `to_plex` (the **From Plex** and **Back to Plex** switches, both on by default), and `POST /api/plex/watch-sync/run` runs a full pass. Each run is a **Plex watched sync** job in [Activity](#activity).
+`src/watch-tracker.js` turns sessions into `user_events` rows through the `onStart`, `onAttention`, and `onEnd` hooks of both session registries. `src/web/shared/attention-session.js` reports attention every `2 s`: a picture is attended when the page is visible (or in Picture-in-Picture) and the video plays.
 
-## Whole Plex library
+| Session  | `watch_start`                               | `watch_end`                                                                        |
+| -------- | ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Live     | At session start, with the programme on air | One row per programme that overlaps an attended span of `60 s` or more             |
+| Playback | At session start, with the start offset     | One row per viewing, `15 s` after the last session ends, with the attended seconds |
 
-After each watched sync, `src/plex-library-scan.js` reads the Plex sections chosen under **YOUR WHOLE LIBRARY** (by default the TV and movies sections, never the one-off section) into `library_items` (migration `0035`), one row per file. A full pass replaces a section's rows; a quick pass adds items added or watched since the last run. A Plex path outside Freetvarr's roots is translated by the root's folder name (`localPathOf` in `src/plex-library.js`): `/media/tv/Show/Season 01/x.mkv` in Plex becomes `<media_root>/Show/Season 01/x.mkv` when the media root's folder is also named `tv`. Items with no file are dropped. **Your whole library** is on by default.
+### From the start
 
-`src/library.js` merges these rows with the recordings:
+**From the start** plays a programme that TVHeadend is still recording. The server code is `src/in-progress-playback.js`; the client calls `watchFromStart` and plays in the live player. The guide page is [Start over](/guide/player#start-over).
 
-- A Plex file that is one of Freetvarr's recordings adds nothing new.
-- A Plex episode with the same show, season, and episode as a recording becomes another version of that recording.
-- Any other Plex item becomes a library row with the id `plex-<ratingKey>`, on the same shelves as recordings.
+`POST /api/play/in-progress` takes `dvrUuid`, `player`, and `replace`:
 
-These rows play in Freetvarr from the local file. A watched mark or resume point set on one is saved on the row with a `pending_push`, and the next watched sync sends it to Plex. `GET` and `PUT /api/plex/whole-library` read and set the switch and the chosen sections; `GET /api/library/items/:ratingKey/image` serves the Plex artwork.
+1. Find the entry in `listActiveRecordings`; none gives `404` with `code: 'not-recording'`.
+2. `growingSourceFor` uses the local file when `localPathFor` maps the path, else `GET /dvrfile/<uuid>` with a `Range` header.
+3. Probe the source. An HTTP source copies its first `2 MB` to a temporary `head.ts` for `ffprobe`.
+4. Start a playback session with a feed: `ffmpeg` reads `pipe:0` and writes `2 s` segments.
+
+`feedGrowing` copies new bytes into `ffmpeg` every `1 s` (`IN_PROGRESS_POLL_MS`). When a read copies nothing, it checks whether the entry still records, at most every `5 s` (`RECORDING_CHECK_MS`). After two empty reads with the entry no longer recording, the feed ends the input. The session view adds `growing`, `recordingStartedAt`, `scheduledEndAt`, and `liveEdgeSeconds`.
+
+## Pictures and programme info
+
+Pictures and programme info come from the guide, Plex, TVmaze, [Wikidata](https://www.wikidata.org/wiki/Wikidata:Main_Page), [Wikipedia](https://www.wikipedia.org/), and [TMDB](https://developer.themoviedb.org/docs/getting-started). Lookups for pictures, scores, reviews, and cast share one outbound client, one lookup gate, and one daily prune.
+
+### Picture routes
+
+| Route                          | Parameters                                                      | Used by                                              |
+| ------------------------------ | --------------------------------------------------------------- | ---------------------------------------------------- |
+| `GET /api/epg/image/:eventId`  | `w`                                                             | Guide cells, Live TV thumbnails, the programme sheet |
+| `GET /api/epg/show-image`      | `title`, `shape` (`poster` or landscape), `kind` (`movie`), `w` | For you, show pages, **Change picture**              |
+| `GET /api/epg/logo/:channelId` | `w` (`96` or `192`)                                             | Channel logos                                        |
+
+`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. A found picture answers `200` with `Cache-Control: public, max-age=86400`. A lookup still running answers `404` with `no-store`, and the client asks again after `5 s`. No picture answers `404` with `max-age=300`.
+
+### Picture sources
+
+`findProgrammeThumbnail` in `src/epg.js` serves the event route. It tries guide images (the event's image, then other airings of the title) within `1.5 s` (`GUIDE_IMAGE_BUDGET_MS`), then the show chain within `3 s` (`SHOW_IMAGE_BUDGET_MS`). The show route starts at the show chain: `findShowThumbnail` for landscape, `findShowPoster` for posters.
+
+```mermaid
+flowchart TD
+  request["GET /api/epg/show-image"] --> chosen{"Chosen picture<br>for show and kind?"}
+  chosen -- yes --> chosenImage["Serve the chosen picture"]
+  chosen -- no --> kind{"kind"}
+  subgraph series["Series"]
+    plex["Plex art and thumb"] --> tvmaze["TVmaze"] --> online["Wikipedia and TMDB"]
+  end
+  subgraph film["Film"]
+    onlineFilm["Wikipedia and TMDB"] --> airings["Guide images of other airings"]
+  end
+  kind -- series --> plex
+  kind -- film --> onlineFilm
+```
+
+| Source             | Code                                                 | Rule                                                                                |
+| ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                        |
+| Plex               | `plexSourcesOf` in `src/show-artwork.js`             | `art` and `thumb` of the item with the same title key in the TV and movies sections |
+| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                     |
+| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                     |
+
+The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
+
+### Online lookup
+
+`createArtworkLookup` in `src/fallback-artwork.js` finds a Wikidata item or a TMDB record for a title. `programmeHintsOf` in `src/artwork-match.js` gathers hints from up to `8` airings: the longest synopsis, release years, cast names, episode titles, and channel names. A title with no hints and no stored external ids gets no result.
+
+1. With a TMDB key and stored external ids, the lookup goes straight to TMDB.
+2. Otherwise it searches Wikidata (`wbsearchentities`), then Wikipedia, for each title variant, and keeps items with the same title key.
+3. One [SPARQL](https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/queries) query keeps films (`Q11424`) and television programmes (`Q15416`), with the year, the English article, and the TMDB and [IMDb](https://www.imdb.com/) ids.
+4. `rankEntities` scores the items by year fit, database ids, and search order; `matchEvidenceOf` must accept the article text.
+5. With a key, the TMDB id gives the pictures; else the Wikipedia article image is the result.
+6. With a key and no Wikidata match, a TMDB search (`/search/movie`, `/search/tv`, or `/search/multi`) runs for each title variant.
+
+`matchEvidenceOf` compares the hints with a candidate's text. It rejects a candidate on a year mismatch or on cast names that do not appear. It accepts a candidate on a cast name, a year within one, or shared proper nouns and distinctive words; else the result is `no-evidence`. TMDB gives up to `8` pictures per kind (`MAX_TMDB_PICTURES`): backdrops at `original` and posters at `w780`, English first.
+
+### Lookup caches
+
+| Store                       | Table                                    | Hit    | Miss                                  |
+| --------------------------- | ---------------------------------------- | ------ | ------------------------------------- |
+| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d`                                 |
+| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without |
+| **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                 |
+| Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`                                 |
+
+- Keys start with `wide-v1:` and hold the mode (`tmdb` with a key, `open` without), the kind, and the title key; stored external ids end the key.
+- An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old.
+- A failed lookup is not stored; the key waits `10` min in memory.
+- Routes wait for a lookup within a budget, then answer pending: `1.5 s` for guide images and for ratings, `3 s` for a show picture, `6 s` for the **Change picture** list.
+
+### Image cache
+
+`createThumbnailStore` in `src/image-thumbnails.js` resizes pictures to WebP at quality `72` in `image-cache/` beside the database (`<sha256>.webp`), up to `IMAGE_CACHE_MAX_MB` (default `100`); the oldest file goes first. Recording thumbnails use `image-cache/recordings/` with `20 MB`. `createProgrammeImages` (`src/programme-images.js`) keeps `64` source images (`32 MB`) in memory.
+
+### Change picture
+
+`src/artwork-choice-routes.js` serves **Change picture** under `/api/library/shows/:key/`: `artwork-candidates` (the list; `pending` after `6 s`), `artwork-candidates/:id` (one picture), `PUT` and `DELETE artwork/:kind` (choose, clear), and `artwork/:kind/uploads` (upload, delete). `:kind` is `background` or `poster`. Candidates come from Plex, TVmaze, TMDB, Wikipedia, the guide, and uploads, up to `12` per source and kind. The choice goes in `show_artwork_choices` (`show_key`, `kind`, `origin`, `source`, `chosen_at`).
+
+Uploads (`src/artwork-uploads.js`) accept up to `20 MB` and `40` megapixels in `jpeg`, `png`, `webp`, or `heif`, `12` per show and kind. They are stored as WebP at most `1920×1080` (`background`) or `1000×1500` (`poster`) in `uploads/artwork/<showKey>/`.
+
+`src/art-pool.js` builds the picture pools behind the show and episode pages (`GET /api/library/shows/:key/art-pool`, `GET /api/library/recordings/:recording_id/art`).
+
+### Picture focus
+
+Picture focus stores a face box or a focus point for each picture URL, so the client can crop heroes and posters around faces.
+
+- The middleware `imageFocus.tap` (`src/image-focus.js`) queues each served picture on a focus path (`FOCUS_IMAGE_PATHS`) that has no current `image_focus` row.
+- `src/image-focus-worker.js` runs as a child process at priority `19`, `16` pictures per run. It runs `assets/models/ultraface-rfb-320.onnx` through `onnxruntime-node` ([ONNX Runtime](https://onnxruntime.ai/docs/)) and keeps faces with a score of `0.7` or more. With no face, the focus is the `sharp` attention point, else the centre.
+- The worker pauses `10` min when free memory falls below `400 MB`, and `30` min after a failed run.
+- `image_focus` keeps the newest `20000` rows. `method` is `faces`, `attention`, or `centre`.
+- `GET /api/image-focus?k=<key>` takes up to `40` keys and returns `{ enabled, items }`. The setting `face_focus_enabled` (default on) switches the feature.
+
+### TMDB key
+
+`src/tmdb-key.js` serves `GET`, `PUT`, and `DELETE /api/artwork/tmdb` and `POST /api/artwork/tmdb/test`. The key lives in the setting `tmdb_api_key`; `GET` returns `{ key_set }`, never the key. `validateTmdbKey` requests `GET /3/configuration`: `401` means `invalid`, other failures mean `unreachable` (the key is saved with `checked: false`). A key with a dot and more than `40` characters goes in `Authorization: Bearer`; any other key goes in the query parameter `api_key`.
+
+### Outbound HTTP
+
+`createOutboundClient` in `src/outbound-http.js` sends every request for pictures, ratings, reviews, cast, and person images. The shared instance is `artworkClient` in `src/fallback-artwork.js`, which sets the host list:
+
+| Host                                   | Concurrency | Gap                                   |
+| -------------------------------------- | ----------- | ------------------------------------- |
+| `www.wikidata.org`                     | `2`         | `200 ms`                              |
+| `query.wikidata.org`                   | `1`         | `1000 ms`                             |
+| `en.wikipedia.org`                     | `2`         | `200 ms`                              |
+| `upload.wikimedia.org`                 | `2`         | `250 ms`                              |
+| `api.themoviedb.org`, `image.tmdb.org` | `4`         | `50 ms`                               |
+| `api.tvmaze.com`                       | `1`         | `500 ms`                              |
+| `static.tvmaze.com`                    | `2`         | `100 ms`                              |
+| `www.tvmaze.com`, `www.themoviedb.org` | `1`         | `1000 ms` (`HEAD /` link checks only) |
+
+| Rule            | Value                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Address         | `https` only, a host from the list, at most `3` redirects that stay on the list                                                       |
+| JSON request    | `8 s` timeout (`20 s` for SPARQL), `2 MB` limit, `2` retries                                                                          |
+| Image request   | `10 s` timeout, `4 MB` limit, JPEG, PNG, WebP, or GIF, `1` retry                                                                      |
+| Queue           | Up to `200` waiting requests per host; more fail with `queue-full`                                                                    |
+| Retries         | On `408`, `425`, `429`, `500`, `502`, `503`, `504`, a timeout, or a network error; delay `500 ms` doubling up to `8 s`                |
+| `404`, `410`    | The call returns `null`                                                                                                               |
+| Circuit breaker | `5` failures in a row open the breaker for `60 s`, doubling per trip up to `30` min                                                   |
+| User-Agent      | `Freetvarr (https://github.com/furey/freetvarr)` ([Wikimedia policy](https://foundation.wikimedia.org/wiki/Policy:User-Agent_policy)) |
+
+Errors name the host and the status, never the address, so a TMDB key never reaches a log. `src/genre-enrichment.js`, `src/known-as.js`, `src/show-artwork.js`, and `fetchProgrammeImage` call [axios](https://axios-http.com/docs/intro) directly.
+
+`src/lookup-gate.js` limits lookups for titles that Freetvarr does not know. A title is known when it is in the guide, `guide_programs`, `recordings`, or `watchlist`. Unknown titles may start `60` lookups an hour (`UNKNOWN_TITLE_BUDGET`); a refused lookup answers `none`.
+
+`src/cache-prune.js` runs `10` min after start, then daily. It deletes rows of the lookup tables whose `expires_at` is more than `90 d` past, then keeps the newest `20000` rows per table. `src/link-health.js` checks each link host at most every `5` min; links to a host that is down become `null`.
+
+### Ratings and reviews
+
+`GET /api/epg/programme-ratings?title=&kind=movie&year=` returns `{ status, score, votes, source, url, reviews }` (`ratingsLimiter`). `status` is `ready`, `pending`, or `none`. The route waits `1.5 s` for a new lookup, then answers `pending`; the client asks again after `1`, `2`, `4`, `8`, and `15 s`.
+
+| Setting                  | Default | Effect                                                   |
+| ------------------------ | ------- | -------------------------------------------------------- |
+| `ratings_lookup_enabled` | On      | Scores                                                   |
+| `reviews_lookup_enabled` | On      | Review snippets; they need a TMDB key                    |
+| `tmdb_api_key`           | None    | Films and reviews need it; series scores work without it |
+
+`createRatingsLookup` in `src/programme-ratings.js` matches the title:
+
+- A film matches TMDB by stored external ids, the stored picture reference, or `/search/movie` with year and evidence rules (`matchedFilm`).
+- A series matches TMDB first with a key, then TVmaze (`pickRatedShow`), with the same evidence rules.
+- Only story types score. A TMDB type outside `Scripted`, `Documentary`, and `Miniseries`, or a TVmaze type outside `Scripted`, `Animation`, and `Documentary`, ends with the miss `not-story`.
+- A TMDB score needs `50` votes or more (`MIN_TMDB_VOTES`). A TVmaze score is `rating.average` with `votes: null`.
+
+`src/review-snippet.js` picks one TMDB review sentence of `50–170` characters with judgement words and no spoiler words. The ratings warm-up (`warmUpcomingRatings` in `src/server.js`) looks up the films and rated categories of the next `24 h`, `2` min after start and then hourly.
+
+### Cast and crew
+
+`GET /api/epg/programme-credits?title=&kind=movie&year=` returns `{ status, overview, cast, crew, source, url }` with the same parameters, wait, and limiter as the ratings route. `cast` holds up to `12` entries `{ name, character, image, url }`. Film crew is the directors, up to `2` writers, and up to `2` producers; films need a TMDB key. Series crew is the creators and up to `2` executive producers, from TMDB when the TMDB match has a cast, else from TVmaze. `/api/epg/person-image` proxies TMDB `w185` and TVmaze person images at `w=192`. The setting `credits_lookup_enabled` (default on) switches the lookup.
+
+### Classification
+
+A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+` (`CLASSIFICATIONS` in `src/classification-labels.js`).
+
+- `serveShiftedFeed` records the `<rating>` and `<category>` of each XMLTV programme while TVHeadend reads `/guide/xmltv.xml`. It prefers an Australian rating system.
+- The labels go in `programme_classifications` and `programme_categories` (`title_key`, `start_ms`). Rows older than `3 d` are deleted after each feed load.
+- `fallbackClassification` uses the TVHeadend rating label, else maps the TVHeadend age `15` to `MA15+` and `18` to `R18+`.
+- The sync stores the label in `recordings.classification` and keeps the first label. Each prune copies labels into recordings with a `null` label.
+- Guide cells, live now and next, upcoming recordings, For you items, library rows, and episode rows carry `classification`. Scores and reviews are not part of list payloads.
+
+## Plex
+
+`src/plex.js` holds the Plex connection and library helpers. The settings are `plex_url`, `plex_token`, `plex_tv_section_id`, `plex_oneoff_section_id`, and `plex_movies_section_id`. The user guide covers the setup ([Plex](/guide/plex)).
+
+| Route                                                         | Does                                                                                                                                            |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/discover-plex`                                     | GDM discovery: a UDP broadcast to port `32414`, replies collected for `2 s` ([Plex GDM](https://developer.plex.tv/pms/)); needs host networking |
+| `POST /api/plex-detect-token`                                 | Reads `PlexOnlineToken` from `Preferences.xml` and saves it as `plex_token`                                                                     |
+| `POST /api/plex-sections`                                     | Lists the sections (`key`, `title`, `type`, `locations`)                                                                                        |
+| `POST /api/plex-libraries`, `POST /api/plex-libraries/create` | Plans and creates one library each for the TV (`TV Shows`), one-off (`One-offs`), and movies (`Movies`) roots, and saves the section ids        |
+| `POST /api/plex-refresh`                                      | Starts a section refresh                                                                                                                        |
+
+- The path of `Preferences.xml` is the setting `plex_prefs_path`, else `PLEX_PREFS_PATH`, else `/plex/Library/Application Support/Plex Media Server/Preferences.xml`.
+- Requests to Plex use axios with a `5 s` timeout; a section item list uses `15 s`.
+- After a sync, each kind with an import refreshes its section with `GET /library/sections/<id>/refresh`: TV through `notifyPlexSectionRefresh`, one-offs and films through `refreshSection`. With no URL, token, or section, the result is `{ skipped: true, reason: 'plex not configured' }`.
+
+### Watched sync
+
+`createPlexWatchSync` in `src/plex-watch-sync.js` copies watched marks and resume points in both directions. `src/plex-watch.js` wires it to the database; `src/plex-watch-plan.js` holds the decision rules; `src/plex-watch-client.js` holds the Plex requests.
+
+- Rows that take part: imported `done` or `partial` recordings that are not deleted, and items in the three Plex sections.
+- `matchPlexItem` in `src/library-actions.js` scores a Plex item by the shared trailing path segments with the recording file. An ambiguous match takes no part.
+- Triggers: the end of a sync, a watched or position change (after `10 s`), the Library opening (at most every `2` min), a settings change, and **Sync watched now** (`POST /api/plex/watch-sync/run`). One run executes at a time; requests during a run join one queued run.
+- A full pass reads every section item, `500` per page. It runs for a manual trigger, on the first run, when the last full pass is `24 h` old, or after `1 h` when rows lack a snapshot. A quick pass reads items viewed since the last run less `2` min.
+
+`plex_watch_state` stores one snapshot per recording: `rating_key`, `plex_watched`, `plex_offset_s`, `ft_watched`, `ft_position_s`, and `synced_at`. The plan for a row:
+
+| Rule                    | Detail                                                                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| First run (no snapshot) | Watched on either side makes both watched; the side with a resume point wins                                                      |
+| Later runs              | The side that changed since the snapshot wins; when both changed, Freetvarr wins for watched and the newer wins for resume points |
+| Resume points           | Used only when both sides are unwatched; offsets within `15 s` are equal                                                          |
+| End margin              | A Plex resume point within `30 s` of the end marks the recording watched                                                          |
+| Toggles                 | `plex_watch_from_plex` and `plex_watch_to_plex` (both on) block writes to one side                                                |
+
+Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a time. When Plex does not answer, automatic runs wait `5` min doubling up to `2 h`. A `401` stops automatic runs until the token changes. The status is in the setting `plex_watch_status`; `GET` and `PUT /api/plex/watch-sync` read it and set the toggles.
+
+### Whole library
+
+`createLibraryScan` in `src/plex-library-scan.js` runs at the end of each watched sync when the setting `plex_whole_library` is not `false`. The sections are in `plex_library_sections` (default: the TV and movies sections; never the one-off section).
+
+- Each Plex file part becomes a `library_items` row (`rating_key`, `part_id`). A full pass deletes rows that it did not see. `recording_id` is set when the file is a Freetvarr recording.
+- `localPathOf` in `src/plex-library.js` maps a Plex path to a local path by the root folder names.
+- The scan links each row with no `recording_id` to its Sonarr or Radarr manager, and writes Plex and Sonarr GUIDs to `external_ids`.
+- `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Any other item becomes a row with the id `plex-<ratingKey>`.
+- A watched mark or resume point on a `plex-` row sets `pending_push` (`scrobble`, `unscrobble`, or `progress`); the next scan sends it.
+
+`GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`.
 
 ## Sonarr and Radarr
 
-`src/arr-client.js` talks to the Sonarr and Radarr v3 APIs with the `X-Api-Key` header: `8 s` reads with one retry, `15 s` writes with none, `20 MB` responses, no redirects, and a circuit breaker per app. Settings → RECORDING → Sonarr and Radarr stores a URL and an API key for each (`sonarr_url`, `sonarr_api_key`, and the same for Radarr). With no saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `/sonarr-config.xml` or `/radarr-config.xml` (or `SONARR_CONFIG_PATH` and `RADARR_CONFIG_PATH` inside the container), which the compose file mounts read-only when the `.env` sets those paths ([Full environment reference](#full-environment-reference)).
+Sonarr and Radarr link to Freetvarr in three places: the settings routes, the library scan, and the delete flow. The user guide covers the setup ([Sonarr and Radarr](/guide/sonarr-radarr)).
 
-| Route                     | Does                                                                                                                                                                           |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET` and `PUT /api/arr`  | Reads and saves the URLs, the keys, and **Stop downloading it again** (`arr_unmonitor_on_delete`, default on). A save starts a full watched sync                               |
-| `POST /api/arr/find`      | Pings `/ping` on the default port (`8989`, `7878`) or the `config.xml` port, on the Plex host, the TVHeadend host, `localhost`, `host.docker.internal`, `sonarr`, and `radarr` |
-| `POST /api/arr/:app/test` | Reads the version, the item count, and whether the app's recycle bin is on                                                                                                     |
+`src/arr-client.js` calls the v3 API of each app with the header `X-Api-Key`. Reads time out after `8 s` with `1` retry; writes time out after `15 s` with no retry. A `401` gives an `ArrError` of kind `key`, `404` gives `missing`, and `409` gives `conflict`. `arrClientFor` in `src/arr-store.js` caches one client and one circuit breaker per `<url>|<apiKey>`.
 
-On each full library pass, Freetvarr lists every Sonarr episode file and Radarr movie file and links each `library_items` row to the app that manages it. A delete of such a copy then runs through that app: it unmonitors the episodes or the movie first (when the setting is on), then calls `DELETE /api/v3/episodefile/<id>` or `/api/v3/moviefile/<id>`, so the app moves the file to its recycle bin when it has one. If the unmonitor fails, nothing is deleted; if the delete fails, the episodes are monitored again.
+The settings are `sonarr_url`, `radarr_url`, `sonarr_api_key`, `radarr_api_key`, and `arr_unmonitor_on_delete` (**Stop downloading it again**, default on). Without a saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `SONARR_CONFIG_PATH` or `RADARR_CONFIG_PATH`.
 
-## For you
+| Route                     | Does                                                                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/arr`            | `{ sonarr, radarr, unmonitorOnDelete }` with `hasKey` and `keySource`; never the key                                                                                            |
+| `PUT /api/arr`            | Saves URLs, keys (`^[A-Za-z0-9]{16,64}$`), and the switch; starts a full watched sync                                                                                           |
+| `POST /api/arr/find`      | Sends `GET /ping` (`2 s`) to the hosts of `plex_url` and `tvh_url`, `localhost`, `host.docker.internal`, `sonarr`, and `radarr` on the `config.xml` port, else `8989` or `7878` |
+| `POST /api/arr/:app/test` | `{ ok, version, count, recycleBin }`                                                                                                                                            |
 
-For you ranks programmes in the next 7 days of the guide for one household. Everything runs inside the Freetvarr container; no viewing data leaves it.
+A full library pass lists every Sonarr episode file and Radarr movie file, and links `library_items` rows to their manager by exact path, else by the last `3` path segments. `src/delete-manager-check.js` repeats the lookup at delete time; when an app cannot be reached, the delete stops.
 
-- **Events.** `src/user-events.js` writes rows to `user_events` (migration `0010`): live watching, recording playback, record and cancel requests, series changes, watchlist changes, deletes, and the For you feedback (shown, accepted, thumbs, not interested). **Pause history** stops the writes; **Clear viewing history** deletes the rows.
-- **Profile.** `src/for-you-profile.js` folds the events and the existing recordings into a per-show affinity with time decay, channel and hour habits, and an abandoned flag (three or more episodes started, few finished). Under `5` engaged shows (`COLD_START_SHOWS`), the response is a cold start: premieres and films only, and the Home row is titled **New this week**.
-- **Scoring.** `src/for-you.js` scores each programme on genre share, habits, similarity to liked shows, new seasons and premieres, and penalties for dismissals and thumbs down. Genres come from TVmaze and, for films, Wikidata (`src/genre-enrichment.js`, table `title_genres`), when **Use TVmaze and Wikidata to find genres** is on.
-- **Similarity.** The Basic level uses BM25 vectors over programme titles and descriptions. Standard and Plus embed the same texts with a quantised sentence model (`Xenova/all-MiniLM-L6-v2` or `Xenova/bge-small-en-v1.5`, `q8`) through `@huggingface/transformers` in a child process (`src/for-you-embed-worker.js`), and cache the vectors by text hash in `text_embeddings` (migration `0011`). The model downloads once into `models/` beside the database.
-- **Levels.** `src/for-you-capability.js` picks the level from a probe: the ONNX runtime must load, at least `400 MB` of memory must be free, and a benchmark must embed a day's new texts in under `5` minutes. Plus needs the larger model to fit in `2` minutes. The user can override the level.
-- **Upkeep.** `runForYouUpkeep` runs the genre lookups and the embeddings once a day, between `2` and `6` am local time, or at once when the last run is more than `36` hours old. It first runs `20 s` after startup.
+A delete of a managed copy (`src/foreign-delete.js`) runs in this order:
+
+1. With `arr_unmonitor_on_delete` on, unmonitor the episodes (`PUT /api/v3/episode/monitor`) or the movie (`PUT /api/v3/movie/editor`). A failure stops the delete.
+2. Call `DELETE /api/v3/episodefile/<id>` or `DELETE /api/v3/moviefile/<id>`. A `404` counts as done with `missing`.
+3. On any other failure, monitor the items again. On success, delete the `library_items` rows of the file.
+
+With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` with `deleteFiles=false` and `addImportListExclusion=true`.
+
+## For you and Home hero
+
+### Suggestions
+
+`src/for-you.js` ranks the programmes in the next `7` days of the guide for one household.
+
+| Stage      | Module                                               | Mechanism                                                                                            |
+| ---------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Events     | `src/user-events.js`, `src/user-events-log.js`       | Writes rows to `user_events`                                                                         |
+| Profile    | `src/for-you-profile.js`                             | Folds events and recordings into one affinity per show                                               |
+| Scoring    | `src/for-you.js`                                     | Scores each airing, then groups the best airing per show into sections                               |
+| Similarity | `src/for-you-similarity.js`, `src/for-you-engine.js` | Compares programme texts by [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) or by embedding vectors |
+| Upkeep     | `src/for-you-service.js`                             | Runs the embeddings and genre lookups once a day                                                     |
+
+- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `thumb_up`, `thumb_down`, and `programme_opened`.
+- The setting `viewing_history_enabled` stops all writes when `false`. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
+- `profileOf` decays each event with a half-life of `60` days. A show with `3` or more starts, under `15%` finished, and no thumbs up is abandoned and keeps `0.3` of its affinity.
+- Fewer than `5` engaged shows (`COLD_START_SHOWS`) give a cold start: sections `premieres`, `top-rated`, and `movies`. A warm response adds `coming-up`, `new-seasons`, and `might-like`.
+- `src/top-rated.js` weights a film score as `(votes / (votes + 1000)) * score + (1000 / (votes + 1000)) * 6.5`, and keeps at most `10` films.
+- `scoreAiring` adds weighted features (`affinity`, `interest`, `new-season`, `back`, `premiere`, `habit`, `hour`, `genre`, `similar`, `pinned`, `prime`, `image`) and applies a penalty for dismissals and thumbs down.
+- `src/genre-enrichment.js` stores TVmaze and Wikidata genres in `title_genres` when the setting `for_you_genre_lookup` is on.
+
+`similar` uses one of three levels:
+
+| Level      | Method                                                                                                                                           | Model                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `basic`    | BM25 vectors over titles and descriptions                                                                                                        | None                                                                                                  |
+| `standard` | Embeddings through [`@huggingface/transformers`](https://huggingface.co/docs/transformers.js) in a child process (`src/for-you-embed-worker.js`) | [`Xenova/all-MiniLM-L6-v2`](https://huggingface.co/Xenova/all-MiniLM-L6-v2), `q8`, `384` dimensions   |
+| `plus`     | Embeddings from Ollama when it lists an embedding model, else the local model                                                                    | [`Xenova/bge-small-en-v1.5`](https://huggingface.co/Xenova/bge-small-en-v1.5), `q8`, `384` dimensions |
+
+`src/for-you-capability.js` picks the level: `plus` when Ollama lists an embedding model; `basic` when the ONNX runtime does not load, free memory is under `400 MB`, or the daily texts take over `300 s`; `plus` when the `standard` time times `2.5` is under `120 s`; else `standard`. The setting `for_you_tier_override` forces a level. The embeddings are cached in `text_embeddings`; the model files download into `models/` on first use.
+
+`runForYouUpkeep` runs on each cron tick. It starts upkeep when none has run, the last run is over `36 h` old, or the local hour is `2–5` and the last run was on another day. The service builds the For you result `3 s` after startup and after each guide load.
+
+### Home hero
+
+`src/home-hero-service.js` builds a snapshot of hero slides for the Home page. `GET /api/home/hero` returns it with `Cache-Control: no-store`.
+
+1. `readFeedWith` reads the in-progress episode, new episodes, unwatched films, on-now entries, recordings, the watchlist, and the For you payload (waiting up to `5 s`).
+2. `rankedSlidesOf` ranks candidates with `heroCandidatesOf` in `src/web/home-hero.js`.
+3. `proofHeroPicture` (`src/hero-picture-proof.js`) tests up to `6` pictures per slide at `1920` px and keeps up to `3`. A picture passes at `640` px wide or more once its picture focus has settled.
+4. The snapshot keeps at most `10` candidates (`HERO_CANDIDATE_LIMIT`), one per show, and drops a slide with no proven picture. It is saved in the setting `home_hero_snapshot`.
+
+The build runs `20 s` after start, then every `5` min, and `3 s` after `invalidate()`. A follow-up build runs at the next candidate end or recording start. `invalidate()` runs after a write request on a path in `HOME_HERO_WRITE_PATHS`, after each sync, and after each For you result. When a source read fails and the previous snapshot is under `2 h` old, the build keeps it and sets `stale`.
+
+The client (`heroSlidesOf` in `src/web/home-hero.js`) drops ended candidates, orders them by the hourly remix (`src/web/hero-remix.js`), and shows `5` slides (`HERO_SLIDE_LIMIT`).
 
 ## Search
 
-The search overlay and the TV guide's search share one index (`src/web/search-index.js`). Each show has names from four sources: its title, a curated list of nicknames in `src/data/show-aliases.json`, the user's own names (**Also known as**, table `show_nicknames`), and other titles learned from TVmaze `akas` and Wikidata aliases (table `title_known_as`, migration `0012`). A query matches by word prefix, then substring, then a nickname, then initials (with and without stop words such as "the"), and only when nothing else matches, by trigram similarity. Each reason has a fixed score, so guide results sort by match quality before air time.
+Two indexes share one matching module, `src/web/search-index.js`.
 
-## Layout
+| Index         | Built                                                             | Entries                                                                        | Used by                                                         |
+| ------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Overlay index | In the browser (`buildShowSearch` in `src/web/search-results.js`) | Shows from `GET /api/search/catalogue` and series rules from `GET /api/series` | `src/web/components/search-overlay.js` (up to `8` show results) |
+| Guide index   | On the server (`buildGuideSearch` in `src/guide-search.js`)       | One entry per show key in the guide                                            | `GET /api/epg/search`                                           |
 
-The UI has two layouts, split at `768 px`. Below it is the phone layout: no brand header, the page title as the header, and a `64 px` tab bar at the bottom plus the safe-area inset. At or above it is the tablet and desktop layout: an `88 px` rail on the left with Settings at the bottom. The page gutter grows from `16 px` to `32 px`, and to `40 px` at `1280 px`.
+An entry matches on its title and on extra names: curated nicknames (`src/data/show-aliases.json`), user names (`show_nicknames`, routes under `/api/show-nicknames/:key`), and learned names (`title_known_as`, from TVmaze AKAs and Wikidata aliases).
 
-The System pages in Settings keep the `deck-table` views of the old admin tabs, with **dual markup** on a phone: the desktop `<table>` sits behind `hidden md:table`, and a `deck-card` list sits behind `md:hidden` in the same Vue template. Each row is one item (title, metadata, actions), so it fits a card. A CSS-only `data-label` table transform was rejected because cells full of buttons, selects, and headerless action columns lose their order.
+`normaliseSearchText` folds case and accents, removes apostrophes, and turns `&` and `+` into `and`. A query under `2` characters returns nothing.
 
-The iOS Safari fixes:
+| Reason           | Score              | Rule                                                                                                           |
+| ---------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `title`          | `100`              | The query starts a word of the title                                                                           |
+| `contains`       | `90`               | The query without region words (`au`, `australia`, `nz`) occurs inside the title                               |
+| `alias`, `yours` | `85`               | The query starts a word of a nickname; an exact nickname scores `101`                                          |
+| `known-as`       | `80`               | The query starts a word of a learned name                                                                      |
+| `initials`       | `70`               | A one-word query of `3` or more letters equals the title initials; only when direct matches are fewer than `3` |
+| `fuzzy`          | `60 × containment` | Trigram match with a typo allowance; only when nothing else matches; at most `3`                               |
 
-- Text fields use `16 px` text on touch screens; iOS zooms (and stays zoomed) on focusing a smaller field.
-- `viewport-fit=cover` in the meta tag plus `env(safe-area-inset-bottom)` on the tab bar and the settings save bar, so the home indicator does not cover them; `min-h-dvh` instead of `min-h-screen` for the collapsing URL bar.
-- Every `:hover` rule is scoped inside `@media (hover: hover)`; otherwise taps leave sticky hover states.
-- Touch targets are at least `44×44 px`.
-- `fmtTime` puts a non-breaking space between date and time, so a list datetime never wraps.
-- `-webkit-tap-highlight-color: transparent`, since controls have their own pressed states.
+Ties sort by the next air time, then recording count. `searchGuideListings` adds episode-title matches (score `50`) for airings that have not ended, and stops at `100` results (`GUIDE_RESULT_CAP`).
 
-## Full environment reference
+## Jobs and health
 
-The TVHeadend URL and credentials, the Plex token, and the storage paths are runtime settings; configure them in the web UI (or the first-run wizard), not via env. The env vars below are deploy/runtime knobs only.
+Background work reports to the job registry in `src/activity.js`. The progress registry in `src/progress.js` holds the live numbers of one recording. The health checks in `src/doctor.js` read the state of the whole installation.
 
-> [!NOTE]<br>
-> `MEDIA_ROOT`, `ONEOFF_ROOT`, `RECORDINGS_ROOT`, `TVH_RECORDINGS_PATH`, and `PLEX_PREFS_PATH` also act as defaults for matching DB-backed settings that can be overridden from the UI at runtime. The fallback chain is *settings DB value → env var → hardcoded default*. Settings → RECORDING → Media library and the wizard's **Folders** step show the effective values and can test each path.
+### Activity
 
-| Variable                                  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MEDIA_ROOT`                              | Default for the `media_root` setting: the directory Freetvarr writes imported episodes to. Defaults to `/media/tv`; the example compose file sets `/data/media/tv`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `ONEOFF_ROOT`                             | Default for the `oneoff_root` setting: the directory for recordings with no series folder. Defaults to `/media/one-offs`; the example compose file sets `/data/media/one-offs`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `MOVIES_ROOT`                             | Default for the `movies_root` setting: the directory for films with no series folder, named `Title (Year)`. Empty by default, which sends films to the one-off folder.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `RECORDINGS_ROOT`                         | Default for the `recordings_root` setting: where Freetvarr sees TVHeadend's recordings inside its own container. Defaults to `/recordings`; the example compose file sets `/data/recordings`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `TVH_RECORDINGS_PATH`                     | Default for the `tvh_recordings_path` setting: the path prefix TVHeadend reports in the filenames it hands out. Defaults to `/recordings`, which is the path in the TVHeadend container. Freetvarr rewrites this prefix to `RECORDINGS_ROOT`.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `DB_PATH`                                 | Absolute path to the SQLite state file. Defaults to `<repo>/config/state.db`; compose sets it to `/config/state.db` so state lives on the bind mount.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `PORT`                                    | HTTP port inside the container. Defaults to `3733`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `NODE_ENV`                                | `production` selects production behaviour in Express and the dependencies. Compose sets this.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `TZ`                                      | Optional IANA timezone. Pre-fills the wizard's zone and applies until a zone is chosen; a zone stored in Freetvarr's settings wins over it. It also applies to TVHeadend when set. Freetvarr uses the zone chosen in the wizard (stored as a setting, changeable in Settings → SYSTEM → Schedule), which drives guide days, recording file dates, and the sync schedule. TVHeadend mounts the host's `/etc/localtime` read-only and follows the host zone; Freetvarr does not use that mount, because Node needs a zone name. The Dockerfile installs `tzdata` so any IANA zone resolves. `/api/settings` exposes the effective value as `tz`; the web UI renders all timestamps in that zone. |
-| `PUID`/`PGID`                             | Runtime UID/GID (set via compose `user:`). Defaults to `1000:1000`. Must match TVHeadend's, because Freetvarr hardlinks and deletes files TVHeadend created.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `CSRF_SECRET`                             | Optional override for the secret that signs the CSRF cookie. When unset, Freetvarr generates a random secret on first start and saves it to `csrf-secret` in its config folder (`/config/csrf-secret` in the container, readable only by the Freetvarr user); later starts reuse it.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `TVH_URL`                                 | Optional. When set, **Auto-discover TVHeadend** offers this address instead of probing. The stored `tvh_url` setting still wins once saved.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `LIVE_TV_MAX_SESSIONS`                    | Optional cap on the live streams and recording playbacks that run at once. Unset, the **Live streams at once** setting and the startup benchmark decide ([Stream limit](#stream-limit)). The example compose file leaves it empty unless the `.env` gives a value. Each channel holds a tuner unless it shares a multiplex with a recording or another stream.                                                                                                                                                                                                                                                                                                                                 |
-| `LIVE_TV_BUFFER_MINUTES`                  | Minutes of live TV kept for pause and rewind. Defaults to `30`; `0` keeps only the last `12` seconds; capped at `120`. ffmpeg keeps that many minutes of `2`-second HLS segments in the session folder. See [Live TV](/guide/live-tv#pause-and-rewind).                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `LIVE_TV_TRANSCODE`                       | How live TV handles H.264: `auto` (default), `hardware`, `software`, or `copy`. See [Live TV](/guide/live-tv#video-handling).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `LIVE_TV_VAAPI_DEVICE`                    | Render device for hardware encoding. Defaults to `/dev/dri/renderD128`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `IMAGE_CACHE_MAX_MB`                      | Megabytes of resized guide images and channel logos kept on disk. Defaults to `100`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `SONARR_CONFIG_PATH`/`RADARR_CONFIG_PATH` | Optional. Where Freetvarr reads Sonarr's or Radarr's `config.xml` for its API key, port, and URL base. Defaults to `/sonarr-config.xml` and `/radarr-config.xml`; the example compose file sets them only when the matching host path is in the `.env`. See [Sonarr and Radarr](#sonarr-and-radarr).                                                                                                                                                                                                                                                                                                                                                                                           |
+`createActivity` makes the in-memory registry; `src/activity.js` exports one instance as `activity`, and the functions `trackJob`, `joinJob`, and `currentJob`.
 
-Compose-only env (set in `.env` alongside `docker-compose.yml`):
+- `track(options, fn)` starts a job, runs `fn(handle)`, and finishes the job as `done`, or `failed` when `fn` throws. `join({ kinds })` reuses the current job when its kind is in `kinds`.
+- A job started inside another job's async context gets that job as `parentId`. The context is an [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage) store.
+- A handle has `step`, `update`, `total`, `advance`, `fact`, `item`, `log`, `outcome`, `fail`, and `finish`. A job keeps up to `200` items and `100` log lines.
+- `plan` and `planEvery` register scheduled jobs for UP NEXT: the sync, the health checks, the cache prune, and the ratings warm-up.
 
-| Variable                                  | Notes                                                                                                                                                                                                                        |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FREETVARR_PORT`                          | Host port the container binds (under `network_mode: host`, also flows into `PORT` inside the container). Defaults to `3733`.                                                                                                 |
-| `CONFIG_PATH`                             | Optional, default `./config`. Host root for the config bind mounts. Freetvarr's `/config` is `${CONFIG_PATH}/freetvarr`; TVHeadend's is `${CONFIG_PATH}/tvheadend`.                                                          |
-| `DATA_PATH`                               | Optional, default `./data`. Host root for the data. Holds only `recordings/` and `media/`. Freetvarr mounts it whole at `/data`; TVHeadend mounts `${DATA_PATH}/recordings` at `/recordings`.                                |
-| `PLEX_PREFS_PATH`                         | Optional. Host path to Plex's `Preferences.xml`, bind-mounted read-only so the **Auto-detect token** button can read `PlexOnlineToken`. Leave it unset when Plex is on a different computer (the mount is then `/dev/null`). |
-| `SONARR_CONFIG_PATH`/`RADARR_CONFIG_PATH` | Optional. Host path to Sonarr's or Radarr's `config.xml`, bind-mounted read-only so Freetvarr can read the API key. Unset, the mount is `/dev/null`.                                                                         |
+`JOB_KINDS` keys are `sync`, `import`, `ads`, `guide`, `history`, `for-you`, `hero`, `focus`, `ratings`, `prune`, `health`, `reclassify`, and `plex-watch`. The kinds `guide`, `history`, `for-you`, `hero`, `focus`, `ratings`, and `plex-watch` are quiet: a finished run replaces the earlier run of the same kind and state.
 
-## Docker deployment
+The recent list keeps finished jobs for `24 h` and failed jobs for `7` days, in a ring of `200`. A failed job is saved to `job_runs`, and startup loads the rows of the last `7` days.
 
-- Compose pulls the Freetvarr image from `ghcr.io/furey/freetvarr`; no clone is needed to run it. TVHeadend comes from `lscr.io/linuxserver/tvheadend`. Contributors build from a clone with `docker-compose.dev.yml`.
-- The Dockerfile inlines `npm ci --omit=dev --ignore-scripts && npm run rebuild:natives` instead of calling `npm run setup`, so the build skips `npm audit signatures`. That step re-queries the registry and enforces `.npmrc`'s `min-release-age=3`, which would block whenever a brand-new dep is in the lockfile. Run `npm run setup` on the host once the newest dep has aged past the threshold; the lockfile's integrity hashes still verify package contents during `npm ci`.
-- Both services use `network_mode: host` (no `ports:` mapping). TVHeadend needs it to discover a network tuner such as an HDHomeRun, which announces itself by UDP broadcast that doesn't traverse Docker's bridge network. Side-effect: neither container is on a Docker bridge network, so they address each other by the host's LAN IP rather than by container name, and so does anything else that wants to reach them.
-- Both run as `${PUID}:${PGID}` (default `1000:1000`). They must match: Freetvarr hardlinks files TVHeadend wrote and deletes them afterwards.
-- A one-shot `init` service (`busybox`) runs first. It makes the subfolders of `CONFIG_PATH` and `DATA_PATH` and gives them to `PUID:PGID`; both other services wait for it with `service_completed_successfully`. Some Docker builds (Synology's among them) refuse to mount a host folder that does not exist, so `CONFIG_PATH` and `DATA_PATH` themselves must exist first; `install.sh` makes them, and standard Docker creates them itself.
-- `tini` is PID 1 inside the Freetvarr container so `SIGTERM` propagates cleanly.
-- The image skips dev dependencies (the Tailwind CLI), because `src/web/tailwind.css` is committed.
-- The Docker healthcheck hits `GET /healthz` every `30 s`.
-- The container entrypoint (`docker-entrypoint.sh`) runs `knex migrate:latest` against `/config/state.db` before exec'ing the server, so pending migrations apply on the next start and a fresh host needs no manual migration.
-- Compose pulls `ghcr.io/furey/freetvarr:latest`. Each release tag builds the image natively for `amd64` and `arm64`, boots it, and publishes it as `X.Y.Z` and `latest` (`.github/workflows/image.yml`). `docker compose pull && docker compose up -d` updates; the bind-mounted `/config/state.db` is untouched apart from new migrations. Back up the whole `${CONFIG_PATH}/freetvarr` folder before an update, because the database is in WAL mode and `state.db` alone can miss recent writes.
-- To build from a checkout instead, add `docker-compose.dev.yml`: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build freetvarr`.
+| Route (`src/activity-routes.js`) | Returns                                                                                                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/activity`              | `{ running, upNext, recent, runningCount, recordings, sessions, server }`                                                                                            |
+| `GET /api/activity/summary`      | `{ running }`, the count of running jobs that are not quiet                                                                                                          |
+| `GET /api/activity/stream`       | A [server-sent event](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events) stream of `jobs` events, at most every `500 ms`, with a ping every `15 s` |
+| `GET /api/activity/:id`          | One job with `steps`, `facts`, `items`, and `log`                                                                                                                    |
 
-Volumes:
+`measureJob(label, fn, job)` in `src/event-loop-lag.js` times `fn` for the loop monitor, and runs it as a job when `job` is set. The monitor checks every `500 ms` and records a stall at `100 ms` or more. `GET /api/health/loop` returns the stalls, delay percentiles, and per-label job times.
 
-| Service     | Container path                                       | Host path                                        | Purpose                                                                                                                                                             |
-| ----------- | ---------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tvheadend` | `/config`                                            | `${CONFIG_PATH}/tvheadend`                       | TVHeadend's own configuration, channels, and DVR entries                                                                                                            |
-| `tvheadend` | `/recordings`                                        | `${DATA_PATH}/recordings`                        | Where TVHeadend writes `.ts` files                                                                                                                                  |
-| `freetvarr` | `/config`                                            | `${CONFIG_PATH}/freetvarr`                       | The SQLite state DB with its `-wal` and `-shm` files, the CSRF secret, saved artwork, uploaded pictures, the For you models, and an optional `comskip.ini` override |
-| `freetvarr` | `/data`                                              | `${DATA_PATH}`                                   | Recordings at `/data/recordings`, the TV library at `/data/media/tv`, and the one-off folder at `/data/media/one-offs`. One mount makes the import a hardlink       |
-| `freetvarr` | `/plex-preferences.xml` (ro)                         | `${PLEX_PREFS_PATH}`                             | Optional. Read-only, only for the Auto-detect token button                                                                                                          |
-| `freetvarr` | `/plex` (ro)                                         | `${CONFIG_PATH}/plex`                            | The `plex` profile's settings folder, read-only, for the Auto-detect token button. Empty without the profile                                                        |
-| `freetvarr` | `/sonarr-config.xml` (ro), `/radarr-config.xml` (ro) | `${SONARR_CONFIG_PATH}`, `${RADARR_CONFIG_PATH}` | Optional. Read-only, only for the Sonarr and Radarr API keys                                                                                                        |
-| `plex`      | `/config`                                            | `${CONFIG_PATH}/plex`                            | `plex` profile only. Plex's settings and database                                                                                                                   |
-| `plex`      | `/data/media`                                        | `${DATA_PATH}/media`                             | `plex` profile only. The library folders, at the same paths Freetvarr uses                                                                                          |
+### Progress registry
 
-> [!IMPORTANT]<br>
-> Freetvarr must see the recordings and the media folders through one mount. Linux refuses a hardlink between two bind mounts, so separate mounts make every import a full copy. Keep only `recordings/` and `media/` in `${DATA_PATH}`, because Freetvarr can write to all of it.
+`src/progress.js` holds an in-memory `Map` keyed by recording id. An entry exists while an import copy, an ad scan, or an ad cut runs: `{ phase, percent, etaSeconds, etaLabel, detail, startedAt, updatedAt }`. `phase` is `importing`, `scanning`, `cutting`, or `verifying`. `getProgress` drops an entry not updated for `30 s`. `setProgress` also updates the current Activity job.
+
+- The import copy reports `percent` from the copied size and an ETA from the copy rate.
+- The ad scan estimates its time as `duration × 0.5` (`SCAN_REALTIME_FACTOR` in `src/commercials.js`) and caps `percent` at `99`.
+- `GET /api/recordings` returns `progress` per row, and library rows return `ad_progress`. The recordings list polls every `2 s` while any row has progress, else every `60 s`.
+
+### Health checks
+
+`src/doctor.js` holds the checks, the runner, the report cache, and the schedule. `src/path-check.js` holds the folder and hardlink probes. `src/docker-host.js` detects a Docker VM from the kernel release (OrbStack, Docker Desktop, or Docker on Windows).
+
+`runDoctor` runs `tvh.reach`, then `tvh.auth`, then the other checks in parallel. A check that needs TVHeadend gets `skip` unless both first checks pass or warn. Each check returns `status` (`pass`, `warn`, `fail`, or `skip`), `detail`, `fix`, and an optional `action`, with an `8 s` timeout (`DEFAULT_TIMEOUT_MS`).
+
+| Id                                                                 | Checks                                                                                                                           |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `tvh.reach`, `tvh.auth`, `tvh.rights`, `tvh.open`                  | TVHeadend answers (`warn` below API version `19`); the login works; the rights probes answer without `403`; no open admin entry  |
+| `tvh.tuners`, `tvh.channels`                                       | At least one tuner turned on; at least one channel                                                                               |
+| `guide.depth`, `guide.logos`                                       | `fail` when the guide ends within `12 h`, `warn` within `48 h`; share of channels with an icon                                   |
+| `paths.recordings`, `paths.match`, `paths.media`, `paths.hardlink` | Readable recordings folder; DVR profile path equals `tvh_recordings_path`; writable media folder; imports hardlink               |
+| `disk.free`                                                        | `fail` under `10 GB` free; `warn` under `20 GB` or `10%`                                                                         |
+| `plex.reach`, `plex.oneoffs`                                       | The TV section exists and reads the media folder; `warn` when the Plex one-off library has items and the one-off folder has none |
+| `sync.health`                                                      | The cron schedule runs; the last sync is not `error` or `partial`                                                                |
+| `live.encoder`, `live.streams`                                     | `ffmpeg` on the `PATH`; the stream limit is not above the benchmark                                                              |
+| `ads.comskip`                                                      | `comskip`, `ffmpeg`, and `ffprobe` on the `PATH` when ad removal is on                                                           |
+| `host.env`                                                         | A known time zone and a LAN address                                                                                              |
+
+Each id links to its guide section, for example [`/guide/doctor#tvh-reach`](/guide/doctor#tvh-reach). `getDoctorReport` caches the report for `15 s`. `scheduleDoctorChecks` runs a fresh report `2` min after startup and every `3 h`. `GET /api/doctor` returns the report (`?fresh=1` skips the cache), and `npm run doctor` (`scripts/doctor.mjs`) prints it and exits `1` when a check fails.
+
+`getHealthSummary` (`src/health-summary.js`) builds one level (`ok`, `warn`, or `fail`) from the TVHeadend connection, failed recordings in the last day, the last sync, and the doctor checks of the last `6 h`. It is cached for `10 s` and served at `GET /api/health-summary`. `src/web-assets.js` inlines it into `index.html` as `<meta name="freetvarr-health">`; the client then polls every `60 s`.
+
+## Web client
+
+The client is native ES modules served as static files. Vue 3 compiles the in-browser templates at run time from `/vendor/vue.esm-browser.prod.js`. There is no bundler.
+
+| Path                                                       | Content                                                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `src/web/index.html`                                       | Shell with the module preloads, fonts, and stylesheets                                                                    |
+| `src/web/app.js`                                           | Creates the Vue app, registers global components, and mounts it                                                           |
+| `src/web/route-table.js`, `src/web/shared/router.js`       | Hash routes, aliases, nav entries, and the reactive route                                                                 |
+| `src/web/view-modules.js`                                  | `VIEW_ENTRIES`: the lazy-loaded views                                                                                     |
+| `src/web/views/`, `src/web/components/`, `src/web/shared/` | Pages, shared components, and state, API client, and session modules                                                      |
+| `src/web/styles/`, `src/web/styles.css`                    | Plain stylesheets                                                                                                         |
+| `src/web/tailwind.css`                                     | Generated by `npm run build:css` ([Tailwind CSS](https://tailwindcss.com/docs) v4); `test/tailwind-css.test.js` checks it |
+| `src/web/view-preloads.js`                                 | Generated by `node scripts/generate-view-preloads.mjs`; `test/view-preloads.test.js` checks it                            |
+
+Both generated files are committed. `src/web/styles.css` has no cascade layer, so its rules override Tailwind utilities in `@layer utilities`.
+
+### Assets and build id
+
+- `src/build-id.js` hashes (SHA-256) the version and every `.html`, `.js`, `.css`, and `.woff2` file under `src/web`. The first `12` hex characters are the build id.
+- `src/web-assets.js` rewrites each asset URL to `?v=<build>`. A request with the current build gets `Cache-Control: public, max-age=31536000, immutable`; any other request, and `index.html`, gets `no-cache`.
+- `index.html` gets a `modulepreload` link for each module in the static import graph of `/app.js`, and the meta tags `freetvarr-build`, `freetvarr-health`, and `freetvarr-time-zone`.
+- `/vendor` serves `vue.esm-browser.prod.js`, `hls.mjs`, and `hls.worker.js` out of `node_modules`.
+- Every `/api` response carries `X-Freetvarr-Build`. `src/web/shared/api.js` compares it with the loaded build; a mismatch shows the update card (`src/web/components/stale-build-banner.js`).
+
+### Routing and layout
+
+- Routes use the URL hash. The views are `home`, `for-you`, `live`, `guide`, `recordings`, `settings`, and `welcome`; any other hash resolves to `home`.
+- `src/web/app.js` loads each view except `home` through `defineAsyncComponent` and prefetches them at idle time.
+- The phone layout (`PHONE_LAYOUT_QUERY`: `(max-width: 767px), (max-height: 500px)`) has a bottom tab bar and a `16 px` gutter. Larger screens have a left rail and a `32 px` gutter, or `40 px` from `1280px`.
+- Lists show tables on wide screens and `article.list-row` cards inside `.list-rows` on narrow screens.
+- `src/web/manifest.webmanifest` sets `display: standalone`. `src/web` has no service worker.
 
 ## Security model
 
-Vulnerability reporting and the accepted residual risks are documented in [SECURITY.md](https://github.com/furey/freetvarr/blob/main/SECURITY.md). The hardening measures:
+[SECURITY.md](https://github.com/furey/freetvarr/blob/main/SECURITY.md) holds the reporting route and the accepted residual risks. Freetvarr has no login. Every protection below assumes a trusted LAN.
 
-- **`.npmrc`** sets `ignore-scripts=true` (never run lifecycle scripts during install; native rebuilds are explicit), `engine-strict=true`, `audit-level=high`, `save-exact=true`, `package-lock=true`, and `min-release-age=3` (refuse packages newer than three days, which limits exposure to newly published malicious versions).
-- **`npm run setup`** uses `npm ci` (not `npm install`) so deps come straight from the lock file.
-- **`npm run rebuild:natives`** is an explicit allow-list; only `better-sqlite3` rebuilds. Adding a new native dep means adding it here on purpose.
-- **`npm audit signatures`** runs as the last step of `setup` to verify the npm registry signatures of every dep. The Docker build inlines `npm ci + rebuild:natives` instead, because `npm audit signatures` re-queries the registry and enforces `min-release-age`.
-- **`package-lock.json`** is committed; integrity hashes verify package contents during `npm ci` even when the audit step is skipped.
-- **HTTP**: Helmet with a strict CSP. `script-src 'self' 'unsafe-eval'` is required because Vue's in-browser template compiler uses `new Function()`; everything else is locked down. Dropping `'unsafe-eval'` would need a build step that pre-compiles templates. `media-src 'self' blob:` and `worker-src 'self' blob:` let the live TV player attach hls.js's MediaSource to the video element and run its worker.
-- **Live TV files**: `GET /api/live/:session/:file` accepts a 16-hex-digit session id and a file name matching `index.m3u8`, `live.m3u8`, `live_vtt.m3u8`, `seg<N>.ts`, or `live<N>.vtt` only, so no request can reach outside the session folder. Starting a stream is rate limited like the guide's record endpoints; starting and stopping need the CSRF token.
-- **Rate limiting**: `express-rate-limit` on the POST endpoints that reach TVHeadend or Plex (`/api/sync`, `/api/tvh-shows`, `/api/tvh-test`, `/api/tvh-detect`, `/api/tvh-recordings-path-check`, `/api/discover-plex`, the per-recording delete and ad-scan endpoints), and a separate limiter (`20` a minute) on the guide's record/cancel endpoints, which most newer write routes share: library delete, the Plex watched sync and whole-library settings, and the Sonarr and Radarr settings.
-- **CSRF**: `csrf-csrf` (double-submit cookie) protects state-changing POSTs. The UI fetches a token from `GET /api/csrf-token` and sends it as the `x-csrf-token` header. `generateToken` is called with `overwrite=true` so a stale browser cookie from a previous `CSRF_SECRET` doesn't trigger a 403 mint. The secret is `CSRF_SECRET` when set, otherwise the contents of the `csrf-secret` file in the config folder, created at first start; if the folder is not writable, the server exits with a message to check that `CONFIG_PATH` is owned by `PUID:PGID`. Deleting the file generates a new secret at the next start. `getSessionIdentifier` is a constant, because this is an authless LAN service. The front-end clears the cached token and retries once on any 403, so a rotated secret or a cleared cookie needs no user action.
-- **Path containment**: `dest_folder` and `season_template` are validated on write to reject `..` segments and leading slashes, and `buildDestPath` resolves the final path and throws if it escapes the media root. A show can only ever write inside the configured library.
-- **Credential storage**: the TVHeadend password sits in plaintext in the SQLite database, and `GET /api/settings` returns only a `tvh_password_set` boolean rather than the value. There is no login, which is why Freetvarr is LAN-only.
-- **Generated secret**: with no `CSRF_SECRET`, each install generates its own random secret into the `csrf-secret` file, so no two installs share one. A terminal Express error handler returns the error message only, never a stack trace.
-- **Daemon resilience**: a `process.on('unhandledRejection')` handler logs and keeps the process alive, so a DB-layer rejection in an async route handler can't take the whole daemon (and any in-flight sync or cut) down.
-- **Indexing**: `X-Robots-Tag: noindex, nofollow` is set globally; this is a LAN-only service.
-- **HSTS disabled**: Freetvarr serves over plain HTTP on the LAN. Helmet's default `Strict-Transport-Security` header would tell browsers to refuse HTTP for the host for a year, which is wrong for this deployment. Re-enable HSTS (with an appropriate `maxAge`) only when fronted by TLS.
+### Response headers
 
-## Local development
+[Helmet](https://helmetjs.github.io/) sets the headers in `src/server.js`, with `useDefaults: false` on the [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP):
+
+| Directive                       | Value                                                           |
+| ------------------------------- | --------------------------------------------------------------- |
+| `default-src`                   | `'self'`                                                        |
+| `script-src`                    | `'self' 'unsafe-eval'` (Vue compiles templates with `Function`) |
+| `style-src`                     | `'self' 'unsafe-inline'`                                        |
+| `img-src`                       | `'self' data:`                                                  |
+| `media-src`, `worker-src`       | `'self' blob:`                                                  |
+| `connect-src`                   | `'self' https://api.github.com`                                 |
+| `object-src`, `frame-ancestors` | `'none'`                                                        |
+| `base-uri`, `form-action`       | `'self'`                                                        |
+
+- `crossOriginEmbedderPolicy` is `false`. `hsts` is `false`; the service uses plain HTTP.
+- `X-Powered-By` is disabled. `trust proxy` is `loopback`.
+- Every response carries [`X-Robots-Tag: noindex, nofollow`](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag#xrobotstag).
+
+### CSRF
+
+- [`csrf-csrf`](https://github.com/Psifi-Solutions/csrf-csrf) protects the state-changing routes with `doubleCsrfProtection` (double-submit cookie).
+- `GET /api/csrf-token` returns `{ token }`. The browser sends it in the `x-csrf-token` header, and retries once with a fresh token after a `403` whose message matches `/csrf/i`.
+- The cookie is `freetvarr.x-csrf` with `httpOnly: true`, `sameSite: 'strict'`, and `secure: false`. `getSessionIdentifier` returns the constant `'freetvarr'`.
+
+The secret comes from `CSRF_SECRET` when set; a value under `32` characters logs a warning. Otherwise `src/csrf-secret.js` reads the file `csrf-secret` in the folder of `DB_PATH`. When the file is missing, it writes `32` random bytes as hex with mode `0600`. When the folder is not writable, the server exits with code `1`.
+
+### Rate limits
+
+[`express-rate-limit`](https://express-rate-limit.mintlify.app/overview) runs each limiter per client address with a window of `60 s`.
+
+| Limiter                                      | Limit      | Routes                                                                                                                                                                      |
+| -------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `syncLimiter`                                | `5`        | `POST /api/sync`, recording library and TVHeadend-delete routes, ad-scan and restore, TVHeadend test, detect, and path check, Plex discovery and library create             |
+| `epgLimiter`                                 | `20`       | Record and cancel routes, library rule and delete routes, Plex, Sonarr, and Radarr settings, watchlist, artwork-choice writes, TMDB key, nicknames, programme kind, For you |
+| `liveLimiter`                                | `20`       | `POST /api/live`, the stream limit routes, `POST /api/live/benchmark`                                                                                                       |
+| `playLimiter`                                | `30`       | Playback start and From the start                                                                                                                                           |
+| `playPingLimiter`                            | `120`      | Position, heartbeat, attention, watched marks, viewing history                                                                                                              |
+| `doctorLimiter`                              | `10`       | `GET /api/doctor`, `POST /api/doctor/one-off-placeholder`                                                                                                                   |
+| `bootstrapLimiter`, `bootstrapStatusLimiter` | `10`, `30` | TVHeadend setup writes and reads                                                                                                                                            |
+| `guideFeedLimiter`                           | `10`       | `GET /guide/xmltv.xml`                                                                                                                                                      |
+| `ratingsLimiter`                             | `240`      | Ratings, credits, artwork-choice reads                                                                                                                                      |
+| `showImageLimiter`                           | `1200`     | `GET /api/epg/show-image`                                                                                                                                                   |
+
+### Errors and paths
+
+- The terminal error handler responds with `err.statusCode`, `err.status`, or `500` and `{ "error": <message> }`. It never sends a stack trace.
+- A `process.on('unhandledRejection')` handler logs the reason and does not exit.
+- `POST /api/shows` and `PATCH /api/shows/:id` reject `dest_folder` and `season_template` values that start with `/` or `\` or contain `..`. Import paths go through `guardWithinRoot`.
+- Live and playback file routes accept only a `16`-hex session id and the HLS file names.
+- Library delete checks each target against the library roots with `realpath` and `lstat` ([Library delete](#library-delete)).
+
+### Credential storage
+
+The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sonarr and Radarr keys, and the TMDB key are plain text in the `settings` table. The read routes return booleans (`tvh_password_set`, `plex_token_set`, `hasKey`, `key_set`), never the values.
+
+### Supply chain
+
+| Control       | Setting                                                                                                                      |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `.npmrc`      | `ignore-scripts=true`, `engine-strict=true`, `audit-level=high`, `save-exact=true`, `package-lock=true`, `min-release-age=3` |
+| Install       | `npm ci` from the committed `package-lock.json`                                                                              |
+| Native builds | `npm run rebuild:natives` rebuilds only `better-sqlite3` with `--ignore-scripts=false`                                       |
+| Signatures    | `npm run setup` ends with `npm audit signatures`                                                                             |
+
+## Full environment reference
+
+### Runtime variables
+
+Process code reads these variables. For path variables, a stored setting wins, then the variable, then the default.
+
+| Variable                                   | Default                                                               | Meaning                                                                            |
+| ------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `PORT`                                     | `3733`                                                                | HTTP port                                                                          |
+| `DB_PATH`                                  | `<repo>/config/state.db`                                              | SQLite file; its folder is the config folder ([Config folder](#config-folder))     |
+| `ARTWORK_PATH`                             | `<config folder>/artwork`                                             | Folder for saved artwork                                                           |
+| `TZ`                                       | Unset                                                                 | Time zone fallback ([Time zone](#time-zone))                                       |
+| `CSRF_SECRET`                              | Unset                                                                 | Replaces the generated secret file ([CSRF](#csrf))                                 |
+| `TVH_URL`                                  | Unset                                                                 | `detectServers` returns this address and probes nothing                            |
+| `MEDIA_ROOT`                               | `/media/tv`                                                           | Default for the setting `media_root` (TV library)                                  |
+| `ONEOFF_ROOT`                              | `/media/one-offs`                                                     | Default for the setting `oneoff_root`                                              |
+| `MOVIES_ROOT`                              | Empty                                                                 | Default for the setting `movies_root`; empty sends films to the one-off folder     |
+| `RECORDINGS_ROOT`                          | `/recordings`                                                         | Default for the setting `recordings_root` (TVHeadend files as Freetvarr sees them) |
+| `TVH_RECORDINGS_PATH`                      | `/recordings`                                                         | Default for the setting `tvh_recordings_path` (the prefix TVHeadend reports)       |
+| `PLEX_PREFS_PATH`                          | `/plex/Library/Application Support/Plex Media Server/Preferences.xml` | Plex `Preferences.xml` for token detection                                         |
+| `SONARR_CONFIG_PATH`, `RADARR_CONFIG_PATH` | `/sonarr-config.xml`, `/radarr-config.xml`                            | The app `config.xml` for the API key, port, and URL base                           |
+| `LIVE_TV_BUFFER_MINUTES`                   | `30`                                                                  | Minutes of live TV kept for pause and rewind; clamped to `0–120`                   |
+| `LIVE_TV_TRANSCODE`                        | `auto`                                                                | `auto`, `hardware`, `software`, or `copy`                                          |
+| `LIVE_TV_VAAPI_DEVICE`                     | `/dev/dri/renderD128`                                                 | VAAPI render device                                                                |
+| `LIVE_TV_MAX_SESSIONS`                     | Unset                                                                 | Cap on live streams and recording playbacks ([Stream limit](#stream-limit))        |
+| `IMAGE_CACHE_MAX_MB`                       | `100`                                                                 | Megabytes of resized images in `image-cache/`                                      |
+| `PATH`                                     | System                                                                | The health checks search it for `comskip`, `ffmpeg`, and `ffprobe`                 |
+
+`NODE_ENV` is `production` in the image and in compose; Express reads it, `src/` does not.
+
+### Time zone
+
+`resolveTimeZone` in `src/time-zone.js` takes the stored setting `time_zone` when it names a known zone, else `TZ`, else the system zone. At startup and on each save, a stored zone is copied to `process.env.TZ`. `GET /api/settings` returns `tz`, `time_zone`, `tz_source`, and `tz_env`. The browser reads the zone from the `freetvarr-time-zone` meta tag.
+
+### Compose variables
+
+Compose reads these variables from `.env`; the container does not see them.
+
+| Variable                                   | Default    | Meaning                                                                                  |
+| ------------------------------------------ | ---------- | ---------------------------------------------------------------------------------------- |
+| `PUID`, `PGID`                             | `1000`     | Owner of the files; `user:` of Freetvarr and the `PUID` and `PGID` of TVHeadend and Plex |
+| `CONFIG_PATH`                              | `./config` | Host root of the config folders                                                          |
+| `DATA_PATH`                                | `./data`   | Host root of `recordings/` and `media/`                                                  |
+| `FREETVARR_PORT`                           | `3733`     | Becomes `PORT` in the container                                                          |
+| `PLEX_PREFS_PATH`                          | Unset      | Host path of `Preferences.xml`; mounted at `/plex-preferences.xml`, or `/dev/null`       |
+| `SONARR_CONFIG_PATH`, `RADARR_CONFIG_PATH` | Unset      | Host paths of `config.xml`; mounted read-only, or `/dev/null`                            |
+| `COMPOSE_PROFILES`                         | Unset      | `plex` adds the `plex` service                                                           |
+| `PLEX_CLAIM`                               | Unset      | Claim token for the `plex` service                                                       |
+| `RENDER_GID`                               | None       | Group id of `/dev/dri/renderD128`; required by `docker-compose.hwaccel.example.yml`      |
+
+Compose passes `TZ`, `CSRF_SECRET`, `TVH_URL`, `MOVIES_ROOT`, `IMAGE_CACHE_MAX_MB`, and the `LIVE_TV_*` variables from `.env` to the container. It sets `NODE_ENV`, `DB_PATH=/config/state.db`, `MEDIA_ROOT`, `ONEOFF_ROOT`, `RECORDINGS_ROOT`, and `TVH_RECORDINGS_PATH` itself.
+
+## Docker deployment
+
+### Image
+
+`Dockerfile` builds `FROM node:24-bookworm-slim`:
+
+1. Install `tini`, `tzdata`, `wget`, `comskip`, and `ffmpeg`, plus `mesa-va-drivers` and, on `amd64` only, `intel-media-va-driver-non-free` (VAAPI drivers).
+2. Run `npm install -g npm@11.15.0`, `npm ci --omit=dev --ignore-scripts`, and `npm run rebuild:natives`.
+3. Remove the `onnxruntime-node` binaries of other platforms, `onnxruntime-web`, and the unused `@huggingface/transformers` builds.
+4. Copy the repository, set `NODE_ENV=production`, and `EXPOSE 3733`.
+
+| Item                   | Value                                                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `HEALTHCHECK`          | `--interval=30s --timeout=5s --start-period=20s --retries=3`, `wget -q --spider http://127.0.0.1:${PORT:-3733}/healthz` |
+| `ENTRYPOINT`           | `/usr/bin/tini -- /app/docker-entrypoint.sh` ([tini](https://github.com/krallin/tini) forwards `SIGTERM`)               |
+| `docker-entrypoint.sh` | `node node_modules/.bin/knex migrate:latest`, then `exec node src/server.js`                                            |
+
+`.github/workflows/image.yml` builds natively on `ubuntu-24.04` (`amd64`) and `ubuntu-24.04-arm` (`arm64`). It tests that `better-sqlite3` loads, that `ffmpeg` and `comskip` exist, and that `/healthz` answers. A tag `X.Y.Z` (no `v`) publishes `X.Y.Z` and `latest` to `ghcr.io/furey/freetvarr` ([GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)). A push to `develop` that changes an image input, and a manual run, build and test without a publish.
+
+### Compose services
+
+`install.sh` downloads `docker-compose.example.yml` as `docker-compose.yml`, writes `.env`, creates `CONFIG_PATH` and `DATA_PATH`, and starts the services.
+
+| Service                 | Image                                                                                          | Network | Starts after           |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | ------- | ---------------------- |
+| `init`                  | [`busybox:stable`](https://hub.docker.com/_/busybox)                                           | `none`  | None                   |
+| `tvheadend`             | [`lscr.io/linuxserver/tvheadend:latest`](https://docs.linuxserver.io/images/docker-tvheadend/) | `host`  | `init`                 |
+| `freetvarr`             | `ghcr.io/furey/freetvarr:latest`                                                               | `host`  | `init` and `tvheadend` |
+| `plex` (profile `plex`) | `lscr.io/linuxserver/plex:latest`                                                              | `host`  | `init`                 |
+
+- The services publish no `ports:`. Freetvarr binds `${FREETVARR_PORT}` on the host; TVHeadend uses `9981` (HTTP) and `9982` (HTSP); Plex uses `32400`. Host networking lets TVHeadend find a network tuner by UDP broadcast.
+- `init` creates `/config/tvheadend`, `/config/freetvarr`, `/config/plex`, `/data/recordings`, `/data/media/tv`, and `/data/media/one-offs`, owned by `PUID:PGID`.
+- `docker-compose.dev.yml` builds `freetvarr:dev` from the checkout. `docker-compose.hwaccel.example.yml`, saved as `docker-compose.override.yml`, maps `/dev/dri` and adds the group `${RENDER_GID}`.
+
+| Service     | Container path                                                                           | Host path                                             | Content                                                |
+| ----------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| `tvheadend` | `/config`, `/recordings`                                                                 | `${CONFIG_PATH}/tvheadend`, `${DATA_PATH}/recordings` | TVHeadend settings and DVR entries; `.ts` recordings   |
+| `freetvarr` | `/config`                                                                                | `${CONFIG_PATH}/freetvarr`                            | The config folder                                      |
+| `freetvarr` | `/data`                                                                                  | `${DATA_PATH}`                                        | `/data/recordings` and `/data/media/*`                 |
+| `freetvarr` | `/plex`, `/plex-preferences.xml`, `/sonarr-config.xml`, `/radarr-config.xml` (read-only) | `${CONFIG_PATH}/plex` and the compose path variables  | Plex token and app API keys                            |
+| `plex`      | `/config`, `/data/media`                                                                 | `${CONFIG_PATH}/plex`, `${DATA_PATH}/media`           | Plex settings; the library at the paths Freetvarr uses |
+
+> [!IMPORTANT]<br>
+> Freetvarr mounts `${DATA_PATH}` once at `/data`. Linux refuses a hardlink between two bind mounts, so an import across two mounts is a copy.
+
+## Build and test
+
+### Local development
 
 ```sh
 git clone https://github.com/furey/freetvarr
 cd freetvarr
-cp .env.example .env       # optional; all values are overrides
-npm run setup              # ci --ignore-scripts + rebuild natives + audit signatures
-npm start                  # http://localhost:3733; first visit shows the setup wizard
-                           # (prestart auto-creates ./config/ and runs migrations)
+cp .env.example .env
+npm run setup
+npm start
 ```
 
-`npm start` / `npm run dev` load `./.env` via Node's `--env-file-if-exists`, so any `CSRF_SECRET` or `TZ` you set there applies to the from-source run; without them, Freetvarr generates its own secret and uses the zone chosen in the wizard. The Docker path doesn't use `.env.example` at all; it takes its environment from the compose file.
+- `cp .env.example .env` is optional. `npm start` and `npm run dev` load `./.env` with Node [`--env-file-if-exists`](https://nodejs.org/api/cli.html#--env-file-if-existsfile).
+- `npm run setup` installs from the lockfile, rebuilds `better-sqlite3`, and verifies signatures.
+- `npm start` runs `npm run migrate` (creates `./config` and applies the migrations), then listens on `http://localhost:3733`.
+- `package.json` sets `engines` to Node `>=24.0.0` and npm `>=11.10.0`. The `volta` block ([Volta](https://volta.sh)) pins Node `24.21.0` and npm `11.15.0`. `better-sqlite3` is pinned to `12.11.1`, which has prebuilt binaries for Node 24.
+- The TVHeadend address is a runtime setting (`tvh_url`), set in the wizard.
 
-`better-sqlite3` is pinned to a release with prebuilt binaries for Node 24, so `npm run setup` downloads one rather than compiling. On a Node version with no prebuilt binary it compiles from source, which needs Python 3, `make`, and a C++ compiler.
+### Scripts
 
-Running from source still needs a reachable TVHeadend. Point the `tvh_url` setting at an existing instance on the LAN; nothing else about the host matters, because Freetvarr talks to it over HTTP like any other client.
+| Command                    | Runs                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `npm run setup`            | `npm ci --ignore-scripts && npm run rebuild:natives && npm audit signatures`                                 |
+| `npm run migrate`          | `mkdir -p config && knex migrate:latest`                                                                     |
+| `npm run migrate:refresh`  | Deletes `./config/state.db`, then migrates                                                                   |
+| `npm start`                | `npm run migrate && node --env-file-if-exists=.env src/server.js`                                            |
+| `npm run dev`              | The same with `--watch`                                                                                      |
+| `npm run build:css`        | `tailwindcss -i src/tailwind.css -o src/web/tailwind.css --minify`                                           |
+| `npm test`                 | `node --test --import ./test/setup/no-outbound-network.js 'test/*.test.js'`                                  |
+| `npm run test:integration` | `node --test --import ./test/setup/no-outbound-network.js --test-concurrency=1 'test/integration/*.test.js'` |
+| `npm run doctor`           | The health checks against the configured database ([Health checks](#health-checks))                          |
 
-> [!NOTE]<br>
-> `npm run setup` calls `npm audit signatures`, which honours `.npmrc`'s `min-release-age=3`. If a dep in the lockfile was published in the last three days, the audit step fails (`ETARGET notarget`). Either wait for it to age past the threshold or run `npm install --ignore-scripts --min-release-age=0` once for the freshly-published dep.
+### Tests
 
-> [!TIP]<br>
-> `package.json`'s `volta` block pins Node and npm to the versions the Dockerfile uses. Install [Volta](https://volta.sh) and it'll auto-switch when you `cd` into the repo, which avoids `EBADENGINE` from the host npm and ABI mismatches on `better-sqlite3`.
+The runner is the [Node test runner](https://nodejs.org/api/test.html); there are no test dependencies.
 
-For dev:
+- `test/*.test.js` holds the unit tests, named after the module they cover (for example `test/sync.test.js`, `test/live-*.test.js`).
+- `test/setup/no-outbound-network.js` loads before every test file. It throws `ENETBLOCKED` for any connection to a non-loopback host and fails the run when one was blocked.
+- `test/fixtures/` holds recorded TVHeadend, Plex, and TVmaze responses.
+- `test/integration/` tests bootstrap, guide, and channel setup against a real `lscr.io/linuxserver/tvheadend:latest` container that `tvheadend-container.js` starts with `docker run`. These tests need [Docker](https://docs.docker.com/).
 
-```sh
-npm run dev                # node --watch
-npm run migrate:refresh    # drop the SQLite DB and re-migrate
-```
+### Docs site
 
-## Project layout
+The documentation site is a [VitePress](https://vitepress.dev/) project under `docs/` with its own `package.json`. `docs/.vitepress/config.mjs` sets `base` to `/freetvarr/` and rewrites `DEEP_DIVE.md` to `deep-dive.md`. `npm run build` in `docs/` first runs `scripts/fetch-docs-media.sh`. `.github/workflows/docs.yml` builds on pushes to `main` that change `docs/**` and deploys to [GitHub Pages](https://docs.github.com/en/pages).
 
-```text
-freetvarr/
-├── src/
-│   ├── server.js           # Express app; helmet, CSP, rate limit, CSRF, X-Robots-Tag
-│   ├── db.js               # Knex instance + simple settings get/set
-│   ├── tvheadend.js        # The only module that speaks TVHeadend's JSON API
-│   ├── epg.js              # Guide + recording-state caching, channel prefs, series projection
-│   ├── guide-history.js    # Saves guide events TVHeadend will drop; prunes before yesterday
-│   ├── folder-matcher.js   # Fuse.js wrapper that scans the media root
-│   ├── sync.js             # Sync engine; list finished, match shows, hardlink or copy, persist; exports classifyImport / matchShow / buildDestPath / localPathFor for tests
-│   ├── commercials.js      # Ad removal; comskip detect + ffmpeg cut orchestration, pure helpers exported for tests
-│   ├── live-tv.js          # Live TV; stream picking, ffmpeg arguments, tuner preflight, session registry
-│   ├── live-streams.js     # Live streams at once: the stream limit and the startup benchmark
-│   ├── in-progress-playback.js  # From the start: plays a recording TVHeadend is still writing
-│   ├── library*.js         # The library API: shows, episodes, watched marks, delete, file states, and folder moves
-│   ├── series-kind.js      # Show, one-off, or movie: one rule for the import and the shelves
-│   ├── series-evidence.js  # Guide facts per show (recurrence, real seasons), saved as the guide loads
-│   ├── activity*.js        # Job registry, /api/activity routes, and the failed-job store
-│   ├── plex-watch*.js      # Watched and resume sync with Plex, both ways
-│   ├── plex-library*.js    # The whole Plex library in Recordings
-│   ├── arr-*.js            # Sonarr and Radarr client, settings, and routes
-│   ├── foreign-delete.js   # Deleting downloaded copies through Sonarr, Radarr, or the disk
-│   ├── for-you*.js         # For you: profile, scoring, capability probe, nightly upkeep, embed worker
-│   ├── user-events.js      # The viewing history behind For you
-│   ├── search-aliases.js   # Nicknames and other titles for search
-│   ├── progress.js         # In-memory progress registry + import-bar shim; merged into GET /api/recordings
-│   ├── scheduler.js        # node-cron wiring, reloads on settings change
-│   ├── plex.js             # Plex section refresh + token detection from Preferences.xml
-│   ├── event-loop-lag.js   # Stall monitor (/api/health/loop) and measureJob
-│   └── web/                # Vue 3 SPA (browser ESM, no bundler), hash-routed: app.js and route-table.js, views/ (one per page), components/, shared/ (state and API), small pure helper modules, styles/ + Tailwind v4 (prebuilt tailwind.css)
-├── test/                   # node --test; no extra test deps
-├── assets/
-│   └── comskip.ini         # Bundled AU free-to-air comskip tuning; /config/comskip.ini overrides
-├── migrations/             # knex migrations
-├── knexfile.js             # Honours DB_PATH env (defaults to ./config/state.db)
-├── Dockerfile              # node:24-bookworm-slim + tini + comskip + ffmpeg + healthcheck
-├── docker-entrypoint.sh    # `knex migrate:latest` then `exec node src/server.js`
-├── docker-compose.example.yml  # Init, TVHeadend, and Freetvarr; download as docker-compose.yml
-├── docker-compose.hwaccel.example.yml  # Optional VAAPI override
-├── install.sh                  # Downloads the compose file, writes .env, starts it
-├── docker-compose.dev.yml      # Override that builds Freetvarr from the checkout
-├── .env.example            # Local-dev minimal envs (optional CSRF_SECRET override and TZ default, PUID/PGID)
-├── .npmrc                  # Supply-chain hardening
-└── package.json
-```
-
-> [!NOTE]<br>
-> `src/web/tailwind.css` is built from `src/tailwind.css` (the `@theme` colour and font tokens) by `npm run build:css`, which scans `src/web` for class names. The file is committed, and `npm test` fails when it is stale, so run `npm run build:css` after you add a Tailwind class.
->
-> `src/web/styles.css` is a plain, unlayered stylesheet, while Tailwind emits its utilities inside `@layer utilities`. Unlayered rules beat layered ones no matter the specificity, so a bare element selector in `styles.css` (`a { color: #62cfff }`) overrides any Tailwind colour utility applied to an `<a>`. To restyle a link, add a class to `styles.css` or move the utility onto an inner `<span>`.
-
-## Scripts
-
-| Script                                                      | What it does                                                                                                                                  |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run setup`                                             | `npm ci --ignore-scripts` → `npm run rebuild:natives` → `npm audit signatures`                                                                |
-| `npm run rebuild:natives`                                   | Explicitly rebuilds the native deps allow-listed in `package.json` (just `better-sqlite3`)                                                    |
-| `npm run migrate`                                           | `mkdir -p config && knex migrate:latest`; idempotent, auto-run by `start` / `dev`                                                             |
-| `npm run migrate:refresh`                                   | `rm -f ./config/state.db && mkdir -p config && knex migrate:latest`; dev only                                                                 |
-| `npm start`                                                 | `npm run migrate && node --env-file-if-exists=.env src/server.js` (`.npmrc` sets `ignore-scripts`, so a `prestart` hook would never run)      |
-| `npm run dev`                                               | `npm run migrate && node --env-file-if-exists=.env --watch src/server.js`                                                                     |
-| `npm run build:css`                                         | Rebuilds `src/web/tailwind.css` from `src/tailwind.css` with the Tailwind CLI; run it after you add or remove a Tailwind class                |
-| `npm test`                                                  | `node --test 'test/*.test.js'`; Node 24 built-in runner, no extra deps                                                                        |
-| `npm run doctor`                                            | Runs the Health checks from the command line against the configured database and prints a table; exits `1` on any failure                     |
-| `node scripts/reclassify-library.mjs --db <file> --dry-run` | Prints the folder moves ([Folder moves](#folder-moves)) planned from a copy of `state.db`; changes nothing                                    |
-| `npm run test:integration`                                  | Starts a disposable `linuxserver/tvheadend` container with Docker and runs the TVHeadend bootstrap against it; never touches a real TVHeadend |
-
-## Testing
-
-```sh
-npm test
-```
-
-Node 24's built-in test runner, with no additional test dependencies. Unit tests cover:
-
-- **Sync**: `classifyImport` across the size-tolerance boundary, `matchShow` (case-insensitive substring matching), `buildDestPath` (`{season}` / `{season_padded}` / `{season_unpadded}` substitution, missing-season fallback, media-root escape rejection), `episodeFilename` (the `SxxEyy` and air-date forms, and title sanitisation), and `localPathFor` (prefix rewrite, the outside-the-prefix `null`, trailing-slash handling).
-- **Ad removal**: EDL parsing (malformed rows, action filtering), the `.edl` skip file (path, action `3` rows, write on detect, delete on cut or no breaks, keep on failure), keep-segment maths (clamping, merging, break-at-edge, whole-file-break), cut verification tolerance, comskip.ini resolution, the auto-delete gating matrix, and the scan-estimate maths.
-- **Progress**: registry round-trip, staleness eviction past `PROGRESS_STALE_MS` (via mocked timers), `clearProgress`, and the import shim's percentage and monotonically decreasing ETA.
-- **Live TV**: `pickStreams` (audio description skipped, AC-3-only audio, H.264 deinterlaced and re-encoded (or copied under `LIVE_TV_TRANSCODE=copy`), MPEG-2 and HEVC transcoded with the right height cap), exact ffmpeg arguments with no URL or credentials, `tunerVerdict` (multiplex sharing, idle tuner, none free, recording conflict inside and outside the window, same-multiplex recording), `stallReason`, the file-name pattern against path traversal, and the session registry with a fake clock, fake ffmpeg, and fake upstream: teardown order, the `SIGKILL` fallback, sharing, the session limit, the idle reaper, the stall watchdog, and the ffmpeg error line.
-- **Library routing**: `libraryDecision` (series folder, the RECORD choice, the row choice), longest-pattern `matchShow`, one-off and film paths, film detection, and the stored-path move when a root changes.
-- **Artwork and playback**: the artwork store (safe ids, orphan pruning, image shrinking) and the recording player (path guard, resume rule, seek-or-restart decision, the shared stream limit).
-- **TVHeadend bootstrap**: fresh-instance detection, the ordered plan, abort and rollback before the open entry is removed, and undo. `npm run test:integration` runs the same flow against a real, disposable TVHeadend container.
-- **Interface helpers**: the route table, the Home highlights and their rotation, the library menus and delete dialog copy, Scheduled grouping and the tuner plan, the search index, the player labels, mute, top bar layout, Miniplayer, and the Multiview sound rule and per-picture controls.
-- **Server**: library delete and its routes, From the start over a growing file, the stream limit, the For you scoring, profile, capability probe, and routes, the search aliases, and the viewing-history routes.
-- **Library state**: `seriesKindOf` and the folder-move plan, import destinations that never overwrite (`freeDestination`), replacement files, the job registry and its routes, the Plex watched sync plan, client, and runs, the whole Plex library merge, the Sonarr and Radarr client, and deletes through them.
-- **Folder matcher**: a real on-disk fixture under `os.tmpdir()` exercising `listShowFolders` and `matchShowFolder` against realistic disambiguated folder names.
-
-The TVHeadend client and the comskip/ffmpeg orchestration are tested by hand against real instances, not mocks. Manual smoke test:
-
-- `npm run dev`, hit `http://localhost:3733`.
-- **First visit** (with empty settings): auto-redirects to setup (`#/welcome`). Walks the welcome page with the time zone (pre-filled from the browser, or from `TZ` when it is set) → **TVHeadend** (URL, user, password; the step stays until the connection test passes) → **Channels** → **Guide** → **Folders** (with a folder check) → **Plex** → **Start watching**, which opens Home.
-- **Run setup later**: Settings → SYSTEM → Setup shows each part's state and opens each one; **Run the whole setup from the start** reopens the full setup. Saved values prefill; stored passwords and tokens show as stored, not as their values.
-- **Settings**: `#/settings/<id>` and `#/settings/system/<id>` links open one page (`help` and `about` open About); save; a change to **SYNCS** on Settings → SYSTEM → Schedule reloads the scheduler on save; **Test connection** reports the TVHeadend version, channel count, and tuner count; the Plex buttons each succeed when Plex is reachable.
-- **TV guide**: seven days of programmes with names; record, cancel, record-series, cancel-series each reflected in TVHeadend's own UI within a refresh; favourite, hide, and reorder channels; the Live TV page lists every channel's now and next.
-- **Series rules**: the list joins the series recordings in TVHeadend to their folders; per-series **Sync** on each row; pressing a row opens it, and there **Assign folder**, the folder form, **Pause**, **Resume**, and **Cancel series** each take effect; **Add title** on Title matches suggests a folder from the effective `media_root`.
-- **Activity**: on **Now**, run a sync and watch it appear under running jobs and then under finished jobs; open it to see its steps and log. On **Syncs**, page through the history `50` rows at a time, filter with **Show** and **From**, and clear history.
-- **Recording log**: pressing a row opens its details and buttons; a cross-filesystem copy shows progress and the list polls every `2 s`; a hardlink import shows none. A recording no longer in TVHeadend shows `NOT IN TVHEADEND` and can still be played, re-scanned, and re-cut; the toolbar button **Clear N not in TVHeadend** hides those rows and leaves the files (it shows only when N is above `0`); **Undo** restores them for `10 s` after.
-- **Reset**: **Reset Freetvarr** (Settings → DANGER ZONE → Reset, outside the settings form) calls `POST /api/reset`, which deletes the `settings`, `shows`, `recordings`, and `syncs` rows and reloads into the wizard. Guide history and the media files stay.
-
-## Screenshots
-
-The PNGs under `docs/img/` are captured from the running app by `scripts/capture-screenshots.sh`. The script pulls the official Playwright Docker image (no host install required), drives headless Chromium across the pages at desktop width plus a `390×844` mobile viewport, writes the screenshots into `docs/img/` with the right ownership, then uploads them to the `docs-media` release ([Docs media](#docs-media)).
-
-```sh
-# the container must be up + reachable at the URL the script expects
-./scripts/capture-screenshots.sh
-
-# Re-shoot a single page:
-./scripts/capture-screenshots.sh settings
-```
-
-The captures themselves are configured in `scripts/capture-screenshots.mjs` (desktop viewport `1280×936`, mobile `390×844`, viewport-only clip so every shot has the same aspect ratio, 2× device-scale). Before the Settings shot, the script rewrites the `/api/settings` response in-page so no real TVHeadend URL, password, Plex token, or host path reaches a published PNG.
-
-> [!TIP]<br>
-> To shoot UI changes that haven't shipped yet, run them locally against a copy of the live database; every panel renders from SQLite and the settings row, so the shots match production. Copy the state file off the deploy host (`ssh <host> 'cat /path/to/freetvarr/state.db' > /tmp/shots.db`; `scp` fails on hosts with a restricted sftp subsystem, Synology among them), start the server with `DB_PATH=/tmp/shots.db node src/server.js`, then point the capture script at your machine's LAN IP rather than `localhost` (the Playwright container can't reach the host loopback). Cautions: the scheduler starts with the copied `sync_cron`, so capture outside the cron window or a real sync fires against the live TVHeadend, and delete the copy afterwards; it holds the TVHeadend password and the Plex token.
-
-## Docs media
-
-The docs videos, posters, screenshots, and hero image are not in git. They live as assets of the `docs-media` GitHub release, listed in `scripts/docs-media.txt`.
-
-- `npm run build` and `npm run dev` in `docs/` run `scripts/fetch-docs-media.sh` first. It skips files already present; run `./scripts/fetch-docs-media.sh --force` to refresh them.
-- Each capture script ends by running `scripts/upload-docs-media.sh`, which replaces the release assets and starts a docs deploy. Set `DOCS_MEDIA_UPLOAD=0` to skip the upload, or `DOCS_MEDIA_DEPLOY=0` to skip the deploy.
-- The README images load from `https://furey.github.io/freetvarr/img/`, because GitHub's image proxy rejects release asset URLs.
-- The videos come from `capture-demo-beginframe/capture.sh` (`demo.mp4`, the homepage demo; see its `README.md`), `capture-install.sh`, `capture-wizard.sh`, `capture-record.sh` ([Getting started](/guide/getting-started) step 3), and `capture-home-screen.sh` (step 4: an iPad and an iPhone opening Freetvarr from the Home Screen). All but the install video use the demo fixtures in `scripts/capture-demo-api.mjs`, so they need a running Freetvarr but write nothing to it. Each poster is the first frame of its video, so the poster hands over to playback with no jump.
-- Only one GitHub Pages deploy runs at a time. If an upload's deploy overlaps a deploy from a push to `main`, the later one fails with "in progress deployment"; run `gh workflow run docs.yml --ref main` once the first finishes.
-
-## Documentation site
-
-The published docs at [furey.github.io/freetvarr](https://furey.github.io/freetvarr/) are a VitePress site under `docs/`, deployed to GitHub Pages by `.github/workflows/docs.yml` on every push to `main` that touches `docs/**` (pull requests build but don't deploy). It's decoupled from the app: `docs/` has its own `package.json` and lockfile, so `cd docs && npm install && npm run dev` previews it and `npm run build` compiles to `docs/.vitepress/dist`. The `base` is `/freetvarr/`; this file is surfaced on the site at `/deep-dive` via a `rewrites` entry, and the `docs/guide/` pages are the user-facing companion to this reference.
-
-One VitePress quirk: the `> [!NOTE]` alert convention in these files carries a trailing `<br>` (for the VS Code preview). VitePress would render that as a blank alert title, so `docs/.vitepress/config.mjs` strips it in a markdown hook.
+- Videos, posters, and screenshots are assets of the `docs-media` GitHub release, not files in git. `scripts/docs-media.txt` lists them; `scripts/fetch-docs-media.sh` downloads them; `scripts/upload-docs-media.sh` uploads them and starts the docs workflow.
+- The `scripts/capture-*.sh` scripts record the screenshots and videos with [Playwright](https://playwright.dev/docs/docker) against a throwaway server (`scripts/capture-local-server.sh`, port `3801`) and a read-only TVHeadend proxy. Each one ends with the upload script.

@@ -30,7 +30,8 @@ export const clearListConfirm = ({ count, undoSeconds }) => {
         + ` ${one ? 'it' : 'them'}. To delete ${one ? 'it' : 'them'} for good, delete ${one ? 'it' : 'them'}`
         + ' in your media player or from your library folder.',
       `For ${undoSeconds} seconds, Undo puts the ${one ? 'row' : 'rows'} back.`
-        + ` Without a clear, rows like these leave the list ${TOMBSTONE_DAYS} days after TVHeadend removed them.`,
+        + ' Without a clear, imported rows stay in this list,'
+        + ` and other rows leave it ${TOMBSTONE_DAYS} days after TVHeadend removed them.`,
     ],
     confirmLabel: 'Clear',
     busyLabel: 'Clearing…',

@@ -316,7 +316,7 @@ export const classifyImport = ({ expectedSize, actualSize, tolerance = SIZE_TOLE
       dbStatus: 'partial',
       summaryKey: 'failed',
       sizeToStore: actualSize,
-      error: `short copy: on-disk ${actualSize} bytes vs TVHeadend ${expectedSize} bytes (Δ ${shortfall})`,
+      error: `short copy: on-disk ${actualSize} bytes vs source ${expectedSize} bytes (Δ ${shortfall})`,
     }
   }
   return {
@@ -853,12 +853,14 @@ const finishSync = async (syncId, status, summary) => {
   await pruneCutOriginals()
 }
 
-const pruneTombstonedRecordings = async () => {
+export const pruneTombstonedRecordings = async () => {
   await db('recordings')
     .whereNotNull('deleted_from_tvh_at')
     .andWhereRaw(
       `datetime(deleted_from_tvh_at) < datetime('now', '-${RECORDING_TOMBSTONE_TTL_DAYS} days')`
     )
+    .where((q) => q.whereNotNull('purged_at').orWhereNotIn('status', IMPORTED_STATUSES))
+    .whereNull('ad_backup_saved_at')
     .delete()
   const kept = await db('recordings').select('recording_id')
   await pruneRecordingArtwork({ keepIds: kept.map((r) => r.recording_id) }).catch(() => 0)
@@ -880,6 +882,7 @@ const upsertRecording = async ({ item, show, file_path, status, error }) => {
     status,
     error,
     purged_at: null,
+    log_cleared_at: null,
   }
   const { recording_id, ...mergeable } = payload
   await db('recordings')
@@ -944,6 +947,7 @@ const SIZE_TOLERANCE_BYTES = 1_000_000
 const PROGRESS_TICK_MS = 1000
 const SYNC_ITEMS_CAP = 100
 const RECORDING_TOMBSTONE_TTL_DAYS = 30
+const IMPORTED_STATUSES = ['done', 'partial']
 
 let inFlight = null
 const failedArtworkSources = new Set()

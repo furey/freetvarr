@@ -216,7 +216,7 @@ test('classifyImport: shortfall over tolerance → partial / failed', () => {
   assert.equal(o.dbStatus, 'partial')
   assert.equal(o.summaryKey, 'failed')
   assert.equal(o.sizeToStore, 1_000_000)
-  assert.match(o.error, /short copy/)
+  assert.equal(o.error, 'short copy: on-disk 1000000 bytes vs source 5000000 bytes (Δ 4000000)')
 })
 
 test('classifyImport: shortfall within tolerance still counts as done', () => {

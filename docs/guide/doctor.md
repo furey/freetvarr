@@ -11,7 +11,7 @@ Health checks the parts Freetvarr depends on and says what to fix. Open it from 
 
 The page has three groups:
 
-- **SYNC**: the last sync, the next sync (a sync is Freetvarr's pass over TVHeadend's finished recordings to import them), and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
+- **SYNC**: the last sync, the next sync (a sync is Freetvarr's pass over [TVHeadend](https://tvheadend.org/)'s finished recordings to import them), and the recordings imported in the last `7` days. **Activity** opens the [sync history](/guide/syncs#history). **Sync now** at the top runs a sync at once.
 - **CHECKS**: the read-only checks described below. Settings → ABOUT → About Freetvarr calls them **Health checks**.
 - **STORAGE**: the free space on the recordings and media folders ([Configuration](/guide/configuration#the-two-recordings-paths) describes both), with a bar for each.
 
@@ -25,7 +25,7 @@ While the result is red, Home also shows the reason as an alert under the greeti
 
 ## Results
 
-The checks only read. They send `GET` requests to TVHeadend and Plex, and look at folders without writing to them. They never save settings, change TVHeadend, refresh Plex, or start a test encode.
+The checks only read. They send `GET` requests to TVHeadend and [Plex](https://www.plex.tv/), and look at folders without writing to them. They never save settings, change TVHeadend, refresh Plex, or start a test encode.
 
 Each check gets one of these results, shown as a dot beside the check:
 
@@ -34,7 +34,7 @@ Each check gets one of these results, shown as a dot beside the check:
 - **Fail**: something Freetvarr needs is broken. The row says how to fix it, and **Read more** opens the matching docs.
 - **Skip**: the check cannot run yet, usually because an earlier check failed. Fix that one first.
 
-When every check passes, the page says `Everything's working`. Otherwise the checks are grouped as **Needs attention** (fails), **Needs a look** (warnings), and **Working**. The **Working** group folds into one row, such as `12 checks working`; press it to see each check. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
+When every check passes, the page says `Everything's working`. Otherwise the checks are grouped as **Needs attention** (fails), **Needs a look** (warnings), and **Working** (passes and skips). The **Working** group folds into one row, such as `12 checks working`, with `· 2 skipped` added when checks skipped; press it to see each check. Press **Run checks** to check again. A check that gets no answer in `8` seconds fails.
 
 From a source checkout (a clone of the Freetvarr repository), this command outputs the same checks in the terminal:
 
@@ -58,7 +58,7 @@ Reads the tuner status, which needs **Admin**, and the upcoming recordings, whic
 
 ## Open access {#tvh-open}
 
-Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the linuxserver Docker image (the one in Freetvarr's Docker compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
+Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the [linuxserver](https://www.linuxserver.io/) [Docker](https://docs.docker.com/) image (the one in Freetvarr's Docker Compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
 
 ## Tuners {#tvh-tuners}
 
@@ -74,7 +74,7 @@ Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the las
 
 ## Channel logos {#guide-logos}
 
-Counts the channels that have a TVHeadend icon. It skips when there are no channels. It warns when the TVHeadend setting **Prefer picons over channel icons** is on but no **Picon path** is set, because TVHeadend then reports no icon at all. See [Missing channel logos](/guide/troubleshooting#missing-channel-logos).
+Counts the channels that have a TVHeadend icon. It skips when there are no channels. It warns when the TVHeadend setting **Prefer picons over channel icons** is on but no **Picon path** is set (a picon is a channel logo image file), because TVHeadend then reports no icon at all. See [Missing channel logos](/guide/troubleshooting#missing-channel-logos).
 
 ## Recordings folder {#paths-recordings}
 
@@ -90,11 +90,11 @@ Checks that the media folder exists and that Freetvarr can write to it. When it 
 
 ## Hardlinks {#paths-hardlink}
 
-Makes a real test hardlink from the recordings folder into the media folder and into the one-off folder. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy is deleted. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
+Makes a real test hardlink from the recordings folder into the media folder, the one-off folder, and the movies folder (when set). A hardlink is a second name for the same file data, which uses no extra space. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy is deleted. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. A mount is a folder attached to the Docker container from the host. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).
 
 ## Free space {#disk-free}
 
-Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `10GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC, the figure is Docker's virtual disk. The real limit is your computer's own disk.
+Reads the free space on the recordings and media folders. It warns under `20GB` or `10%` free, and fails under `10GB`. Sizes of `1000GB` or more show as `TB`. Recordings fail when the disk fills. With Docker on a Mac or Windows PC ([Docker Desktop](https://docs.docker.com/desktop/)), the figure is Docker's virtual disk. The real limit is your computer's own disk.
 
 ## Plex library {#plex-reach}
 
@@ -102,7 +102,7 @@ Lists Plex's library sections. It skips when Plex is not set up. It fails when P
 
 ## Plex one-off library {#plex-oneoffs}
 
-Counts the items in the Plex library chosen as the **One-off library**. It skips when Plex or that library is not set up. It warns when Plex lists items but the one-off folder has no files, because Plex then keeps items whose files are gone. When the `.freetvarr-keep` file is missing, the check offers **Create placeholder file**. See [One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex).
+Counts the items in the Plex library chosen as the **One-off library**. It skips when Plex or that library is not set up. It warns when Plex lists items but the one-off folder has no files, because Plex then keeps items whose files are gone. The `.freetvarr-keep` file is an empty hidden file that stops Plex reading the one-off folder as empty ([The one-off library](/guide/plex#the-one-off-library)). When it is missing, the check offers **Create placeholder file**. See [One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex).
 
 ## Syncs {#sync-health}
 
@@ -110,7 +110,7 @@ Reads the last finished sync and the sync schedule. It warns when the last sync 
 
 ## Live TV encoder {#live-encoder}
 
-Reports the video encoder Freetvarr chose for live TV when it started. It fails when `ffmpeg` is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding).
+Reports the video encoder Freetvarr chose for live TV when it started. It fails when [FFmpeg](https://ffmpeg.org/) is not installed. It warns when live TV falls back to software encoding, because HD channels then load the processor. Setting `LIVE_TV_TRANSCODE=software` yourself passes, and so does Docker on a Mac or Windows PC, which cannot use the graphics chip. See [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding).
 
 ## Live streams {#live-streams}
 
@@ -118,7 +118,7 @@ Reports the result of the live TV speed test that Freetvarr runs when it starts,
 
 ## Ad removal tools {#ads-comskip}
 
-Runs only when ad removal is on. It checks that `comskip`, `ffmpeg`, and `ffprobe` are on the `PATH`, without starting them. The Docker image includes all three. See [Ad removal](/guide/ad-removal).
+Runs only when ad removal is on. It checks that [Comskip](https://www.kaashoek.com/comskip/) (`comskip`), FFmpeg (`ffmpeg`), and [FFprobe](https://ffmpeg.org/ffprobe.html) (`ffprobe`) are on the `PATH`, without starting them. The Docker image includes all three. See [Ad removal](/guide/ad-removal).
 
 ## Time zone and network {#host-env}
 

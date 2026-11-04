@@ -114,7 +114,7 @@ export const ProgrammeSheetHost = {
               <div v-if="sheetStrength === 'series'" class="ui-group-row">
                 <span class="ui-group-row-main">
                   <span class="ui-group-row-title">Any channel</span>
-                  <span class="ui-group-row-meta">Follow the show if it moves to another channel</span>
+                  <span class="ui-group-row-meta">Record the series on whichever channel airs it</span>
                 </span>
                 <toggle-switch v-model="anyChannel" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" />
               </div>

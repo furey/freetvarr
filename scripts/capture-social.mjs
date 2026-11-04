@@ -6,15 +6,27 @@ import { TIMEZONE, simulatedNow, prepareDemoContext, requireAllArt } from './cap
 import { startLoopback } from './capture-loopback.mjs'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
+const { MIST_FRAG, MIST_VERT } = await import(`${REPO_ROOT}docs/.vitepress/theme/mist-shader.js`)
 const FREETVARR_URL = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
 
 const DOCS_URL = 'furey.github.io/freetvarr'
 const TAGLINE = 'Record free-to-air TV.<br>Watch it on your TV in any<br>media player, ad&nbsp;free.'
 
+const productMist = {
+  origin: [0.68, 0.35],
+  scale: 1.3,
+  direction: [1.4, 0],
+  bottomFade: 0.15,
+  strength: 0.4,
+  time: 145,
+  colour: '#3ba4ff'
+}
+
 const productCard = {
   layout: 'screenshot',
   headline: TAGLINE,
-  url: DOCS_URL
+  url: DOCS_URL,
+  mist: productMist
 }
 
 const cards = [
@@ -50,16 +62,24 @@ const cards = [
 const HOME_VIEWPORT = { width: 1280, height: 1100 }
 const HOME_SCALE = 2
 const HERO_TITLE = process.env.SOCIAL_HERO_TITLE ?? 'Big Brother'
+const SWIFTSHADER_ARGS = [
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+  '--ignore-gpu-blocklist'
+]
 const HIDE_SCROLLBARS = '::-webkit-scrollbar{width:0!important;height:0!important}html,body{scrollbar-width:none!important}'
 
 const main = async () => {
   const assets = await loadAssets()
   const browser = await chromium.launch()
+  const mistBrowser = cards.some((card) => card.mist)
+    ? await chromium.launch({ args: SWIFTSHADER_ARGS })
+    : null
   const homeShot = cards.some((card) => card.layout === 'screenshot')
     ? await captureHome(browser)
     : null
   for (const card of cards) {
-    const context = await browser.newContext({
+    const context = await (card.mist ? mistBrowser : browser).newContext({
       viewport: { width: card.width, height: card.height },
       deviceScaleFactor: 1
     })
@@ -70,12 +90,13 @@ const main = async () => {
     await page.setContent(html)
     await page.evaluate(() => document.fonts.ready)
     await page.waitForFunction(() => [...document.images].every((img) => img.complete))
+    await paintMist({ page, card })
     await mkdir(dirname(`${REPO_ROOT}${card.out}`), { recursive: true })
     await page.screenshot({ path: `${REPO_ROOT}${card.out}`, type: 'png' })
     console.log(`[social] wrote ${card.out}`)
     await context.close()
   }
-  await browser.close()
+  await Promise.all([browser.close(), mistBrowser?.close()])
 }
 
 const captureHome = async (browser) => {
@@ -112,6 +133,50 @@ const showHeroSlide = async (page, title) => {
   await page.waitForTimeout(800)
 }
 
+const paintMist = async ({ page, card }) => {
+  if (!card.mist) return
+  await page.evaluate(drawMist, { mist: card.mist, vert: MIST_VERT, frag: MIST_FRAG })
+}
+
+const drawMist = ({ mist, vert, frag }) => {
+  const canvas = document.querySelector('canvas.mist')
+  const { width, height } = canvas
+  const gl = canvas.getContext('webgl', {
+    antialias: false,
+    depth: false,
+    preserveDrawingBuffer: true
+  })
+  if (!gl) throw new Error('[social] no WebGL context for the mist')
+  const program = gl.createProgram()
+  for (const [type, src] of [[gl.VERTEX_SHADER, vert], [gl.FRAGMENT_SHADER, frag]]) {
+    const shader = gl.createShader(type)
+    gl.shaderSource(shader, src)
+    gl.compileShader(shader)
+    gl.attachShader(program, shader)
+  }
+  gl.linkProgram(program)
+  const linked = gl.getProgramParameter(program, gl.LINK_STATUS)
+  if (!linked) throw new Error(gl.getProgramInfoLog(program))
+  gl.useProgram(program)
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer())
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+  gl.enableVertexAttribArray(0)
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+  const at = (name) => gl.getUniformLocation(program, name)
+  const colour = [1, 3, 5].map((i) => parseInt(mist.colour.slice(i, i + 2), 16) / 255)
+  const highlight = colour.map((value) => value + (1 - value) * 0.35)
+  gl.viewport(0, 0, width, height)
+  gl.uniform2f(at('o'), width * mist.origin[0], height * (1 - mist.origin[1]))
+  gl.uniform1f(at('b'), height * mist.bottomFade)
+  gl.uniform1f(at('s'), height * mist.scale)
+  gl.uniform2fv(at('f'), mist.direction)
+  gl.uniform1f(at('t'), mist.time)
+  gl.uniform1f(at('k'), mist.strength)
+  gl.uniform3fv(at('c1'), colour)
+  gl.uniform3fv(at('c2'), highlight)
+  gl.drawArrays(gl.TRIANGLES, 0, 3)
+}
+
 const loadAssets = async () => {
   const fontDir = `${REPO_ROOT}docs/.vitepress/theme/fonts`
   const drawingDir = `${REPO_ROOT}scripts/social`
@@ -129,6 +194,10 @@ const loadAssets = async () => {
 
 const wordmarkHtml = (size) =>
   `<div class="wordmark ${size}"><span class="free">Free</span><span class="tv">tv</span><span class="arr">arr</span></div>`
+
+const mistHtml = (card) => card.mist
+  ? `<canvas class="mist" width="${card.width}" height="${card.height}"></canvas>`
+  : ''
 
 const fontFacesCss = (assets) => `
 @font-face {
@@ -150,6 +219,12 @@ body {
   background: #0b1117;
   color: #f2f5f7;
   font-family: "Figtree", sans-serif;
+}
+.mist {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .wordmark {
   font-weight: 800;
@@ -207,8 +282,8 @@ ${baseCss(card)}
 .wordmark { font-size: ${l.wordmarkSize}px; margin-bottom: ${Math.round(l.wordmarkSize * 0.4)}px; }
 h1 {
   font-size: ${l.headlineSize}px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: 400;
+  line-height: 1.3;
   letter-spacing: -0.015em;
   text-wrap: balance;
 }
@@ -242,6 +317,7 @@ h1 {
 </style>
 </head>
 <body>
+  ${mistHtml(card)}
   <div class="copy">${wordmarkHtml('large')}<h1>${card.headline}</h1></div>
   <span class="url">${card.url}</span>
   <div class="frame">
@@ -295,8 +371,8 @@ h1 em { font-style: normal; color: #3ba4ff; }
   margin-top: 28px;
   color: #a9b4be;
   font-size: 30px;
-  font-weight: 500;
-  line-height: 1.35;
+  font-weight: 400;
+  line-height: 1.45;
 }
 .footer {
   position: absolute;
@@ -319,6 +395,7 @@ h1 em { font-style: normal; color: #3ba4ff; }
 </style>
 </head>
 <body>
+  ${mistHtml(card)}
   <div class="copy">${drawingCopyHtml(card)}</div>
   <div class="drawing">${assets.drawings[card.drawing]}</div>
   <div class="footer">${wordmarkHtml('small')}<span class="url">${card.url}</span></div>
