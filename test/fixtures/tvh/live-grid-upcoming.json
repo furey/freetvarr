@@ -1,0 +1,159 @@
+{
+  "entries": [
+    {
+      "uuid": "0b2d30b9eef488c29c371310dc3968c0",
+      "enabled": true,
+      "start": 1794385800,
+      "stop": 1794390000,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother Australia",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "7a5a8daf5c0c60a2160bb25bab07e05c",
+      "enabled": true,
+      "start": 1794386020,
+      "stop": 1794392255,
+      "channel": "6a5b047e2f065b20325320e85d678002",
+      "channelname": "7 Sydney",
+      "disp_title": "My Kitchen Rules",
+      "autorec": "fcd46d530abe500d2fa15ed8610e3c9e",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "aa14b5ad13e97a84f3982338e622d7d5",
+      "enabled": true,
+      "start": 1794299400,
+      "stop": 1794303000,
+      "channel": "8fc0fd728750dfe7402a0f914ea3b9eb",
+      "channelname": "9HD Sydney",
+      "disp_title": "1 Euro House",
+      "autorec": "494b07186c1ab2dd29f0a54fb2f70ec5",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "0ad906862e3a896aa822f80f1de47ca9",
+      "enabled": true,
+      "start": 1794299400,
+      "stop": 1794303600,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother Australia",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "26fa1dfb6a34c021772840d4b0d5fdfd",
+      "enabled": true,
+      "start": 1794299530,
+      "stop": 1794305875,
+      "channel": "6a5b047e2f065b20325320e85d678002",
+      "channelname": "7 Sydney",
+      "disp_title": "My Kitchen Rules",
+      "autorec": "fcd46d530abe500d2fa15ed8610e3c9e",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "1024830061c14d836833790e888f4355",
+      "enabled": true,
+      "start": 1794124800,
+      "stop": 1794129000,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "05a98cecebc72469fbff789072cdc972",
+      "enabled": true,
+      "start": 1793781000,
+      "stop": 1793785200,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "3a6c37ffcff5c1482744cc04fdc10362",
+      "enabled": true,
+      "start": 1793867400,
+      "stop": 1793871600,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "325eec3dacc43393b24f635d682f3dba",
+      "enabled": true,
+      "start": 1793922600,
+      "stop": 1793926800,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "79f5eee310799a0f545ae511b5924759",
+      "enabled": true,
+      "start": 1794213000,
+      "stop": 1794217200,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "00bde48330f2ddea24cb8e16fb3a9d12",
+      "enabled": true,
+      "start": 1794268200,
+      "stop": 1794272400,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "5d54b674b4856cc0f8594ee654a707a7",
+      "enabled": true,
+      "start": 1793953800,
+      "stop": 1793958000,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "2f10819339f1c1628544ca818e9962d7",
+      "enabled": true,
+      "start": 1794109800,
+      "stop": 1794114000,
+      "channel": "632c91d952b46e17252fa56a0e367e23",
+      "channelname": "10 HD",
+      "disp_title": "Big Brother",
+      "autorec": "6a0fe04c35262da59c09e7b45aba6f78",
+      "sched_status": "scheduled"
+    },
+    {
+      "uuid": "f9a495978d88d425a42e1de56839e55b",
+      "enabled": true,
+      "start": 1794213105,
+      "stop": 1794219045,
+      "channel": "6a5b047e2f065b20325320e85d678002",
+      "channelname": "7 Sydney",
+      "disp_title": "My Kitchen Rules",
+      "autorec": "fcd46d530abe500d2fa15ed8610e3c9e",
+      "sched_status": "scheduled"
+    }
+  ],
+  "total": 14
+}

@@ -17,6 +17,7 @@ import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
+import { anchorSeriesRulesQuietly } from './autorec-anchor.js'
 import { USER_ORIGIN } from './show-origin.js'
 import { FOLDER_UNWRITABLE, PLACEHOLDER_KEPT, keepOneOffFolder } from './one-off-placeholder.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
@@ -2485,6 +2486,8 @@ const server = app.listen(PORT, async () => {
   watchPendingSkips()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
+  anchorSeriesRulesQuietly()
+  onSyncFinished(() => anchorSeriesRulesQuietly())
   onSyncFinished(() => reclassifyLibrary('sync'))
   setTimeout(() => runReclassificationOnce()
     .catch((err) => console.warn(`[library] folder sort failed: ${err.message}`)), RECLASSIFY_STARTUP_DELAY_MS).unref()

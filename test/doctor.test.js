@@ -113,6 +113,7 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     dockerVm: () => null,
     uid: () => 1000,
     libraryRootProblem: async () => null,
+    anchorFailures: async () => [],
     ...overrides,
   }
 }
@@ -127,13 +128,22 @@ const runAgainst = async ({ routes, now = Date.now(), timeoutMs, ...overrides })
 
 const byId = (report) => Object.fromEntries(report.checks.map((c) => [c.id, c]))
 
+test('runDoctor: warns when TVHeadend did not save the exact-title change for a series recording', async () => {
+  const now = Date.now()
+  const anchorFailures = async () => [{ uuid: 'r1', name: 'Chefs Ahoy' }]
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, anchorFailures }))['tvh.rules']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /Chefs Ahoy, so that series recording can still record longer titles/)
+  assert.match(check.fix, /tries again after the next sync/)
+})
+
 const TVH_DEPENDENT = ['tvh.rights', 'tvh.open', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'paths.match']
 
 test('runDoctor: a healthy setup passes every check it can run, reading TVHeadend with GETs only', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 18, warn: 0, fail: 0, skip: 3 })
+  assert.deepEqual(report.summary, { pass: 19, warn: 0, fail: 0, skip: 3 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
