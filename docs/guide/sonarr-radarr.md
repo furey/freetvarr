@@ -9,13 +9,13 @@ description: >-
 
 <Illustration name="sonarr-radarr" />
 
-Sonarr and Radarr are optional. When Plex is connected, Recordings lists your [whole Plex library](/guide/plex#your-whole-library), including the episodes and films Sonarr and Radarr downloaded. Connect Sonarr and Radarr so that a delete in Freetvarr goes through them:
+[Sonarr](https://sonarr.tv/) and [Radarr](https://radarr.video/) are apps that download TV episodes and films. They are optional. When [Plex](https://www.plex.tv/) is connected, Recordings lists your [whole Plex library](/guide/plex#your-whole-library), including the episodes and films Sonarr and Radarr downloaded. Connect Sonarr and Radarr so that a delete in Freetvarr goes through them:
 
-1. Freetvarr asks Sonarr or Radarr to stop monitoring the episode or film.
+1. When **Stop downloading it again** is on (the default), Freetvarr asks Sonarr or Radarr to stop monitoring the episode or film.
 2. Freetvarr asks Sonarr or Radarr to delete the file. The file goes to its recycle bin when the recycle bin is on.
 3. Freetvarr refreshes the Plex library.
 
-If the delete fails, Freetvarr asks Sonarr or Radarr to monitor the episode or film again, and the dialog says that nothing was deleted.
+If the delete fails, Freetvarr asks Sonarr or Radarr to monitor the episode or film again (if it stopped monitoring first), and the dialog says that nothing was deleted.
 
 Without a connection, Freetvarr leaves files that Sonarr or Radarr downloaded alone, so they cannot download again behind your back. Files that no app manages, such as [Fetch exports](/guide/leaving-fetch#saving-your-fetch-recordings) or copies you made yourself, are deleted from the disk after a dialog that shows the full path.
 
@@ -36,7 +36,7 @@ Without a connection, Freetvarr leaves files that Sonarr or Radarr downloaded al
 
 ## Read the API keys for you
 
-Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the same way it reads the [Plex token](/guide/plex#the-token). The Docker compose file mounts each file read-only into the Freetvarr Docker container.
+Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the same way it reads the [Plex token](/guide/plex#the-token). The [Docker Compose](https://docs.docker.com/compose/) file mounts each file read-only into the Freetvarr Docker container.
 
 1. Add the host path of each file to the `.env` file beside your `docker-compose.yml`:
 
@@ -65,10 +65,10 @@ An episode can have two copies: Freetvarr's recording and a file that Sonarr, Ra
 
 **Stop downloading it again**, in the **WHEN YOU DELETE** group of Settings → RECORDING → Sonarr and Radarr, is on by default. Turn it off only if you want Sonarr and Radarr to download a deleted episode or film again.
 
-**Delete all episodes** on a show that Sonarr downloads also offers **Remove the series from Sonarr too**. It is off until you tick it. When ticked, Sonarr removes the series and adds it to its import list exclusions, so a list does not add it back.
+**Delete all episodes** on a show that Sonarr downloads also offers **Remove the series from Sonarr too**. It is off until you tick it. When ticked, Sonarr removes the series and adds it to its import list exclusions (Sonarr's list of series that an import list must not add), so a list does not add it back.
 
 ## Notes
 
 - Sonarr and Radarr must see the library at the same paths as Plex, or at paths that end in the same show and season folders.
 - A file that holds two episodes, such as `S01E01-E02`, is deleted once; the dialog lists both episodes.
-- A file with another hard link on the disk frees no space when you delete it. The dialog says so.
+- A file with another hard link on the disk (a second name for the same file data) frees no space when you delete it. The dialog says so.

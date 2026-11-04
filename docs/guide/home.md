@@ -11,7 +11,7 @@ description: >-
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="frmAuvjz9eo" title="Freetvarr Home, For you, Activity, Health, and Settings" duration="2:23" />
 
-Home is the first page Freetvarr opens. It answers one question: what can I watch now? Its title greets you for the time of day, such as `Good evening`.
+Home is the first page Freetvarr opens. It answers one question: what can I watch now? Its title greets you for the time of day, such as `Good evening`. Before 5am it reads `Late night`.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/home">
@@ -26,7 +26,7 @@ Freetvarr has five destinations: **Home**, **Live TV**, **TV guide**, **Recordin
 Each page has these controls in its header:
 
 - **Search**: finds a show. See [Search](#search).
-- The recording chip, while TVHeadend records, for example `Recording The Block`. Point at it to see the minutes left. Press it to open the [show page](/guide/recordings#show-pages); **Back** then goes to Recordings → Library. While recordings of more than one show run, it says how many, such as `Recording 2 shows`, and opens [Scheduled](/guide/recordings#scheduled).
+- The recording chip, while [TVHeadend](https://tvheadend.org) records, for example `Recording The Block`. Point at it to see the minutes left. Press it to open the [show page](/guide/recordings#show-pages); **Back** then goes to Recordings → Library. While recordings of more than one show run, it says how many, such as `Recording 2 shows`, and opens [Scheduled](/guide/recordings#scheduled).
 - On a phone, the recording chip is a banner under the page title instead. Its first line is the show title (or the titles, for more than one show), and its second line says what records and the minutes left, such as `Recording · 27 min left`.
 - The clock, on a tablet or computer.
 
@@ -45,17 +45,17 @@ Freetvarr picks the slides from the list below and leaves out any that has nothi
 
 The order changes each hour. **Recording now** and **Live news** or **Live sport** always come first, because they are on now. The other slides take turns: each hour gets a new mix, with different kinds of slide near the front, and a different first slide from the hour before. Every phone, tablet, and computer shows the same order in the same hour, and a reload in that hour does not change it. When the hour changes while Home is open, the new order starts at the next slide.
 
-| Slide                           | What it shows                                                                                                      | Buttons                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| **Continue watching**           | A recording you started and have not finished.                                                                     | **Resume**, **Episodes**                                                  |
-| **New episode**                 | A new episode of a show you watch.                                                                                 | **Play**, **Episodes**                                                    |
-| **Recording now**               | A programme TVHeadend records now.                                                                                 | **Watch from the start** (when it can play the recording), **Watch live** |
-| **For you**                     | A suggestion from [For you](/guide/for-you), with the reason.                                                      | **Record** or **Record series**, **Details**                              |
-| **Live news** or **Live sport** | A news or sports programme on now on a favourite channel.                                                          | **Watch live**, **Record**                                                |
-| **Recording tonight**           | One of the next recordings, with **Recording today** or **Recording tomorrow** when it is not tonight.             | **Recording options** or **Details**, **Scheduled**                       |
-| **Now in the guide**            | A show on your [watchlist](/guide/tv-guide#watchlist), now in the TV guide.                                        | **Record** or **Record series**, **Details**                              |
-| **Unwatched movie**             | A film you recorded and have not watched.                                                                          | **Play** or **Resume**, **Details**                                       |
-| **Top rated this week**         | A film from **Top rated movies this week** on [For you](/guide/for-you), when the guide has a wide picture for it. | **Record**, **Details**                                                   |
+| Slide                           | What it shows                                                                                                                          | Buttons                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Continue watching**           | A recording you started and have not finished.                                                                                         | **Resume**, **Episodes**                                                  |
+| **New episode**                 | A new episode of a show you watch.                                                                                                     | **Play**, **Episodes**                                                    |
+| **Recording now**               | A programme TVHeadend records now.                                                                                                     | **Watch from the start** (when it can play the recording), **Watch live** |
+| **For you**                     | A suggestion from [For you](/guide/for-you), with the reason.                                                                          | **Record** or **Record series**, **Details**                              |
+| **Live news** or **Live sport** | A news or sports programme on now on a favourite channel.                                                                              | **Watch live**, **Record**                                                |
+| **Recording tonight**           | One of the next recordings, with **Recording today**, **Recording tomorrow**, or **Recording** and the weekday when it is not tonight. | **Recording options** or **Details**, **Scheduled**                       |
+| **Now in the guide**            | A show on your [watchlist](/guide/tv-guide#watchlist), now in the TV guide.                                                            | **Record** or **Record series**, **Details**                              |
+| **Unwatched movie**             | A film you recorded and have not watched.                                                                                              | **Play** or **Resume**, **Details**                                       |
+| **Top rated this week**         | A film from **Top rated movies this week** on [For you](/guide/for-you), when the guide has a wide picture for it.                     | **Record**, **Details**                                                   |
 
 **Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it.
 
@@ -83,12 +83,12 @@ Every card and every **Recording tonight** row has a **⋯** menu. To open it:
 
 The menu depends on the row:
 
-| Row                   | Menu                                                                                                                                           |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                                    |
-| **For you**           | **Record this episode**, **Record series**, **Programme info**, feedback, and **Why this?**.                                                   |
-| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                            |
-| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**. |
+| Row                   | Menu                                                                                                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                                                     |
+| **For you**           | **Record this episode**, **Record series**, **Programme info**, **Not interested in** and the title, **Not a movie** or **This is a movie**, and **Why this?**. |
+| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                                             |
+| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**.                  |
 
 For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
 
@@ -102,19 +102,19 @@ When something Freetvarr needs is broken, such as TVHeadend not answering or the
 
 ## Search
 
-Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in two groups:
+Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in two groups, then a watchlist offer:
 
 - **IN RECORDINGS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
 - **IN THE TV GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
 
-When nothing in the next 7 days matches, the results end with **Add “title” to watchlist**. Press it to list the show under **WATCHLIST** in Scheduled, or to record it when it is in the TV guide. See [Watchlist](/guide/tv-guide#watchlist).
+When nothing in the next 7 days matches, the results end with **Add “title” to watchlist** under **NOT IN THE NEXT 7 DAYS**. Press it to list the show under **WATCHLIST** in Scheduled, or to record it when it is in the TV guide. See [Watchlist](/guide/tv-guide#watchlist).
 
 Search finds a show in these ways:
 
 - **The title**, or any part of it.
 - **A nickname** from a list that ships with Freetvarr, such as `MKR` for My Kitchen Rules or `GBBO` for The Great British Bake Off.
 - **Your own names** for a show. Add them under **Also known as** in a show's [Recording options](/guide/recordings#recording-options).
-- **Other titles** of a show, such as its title in another country. Freetvarr learns these from TVmaze and Wikidata while it looks up pictures and genres, when those lookups are on in Settings → WATCHING → [Film and TV info](/guide/settings#watching).
+- **Other titles** of a show, such as its title in another country. Freetvarr learns these from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org) while it looks up pictures and genres, when those lookups are on in Settings → WATCHING → [Film and TV info](/guide/settings#watching).
 - **Initials**: `bbt` finds The Big Bang Theory.
 - **A close spelling**, when nothing else matches. The result says `Did you mean`.
 

@@ -7,7 +7,7 @@ hero:
   text: >-
     <span class="hero-line-1"><em class="hero-em">Live TV</em> on your devices.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
-    Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
+    Self-hosted TV for any tuner that TVHeadend can use. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
     style="font-size:0.575em">*optional via
     Comskip</span>
@@ -36,7 +36,7 @@ features:
   - title: Free to run
     illustration: free-to-run
     details: >-
-      A tuner you own and a free XMLTV guide. No subscription, no levy, no
+      A tuner you own and a free XMLTV guide (a TV guide file format). No subscription, no levy, no
       vendor who can retire your recorder.
     link: /guide/hardware-requirements
     linkText: What to buy
@@ -59,8 +59,9 @@ features:
   - title: Hardlink imports
     illustration: hardlink-imports
     details: >-
-      Recordings are already on disk, so the import is a hardlink, not a
-      download: instant, and no second copy of a 3GB transport stream.
+      Recordings are already on disk. When the recordings and the library share
+      one Docker mount, the import is a hardlink: instant, and no second copy
+      of a 3GB transport stream (the <code>.ts</code> file TVHeadend records).
     link: /deep-dive#import-state-machine
     linkText: The state machine
   - title: Plex integration
@@ -73,24 +74,26 @@ features:
   - title: Optional ad removal
     illustration: ad-removal
     details: >-
-      Comskip commercial detection with a detect-only audit mode and
-      keyframe stream-copy cutting (no transcode), keeping an .orig backup of
-      every cut.
+      Comskip commercial detection with a detect-only audit mode. Cuts
+      happen at keyframes without re-encoding, so there is no quality loss, and
+      Freetvarr keeps an .orig backup of every cut.
     link: /deep-dive#ad-removal
     linkText: How it works
   - title: Removes that work
     illustration: removes-that-work
     details: >-
-      TVHeadend's DVR API deletes the file after the import (and the Plex
-      refresh, if you use Plex), and keeps the entry so TVHeadend's duplicate check still sees the
-      episode.
+      With <strong>Remove from TVHeadend after import</strong> on for a series, Freetvarr deletes
+      the file through TVHeadend's DVR API after the import (and the Plex
+      refresh, if you use Plex), and keeps the entry so TVHeadend's duplicate
+      check still sees the episode.
     link: /guide/remove-from-tvheadend
     linkText: The rules
   - title: Authless LAN service
     illustration: authless-lan
     details: >-
-      SQLite-backed, single Docker container, no external runtime dependencies.
-      CSRF, rate limiting, and a strict CSP, built for a trusted home network.
+      Backed by SQLite in a single Docker container, with no external runtime
+      dependencies. Built for a trusted home network, with rate limiting and
+      browser-side protections (details in the security model).
     link: /deep-dive#security-model
     linkText: The security model
 ---

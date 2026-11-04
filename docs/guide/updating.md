@@ -7,7 +7,7 @@ description: >-
 
 # Updating Freetvarr
 
-Freetvarr runs as a Docker container. To update it, you download the newest Freetvarr Docker image and restart the container. Your settings, series rules, connections, and recording history carry over.
+Freetvarr runs as a [Docker](https://docs.docker.com/) container. To update it, you download the newest Freetvarr Docker image and restart the container. Your settings, series rules, connections, and recording history carry over.
 
 The steps, in order:
 
@@ -21,7 +21,7 @@ Each command on this page runs in the folder that holds your `docker-compose.yml
 
 - **Installed with the install script**: the script made a folder called `freetvarr` in the folder where you ran it (e.g. `~/freetvarr`), and its final message shows the update command with that folder.
 - **Set up by hand**: the folder where you saved `docker-compose.yml`.
-- **Set up as a project in a NAS container app** (e.g. Synology Container Manager): the folder you made for the project (e.g. `docker/freetvarr`).
+- **Set up as a project in a NAS container app** (e.g. Synology [Container Manager](https://www.synology.com/en-global/dsm/feature/container-manager)): the folder you made for the project (e.g. `docker/freetvarr`).
 
 ## Back up
 
@@ -36,7 +36,9 @@ Freetvarr keeps its database and settings in a folder called `freetvarr`, inside
 
 3. Copy the whole `config/freetvarr` folder somewhere safe, such as `config/freetvarr-backup`.
 
-A backup matters most before an update that changes the database, because an older Freetvarr cannot always open a database that a newer one updated. [Backups](/guide/configuration#backups) also covers the TVHeadend settings folder.
+In a NAS container app, stop the project, copy the `config/freetvarr` folder in the NAS file manager, and start the project again.
+
+A backup matters most before an update that changes the database, because an older Freetvarr cannot always open a database that a newer one updated. [Backups](/guide/configuration#backups) also covers the settings folder of [TVHeadend](https://tvheadend.org/).
 
 ## Update
 
@@ -49,7 +51,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Your `docker-compose.yml` uses the image `ghcr.io/furey/freetvarr:latest`, so `docker compose pull` downloads the newest Freetvarr release. It also downloads the newest TVHeadend image, and the newest Plex image if your `docker-compose.yml` runs Plex.
+Your `docker-compose.yml` uses the image `ghcr.io/furey/freetvarr:latest`, so `docker compose pull` downloads the newest Freetvarr release. It also downloads the newest TVHeadend image, and the newest [Plex](https://www.plex.tv/) image if your `docker-compose.yml` runs Plex.
 
 On its first start after an update, Freetvarr updates its database by itself. A Freetvarr browser tab left open during the update shows a card with **Reload** to load the new version.
 
@@ -57,7 +59,7 @@ When a newer release is out, **VERSIONS** in Settings → ABOUT → About Freetv
 
 ## Update automatically with Watchtower
 
-Watchtower is a container that checks for new Docker images on a schedule. When it finds one, it downloads the image and restarts the container with the same settings ([Watchtower](https://containrrr.dev/watchtower/)).
+Watchtower is a container that checks for new Docker images on a schedule. When it finds one, it downloads the image and restarts the container with the same settings ([Watchtower](https://watchtower.nickfedor.com/)).
 
 Watchtower controls Docker through the Docker socket, `/var/run/docker.sock`, the file that takes commands for Docker. A container with the Docker socket has full control of the host: it can start, stop, and change every container, and through them read and change any file on the computer. Add Watchtower only if you accept that.
 
@@ -112,10 +114,10 @@ These releases change something on your install when you update to them. Read ea
 
 [Release notes for `2.4.0`](https://github.com/furey/freetvarr/releases/tag/2.4.0)
 
-- **Sport with no TVDB or TMDB entry moves to One-offs**: after the first sync, Freetvarr moves the files of a sport title that has no entry on TheTVDB or TMDB, such as `Rugby League World Cup 2026` or `AFLW`, from the TV folder to the one-off folder. It switches off the title match it made for that title and removes the empty TV folder. Sport titles that you record with **Record series**, or that you moved with **Move to Shows**, stay in Shows ([Library](/guide/recordings#library)).
+- **Sport with no TVDB or TMDB entry moves to One-offs**: after the first sync, Freetvarr moves the files of a sport title that has no entry on [TheTVDB](https://thetvdb.com/) or [TMDB](https://www.themoviedb.org/) (The Movie Database), such as `Rugby League World Cup 2026` or `AFLW`, from the TV folder to the one-off folder. It switches off the title match it made for that title and removes the empty TV folder. Sport titles that you record with **Record series**, or that you moved with **Move to Shows**, stay in Shows ([Library](/guide/recordings#library)).
 - **Title matches match whole words**: `NRL` no longer matches `NRLW` ([Title matches](/guide/series#title-matches)).
 - **Placeholder file**: Freetvarr adds an empty hidden file, `.freetvarr-keep`, to the one-off folder ([One-offs that stay in Plex](/guide/troubleshooting#one-offs-that-stay-in-plex)).
-- **Database**: the first start adds one database change (migration `0039`).
+- **Database**: the first start adds one database change (database change `0039`).
 
 ### 2.0.2
 
@@ -124,7 +126,7 @@ These releases change something on your install when you update to them. Read ea
 - **New series folders**: a series recorded for the first time after the update gets a folder named after the show, with its TVDB number (the show's ID on TheTVDB, an online TV database), such as `Big Brother (AU) {tvdb-76237}`. The country code appears only when shows from other countries have the same title. New episode files take the form `Big Brother (AU) - S17E06.ts`. See [Series folder names](/guide/series#series-folder-names).
 - **Existing folders keep their names**: new episodes keep going to each series' current folder.
 - **Check which show this is**: the edit form of a series names the show Freetvarr found, and asks you to pick when Freetvarr is not sure ([Check which show this is](/guide/series#check-which-show-this-is)).
-- **Rename folder**: renames an existing series folder to the new name. Before you rename a folder that Plex already shows, turn off **Empty trash automatically after every scan** in Plex ([Renamed folders](/guide/plex#renamed-folders)). Freetvarr does not offer the rename for a folder that Sonarr or Radarr also saves into ([Rename folder](/guide/series#rename-folder)).
+- **Rename folder**: renames an existing series folder to the new name. Before you rename a folder that Plex already shows, turn off **Empty trash automatically after every scan** in Plex ([Renamed folders](/guide/plex#renamed-folders)). Freetvarr does not offer the rename for a folder that [Sonarr](https://sonarr.tv/) or [Radarr](https://radarr.video/) also saves into ([Rename folder](/guide/series#rename-folder)).
 - **Database**: the first start adds two database changes (migrations `0037` and `0038`).
 
 ### 2.0.0
@@ -155,7 +157,7 @@ To go back, restore the backup you made before the update:
    docker compose stop freetvarr
    ```
 
-2. Put the backup in place of the `config/freetvarr` folder.
+2. Rename the current `config/freetvarr` folder to `config/freetvarr-new`, then copy your backup (such as `config/freetvarr-backup`) to `config/freetvarr`. In a NAS container app, do this in the NAS file manager.
 3. In your `docker-compose.yml`, change the image of the `freetvarr` service from `ghcr.io/furey/freetvarr:latest` to the version you backed up from, such as `ghcr.io/furey/freetvarr:2.0.1`.
 4. Start Freetvarr:
 

@@ -9,12 +9,13 @@ description: >-
 
 <Illustration name="ad-removal" />
 
-Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using comskip (an ad-detection tool) and ffmpeg, both bundled in the Freetvarr Docker image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
+Free-to-air recordings come with their ad breaks. Freetvarr can find those breaks, and optionally cut them out, using [Comskip](https://www.kaashoek.com/comskip/) (an ad-detection tool) and [FFmpeg](https://ffmpeg.org/), both bundled in the Freetvarr [Docker](https://docs.docker.com/) image. Ad removal is off by default. Detection is sometimes wrong, so Freetvarr keeps the original of every cut.
 
 ## Modes
 
-- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in a `.edl` file (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate Comskip is on your channels, or to skip the ads instead of cutting them.
+- **Detect** leaves the video as it is. It saves where the breaks are against the recording, and in an [`.edl` file](https://kodi.wiki/view/Edit_decision_list) (a text list of the break times) beside the video (for example `Show - S01E02.edl` next to `Show - S01E02.ts`). Use it to check how accurate Comskip is on your channels, or to skip the ads instead of cutting them.
 - **Cut** removes the breaks by copying the video across untouched (no re-encoding; the output stays `.ts`) and keeps the original as `<file>.ts.orig`.
+- **Off** (the default) skips ad removal for the series.
 
 > [!WARNING]<br>
 > Detection accuracy varies channel by channel, because every broadcaster cuts its breaks differently. Set a series to **Detect** mode first, and check the breaks Freetvarr reports in the [recording log](/guide/recordings#recording-log) before you switch the series to **Cut**.
@@ -27,9 +28,9 @@ In Freetvarr, turn on ad removal in Settings → RECORDING → Ad removal, then 
 
 A cut that goes wrong loses part of the show. A skip that goes wrong costs nothing (you rewind). **Detect** gives you skips in the players that read the `.edl` file:
 
-- **Kodi** skips each break once, by itself, when it plays the video from your library folder. Rewind to watch a break.
-- **Jellyfin** needs a plugin that reads `.edl` files (e.g. [EDL to Media Segments](https://github.com/VTRunner/EdlToMediaSegments)), then shows the breaks as commercials you can skip.
-- **Plex**, **VLC**, and **Infuse** do not read `.edl` files. Plex skips ads only in recordings made by its own DVR. For these players, use **Cut**.
+- [**Kodi**](https://kodi.tv/) skips each break once, by itself, when it plays the video from your library folder. Rewind to watch a break.
+- [**Jellyfin**](https://jellyfin.org/) needs a plugin that reads `.edl` files (e.g. [EDL to Media Segments](https://github.com/VTRunner/EdlToMediaSegments)), then shows the breaks as commercials you can skip.
+- [**Plex**](https://www.plex.tv/), [**VLC**](https://www.videolan.org/vlc/), and [**Infuse**](https://firecore.com/infuse) do not read `.edl` files. Plex skips ads only in recordings made by its own DVR. For these players, use **Cut**.
 
 **Freetvarr's own player** also reads the `.edl` file. While you watch a recording inside a break, a **Skip ad** button appears at the bottom right of the picture. Press it to jump to the end of the break. Freetvarr never skips by itself. A recording with no `.edl` file, or one cut by **Cut** mode, shows no button.
 
@@ -49,6 +50,6 @@ Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's o
 
 ## Cost and gating
 
-Scans work the CPU hard: budget roughly 30 minutes per 75-minute recording on NAS-class hardware (the author's measurement on a dual-core Celeron; faster CPUs finish sooner). Scans run at low priority, so imports still run at full speed. For a **Cut**-mode show, Freetvarr removes the TVHeadend copy only after the cut passes its checks, so a failed cut leaves the original in TVHeadend.
+Scans work the CPU hard: budget roughly 30 minutes per 75-minute recording on NAS-class hardware (the author's measurement on a dual-core Celeron; faster CPUs finish sooner). Scans run at low priority, so imports still run at full speed. For a **Cut**-mode show, Freetvarr removes the [TVHeadend](https://tvheadend.org/) copy only after the cut passes its checks, so a failed cut leaves the original in TVHeadend.
 
-Cuts snap to keyframes, so a second or two either side of a break is expected. The full pipeline (verify-then-swap, keep-segment maths, crash recovery) is in the [deep dive](/deep-dive#ad-removal).
+Cuts snap to keyframes (the frames in a video that a player can start from), so a second or two either side of a break is expected. The full pipeline (verify-then-swap, keep-segment maths, crash recovery) is in the [deep dive](/deep-dive#ad-removal).

@@ -19,17 +19,18 @@ Freetvarr has one player for live TV and for recordings. It works in any modern 
 
 The top bar has these controls:
 
-- The back button closes the player. For live TV, closing also frees the tuner.
+- The back button closes the player. For live TV, closing also frees the tuner (the device that receives the broadcast).
 - The channel logo and the title of what is playing.
 - **Multiview** (live TV only): watch up to four channels at once. See [Multiview](#multiview).
 - **AirPlay** (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
 - **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer).
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
+- During a marked ad break, recordings show **Skip ad** over the picture. Recordings also show a pill on the position bar that says how many minutes are left. See [Playback](/guide/recordings#playback).
 - **Info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
 - The sound button: turns the sound on or off. See [Sound](#sound).
-- **⋯** (**More**): **Captions**, **Pop out (picture in picture)**, and **Full screen**. Buttons that do not fit in the top bar, such as **Multiview** or **Miniplayer**, move into this menu.
+- **⋯** (**More**): **Captions**, **Pop out (picture in picture)** (see [Pop out](#pop-out)), and **Full screen**. Buttons that do not fit in the top bar, such as **Multiview** or **Miniplayer**, move into this menu.
 
-The centre of the picture has **Start over**, the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
+The centre of the picture has **Start over** (see [Start over](#start-over)), the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
 
 On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `2` seconds; change the delay in [Playback settings](#playback-settings).
 
@@ -41,7 +42,7 @@ Double-tap (phone or tablet) or double-click (computer) the left third of the pi
 
 For live TV, **Start over** does one of these:
 
-- **From the start**: plays the programme from its first minute, while TVHeadend keeps recording it. This is possible only when TVHeadend is recording that programme on that channel. Freetvarr plays the recording in progress, so you can watch a show you started late from the beginning.
+- **From the start**: plays the programme from its first minute, while [TVHeadend](https://tvheadend.org) keeps recording it. This is possible only when TVHeadend is recording that programme on that channel. Freetvarr plays the recording in progress, so you can watch a show you started late from the beginning.
 - **Back to when you tuned in**: jumps to the oldest part of the rewind buffer (the last `30` minutes of the channel, which Freetvarr keeps; see [Pause and rewind](/guide/live-tv#pause-and-rewind)). This is possible a few seconds after you tune in.
 
 When both are possible, **Start over** asks which one you want and shows the clock time for each. When only one is possible, **Start over** does it straight away. In Multiview, **Start over** always goes back to when you tuned in.
@@ -60,14 +61,14 @@ To start every video muted on a device, turn on **Start muted** in [Playback set
 
 Open **⋯**, then press **Captions** to turn captions on or off. The menu row shows **On** or **Off**. On a keyboard, press `c`. Each browser remembers the choice, for live TV and recordings alike.
 
-**Captions** shows only when the channel or the recording carries the broadcast's Teletext subtitles. Some programmes on such a channel still have none. See [Captions](/guide/live-tv#captions).
+**Captions** shows only when the channel or the recording carries the broadcast's [Teletext](https://en.wikipedia.org/wiki/Teletext) subtitles. Some programmes on such a channel still have none. See [Captions](/guide/live-tv#captions).
 
 ## Miniplayer
 
 Press **Miniplayer** in the top bar (or in the **⋯** menu, when the bar has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
 
 - On a phone, the Miniplayer is a bar above the tab bar.
-- On a tablet or computer, it is a small card in a corner of the screen.
+- On a tablet or computer, it is a small card in a corner of the screen. On a small screen it is a bar instead.
 - On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in [Multiview](#multiview) **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
 
 Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
@@ -92,13 +93,13 @@ On a phone, turn the phone sideways while the player is open, and the picture fi
 
 Each channel in the sheet has a tag that says what it costs:
 
-| Tag                                     | What it means                                                                                       |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `Uses a free tuner`                     | A tuner is free, and the channel takes it.                                                          |
-| `No extra tuner`                        | The channel shares a multiplex (a group of channels on one frequency) with a channel already tuned. |
-| `Unavailable: all tuners busy`          | Every tuner is in use. You cannot pick the channel.                                                 |
-| `Unavailable: off air`                  | The channel is not broadcasting now.                                                                |
-| `Unavailable: 1 stream already playing` | Freetvarr already plays as many live streams as **Live streams at once** allows.                    |
+| Tag                                      | What it means                                                                                                                                                                     |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Uses a free tuner`                      | A tuner is free, and the channel takes it.                                                                                                                                        |
+| `No extra tuner`                         | The channel shares a multiplex (a group of channels on one frequency) with a channel already tuned. The tag can read `No extra tuner: same multiplex as` and that channel's name. |
+| `Unavailable: all tuners busy`           | Every tuner is in use. You cannot pick the channel.                                                                                                                               |
+| `Unavailable: off air`                   | The channel is not broadcasting now.                                                                                                                                              |
+| `Unavailable: N streams already playing` | Freetvarr already plays as many live streams as **Live streams at once** allows. `N` is that limit (`1 stream` when the limit is `1`).                                            |
 
 The tuner count at the top of the sheet, such as `2 of 4 tuners`, opens **How this works**, which explains tuners and multiplexes for your hardware. Recordings always come first: if a recording needs a tuner, it takes one from live TV.
 
@@ -145,9 +146,9 @@ Both are saved in the browser, so each device keeps its own. Under **LIVE TV**, 
 
 **Live streams at once**, under **LIVE TV** in Settings → WATCHING → **Playback**, sets how many live streams Freetvarr plays at the same time: `1` to `4`. The choices stop at your tuner count. Recordings that play in Freetvarr's player count against the same limit. Two viewers of the same channel share one stream.
 
-Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or [ad scan](/guide/ad-removal) runs.
+Each stream costs processor time, because Freetvarr converts it for the browser ([Video handling](/guide/live-tv#video-handling)). When Freetvarr starts, it measures how many streams the computer can convert at once, and sets the default from the result. The measurement converts a short `1080i` test recording (`1080` lines, each frame sent as two alternating halves) the same way as live TV: first one copy, then two at the same time, and so on up to four. A number passes when every copy converts at least `1.2` times faster than real time. The setting shows the result, such as `Measured: this NAS can convert 2 live streams at once (hardware, measured 20 Oct 5:55pm).` If you choose more than the measured number, the setting says so instead, such as `You chose 2. The last measurement managed 1 smoothly, so the second picture may stutter.` Press **Measure again** to run the measurement again. It takes up to `30` seconds, and it waits until no live TV, recording playback, or [ad scan](/guide/ad-removal) runs.
 
-`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's Docker compose file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then restart Freetvarr. In the `freetvarr` folder, run:
+`LIVE_TV_MAX_SESSIONS` sets a hard limit that the setting cannot go above. It goes in the `.env`, the deploy settings file next to Freetvarr's [Docker Compose](https://docs.docker.com/compose/) file in the `freetvarr` folder ([Configuration](/guide/configuration#compose-environment)). While it is set, it is also the default, and the measurement no longer picks one. The stock Docker Compose file leaves it empty, so the measurement decides. To set a limit, add for example `LIVE_TV_MAX_SESSIONS=2` to the `.env`, then restart Freetvarr. In the `freetvarr` folder, run:
 
 ```sh
 docker compose up -d

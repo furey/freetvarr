@@ -12,14 +12,14 @@ imageAlt: 'A step-by-step guide: Leaving Fetch TV? Keep recording free-to-air TV
 
 <Illustration name="leaving-fetch" />
 
-Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
+[Fetch TV](https://www.fetchtv.com.au/) is an Australian set-top box service. If you have a Fetch Mini Gen 3 or Mighty Gen 3, Fetch now asks for a one-off levy to keep it working until at least June 2028. Fetch also removes some apps from these boxes, whether you pay or not. The steps below replace the box with hardware you own. Free-to-air TV is free to receive, so after the one-off purchase there is nothing more to pay.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="oNzNmlOxSFs" title="Leaving Fetch TV? Record free-to-air TV with Freetvarr" duration="3:03" />
 
 ## What you'll need
 
-1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An HDHomeRun, made by SiliconDust, is a good one. The HDHomeRun Flex Quatro has four tuners inside, so it receives four channels at once.
+1. **A tuner**: a small box that takes your aerial lead and sends live TV over your home network. An [HDHomeRun](https://www.silicondust.com/hdhomerun/), made by [SiliconDust](https://www.silicondust.com/), is a good one. The HDHomeRun Flex Quatro has four tuners inside, so it receives four channels at once.
 
    <div class="product-shot">
      <img src="https://shop.silicondust.com/shop/wp-content/uploads/2020/11/UK-Quatro-for-shopsite.jpg" alt="A black HDHomeRun Flex Quatro network tuner, a small square box" width="400" height="400" loading="lazy" referrerpolicy="no-referrer">
@@ -30,10 +30,10 @@ Fetch TV is an Australian set-top box service. If you have a Fetch Mini Gen 3 or
 
    <div class="product-shot">
      <img src="../img/hardware/synology-ds223j.webp" alt="A small white Synology NAS with two drive bays, about the size of a shoebox, on a wooden table" width="1000" height="668" loading="lazy">
-     <p>A two-bay NAS (Synology DS223j). It holds two hard drives and stays on all the time.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Synology_Disk_Station_DS223J_-_NAS-Server.jpg">DYVER</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons;&nbsp;resized.</em></p>
+     <p>A two-bay NAS ([Synology](https://www.synology.com/en-global) DS223j). It holds two hard drives and stays on all the time.<br><em>Photo: <a href="https://commons.wikimedia.org/wiki/File:Synology_Disk_Station_DS223J_-_NAS-Server.jpg">DYVER</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons;&nbsp;resized.</em></p>
    </div>
 
-3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include TVHeadend and Jellyfin. Paid options include Plex's own recording feature (it needs a Plex Pass subscription), Channels DVR, and SiliconDust's own recording service. Plex and Jellyfin are also media players: apps that show your recordings and other videos on your TV.
+3. **Recording software** on a computer that stays on, such as the NAS. It reads the TV guide and records the programmes you choose. Free options include [TVHeadend](https://tvheadend.org/) and [Jellyfin](https://jellyfin.org/). Paid options include [Plex](https://www.plex.tv/)'s own recording feature (it needs a [Plex Pass](https://www.plex.tv/plex-pass/) subscription), [Channels DVR](https://getchannels.com/dvr-server/), and SiliconDust's own recording service. Plex and Jellyfin are also media players: apps that show your recordings and other videos on your TV.
 
 To watch live TV only, you need just the tuner and its free app. The drive and the software are for recording.
 
@@ -57,12 +57,12 @@ Fetch's paid channel packs and streamed international channels have no free repl
 
 ## The deadline
 
-The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of `30 October 2026`:
+The facts below come from Fetch's [levy FAQ](https://main.fetchtv.com.au/gen-3-extended-service-levy), as of `4 November 2026`:
 
-- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack). Apps billed through Fetch, such as Netflix, do not count. The cheapest subscription that avoids the levy is Movie Box at `$3.99` a month.
+- **Who pays**: households with a Mini Gen 3 (`H626T`) or Mighty Gen 3 (`M616T`) on a retail account and no active Fetch subscription (Fetch Access, Multiroom, Movie Box, or a channel pack; these are Fetch's monthly subscriptions). Apps billed through Fetch, such as Netflix, do not count. The cheapest subscription that avoids the levy is Movie Box at `$3.99` a month.
 - **More than one box**: a second box needs Multiroom at `$4.49` a month, so most homes with two or more boxes do not pay the levy. They already pay Fetch `$53.88` a year.
 - **How much**: `$29.99` once per household, however many Gen 3 boxes you have.
-- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in). Fetch's levy FAQ still gives the deadline as `31 October 2026` (checked `31 October 2026`). Fetch support replies seen by members say Fetch extended it to the end of November 2026. Submit the form as soon as you can. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026.
+- **How to pay**: submit Fetch's [opt-in form](https://main.fetchtv.com.au/extended-service-levy-opt-in). Fetch's levy FAQ gave the deadline as `31 October 2026` and still shows that date (checked `4 November 2026`). Fetch support replies seen by members say Fetch extended it to the end of November 2026. Submit the form as soon as you can. Fetch then charges the payment details it holds with at least 7 days' notice, or emails a payment link in November 2026.
 - **Concessions and hardship**: pensioners, eligible concession card holders, and households in financial difficulty can ask Fetch Customer Support to review their circumstances. Members of Fetch user groups report that Fetch asks for evidence (e.g. a letter from a financial counsellor, a bank statement, or a statutory declaration), and that some had to raise a concession card more than once.
 - **Credit if you upgrade**: if you buy a new Fetch box or start an eligible subscription within 30 days of the levy charge, Fetch credits the full levy to your account. There is no credit after 30 days, or while the account is suspended.
 - **What it buys**: service until at least `30 June 2028`. Fetch makes no promise after that. Members report that some Fetch support replies give "at least 31 October 2027" instead, so check the date in your own Fetch email or account.
@@ -105,9 +105,9 @@ Some households leaving Fetch report two other routes: a smart TV that records f
 
 ### Path 1: Watch only
 
-Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays live TV from the tuner on your TV, tablet, or phone (e.g. the HDHomeRun app, Kodi, or VLC). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short TV guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
+Buy a network tuner, plug in the aerial lead and a network cable from your router, and install an app that plays live TV from the tuner on your TV, tablet, or phone (e.g. the HDHomeRun app, [Kodi](https://kodi.tv/), or [VLC](https://www.videolan.org/vlc/)). The HDHomeRun app is the simplest: it finds the tuner on its own and shows every free-to-air channel with a short TV guide. SiliconDust, the company that makes HDHomeRun tuners, [lists the app](https://www.silicondust.com/hdhomerun/) for iPhone and iPad, Android, Apple TV, Google TV and Android TV, Fire TV, Roku, Xbox, Windows, macOS, and Linux. The app is free, and it can pause and rewind live TV with no subscription.
 
-Add Path 2 later and the TV apps get TVHeadend's 7-day guide too: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)). Members report that with a guide from another source, Jellyfin showed no programmes until they matched each guide channel to a tuner channel by hand in Jellyfin's TV guide settings.
+Add Path 2 later and the TV apps also get its 7-day guide: Freetvarr shows the addresses to copy into Jellyfin or Kodi ([TV apps](/guide/tv-apps)). Members report that with a guide from another source, Jellyfin showed no programmes until they matched each guide channel to a tuner channel by hand in Jellyfin's TV guide settings.
 
 SiliconDust also sells a recording service, its [DVR service](https://info.hdhomerun.com/info/dvr), that works in Australia. Series recording and the longer TV guide cost `US$35` a year, and the service needs a storage device to record to. Path 2 records for free instead.
 
@@ -148,11 +148,11 @@ On a phone, open Freetvarr in the browser, open Live TV, and tap a channel. The 
 
 Live TV on a phone: the channel list, then the player.
 
-The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses Docker (free software that runs apps such as TVHeadend) and a few commands typed in a terminal (a window where you type commands). The guides linked in [Setting up](#setting-up) show each step.
+The always-on computer is a NAS (a small storage box with hard drives) or a mini PC. Setup uses [Docker](https://docs.docker.com/) (free software that runs apps such as TVHeadend) and a few commands typed in a terminal (a window where you type commands). The guides linked in [Setting up](#setting-up) show each step.
 
 To use other recording software from [What you'll need](#what-you-ll-need), buy the same tuner, drive, and computer, and follow that software's own setup guide. With a Plex Pass, the simplest choice is Plex's own recorder; see [Plex DVR instead](/guide/plex-dvr).
 
-[Channels DVR](https://getchannels.com/dvr-server/) is paid recording software with its own apps for Apple TV, Fire TV, Google TV, and phones. It costs `US$8` a month or `US$80` a year after a free month, and its apps stop working if you stop paying; your recordings stay on your drive. It has no Australian guide of its own, so you load a free one (e.g. the TV guide Freetvarr uses). It has no app for Roku or most smart TVs.
+Channels DVR is paid recording software with its own apps for Apple TV, Fire TV, Google TV, and phones. It costs `US$8` a month or `US$80` a year after a free month, and its apps stop working if you stop paying; your recordings stay on your drive. It has no Australian guide of its own, so you load a free one (e.g. the TV guide Freetvarr uses). It has no app for Roku or most smart TVs.
 
 ## Shopping list
 
@@ -197,6 +197,7 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
 
+<!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="F1yCHcC4i9M" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:36" />
 
 The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-recordings) desktop app. The [command line](#save-via-command-line) does the same job by hand, and also runs on a NAS or in Docker.
@@ -210,7 +211,7 @@ The simplest way is the [Fetch My Recordings](https://github.com/furey/fetch-my-
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame src="/fetch-my-recordings-demo.mp4" poster="/fetch-my-recordings-demo-poster.jpg" ratio="1600 / 1268" label="Fetch My Recordings" single aria-label="Fetch My Recordings finds a Fetch box, lists its recordings, and saves the chosen ones to a folder with names for Plex, Jellyfin or Kodi turned on" />
 
-Download the app on the computer you will copy to. It must be on the same home network as the Fetch box.
+Download the app on the computer you will copy to. It must be on the same home network as the Fetch box. The app needs macOS 13 or later, Windows 10 or later (64-bit), or 64-bit Linux. On an older Mac, use [Save via command line](#save-via-command-line).
 
 <!-- markdownlint-disable-next-line MD033 -->
 <DownloadApp />
@@ -221,16 +222,16 @@ The first time you open the app, your computer warns that it cannot check it. [F
 2. Install the app:
    - On a Mac, open the `.dmg` file, drag Fetch My Recordings into the Applications folder, then open it from Applications.
    - On Windows, open the `.exe` file. It installs the app and opens it.
-   - On Linux, make the `.AppImage` file executable (in a terminal, `chmod +x` and the file name), then open it.
+   - On Linux, make the `.AppImage` file executable (in a terminal, `chmod +x` and the file name), then open it. On Ubuntu 22.04 or later, if the app does not open, run `sudo apt install libfuse2` (`libfuse2t64` on Ubuntu 24.04 or later). The [Fetch My Recordings README](https://github.com/furey/fetch-my-recordings#first-open-on-linux) covers the rest.
 3. If your computer warns that it cannot check the app, allow it once. The app has no paid developer signature, so macOS and Windows warn the first time you open it. On a Mac, open System Settings → Privacy & Security and click **Open Anyway**. On Windows, click **More info**, then **Run anyway**.
-4. Press **Start**. The app searches your home network for the Fetch box. With one box, it lists the box's recordings; with more than one, choose your box.
+4. Press **Start**. The app searches your home network for the Fetch box. When it first searches, your Mac can ask about devices on your local network; click **Allow**. If you clicked **Don't Allow**, open System Settings → Privacy & Security → Local Network, then turn on Fetch My Recordings. On Windows, if Windows Security asks, tick **Private networks** and click **Allow access**. Without that access, the app finds no box. With one box, it lists the box's recordings; with more than one, choose your box.
 5. If the app finds no Fetch box, type the box's IP address (four numbers such as `192.168.1.50`) under **Or type its IP address**, and press **Connect**. The IP address is in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 6. Choose the recordings to save (**Select all** chooses every one), and press **Next**.
 7. Check the folder. The app saves to a `Fetch recordings` folder inside your Videos folder (Movies on a Mac). Press **Change** to choose another folder. The app shows how much space the recordings need and how much is free.
 8. Turn on **Names for Plex, Jellyfin or Kodi** if the recordings will go into a media library (the folders of video files that Plex, Jellyfin, or Kodi reads). [Adding recordings to your media library](#adding-recordings-to-your-media-library) explains the names.
 9. Press **Save**.
 
-When the copy ends, the app shows tiles for **Saved**, **Already saved**, and **Not saved**. Press a tile (or its **Show list**) to see those recordings in a list.
+When the copy ends, the app shows tiles for **Saved**, **Already saved**, and **Not saved**, and **Stopped** if you pressed **Stop**. Press a tile (or its **Show list**) to see those recordings in a list.
 
 If the copy stops part way, or some recordings show as not saved, press **Save again**. It is the main button while anything is unsaved. The app skips the recordings it already saved and carries on with the rest. With hundreds of recordings, expect to do this several times.
 
@@ -245,37 +246,37 @@ The files play in VLC (a free video player). For other ways to watch them, press
 
 The [`fetchtv`](https://github.com/furey/fetchtv) tool is the manual way: you type its commands in a terminal. The app runs the same tool, so the files get the same names. Use the terminal to run it on a NAS or in Docker (the [`fetchtv` README](https://github.com/furey/fetchtv#installation) covers both), or for options the app does not have, such as leaving out shows by name. These steps run it on a Windows PC or a Mac on the same network as the box. Allow `15 minutes` to set it up.
 
-1. Install Node.js, the free software that runs the tool. Download the LTS (long-term support) installer from [nodejs.org](https://nodejs.org/en/download) and run it.
+1. Install [Node.js](https://nodejs.org/en/download), the free software that runs the tool. Download the LTS (long-term support) installer from nodejs.org and run it.
 2. Open a terminal (a window where you type commands): **Terminal** on a Mac, or **Command Prompt** on Windows (search the Start menu for `cmd`). If you use **PowerShell** instead and it says "running scripts is disabled on this system", Windows is blocking PowerShell scripts, which is its default setting. Use Command Prompt, or type `npx.cmd` wherever these steps say `npx`. Running PowerShell as administrator does not change this. (Some PCs already allow PowerShell scripts, e.g. with PowerShell 7, so `npx` works there unchanged.) If Windows says `npx` is not recognized, close the window and open a new one after installing Node.js.
 3. Find the box. In the terminal, type this command and press Enter:
 
    ```sh
-   npx fetchtv
+   npx fetchtv@latest
    ```
 
-   If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and lists each Fetch box it finds, with its IP address (four numbers such as `192.168.1.50`).
+   If the terminal asks to install `fetchtv`, type `y` and press Enter. The tool searches your network and prints the IP address of the Fetch box it finds (four numbers such as `192.168.1.50`). With more than one box, find each box's address in your router's list of devices, then use `--ip=` with the address of the box you want.
 4. If the tool finds no Fetch box, look up the box's IP address in your router's list of connected devices, or in the network details of the Fetch box's settings menu.
 5. List your recordings. Put your box's IP address in place of the example, and run:
 
    ```sh
-   npx fetchtv shows --ip=192.168.1.50
+   npx fetchtv@latest shows --ip=192.168.1.50
    ```
 
 6. Check that the computer has enough free disk space. Each hour of HD takes about `3–6GB`.
 7. Copy every recording. Put your box's IP address in place of the example, and run:
 
    ```sh
-   npx fetchtv recordings --ip=192.168.1.50 --for-plex --save=./fetch-recordings
+   npx fetchtv@latest recordings --ip=192.168.1.50 --for-plex --save=./fetch-recordings
    ```
 
    The `--for-plex` option names each file the way Freetvarr, Plex, Jellyfin, and Kodi expect.
 
-The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show and a `Season` folder inside it (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`). While a recording copies, the tool saves it as a `.part` file and renames it when the copy is complete, so a half-copied recording never looks finished. If the copy stops, run the same command again (the tool skips the files it already copied and resumes the one that was part-way). With hundreds of recordings, expect to run the command several times.
+The recordings go into a `fetch-recordings` folder inside the folder the terminal opened in (usually your home folder), with a folder for each show and a `Season` folder inside it (e.g. `Gogglebox Australia/Season 20/Gogglebox Australia - S20E08.ts`; `.ts` is the video file type the box records). While a recording copies, the tool saves it as a `.part` file and renames it when the copy is complete, so a half-copied recording never looks finished. If the copy stops, run the same command again (the tool skips the files it already copied and resumes the one that was part-way). With hundreds of recordings, expect to run the command several times.
 
 To copy one show only, add `--show=` and part of its name:
 
 ```sh
-npx fetchtv recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./fetch-recordings
+npx fetchtv@latest recordings --ip=192.168.1.50 --for-plex --show=MasterChef --save=./fetch-recordings
 ```
 
 The [`fetchtv` README](https://github.com/furey/fetchtv#usage) lists every option.
@@ -333,9 +334,9 @@ Keep `--for-plex`, and put the path of the `tv` folder in `--save`. To get its p
 Add `--exclude=` with the name of each film or news show to leave it out of the TV folder (e.g. `--exclude=News`). Then save those with `--show=` into `movies` or `one-offs`, without `--for-plex`. These lines use the example path from above:
 
 ```console
-npx fetchtv recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/docker/freetvarr/data/media/tv
-npx fetchtv recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/docker/freetvarr/data/media/movies
-npx fetchtv recordings --ip=192.168.1.50 --show=News --save=/Volumes/docker/freetvarr/data/media/one-offs
+npx fetchtv@latest recordings --ip=192.168.1.50 --for-plex --exclude=News --save=/Volumes/docker/freetvarr/data/media/tv
+npx fetchtv@latest recordings --ip=192.168.1.50 --show="Some Film" --save=/Volumes/docker/freetvarr/data/media/movies
+npx fetchtv@latest recordings --ip=192.168.1.50 --show=News --save=/Volumes/docker/freetvarr/data/media/one-offs
 ```
 
 ### Episode numbers
@@ -352,7 +353,7 @@ You may not need to convert anything. VLC (a free video player), Plex, Jellyfin,
 > Renaming a `.ts` file to `.mp4` does not convert it. The file inside stays the same, and QuickTime Player will not open it.
 
 > [!WARNING]<br>
-> Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and ffmpeg through Homebrew, `winget`, or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can install unwanted software or malware on your computer.
+> Download video software only from the official sites named below: VLC from [videolan.org](https://www.videolan.org), HandBrake from [handbrake.fr](https://handbrake.fr), and [FFmpeg](https://ffmpeg.org/) through [Homebrew](https://brew.sh), [`winget`](https://learn.microsoft.com/en-us/windows/package-manager/winget/), or your Linux package manager. Search ads and look-alike sites offer "free video converters" that can install unwanted software or malware on your computer.
 
 The ways below go from least to most work:
 
@@ -362,9 +363,9 @@ The ways below go from least to most work:
 
 ### Play them as they are
 
-On a computer, open the recordings in [VLC](https://www.videolan.org), a free video player for Windows, Mac, and Linux.
+On a computer, open the recordings in VLC, a free video player for Windows, Mac, and Linux.
 
-On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the Infuse or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive first, as ExFAT (a drive format that holds files over 4 GB) if your TV reads it; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
+On a TV, add the recordings to your media library (see [Adding recordings to your media library](#adding-recordings-to-your-media-library)) and watch them in Plex, Jellyfin, or Kodi. On an Apple TV, iPhone, or iPad, the [Infuse](https://firecore.com/infuse) or VLC app plays the files from a shared folder on your computer or NAS. Many TVs and media players also play `.ts` files from a USB drive. Format the drive first, as exFAT (a drive format that holds files over 4 GB) if your TV reads it; the Fetch My Recordings guide explains [how to watch on your TV from a USB drive](https://github.com/furey/fetch-my-recordings#watch-on-your-tv-from-a-usb-drive), including the Mac and Windows steps.
 
 ### Convert via HandBrake
 
@@ -386,7 +387,7 @@ To convert many recordings, choose a folder in **Open Source** instead of one fi
 
 ### Convert via command line
 
-ffmpeg is a free command-line tool that converts video. You type its commands in a terminal (a window where you type commands). It has two ways to convert:
+FFmpeg is a free command-line tool that converts video. You type its commands in a terminal. It has two ways to convert:
 
 - **Fast copy**: puts the recording's picture and sound unchanged into an MP4 file, with no loss of quality. It suits HD recordings.
 - **Full convert**: makes a new picture and new sound, like HandBrake. It takes much longer, and the file plays on almost any device. Use it for SD recordings, and for any device that will not play a fast copy.
@@ -395,7 +396,7 @@ On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `
 
 #### Getting ready
 
-1. Install ffmpeg on your computer:
+1. Install FFmpeg on your computer:
    - **Mac**: install Homebrew, a free tool that installs command-line software. Copy the install command from [brew.sh](https://brew.sh), paste it into **Terminal**, and press Enter. Homebrew supports macOS 15 (Sequoia) and later. On macOS 11 to 14 it may work without support, and it does not run on macOS 10.15 or earlier. On an older Mac, use VLC or HandBrake instead. Then run:
 
      ```sh
@@ -409,8 +410,8 @@ On the author's 2019 MacBook Pro (Intel Core i9), a fast copy ran at more than `
      ```
 
      `winget` is the Windows Package Manager, built into Windows 10 and 11. The first time you use it, it asks you to agree to the terms of its download source: type `Y` and press Enter. When it finishes, close the window and open a new one, so that Windows finds `ffmpeg`.
-   - **Linux**: on Debian or Ubuntu, run `sudo apt install ffmpeg`. On Fedora, Fedora's own ffmpeg package leaves out the H.264 encoder that the full convert uses. Turn on [RPM Fusion](https://rpmfusion.org/Configuration) first, then run `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`.
-2. Check that ffmpeg works. In the terminal, run:
+   - **Linux**: on Debian or Ubuntu, run `sudo apt install ffmpeg`. On Fedora, Fedora's own FFmpeg package leaves out the H.264 encoder that the full convert uses. Turn on [RPM Fusion](https://rpmfusion.org/Configuration) first, then run `sudo dnf swap ffmpeg-free ffmpeg --allowerasing`.
+2. Check that FFmpeg works. In the terminal, run:
 
    ```sh
    ffmpeg -version
@@ -544,7 +545,7 @@ flowchart LR
   split --> tuner
 ```
 
-If the new setup will not be ready in time, the `$29.99` levy keeps the Fetch box going until at least `30 June 2028` while you finish. Fetch's levy FAQ gives the opt-in deadline as `31 October 2026`; Fetch support replies say the end of November 2026 ([The deadline](#the-deadline)).
+If the new setup will not be ready in time, the `$29.99` levy (if Fetch still accepts your opt-in) keeps the Fetch box going until at least `30 June 2028` while you finish. Fetch's levy FAQ gave the opt-in deadline as `31 October 2026`; Fetch support replies say the end of November 2026 ([The deadline](#the-deadline)).
 
 ## FAQ
 
@@ -562,7 +563,7 @@ You need one only for Path 2. Path 1 needs no computer at all. For Path 2, any a
 
 ### Watching away from home
 
-Freetvarr works only on your home network and has no sign-in, so never make it reachable from the internet. To watch away from home, connect your phone to your home network with a VPN (a private, encrypted link) such as [Tailscale](https://tailscale.com) or WireGuard. Freetvarr then works as if you were at home.
+Freetvarr works only on your home network and has no sign-in, so never make it reachable from the internet. To watch away from home, connect your phone to your home network with a VPN (a private, encrypted link) such as [Tailscale](https://tailscale.com) or [WireGuard](https://www.wireguard.com/). Freetvarr then works as if you were at home.
 
 ### Captions
 
@@ -574,9 +575,9 @@ If the Fetch box gets a clear picture now, the tuner will too: it uses the same 
 
 ### Staying with Fetch
 
-For many households the cheapest choice is the `$29.99` levy: it keeps the box you already have until at least `30 June 2028`, against about `A$280–1,400` for the two paths. It does not keep the apps Fetch removes ([The deadline](#the-deadline)). This guide is for people who want to leave Fetch anyway.
+For many households the cheapest choice is the `$29.99` levy: it keeps the box you already have until at least `30 June 2028` (if Fetch still accepts your opt-in), against about `A$280–1,400` for the two paths. It does not keep the apps Fetch removes ([The deadline](#the-deadline)). This guide is for people who want to leave Fetch anyway.
 
-A new Fetch box can also come out cheaper than either path. Fetch's prices, from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in October 2026:
+A new Fetch box can also come out cheaper than either path. Fetch's prices from its [store](https://store.fetchtv.com.au/) and its [Gen 3 upgrade offer](https://store.fetchtv.com.au/pages/fetch-gen-3-upgrade), in `October 2026`:
 
 | Box              | Price                                  | Records         | Three years with Fetch Access |
 | ---------------- | -------------------------------------- | --------------- | ----------------------------- |
@@ -584,7 +585,7 @@ A new Fetch box can also come out cheaper than either path. Fetch's prices, from
 | Mighty Gen 4     | `A$659`                                | Yes, `1TB` disk | about `A$840`                 |
 | Mighty Gen 4 Pro | `A$799` pre-order (RRP `A$999`)        | Yes, `2TB` disk | about `A$980`                 |
 
-Every new box needs Fetch Access at `A$4.99` a month (`A$59.88` a year). With the Mighty Gen 4 Pro, Fetch also sells Fetch Access for Life: a one-off `A$250` instead of the monthly fee, for as long as the Fetch account stays active. Fetch Access includes Movie Box, 30+ streamed channels, and games; apps such as Netflix cost extra. Gen 3 owners who buy the Mini also get `A$29.94` of credit, which is six months of Fetch Access. The offer ends on `31 October 2026`.
+Every new box needs Fetch Access at `A$4.99` a month (`A$59.88` a year). With the Mighty Gen 4 Pro, Fetch also sells Fetch Access for Life: a one-off `A$250` instead of the monthly fee, for as long as the Fetch account stays active. Fetch Access includes Movie Box, 30+ streamed channels, and games; apps such as Netflix cost extra. Gen 3 owners who buy the Mini also get `A$29.94` of credit, which is six months of Fetch Access. The offer ended on `31 October 2026`; check Fetch's store for what it offers now.
 
 Path 1 costs about `A$280–400` once, about the same as a Mini over three years. Path 2 costs about `A$600–1,400` once, so a Mighty can cost less than a new NAS and drive. After three years, a Fetch box still costs `A$59.88` a year, and the tuner route costs nothing more.
 
@@ -592,4 +593,4 @@ What the tuner route buys is control: you own the hardware and the recordings, a
 
 ### Former Fetcharr users
 
-Fetcharr is the earlier tool by the same author, which filed recordings from a Fetch box into a media library. See [From Fetcharr](/guide/from-fetcharr) for what carries over.
+[Fetcharr](https://github.com/furey/fetcharr) is the earlier tool by the same author, which filed recordings from a Fetch box into a media library. See [From Fetcharr](/guide/from-fetcharr) for what carries over.
