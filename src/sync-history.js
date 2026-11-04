@@ -18,6 +18,7 @@ export const SYNC_OUTCOMES = {
 export const SYNC_TRIGGERS = {
   manual: `json_extract(summary_json, '$.trigger') LIKE 'manual%'`,
   cron: `json_extract(summary_json, '$.trigger') = 'cron'`,
+  auto: `json_extract(summary_json, '$.trigger') = 'recording-finished'`,
 }
 
 export const syncPageParams = (query = {}) => ({
