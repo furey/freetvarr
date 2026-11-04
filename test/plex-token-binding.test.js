@@ -14,6 +14,7 @@ const {
   listPlexSections,
   notifyPlexSectionRefresh,
   plexTokenBindsTo,
+  storedPlexToken,
   storedPlexTokenFor,
 } = await import('../src/plex.js')
 const { savePlexConnection } = await import('../src/connection-secrets.js')
@@ -65,6 +66,20 @@ test('plexTokenBindsTo: a this-machine token binds to loopback and local interfa
 test('storedPlexTokenFor: gives the stored Plex token only for its bound URL', async () => {
   assert.equal(await storedPlexTokenFor(STORED_URL), TOKEN)
   assert.equal(await storedPlexTokenFor('http://192.0.2.99:32400'), null)
+})
+
+test('storedPlexToken: reports no usable token for a detected token while the saved Plex URL is on another machine', async () => {
+  await setSetting('plex_token_scope', 'this-machine')
+  assert.equal(await storedPlexToken(), null)
+  await setSetting('plex_url', 'http://127.0.0.1:32400')
+  assert.equal(await storedPlexToken(), TOKEN)
+})
+
+test('settings read: plex_token_set comes from the bound Plex token', async () => {
+  const source = await fs.readFile(new URL('../src/server.js', import.meta.url), 'utf8')
+  const settingsRead = source.slice(source.indexOf("app.get('/api/settings'"), source.indexOf("app.post('/api/settings'"))
+  assert.ok(settingsRead.includes('storedPlexToken()'))
+  assert.ok(!settingsRead.includes("getSetting('plex_token')"))
 })
 
 test('listPlexSections: sends no stored Plex token to a URL it is not bound to', async () => {

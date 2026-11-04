@@ -47,6 +47,7 @@ import {
   notifyPlexSectionRefresh,
   discoverLocalPlexServers,
   getPlexPrefsPath,
+  storedPlexToken,
 } from './plex.js'
 import {
   testConnection as testTvheadendConnection,
@@ -1671,7 +1672,7 @@ app.get('/api/settings', async (req, res) => {
     getTvhRecordingsPath(),
     getSetting('sync_cron'),
     getSetting('plex_url'),
-    getSetting('plex_token'),
+    storedPlexToken(),
     getSetting('plex_tv_section_id'),
     getSetting('delete_after_plex_refresh_only'),
     getPlexPrefsPath(),
