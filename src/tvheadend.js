@@ -896,20 +896,38 @@ const listEpgIconsByChannel = async (conn) => {
 const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes }) => {
   const limits = { timeout, ...(maxBytes ? { maxContentLength: maxBytes } : {}) }
   const res = isAbsoluteUrl(source)
-    ? await axios.get(source, { responseType: 'arraybuffer', validateStatus: () => true, ...limits })
+    ? await fetchGuideImage({ source, limits })
     : await sendAuthenticated({
       method: 'get',
       url: `${conn.url}/${source.replace(/^\//, '')}`,
       responseType: 'arraybuffer',
       ...limits,
     }, conn)
-  if (res.status >= 400) return null
+  if (!res || res.status >= 400) return null
   const body = Buffer.from(res.data)
   const contentType = sourceImageTypeOf(body)
   return contentType ? { body, contentType } : null
 }
 
 const isAbsoluteUrl = (source) => /^https?:\/\//i.test(source)
+
+const fetchGuideImage = ({ source, limits }) => {
+  const origin = new URL(source)
+  return axios.get(source, {
+    responseType: 'arraybuffer',
+    validateStatus: () => true,
+    ...limits,
+    maxRedirects: IMAGE_MAX_REDIRECTS,
+    beforeRedirect: (options) => {
+      if (options.hostname !== origin.hostname || (origin.protocol === 'https:' && options.protocol !== 'https:')) {
+        throw Object.assign(new Error(`image redirect to ${options.protocol}//${options.hostname} refused`), { code: IMAGE_REDIRECT_REFUSED })
+      }
+    },
+  }).catch((err) => {
+    if (err.code === IMAGE_REDIRECT_REFUSED || err.code === 'ERR_FR_TOO_MANY_REDIRECTS') return null
+    throw err
+  })
+}
 
 const channelNumber = (raw) => {
   const n = Number(raw)
@@ -1128,5 +1146,7 @@ const SERVICE_MUX_TTL_MS = 10 * 60 * 1000
 const LIVE_STREAM_WEIGHT = 50
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const RETAIN_FOREVER = 2147483647
+const IMAGE_MAX_REDIRECTS = 3
+const IMAGE_REDIRECT_REFUSED = 'image-redirect-refused'
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10
