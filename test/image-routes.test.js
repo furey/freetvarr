@@ -1,9 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import sharp from 'sharp'
 
 import { createImageResolver, imageRouteOf, serveImageRoute } from '../src/image-routes.js'
+import { createThumbnailStore } from '../src/image-thumbnails.js'
 
 const WEBP_HEADER = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP')])
 const image = (text) => ({ body: Buffer.concat([WEBP_HEADER, Buffer.from(text)]), contentType: 'image/webp' })
@@ -103,4 +107,17 @@ test('the served route takes the type from the image bytes and adds a sandbox CS
   assert.equal(res.statusCode, 200)
   assert.equal(res.headers['content-type'], 'image/png')
   assert.equal(res.headers['content-security-policy'], "default-src 'none'; sandbox")
+})
+
+test('an SVG logo leaves Freetvarr only as a WebP thumbnail with the sandbox CSP', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-svg-route-'))
+  const store = createThumbnailStore({ dir })
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><script>x</script><rect width="40" height="20"/></svg>')
+  const res = await servedBy(await store.thumbnailFor({ key: 'channel:svg', width: 96, loadOriginal: async () => ({ body: svg, contentType: 'image/svg+xml' }) }))
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers['content-type'], 'image/webp')
+  assert.equal(res.headers['content-security-policy'], "default-src 'none'; sandbox")
+  const original = await servedBy({ body: svg, contentType: 'image/svg+xml' })
+  assert.equal(original.statusCode, 404)
+  await fs.rm(dir, { recursive: true, force: true })
 })

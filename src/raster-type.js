@@ -3,6 +3,11 @@ export const rasterTypeOf = (body) => {
   return SIGNATURES.find(({ matches }) => matches(body))?.type ?? null
 }
 
+export const isSvgBody = (body) =>
+  Buffer.isBuffer(body) && body.length <= SVG_MAX_BYTES && SVG_START.test(body.toString('utf8', 0, SVG_SNIFF_BYTES))
+
+export const sourceImageTypeOf = (body) => rasterTypeOf(body) ?? (isSvgBody(body) ? SVG_TYPE : null)
+
 export const IMAGE_RESPONSE_CSP = "default-src 'none'; sandbox"
 
 const startsWith = (body, bytes) => bytes.every((byte, at) => body[at] === byte)
@@ -16,3 +21,8 @@ const SIGNATURES = [
     matches: (body) => body.toString('latin1', 0, 4) === 'RIFF' && body.toString('latin1', 8, 12) === 'WEBP',
   },
 ]
+
+const SVG_TYPE = 'image/svg+xml'
+const SVG_MAX_BYTES = 1024 * 1024
+const SVG_SNIFF_BYTES = 4096
+const SVG_START = /^﻿?\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE\s+svg[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i

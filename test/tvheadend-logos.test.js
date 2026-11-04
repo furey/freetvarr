@@ -68,7 +68,7 @@ test('getChannelIcon: serves the TVHeadend icon when it exists', async () => {
   })
 })
 
-test('getChannelIcon: takes the image type from the bytes and accepts raster images only', async () => {
+test('getChannelIcon: takes the image type from the bytes and accepts raster or SVG images only', async () => {
   const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>')
   await withServer({
     '/svg': { contentType: 'image/svg+xml', body: svg },
@@ -76,7 +76,7 @@ test('getChannelIcon: takes the image type from the bytes and accepts raster ima
     '/untyped': { contentType: 'application/octet-stream', body: PNG },
   }, async (base) => {
     const conn = { url: base, username: '', password: '' }
-    assert.equal(await getChannelIcon({ sources: ['svg'], conn }), null)
+    assert.equal((await getChannelIcon({ sources: ['svg'], conn })).contentType, 'image/svg+xml')
     assert.equal(await getChannelIcon({ sources: ['html-as-image'], conn }), null)
     assert.equal((await getChannelIcon({ sources: ['untyped'], conn })).contentType, 'image/png')
   })

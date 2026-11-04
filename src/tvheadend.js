@@ -10,7 +10,7 @@ import { cleanGuideText } from './consumer-advice.js'
 import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
 import { earlierAiringOfEntry } from './repeat-match.js'
 import { sameOrigin } from './url-binding.js'
-import { rasterTypeOf } from './raster-type.js'
+import { sourceImageTypeOf } from './raster-type.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -875,7 +875,7 @@ const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes
     }, conn)
   if (res.status >= 400) return null
   const body = Buffer.from(res.data)
-  const contentType = rasterTypeOf(body)
+  const contentType = sourceImageTypeOf(body)
   return contentType ? { body, contentType } : null
 }
 

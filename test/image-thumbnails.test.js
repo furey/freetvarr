@@ -133,13 +133,40 @@ test('createThumbnailStore: a missing original gives nothing and writes nothing'
   assert.deepEqual(await cachedFiles(), [])
 })
 
-test('createThumbnailStore: gives no image when resizing fails or the image is SVG, uncached', async () => {
-  const store = createThumbnailStore({ dir, resize: async () => { throw new Error('corrupt') } })
-  const broken = await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal: countingLoader() })
-  assert.equal(broken, null)
-  const svg = { body: Buffer.from('<svg/>'), contentType: 'image/svg+xml' }
-  assert.equal(await store.thumbnailFor({ key: 'channel:2', width: 96, loadOriginal: countingLoader(svg) }), null)
+test('createThumbnailStore: gives no image when resizing fails, uncached, and skips the original for a while', async () => {
+  let clock = 1000
+  const store = createThumbnailStore({ dir, resize: async () => { throw new Error('corrupt') }, now: () => clock })
+  const loadOriginal = countingLoader()
+  assert.equal(await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal }), null)
+  assert.equal(await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal }), null)
+  assert.equal(loadOriginal.calls, 1)
+  clock += 11 * 60 * 1000
+  assert.equal(await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal }), null)
+  assert.equal(loadOriginal.calls, 2)
   assert.deepEqual(await cachedFiles(), [])
+})
+
+test('createThumbnailStore: renders an SVG original to a WebP thumbnail at the requested width', async () => {
+  const store = createThumbnailStore({ dir })
+  const svg = Buffer.from('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="32" height="16"><rect width="32" height="16" fill="#c00"/></svg>')
+  const thumbnail = await store.thumbnailFor({ key: 'channel:svg', width: 96, loadOriginal: countingLoader({ body: svg, contentType: 'image/svg+xml' }) })
+  assert.equal(thumbnail.contentType, 'image/webp')
+  const { format, width, height } = await sharp(thumbnail.body).metadata()
+  assert.deepEqual({ format, width, height }, { format: 'webp', width: 96, height: 48 })
+})
+
+test('createThumbnailStore: renders an SVG with a script and an outside link to plain pixels and fetches nothing', async () => {
+  const store = createThumbnailStore({ dir })
+  const svg = Buffer.from([
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100000 100000">',
+    '<script>alert(1)</script>',
+    '<image href="http://192.0.2.1/x.png" xlink:href="http://192.0.2.1/x.png" width="10" height="10"/>',
+    '<rect width="100000" height="100000" fill="#0c0"/></svg>',
+  ].join(''))
+  const thumbnail = await store.thumbnailFor({ key: 'channel:hostile', width: 192, loadOriginal: countingLoader({ body: svg, contentType: 'image/svg+xml' }) })
+  assert.equal(thumbnail.contentType, 'image/webp')
+  assert.equal((await sharp(thumbnail.body).metadata()).width, 192)
+  assert.ok(!thumbnail.body.includes('script'))
 })
 
 test('createThumbnailStore: shares one resize between concurrent requests for the same thumbnail', async () => {

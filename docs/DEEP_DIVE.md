@@ -260,15 +260,15 @@ TVHeadend exposes a JSON API at `<tvh_url>/api/<path>`. `src/tvheadend.js` holds
 - `sendAuthenticated` sends every request. With a username set, it sends the cached `Authorization` header. On a `401` it stores the `www-authenticate` challenge, signs the request, and sends it once more.
 - `authorizationFor` in `src/http-auth.js` gives a Basic header, or a Digest response (MD5 or SHA-256, `qop=auth`). The challenge cache keys by `<url>|<username>` and drops an entry idle for `90 s`.
 
-| Request or cache                          | Value                                                       |
-| ----------------------------------------- | ----------------------------------------------------------- |
-| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons    |
-| Discovery probe                           | `1.5 s` timeout                                             |
-| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, JPEG, PNG, WebP, or GIF bytes |
-| Live stream (`openChannelStream`)         | No timeout                                                  |
-| Past airings cache                        | `10` min; `apiPost` clears it before and after every write  |
-| Tuner count and service multiplex caches  | `10` min                                                    |
-| Default DVR profile and default languages | Process lifetime                                            |
+| Request or cache                          | Value                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons         |
+| Discovery probe                           | `1.5 s` timeout                                                  |
+| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, JPEG, PNG, WebP, GIF, or SVG bytes |
+| Live stream (`openChannelStream`)         | No timeout                                                       |
+| Past airings cache                        | `10` min; `apiPost` clears it before and after every write       |
+| Tuner count and service multiplex caches  | `10` min                                                         |
+| Default DVR profile and default languages | Process lifetime                                                 |
 
 ### Auto-discovery
 
@@ -1537,7 +1537,7 @@ The secret comes from `CSRF_SECRET` when set; a value under `32` characters logs
 - Live and playback file routes accept only a `16`-hex session id and the HLS file names.
 - Library delete checks each target against the library roots with `realpath` and `lstat` ([Library delete](#library-delete)).
 - `POST /api/settings` checks each root it changes (`rootSettingsProblem` in `src/path-check.js`). `media_root`, `oneoff_root`, `movies_root`, and `recordings_root` must be absolute, existing folders, and not `/`, `/etc`, `/proc`, `/sys`, `/dev`, `/app`, the config folder, a folder inside it, or a parent of it. `tvh_recordings_path` must be absolute and not `/`. A failure gives `400` with `{ field, error }` and saves nothing.
-- Image routes send only JPEG, PNG, WebP, or GIF, with the type read from the image bytes, never from the upstream header, and add `Content-Security-Policy: default-src 'none'; sandbox`. Anything else answers `404`. A thumbnail that cannot be resized gives no image.
+- Image routes send only JPEG, PNG, WebP, or GIF, with the type read from the image bytes, never from the upstream header, and add `Content-Security-Policy: default-src 'none'; sandbox`. Anything else answers `404`. TVHeadend images and channel logos may be SVG (up to `1 MB`); `createThumbnailStore` renders an SVG with `sharp` to WebP at the requested width, with the density capped between `1` and `2400` dpi, so only raster pixels leave Freetvarr. A thumbnail that cannot be resized gives no image, and the store skips that thumbnail for `10` min.
 
 ### Credential storage
 
