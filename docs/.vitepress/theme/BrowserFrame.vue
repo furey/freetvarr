@@ -18,6 +18,9 @@ const showsScreenshot = computed(() => Boolean(slots.default))
 const oneXSrc = computed(() => props.src.replace(/\.mp4$/, '-1x.mp4'))
 
 const video = ref(null)
+const PLAY_ANYWAY_MS = 8000
+const NEAR_VIEW = '200px'
+let stopWatching = () => {}
 
 const switchSourceKeepingTime = (el, apply) => {
   const time = el.currentTime
@@ -60,21 +63,48 @@ const playFullscreen = () => {
   el.webkitEnterFullscreen?.()
 }
 
+const canPlayThrough = (el) => new Promise((resolve) => {
+  if (el.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) return resolve()
+  const timer = setTimeout(resolve, PLAY_ANYWAY_MS)
+  el.addEventListener('canplaythrough', () => {
+    clearTimeout(timer)
+    resolve()
+  }, { once: true })
+})
+
+const startWhenBuffered = async (el) => {
+  el.preload = 'auto'
+  if (el.networkState === HTMLMediaElement.NETWORK_EMPTY) el.load()
+  await canPlayThrough(el)
+  el.play?.().catch(() => {})
+}
+
+const playWhileNearView = (el) => {
+  let started = false
+  const observer = new IntersectionObserver(([entry]) => {
+    if (!entry.isIntersecting) return el.pause()
+    if (started) return el.play?.().catch(() => {})
+    started = true
+    startWhenBuffered(el)
+  }, { rootMargin: NEAR_VIEW })
+  observer.observe(el)
+  return () => observer.disconnect()
+}
+
 onMounted(() => {
   const el = video.value
   if (!el) return
   el.muted = true
   document.addEventListener('fullscreenchange', onFullscreenChange)
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-  if (reduce?.matches) {
-    el.removeAttribute('autoplay')
-    el.pause()
-    return
-  }
-  el.play?.().catch(() => {})
+  if (reduce?.matches) return
+  stopWatching = playWhileNearView(el)
 })
 
-onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange))
+onUnmounted(() => {
+  stopWatching()
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+})
 </script>
 
 <template>
@@ -107,11 +137,10 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
         <video
           ref="video"
           :poster="withBase(poster)"
-          autoplay
           loop
           muted
           playsinline
-          preload="metadata"
+          preload="none"
           :aria-label="ariaLabel"
           @dblclick="playFullscreen"
         >
@@ -154,6 +183,20 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   overflow: hidden;
   border: 1px solid var(--ftv-hairline);
   background: var(--ftv-surface-1);
+}
+
+.dark .browser-frame {
+  background: transparent;
+}
+
+.dark .browser-frame__bar {
+  background: rgba(20, 28, 36, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+
+:root:not(.dark) .browser-frame {
+  border-color: rgba(11, 17, 23, 0.165);
 }
 
 .browser-frame__bar {
@@ -234,6 +277,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
 }
 
 .browser-frame__screen {
+  position: relative;
   aspect-ratio: 1280 / 800;
   background: #0b1117;
 }
@@ -247,6 +291,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
 
 .browser-frame__screen video {
   display: block;
+  transform: translateZ(0);
   width: 100%;
   height: 100%;
   object-fit: cover;
