@@ -132,6 +132,13 @@ test('settings save: binds a this-machine Plex token to a local URL', async () =
   assert.equal(await storedPlexTokenFor('http://192.168.1.10:32400'), TOKEN)
 })
 
+test('settings save: keeps an unscoped Plex token when the URL moves between two addresses on this machine', async () => {
+  await setSetting('plex_url', 'http://127.0.0.1:32400')
+  const cleared = await savePlexConnection({ body: { plex_url: 'http://192.168.1.10:32400' }, interfaces })
+  assert.deepEqual(cleared, [])
+  assert.equal(await storedPlexTokenFor('http://192.168.1.10:32400'), TOKEN)
+})
+
 test('settings save: keeps the stored Plex token when the URL keeps its origin', async () => {
   const cleared = await savePlexConnection({ body: { plex_url: `${STORED_URL}/` }, interfaces })
   assert.deepEqual(cleared, [])

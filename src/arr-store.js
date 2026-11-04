@@ -4,7 +4,7 @@ import { getSetting, setSetting } from './db.js'
 import { ARR_APPS, ARR_DEFAULT_PORTS, arrConfigOf, createArrClient, pingArr, recycleBinOf } from './arr-client.js'
 import { createCircuitBreaker } from './outbound-http.js'
 import { radarrEntryOf, sonarrEntryOf } from './arr-files.js'
-import { hostOf as urlHostOf, isThisMachineHost, portOf, sameOrigin } from './url-binding.js'
+import { hostOf as urlHostOf, isThisMachineHost, keepsSecretBinding, portOf } from './url-binding.js'
 
 export const loadArrSettings = async ({ readConfig = readArrConfig } = {}) => {
   const entries = await Promise.all(ARR_APPS.map(async (app) => {
@@ -31,10 +31,12 @@ export const arrSettingOf = ({ app, url, savedKey, fileConfig, interfaces }) => 
 }
 
 export const saveArrSettings = async (patch) => {
+  const cleared = []
   for (const app of ARR_APPS) {
     const entry = patch[app]
     if (!entry) continue
-    if (entry.url !== undefined && entry.apiKey === undefined && !sameOrigin(entry.url, await getSetting(`${app}_url`))) {
+    if (entry.url !== undefined && entry.apiKey === undefined && !keepsSecretBinding({ url: entry.url, previous: await getSetting(`${app}_url`) })) {
+      if (await getSetting(`${app}_api_key`)) cleared.push(`${app}_api_key`)
       await setSetting(`${app}_api_key`, '')
     }
     if (entry.url !== undefined) await setSetting(`${app}_url`, entry.url || '')
@@ -42,7 +44,7 @@ export const saveArrSettings = async (patch) => {
     clients.delete(app)
   }
   if (typeof patch.unmonitorOnDelete === 'boolean') await setSetting(UNMONITOR_KEY, String(patch.unmonitorOnDelete))
-  return loadArrSettings()
+  return { ...(await loadArrSettings()), cleared }
 }
 
 export const arrClientFor = async (app, { settings } = {}) => {

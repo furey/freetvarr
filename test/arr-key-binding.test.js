@@ -32,6 +32,14 @@ test('saveArrSettings: drops the saved Sonarr key when the URL changes without o
   assert.equal(saved.sonarr.url, 'http://192.0.2.9:8989')
   assert.equal(saved.sonarr.apiKey, null)
   assert.equal(await getSetting('sonarr_api_key'), '')
+  assert.deepEqual(saved.cleared, ['sonarr_api_key'])
+})
+
+test('saveArrSettings: keeps the saved Sonarr key when the URL moves between two addresses on this machine', async () => {
+  await setSetting('sonarr_url', 'http://127.0.0.1:8989')
+  const saved = await saveArrSettings({ sonarr: { url: 'http://localhost:8989' } })
+  assert.equal(saved.sonarr.apiKey, 'saved-key')
+  assert.deepEqual(saved.cleared, [])
 })
 
 test('saveArrSettings: keeps a typed Sonarr key with a new URL', async () => {

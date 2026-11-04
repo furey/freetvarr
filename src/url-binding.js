@@ -18,6 +18,9 @@ export const isThisMachineUrl = (url, options) => {
   return Boolean(parsed && isThisMachineHost(parsed.hostname, options))
 }
 
+export const keepsSecretBinding = ({ url, previous, interfaces }) =>
+  sameOrigin(url, previous) || (isThisMachineUrl(url, { interfaces }) && isThisMachineUrl(previous, { interfaces }))
+
 export const hostOf = (url) => normaliseHost(parseUrl(url)?.hostname)
 
 export const portOf = (url) => {

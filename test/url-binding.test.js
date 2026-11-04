@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { hostOf, isThisMachineHost, isThisMachineUrl, portOf, sameOrigin } from '../src/url-binding.js'
+import { hostOf, isThisMachineHost, isThisMachineUrl, keepsSecretBinding, portOf, sameOrigin } from '../src/url-binding.js'
 
 const interfaces = {
   lo: [{ address: '127.0.0.1', family: 'IPv4', internal: true }],
@@ -49,6 +49,13 @@ test('isThisMachineUrl reads the host from a URL', () => {
   assert.equal(isThisMachineUrl('http://192.168.1.10:32400/', { interfaces }), true)
   assert.equal(isThisMachineUrl('http://192.168.1.99:32400', { interfaces }), false)
   assert.equal(isThisMachineUrl('garbage', { interfaces }), false)
+})
+
+test('keepsSecretBinding: keeps a secret for the same origin or a move between two addresses on this machine', () => {
+  assert.equal(keepsSecretBinding({ url: 'http://nas:9981/', previous: 'http://nas:9981', interfaces }), true)
+  assert.equal(keepsSecretBinding({ url: 'http://127.0.0.1:32400', previous: 'http://192.168.1.10:32400', interfaces }), true)
+  assert.equal(keepsSecretBinding({ url: 'http://192.168.1.99:32400', previous: 'http://127.0.0.1:32400', interfaces }), false)
+  assert.equal(keepsSecretBinding({ url: 'http://127.0.0.1:32400', previous: '', interfaces }), false)
 })
 
 test('hostOf and portOf read a URL with default ports filled in', () => {

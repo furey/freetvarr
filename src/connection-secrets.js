@@ -1,6 +1,6 @@
 import { deleteSetting, getSetting, setSetting } from './db.js'
 import { PLEX_TOKEN_SCOPE_KEY, plexTokenBindsTo } from './plex.js'
-import { sameOrigin } from './url-binding.js'
+import { keepsSecretBinding, sameOrigin } from './url-binding.js'
 
 export const saveTvheadendConnection = async ({ body, store = settingsStore }) => {
   const cleared = []
@@ -46,7 +46,7 @@ const rebindPlexToken = async ({ url, store, interfaces }) => {
     store.get(PLEX_TOKEN_SCOPE_KEY),
   ])
   if (!token) return []
-  if (!scope && keepsOrigin(url, storedUrl)) return []
+  if (!scope && (keepsOrigin(url, storedUrl) || keepsSecretBinding({ url, previous: storedUrl, interfaces }))) return []
   await store.remove(PLEX_TOKEN_SCOPE_KEY)
   if (plexTokenBindsTo({ url, storedUrl, scope, interfaces })) return []
   await store.remove('plex_token')
