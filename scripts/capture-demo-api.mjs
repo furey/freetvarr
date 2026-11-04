@@ -891,7 +891,7 @@ const rememberImage = ({ url, response, body }) => {
   return reply
 }
 
-const EPG_IMAGE_PATH = /^\/api\/epg\/image\/[^"]+$/
+const EPG_IMAGE_PATH = /^\/api\/epg\/(image\/[^"]+|show-image\?[^"]+)$/
 
 const epgImagePathsOf = (value) => {
   if (typeof value === 'string') return EPG_IMAGE_PATH.test(value) ? [value] : []
@@ -899,17 +899,24 @@ const epgImagePathsOf = (value) => {
   return Object.values(value).flatMap(epgImagePathsOf)
 }
 
+const FOR_YOU_MIN_ROW = 5
+
 const withoutArtlessItems = ({ base }) => async (data) => {
   const paths = [...new Set(epgImagePathsOf(data))]
   const statuses = await Promise.all(paths.map(async (path) => [path, (await fetch(`${base}${path}`)).ok]))
   const missing = new Set(statuses.filter(([, ok]) => !ok).map(([path]) => path))
-  if (!missing.size) return data
   const prune = (value) => {
-    if (Array.isArray(value)) return value.filter((entry) => !missing.has(entry?.image)).map(prune)
+    if (Array.isArray(value)) return value.filter((entry) => !missing.has(entry?.image) && !isHiddenEntry(entry)).map(prune)
     if (!value || typeof value !== 'object') return value
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, prune(entry)]))
   }
-  return prune(data)
+  const pruned = prune(data)
+  if (!Array.isArray(pruned.sections)) return pruned
+  const sections = pruned.sections.filter((section) => !Array.isArray(section.items) || section.items.length >= FOR_YOU_MIN_ROW)
+  const shown = new Set(sections.flatMap((section) => (section.items || []).map((item) => item.id)))
+  const topPick = pruned.topPick && shown.has(pruned.topPick.id) ? pruned.topPick : null
+  console.log(`  for-you rows: ${sections.map((section) => `${section.key}=${section.items?.length}`).join(', ')}; dropped ${[...missing].length} artless`)
+  return { ...pruned, sections, topPick }
 }
 
 const withoutHiddenTitles = (data, url) => {
@@ -1040,12 +1047,14 @@ const plexItemImage = ({ base }) => ignoreClosed(async (route) => {
   return route.fulfill({ response })
 })
 
+const pageNow = () => (globalThis.__pageNow ? globalThis.__pageNow() : Date.now())
+
 const demoLiveTv = () => {
   let session = null
   const sessionView = () => session && {
     id: LIVE_SESSION_ID,
     channelId: session.channelId,
-    status: Date.now() - session.startedAt < LIVE_TUNING_MS ? 'tuning' : 'live',
+    status: pageNow() - session.startedAt < LIVE_TUNING_MS ? 'tuning' : 'live',
     reason: null,
     startedAt: session.startedAt,
     bufferSeconds: LIVE_BUFFER_SECONDS,
@@ -1059,7 +1068,7 @@ const demoLiveTv = () => {
     if (request.method() === 'POST' && /\/(hold|attention)$/.test(pathname)) return fulfillJson(route, { ok: true, held: true, changed: false })
     if (request.method() === 'POST' && pathname.endsWith('/benchmark')) return fulfillJson(route, { ok: true })
     if (request.method() === 'POST') {
-      session = { channelId: String(request.postDataJSON()?.channel_id || ''), startedAt: Date.now() }
+      session = { channelId: String(request.postDataJSON()?.channel_id || ''), startedAt: pageNow() }
       return fulfillJson(route, { ok: true, session: sessionView(), shared: false, conflict: null })
     }
     if (request.method() === 'DELETE') {
@@ -1082,7 +1091,7 @@ const fulfillLivePlaylist = async ({ route, liveSince }) => {
   const segments = lines.flatMap((line, i) => line.startsWith('#EXTINF') ? [[line, lines[i + 1]]] : [])
   const header = lines.filter((line) => /^#EXT(M3U|-X-(VERSION|TARGETDURATION|MAP))/.test(line))
   const targetMs = Number(header.find((line) => line.startsWith('#EXT-X-TARGETDURATION')).split(':')[1]) * 1000
-  const published = Math.min(segments.length, LIVE_WINDOW_SEGMENTS + Math.floor((Date.now() - liveSince) / targetMs))
+  const published = Math.min(segments.length, LIVE_WINDOW_SEGMENTS + Math.floor((pageNow() - liveSince) / targetMs))
   const body = [
     ...header,
     '#EXT-X-MEDIA-SEQUENCE:0',

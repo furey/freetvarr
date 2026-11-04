@@ -2,7 +2,7 @@ import DefaultTheme from 'vitepress/theme'
 import { useData, useRoute } from 'vitepress'
 import { h, onMounted, watch } from 'vue'
 import BrowserFrame from './BrowserFrame.vue'
-import DevicesHero from './DevicesHero.vue'
+import HeroGlow from './HeroGlow.vue'
 import DownloadApp from './DownloadApp.vue'
 import FetchBanner from './FetchBanner.vue'
 import Illustration from './Illustration.vue'
@@ -40,6 +40,7 @@ export default {
     h(DefaultTheme.Layout, null, {
       'layout-top': () => [h(FetchBanner), h('div', { class: 'ftv-bar-ruler', 'aria-hidden': 'true' })],
       'nav-bar-title-after': () => h(NavWordmark),
-      'home-hero-image': () => h(DevicesHero)
+      'home-hero-before': () => h(HeroGlow),
+      'home-hero-image': () => h(BrowserFrame)
     })
 }
