@@ -9,8 +9,8 @@ hero:
   tagline: >-
     Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
-    style="font-size:0.575em;color:var(--vp-c-text-3)">*optional via
-    <code>comskip</code></span>
+    style="font-size:0.575em">*optional via
+    Comskip</span>
   image:
     src: /logo.svg
     alt: Freetvarr
@@ -73,7 +73,7 @@ features:
   - title: Optional ad removal
     illustration: ad-removal
     details: >-
-      <code>comskip</code> commercial detection with a detect-only audit mode and
+      Comskip commercial detection with a detect-only audit mode and
       keyframe stream-copy cutting (no transcode), keeping an .orig backup of
       every cut.
     link: /deep-dive#ad-removal

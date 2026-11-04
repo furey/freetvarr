@@ -1131,7 +1131,11 @@ kbd {
   line-height: 1.4;
   font-size: 18px;
   font-weight: 500;
-  color: var(--ftv-text-2);
+  color: var(--ftv-text-1);
+}
+
+.dark .VPHero .tagline.tagline {
+  color: #fff;
 }
 
 .VPHero .actions.actions {
