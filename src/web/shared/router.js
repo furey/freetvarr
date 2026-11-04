@@ -106,7 +106,13 @@ export const replaceHash = (hash) => {
   window.dispatchEvent(new HashChangeEvent('hashchange'))
 }
 
-export const navigateFrom = ({ hash, originHash }) => {
+export const replaceSectionInPlace = ({ hash, section }) => {
+  history.replaceState(history.state, '', hash)
+  currentHash = window.location.hash
+  routeSection.value = section
+}
+
+export const navigateFrom =({ hash, originHash }) => {
   if (window.location.hash === hash) return
   originOverride = originHash || null
   window.location.hash = hash

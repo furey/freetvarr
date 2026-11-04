@@ -14,7 +14,7 @@ import { firstSyncError, groupSyncsByDay } from '/sync-row.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
-import { routeSection } from '/shared/router.js'
+import { replaceSectionInPlace, routeSection } from '/shared/router.js'
 import { browserStorage } from '/shared/storage.js'
 import { syncMsOf, syncTookText } from '/shared/sync-format.js'
 import { syncStatus, loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
@@ -235,8 +235,7 @@ export const SyncsView = {
 
     const clearLinkedSync = () => {
       if (!linkedSyncId.value) return
-      history.replaceState(null, '', '#/settings/system/activity/syncs')
-      routeSection.value = 'syncs'
+      replaceSectionInPlace({ hash: '#/settings/system/activity/syncs', section: 'syncs' })
     }
 
     const visibleElementFor = (id) => [...document.querySelectorAll(`[data-sync-id="${id}"]`)]
