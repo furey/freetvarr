@@ -48,8 +48,9 @@ export const GuideSetupStep = {
               </div>
             </div>
             <p class="setup-hint">Check each pick, or choose No guide.<template v-if="actionInBar"> Save and next keeps your choices.</template></p>
+            <p v-if="linksError && !actionInBar" class="setup-hint is-error">{{ linksError }}</p>
             <div v-if="!actionInBar && pickedCount" class="setup-inline-actions">
-              <button type="button" class="ui-button ui-button-primary" @click="saveLinks">Save guide choices</button>
+              <button type="button" class="ui-button ui-button-primary" :disabled="savingLinks" :aria-busy="savingLinks" @click="saveLinksHere">Save guide choices</button>
             </div>
           </div>
           <div v-if="result && result.ok && result.total" class="setup-block">
@@ -215,14 +216,26 @@ export const GuideSetupStep = {
       }
     }
 
+    const savingLinks = ref(false)
+    const linksError = ref('')
     const saveLinks = async () => {
-      if (!pickedCount.value) return
-      const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
-      await api('POST', '/api/tvh-guide/links', { links })
-      for (const { channel_id } of links) delete picks[channel_id]
-      const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
-      if (progress) job.value = progress
+      if (!pickedCount.value || savingLinks.value) return
+      savingLinks.value = true
+      linksError.value = ''
+      try {
+        const links = Object.entries(picks).filter(([, g]) => g).map(([channel_id, guide_id]) => ({ channel_id, guide_id }))
+        await api('POST', '/api/tvh-guide/links', { links })
+        for (const { channel_id } of links) delete picks[channel_id]
+        const progress = await api('GET', '/api/tvh-guide/progress').catch(() => null)
+        if (progress) job.value = progress
+      } catch (err) {
+        linksError.value = `Could not save the guide choices: ${err.message}`
+        throw err
+      } finally {
+        savingLinks.value = false
+      }
     }
+    const saveLinksHere = () => saveLinks().catch(() => {})
 
     const restart = () => {
       jobDismissed = true
@@ -237,7 +250,7 @@ export const GuideSetupStep = {
     return {
       OTHER, status, loading, loadError, editing, suggestion, choice, customUrl, url,
       steps, result, showSteps, starting, applyError, picks, pickedCount,
-      refresh, apply, saveLinks, restart, runAction: apply, READING_STEPS, intro,
+      refresh, apply, saveLinks, saveLinksHere, savingLinks, linksError, restart, runAction: apply, READING_STEPS, intro,
     }
   },
 }

@@ -807,22 +807,25 @@ export const WelcomeView = {
       if (step.value === totalSteps) return finish()
       clearSaveStatus()
       saving.value = true
+      const from = step.value
       try {
-        if (step.value === 1) {
+        if (from === 1) {
           await api('POST', '/api/settings', { time_zone: timeZone.value })
           tz.value = timeZone.value
           tzSource.value = 'setting'
-        } else if (step.value === 2) {
+        } else if (from === 2) {
+          await settleBootstrap()
+          if (showSecure.value) return
           const connected = await testTvh()
           if (!connected) return
-        } else if (step.value === 4) {
+        } else if (from === 4) {
           await guideStep.value?.saveLinks()
-        } else if (step.value === 5) {
+        } else if (from === 5) {
           await saveStorage()
-        } else if (step.value === 6) {
+        } else if (from === 6) {
           await savePlex()
         }
-        step.value++
+        if (step.value === from) step.value = from + 1
       } catch (err) {
         setSaveStatus(`Save failed: ${err.message}`, 'err', 5000)
       } finally {
@@ -1011,21 +1014,31 @@ export const WelcomeView = {
     const secureReady = computed(() => !secureInputProblem.value)
 
     let bootstrapCheckTimer = null
+    let bootstrapCheck = null
+    const readBootstrap = async (url) => {
+      const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
+      if (url !== tvhUrl.value.trim()) return
+      bootstrap.value = status
+      if (status?.fresh && !securePrefixes.value) {
+        securePrefixes.value = withBrowserNetwork({
+          prefixes: status.suggestedPrefixes,
+          host: window.location.hostname,
+        }).join(', ')
+      }
+    }
     const checkBootstrap = () => {
       clearTimeout(bootstrapCheckTimer)
+      bootstrapCheck = null
       const url = tvhUrl.value.trim()
       if (!url || step.value !== 2) return
-      bootstrapCheckTimer = setTimeout(async () => {
-        const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
-        if (url !== tvhUrl.value.trim()) return
-        bootstrap.value = status
-        if (status?.fresh && !securePrefixes.value) {
-          securePrefixes.value = withBrowserNetwork({
-            prefixes: status.suggestedPrefixes,
-            host: window.location.hostname,
-          }).join(', ')
-        }
-      }, BOOTSTRAP_CHECK_DELAY_MS)
+      bootstrapCheckTimer = setTimeout(() => { bootstrapCheck = readBootstrap(url) }, BOOTSTRAP_CHECK_DELAY_MS)
+    }
+    const settleBootstrap = async () => {
+      const url = tvhUrl.value.trim()
+      if (!url || bootstrap.value) return
+      clearTimeout(bootstrapCheckTimer)
+      bootstrapCheck ??= readBootstrap(url)
+      await bootstrapCheck
     }
     watch(tvhUrl, () => {
       bootstrap.value = null
