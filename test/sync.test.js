@@ -15,7 +15,9 @@ import {
   looksLikeFilm,
   buildFilmPath,
   libraryKind,
+  syncErrorLogOf,
 } from '../src/sync.js'
+import { AxiosError } from 'axios'
 
 test('matchShow: case-insensitive substring match', () => {
   const shows = [
@@ -271,4 +273,16 @@ test('libraryKind: an automatic title match does not hold a sport title with no 
   assert.equal(libraryKind({ show: { id: 1, origin: 'user' }, item: game, moviesRoot: '/m', evidence }), 'tv')
   assert.equal(libraryKind({ show: null, item: { ...game, autorecId: 'a1' }, moviesRoot: '/m', evidence }), 'tv')
   assert.equal(libraryKind({ show: { id: 1, origin: 'auto' }, item: game, moviesRoot: '/m' }), 'tv')
+})
+
+test('syncErrorLogOf: logs the message and stack of a failed request without its token', () => {
+  const err = new AxiosError('Request failed with status code 500', 'ERR_BAD_RESPONSE', {
+    url: 'http://plex:32400/library/sections/1/refresh',
+    params: { 'X-Plex-Token': 'secret-token' },
+    headers: { 'X-Api-Key': 'secret-key' },
+  })
+  const line = syncErrorLogOf(err)
+  assert.match(line, /Request failed with status code 500/)
+  assert.ok(!line.includes('secret-token'))
+  assert.ok(!line.includes('secret-key'))
 })

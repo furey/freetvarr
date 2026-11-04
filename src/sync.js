@@ -43,6 +43,8 @@ export const startSync = async (options = {}) => {
   }
 }
 
+export const syncErrorLogOf = (err) => err?.stack || String(err?.message ?? err)
+
 const beginSync = async ({ trigger = 'manual', showId = null, identityFor = showIdentityFor }) => {
   const missingUrl = await tvheadendUrlMissing()
   if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
@@ -51,7 +53,7 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
   const syncId = await createSync(trigger, showId)
   const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId, identityFor }))
     .catch((err) => {
-      console.error('[sync] unhandled error:', err)
+      console.error(`[sync] unhandled error: ${syncErrorLogOf(err)}`)
     })
     .finally(() => {
       inFlight = null
