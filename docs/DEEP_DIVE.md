@@ -937,7 +937,7 @@ flowchart LR
 
 `POST /api/live` takes `channel_id`, an optional `picture_rank`, and an optional `client_token`, and calls `startLiveChannel` (`liveLimiter`, CSRF):
 
-1. `releaseHeld` ends each held session on another channel that this `client_token` started and that has one viewer, with the reason `replaced`. The client keeps the token in `localStorage` (`freetvarr.deviceToken`), so it stays the same when a Home Screen app opens again.
+1. `releaseHeld` ends each held session on another channel that this `client_token` started, with the reason `replaced`. It skips a session that any other viewer ever joined, and a session that a viewer still attends (for example in Picture in Picture). The client keeps the token in `localStorage` (`freetvarr.deviceToken`), so it stays the same when a Home Screen app opens again.
 2. When a session on the channel exists (`forChannel`), the viewer joins it and nothing else runs.
 3. `preflightChannel` checks the tuners. A refusal throws a `LiveTvError` with status `409`.
 4. `planForChannel` reads the first service of the channel from `service/streams` and the default languages from `config/load`, then calls `pickStreams`.
@@ -1043,14 +1043,14 @@ Multiview plays up to three companion live sessions beside the main player's ses
 
 The player plays a recording, or a Plex library item, as HLS from a per-file `ffmpeg` session. The server code is `src/playback.js` and its routes in `src/server.js`; the client code is `src/web/shared/playback-session.js`. Playback sessions count against the [Stream limit](#stream-limit). The guide page is [Playback](/guide/recordings#playback).
 
-| Route                               | Purpose                                                                          |
-| ----------------------------------- | -------------------------------------------------------------------------------- |
-| `POST /api/recordings/:id/play`     | Start a session; body `offset`, `replace`, `player`, `part_id` (`playLimiter`)   |
-| `GET /api/play/:session/:file`      | Serve `index.m3u8`, `play.m3u8`, `play_vtt.m3u8`, `seg<N>.ts`, and `play<N>.vtt` |
-| `POST /api/play/:session/heartbeat` | Refresh the session; `404` with `code: 'gone'` after it ends                     |
-| `POST /api/play/:session/attention` | Set `attending` for watch tracking                                               |
-| `DELETE /api/play/:session`         | Stop the session                                                                 |
-| `POST /api/recordings/:id/position` | Save the position (`0–86400` seconds)                                            |
+| Route                               | Purpose                                                                                        |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `POST /api/recordings/:id/play`     | Start a session; body `offset`, `replace`, `player`, `part_id`, `client_token` (`playLimiter`) |
+| `GET /api/play/:session/:file`      | Serve `index.m3u8`, `play.m3u8`, `play_vtt.m3u8`, `seg<N>.ts`, and `play<N>.vtt`               |
+| `POST /api/play/:session/heartbeat` | Refresh the session; `404` with `code: 'gone'` after it ends                                   |
+| `POST /api/play/:session/attention` | Set `attending` for watch tracking                                                             |
+| `DELETE /api/play/:session`         | Stop the session                                                                               |
+| `POST /api/recordings/:id/position` | Save the position (`0–86400` seconds)                                                          |
 
 ### Playback start
 
@@ -1081,7 +1081,7 @@ The position route writes `playback_position_s`, `played_at`, and `watched_at`. 
 
 **From the start** plays a programme that TVHeadend is still recording. The server code is `src/in-progress-playback.js`; the client calls `watchFromStart` and plays in the live player. The guide page is [Start over](/guide/player#start-over).
 
-`POST /api/play/in-progress` takes `dvrUuid`, `player`, and `replace`:
+`POST /api/play/in-progress` takes `dvrUuid`, `player`, `replace`, and `client_token`. Like the recording play route, it first calls `releaseHeld` for the `client_token` ([Live start](#live-start)):
 
 1. Find the entry in `listActiveRecordings`; none gives `404` with `code: 'not-recording'`.
 2. `growingSourceFor` uses the local file when `localPathFor` maps the path, else `GET /dvrfile/<uuid>` with a `Range` header.
