@@ -9,33 +9,33 @@ description: >-
 
 <Illustration name="tv-apps" />
 
-In Freetvarr, Settings → WATCHING → **Watch on TV** is so you can use Jellyfin or Kodi instead of your tuner's own app (e.g. the HDHomeRun app). It makes a watch-only login in TVHeadend and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
+In Freetvarr, Settings → WATCHING → **Watch on TV** is so you can use [Jellyfin](https://jellyfin.org/) or [Kodi](https://kodi.tv/) instead of your tuner's own app (e.g. the app for an [HDHomeRun](https://www.silicondust.com/hdhomerun.html) tuner). It makes a watch-only login in [TVHeadend](https://tvheadend.org/) (the TV login) and shows the details to copy into the app, so you never open TVHeadend's own settings. You still record in Freetvarr's [TV guide](/guide/tv-guide).
 
 > [!NOTE]<br>
-> Once set up, the app plays straight from TVHeadend, so your live TV keeps working, even if Freetvarr was stopped for whatever reason. The app also gets TVHeadend's TV guide listings from TVHeadend. Your recordings appear separately, in Plex or Infuse.
+> Once set up, the app plays straight from TVHeadend, so your live TV keeps working, even if Freetvarr was stopped for whatever reason. The app also gets TVHeadend's TV guide listings from TVHeadend. Your recordings appear separately, in [Plex](https://www.plex.tv/) or [Infuse](https://firecore.com/infuse).
 
 > [!TIP]<br>
-> A Freetvarr app for Apple TV and Android TV is planned. Stay tuned!
+> A Freetvarr app for [Apple TV](https://www.apple.com/apple-tv-4k/) and [Android TV](https://www.android.com/tv/) is planned. Stay tuned!
 
-| App      | On the TV                                                                          | Needs                                                     |
-| -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Jellyfin | Apple TV, Google TV and Android TV, Fire TV, some smart TVs (e.g. LG)              | A Jellyfin server on an always-on computer (e.g. the NAS) |
-| Kodi     | Google TV and Android TV (from Google Play); Apple TV and Fire TV take extra steps | Nothing else; the app talks to TVHeadend itself           |
+| App      | On the TV                                                                                                                    | Needs                                                     |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Jellyfin | Apple TV, [Google TV](https://tv.google/) and Android TV, [Fire TV](https://www.amazon.com/firetv), some smart TVs (e.g. LG) | A Jellyfin server on an always-on computer (e.g. the NAS) |
+| Kodi     | Google TV and Android TV (from Google Play); Apple TV and Fire TV take extra steps                                           | Nothing else; the app talks to TVHeadend itself           |
 
 If you already run Jellyfin, use it: one server feeds every Jellyfin app in the house, and it can show your recordings too. If you don't, Kodi on a Google TV or Android TV is the quickest start.
 
 ## The TV login
 
 1. In Freetvarr, open Settings → WATCHING → **Watch on TV**.
-2. Check the login name. `tv` is the default; any name with no spaces works.
+2. Check the login name. `tv` is the default. Use only letters, numbers, dots, dashes, and underscores.
 3. Press **Make a TV login** to create the TV login in TVHeadend.
 
 Freetvarr creates a TVHeadend login that can only watch: it cannot record, change settings, or open TVHeadend's web pages. The login works only from the same networks as the TVHeadend login that Freetvarr itself uses. Freetvarr keeps the password and shows it in the panel, so you can copy it again later.
 
-Freetvarr then fills in **TVHeadend address for TV apps** with the address your browser used to open Freetvarr. Check the address. It must be the IP address of the computer that runs TVHeadend (e.g. `192.168.1.10`). Change it if it is wrong (the addresses below it change too).
+Freetvarr then fills in **TVHeadend address for TV apps** with the host of your TVHeadend address. When that is a name only Freetvarr can reach (such as `localhost` or `tvheadend`), Freetvarr uses the address your browser used to open Freetvarr instead. Check the address. It must be the IP address of the computer that runs TVHeadend (e.g. `192.168.1.10`). Change it if it is wrong (the addresses below it change too).
 
 > [!NOTE]<br>
-> The **Tuner (M3U) URL** and **Guide (XMLTV) URL** addresses carry a code instead of a password. Anyone on your home network who has them can watch your channels, but they cannot change TVHeadend or your recordings.
+> The **Tuner (M3U) URL** (an [M3U](https://en.wikipedia.org/wiki/M3U) playlist of the channels) and **Guide (XMLTV) URL** (an [XMLTV](https://wiki.xmltv.org/) file of the TV guide) addresses carry a code instead of a password. Anyone on your home network who has them can watch your channels, but they cannot change TVHeadend or your recordings.
 
 ### Delete the TV login
 
@@ -49,7 +49,7 @@ Freetvarr deletes only the login it made: the TVHeadend user and password with t
 
 ## Jellyfin
 
-Jellyfin has its own TVHeadend plugin, but each plugin release suits only some Jellyfin versions. The tuner address (an M3U playlist of the channels) and the TV guide address (an XMLTV file) below work with any recent Jellyfin.
+Jellyfin has its own TVHeadend plugin, but each plugin release suits only some Jellyfin versions. The tuner address and the TV guide address below work with any recent Jellyfin.
 
 1. Open Jellyfin in a browser and sign in as an administrator.
 2. Open the user menu (top right), then **Dashboard → Live TV**.
@@ -64,12 +64,12 @@ Jellyfin has its own TVHeadend plugin, but each plugin release suits only some J
 
 Open **Live TV** in any Jellyfin app on your TV, tablet, or phone. The channels show TVHeadend's channel names and logos, and the TV guide fills in after the refresh.
 
-If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV login does not allow (e.g. Jellyfin in Docker without host networking). In TVHeadend's web interface, open **Configuration → Users → Access Entries**, open the TV login, and add that network to **Allowed networks**.
+If Jellyfin cannot load the tuner, Jellyfin may connect from a network the TV login does not allow (e.g. [Docker](https://www.docker.com/) with its own network, instead of host networking, where the container shares the computer's network). In TVHeadend's web interface, open **Configuration → Users → Access Entries**, open the TV login, and add that network to **Allowed networks**.
 
 ## Kodi
 
 1. In Kodi, open **Settings → Add-ons → Install from repository → PVR clients**.
-2. Choose **Tvheadend HTSP Client** (HTSP is TVHeadend's own streaming protocol) and press **Install**.
+2. Choose [**Tvheadend HTSP Client**](https://kodi.wiki/view/Add-on:Tvheadend_HTSP_Client) (HTSP is TVHeadend's own streaming protocol) and press **Install**.
 3. Press **Configure** on the add-on.
 4. Enter the values from the **KODI (TVHEADEND HTSP CLIENT)** rows in Freetvarr's Settings → WATCHING → **Watch on TV**: **Hostname**, **HTTP port**, **HTSP port**, **Username**, and **Password**.
 5. Press **OK**, then go back to the Kodi home screen.

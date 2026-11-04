@@ -7,12 +7,12 @@ description: 'Fixes keyed by symptom: the TVHeadend login, the setup checks, tun
 
 <Illustration name="troubleshooting" />
 
-Run [Health](/guide/doctor) first (Settings → SYSTEM → **Health**, or press the alert on Home). It checks TVHeadend, the TV guide, the folders, and Plex, and links each problem it finds to the section below that fixes it.
+Run [Health](/guide/doctor) first (Settings → SYSTEM → **Health**, or press the alert on Home). It checks [TVHeadend](https://tvheadend.org/), the TV guide, the folders, [Plex](https://www.plex.tv/), the syncs, live TV, the ad removal tools, and the time zone, and links each problem it finds to the section below that fixes it.
 
 Each section starts from what you see, then gives the cause and the fix. The sections follow the order of a first install.
 
 > [!NOTE]<br>
-> Where a fix below names an HDHomeRun or an Australian broadcaster, that is the author's own setup. Each such entry says what to do with a different tuner or in another country.
+> Where a fix below names an [HDHomeRun](https://www.silicondust.com/hdhomerun.html) or an Australian broadcaster, that is the author's own setup. Each such entry says what to do with a different tuner or in another country.
 
 ## TVHeadend 401 or 403
 
@@ -22,7 +22,7 @@ Freetvarr shows `Failed: TVHeadend rejected the credentials (HTTP 401).` or the 
 - **`403` at `serverinfo`**: TVHeadend refused the login. Check these in order:
   1. The password. TVHeadend keeps it under **Configuration → Users → Passwords**, not on the access entry (the TVHeadend rule that holds the user's rights, under **Configuration → Users → Access Entries**). The password entry needs **Enabled** ticked and the same username as the access entry.
   2. The access entry has **Enabled** ticked.
-  3. **Allowed networks** on the access entry includes the address Freetvarr connects from. Under host networking (`network_mode: host`, [TVHeadend step 1](/guide/tvheadend#_1-run-the-container)) that is the host's LAN address. A URL of `http://127.0.0.1:9981` connects from `127.0.0.1` instead, which a LAN prefix does not cover.
+  3. **Allowed networks** on the access entry includes the address Freetvarr connects from. Under host networking (`network_mode: host`, where the container shares the host's network; [TVHeadend step 1](/guide/tvheadend#_1-run-the-container)) that is the host's LAN address. A URL of `http://127.0.0.1:9981` connects from `127.0.0.1` instead, which a LAN prefix does not cover.
 - **`403` at a later stage** (`status/inputs`, `dvr/entry/…`, `epggrab/channel/grid`): the login works but the user lacks a right. Tick the rights in [the rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr), and keep **Rights** ticked in the entry's **Change parameters**.
 - **The order of entries**: access entries are an ordered list, evaluated top to bottom, so a broader entry above yours can win.
 
@@ -35,9 +35,9 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 ## Setup connection test
 
-**Save and next** on the TVHeadend step of setup tests the connection and stays on the step until it passes. The error shows under the TVHeadend address. **Finish later** opens a dialog: press **Finish later** again to leave setup and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open Settings → SYSTEM → Setup.
+**Save and next** on the TVHeadend step of setup tests the connection and stays on the step until it passes. After a failure, the button reads **Try again**. The error shows under the TVHeadend address. **Finish later** opens a dialog: press **Finish later** again to leave setup and keep what you saved, or close the dialog to go back. Freetvarr cannot record until TVHeadend is connected. To resume, open Settings → SYSTEM → Setup.
 
-- **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither Docker container is on a Docker bridge network, so container names don't resolve).
+- **"TVHeadend URL is not configured"**: set the URL. Under host networking it's `http://<host-ip>:9981`, not `http://tvheadend:9981` (neither [Docker](https://www.docker.com/) container is on a Docker bridge network, so container names don't resolve).
 - **`TVHeadend request failed: ECONNREFUSED`**, **`ECONNABORTED`** (a timeout), or **`EHOSTUNREACH`**: TVHeadend isn't running, or isn't on that address and port. To read TVHeadend's log, run this in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`):
 
   ```sh
@@ -46,8 +46,8 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 - **`TVHeadend request failed: ENOTFOUND`**: the hostname in the URL doesn't resolve. Use the host's IP address.
 - **Auto-discover TVHeadend finds nothing**: no TVHeadend answered on port `9981` at any address of the host. Type the URL yourself, or set `TVH_URL` for the Freetvarr Docker container ([Configuration](/guide/configuration#compose-environment)).
-- **`Connected` with `0 channels`**: TVHeadend has no enabled channels yet. See [No channels](#no-channels).
-- **`Connected` with `0 tuners`**: the Freetvarr user lacks **Admin**, or TVHeadend sees no tuner. See [Missing tuner](#missing-tuner).
+- **`Connected to TVHeadend.` with no channel count**: TVHeadend has no enabled channels yet. See [No channels](#no-channels).
+- **`Connected to TVHeadend.` with no tuner count**: the Freetvarr user lacks **Admin**, or TVHeadend sees no tuner. See [Missing tuner](#missing-tuner).
 
 ## TVHeadend admin login
 
@@ -81,35 +81,35 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 
 ## Check TVHeadend mismatch
 
-**Check TVHeadend** in Settings → RECORDING → Media library reads the recording path from TVHeadend's default DVR profile and compares it with the "Recordings folder (as TVHeadend sees it)" field.
+**Check TVHeadend** in Settings → RECORDING → Media library reads the recording path from TVHeadend's default DVR profile and compares it with **As TVHeadend sees it** under **RECORDINGS FOLDER**.
 
 - **"TVHeadend has no recording path. Set one in its DVR profile."**: set **Recording system path** on the default profile ([TVHeadend step 7](/guide/tvheadend#_7-set-the-recording-path)).
-- **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the Docker compose file that the install script downloads), or put TVHeadend's path in the field. The field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts, as `recordings_root`. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
+- **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the Docker compose file that the install script downloads), or put TVHeadend's path in **As TVHeadend sees it**. That field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts, as `recordings_root`. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
 
 ## Missing tuner
 
-In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or Freetvarr's [setup](/guide/getting-started#_2-run-setup) reports `0 tuners`.
+In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** is empty, or the **Tuners** check on [Health](/guide/doctor#tvh-tuners) says `TVHeadend sees no tuner.`
 
-- The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server (those broadcasts don't cross Docker's private bridge network). A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
-- On a Mac, Docker Desktop and OrbStack cannot find a network tuner on their own. In Settings → SYSTEM → Setup, press **Channels**, enter the tuner's IP address and this computer's IP address, then press **Use this address**. The **Tuners** check on [Health](/guide/doctor#tvh-tuners) links there. Or run Freetvarr with Docker on Linux (a NAS, mini PC, or Raspberry Pi).
+- The TVHeadend container has to run with `network_mode: host` for a tuner it finds by network broadcast, such as an HDHomeRun or a SAT>IP server (a satellite tuner that sends its signal over your home network; those broadcasts don't cross Docker's private bridge network). A USB or PCIe tuner needs its `/dev/dvb` devices passed into the container instead.
+- On a Mac, [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [OrbStack](https://orbstack.dev/) cannot find a network tuner on their own. In Settings → SYSTEM → Setup, press **Channels**, enter the tuner's IP address and this computer's IP address, then press **Use this address**. The **Tuners** check on [Health](/guide/doctor#tvh-tuners) links there. Or run Freetvarr with Docker on Linux (a NAS, mini PC, or [Raspberry Pi](https://www.raspberrypi.com/)).
 - The tuner has to be on the same part of the network as the host (those broadcasts don't cross between subnets). For a tuner on another subnet, press **Enter the tuner's address** in the **Channels** step of setup. A tuner plugged straight into a spare NAS port gets a link-local `169.254.x.x` address. TVHeadend still finds it, but nothing else on the LAN can reach it ([Hardware requirements](/guide/hardware-requirements#direct-to-a-spare-nas-port)).
 - Check the tuner answers at all. On an HDHomeRun, open `http://<hdhr-ip>/tuners.html` in a browser. If the page does not load, the tuner has a power or network cable problem, not a TVHeadend one. See [Hardware requirements](/guide/hardware-requirements#checking-the-signal). On a USB or PCIe tuner, check `/dev/dvb` exists on the host and inside the container.
-- TVHeadend lists the tuner but Freetvarr reports `0 tuners`: the Freetvarr user lacks **Admin**, which TVHeadend requires for the tuner status.
+- TVHeadend lists the tuner but Health says `TVHeadend sees no tuner.`: the Freetvarr user lacks **Admin**, which TVHeadend requires for the tuner status.
 
 ## No channels
 
-Freetvarr reports `0 channels`, or the TV guide has no rows.
+Health says `TVHeadend has no channels.`, the Channels row of [setup](/guide/getting-started#_2-run-setup) says `No channels yet`, or the TV guide has no rows.
 
 - Each tuner in **TV adapters** needs **Enabled** ticked and your network set in its **Networks** field ([TVHeadend step 3](/guide/tvheadend#_3-add-the-tuner)).
-- Every mux in **Configuration → DVB Inputs → Muxes** ending `FAIL` means the wrong pre-defined mux list, or an antenna that doesn't reach that transmitter. Pick the list for the transmitter your antenna points at ([step 4](/guide/tvheadend#_4-scan-the-muxes)).
-- Muxes `OK` but no channels: the services are not mapped yet. Press **Map all** under **Configuration → DVB Inputs → Services** ([step 5](/guide/tvheadend#_5-map-services-to-channels)).
+- Every mux (a bundle of channels on one broadcast frequency) in **Configuration → DVB Inputs → Muxes** ending `FAIL` means the wrong pre-defined mux list, or an antenna that doesn't reach that transmitter. Pick the list for the transmitter your antenna points at ([step 4](/guide/tvheadend#_4-scan-the-muxes)).
+- Muxes `OK` but no channels: the services (the individual channel streams inside a mux) are not mapped yet. Press **Map all** under **Configuration → DVB Inputs → Services** ([step 5](/guide/tvheadend#_5-map-services-to-channels)).
 - Freetvarr drops channels marked disabled in **Configuration → Channel/EPG → Channels**.
 
 ## Empty guide
 
 The TV guide shows channels but no programmes, or only about a day of them.
 
-- Without an XMLTV feed you get only what the broadcast signal carries. In Australia that is about a day of thin data. UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
+- Without an [XMLTV](https://wiki.xmltv.org/) feed (a TV guide file on the web) you get only what the broadcast signal carries. In Australia that is about a day of thin data. UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
 - TVHeadend's log says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. To read the log, run:
 
   ```sh
@@ -204,7 +204,7 @@ The row's error in the [recording log](/guide/recordings#recording-log) says whi
 
 A recording shows `REPLACED` in the recording log when its library file is gone and another file for the same episode is in its place. Freetvarr checks this at every sync and each time Recordings loads.
 
-The usual cause is Sonarr. When Sonarr and Freetvarr save to the same TV library folder, Sonarr counts Freetvarr's recording as its own file for that episode. When Sonarr downloads a copy its quality profile rates higher, it moves Freetvarr's file to its recycle bin and keeps the download. The INFO panel of the recording names the file that replaced it.
+The usual cause is [Sonarr](https://sonarr.tv/), an app that downloads TV episodes. When Sonarr and Freetvarr save to the same TV library folder, Sonarr counts Freetvarr's recording as its own file for that episode. When Sonarr downloads a copy its quality profile rates higher, it moves Freetvarr's file to its recycle bin and keeps the download. The INFO panel of the recording names the file that replaced it.
 
 Freetvarr leaves the replacement in place. To keep Freetvarr's recordings, open the series in Sonarr and turn off monitoring for the episodes Freetvarr records. With Sonarr connected ([Sonarr and Radarr](/guide/sonarr-radarr)), the delete dialog in Freetvarr can also delete the downloaded copy through Sonarr.
 
@@ -254,7 +254,7 @@ Episodes import, but Plex doesn't show them.
 
 Plex still lists one-offs after Freetvarr moved their files out of the one-off folder. Plex reads an empty library folder as a missing drive, so it keeps the old items. Freetvarr keeps an empty hidden file, `.freetvarr-keep`, in the one-off folder for this reason. It makes the file at each start and after it moves files out of the folder.
 
-- **Doctor warns `The Plex one-off library has 5 items while the one-off folder has no files.`**: the file is missing. Press **Create placeholder file** on the [Doctor](/guide/doctor#plex-oneoffs) check, then scan the one-off library in Plex.
+- **Health warns `The Plex one-off library has 5 items while the one-off folder has no files.`**: the file is missing. Press **Create placeholder file** on the [Plex one-off library](/guide/doctor#plex-oneoffs) check, then scan the one-off library in Plex.
 - **The file is there and the items stay**: in Plex, scan the one-off library, then use **Empty Trash** on it.
 
 ## Wrong country in Plex
@@ -283,7 +283,7 @@ When the edit form says Sonarr also saves episodes in the folder, rename the ser
   docker compose up -d freetvarr
   ```
 
-- Or paste the Plex token into Settings → RECORDING → Plex yourself. Copy it from `app.plex.tv` (or follow Plex's own support article on finding your token).
+- Or paste the Plex token into Settings → RECORDING → Plex yourself. Copy it from `app.plex.tv` (or follow [Plex's support article](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) on finding your token).
 
 ## Container name lookups
 
@@ -295,14 +295,14 @@ Other containers can't reach Freetvarr by name.
 
 Ad detection is cutting the wrong things, or missing breaks.
 
-- Ad detection is never perfect. Comskip's accuracy varies a lot by channel.
+- Ad detection is never perfect. [Comskip](https://www.kaashoek.com/comskip/)'s accuracy varies a lot by channel.
 - Set the series to **Detect** mode first and check the break counts and minutes it reports in the recording log before switching to **Cut**. Allow about 30 minutes of scan per 75-minute recording on a home NAS.
 - Cuts snap to the nearest keyframe, so a second or two either side of a break is normal.
 - To tune detection, place your own `comskip.ini` in the `/config` bind mount. Your file overrides the bundled default, which the author tuned for Australian channels. Outside Australia, expect to tune your own. If a cut goes wrong, press **Put the original back** in the episode menu while the `<file>.ts.orig` backup exists. See [Ad removal](/guide/ad-removal).
 
 ## Playback failed on HD channels
 
-Chrome shows "Playback failed" or a black player on an HD channel, while SD channels play. Chrome cannot decode interlaced H.264, so Freetvarr must re-encode it. To check the method Freetvarr chose, run this command in a terminal in the `freetvarr` folder:
+[Chrome](https://www.google.com/chrome/) shows "Playback failed" or a black player on an HD channel, while SD channels play. Chrome cannot decode interlaced H.264, so Freetvarr must re-encode it. To check the method Freetvarr chose, run this command in a terminal in the `freetvarr` folder:
 
 ```sh
 docker compose logs freetvarr | grep "\[live\] video"
@@ -324,14 +324,14 @@ The line ends with the reason:
   docker compose up -d freetvarr
   ```
 
-- **`VAAPI test encode failed`**: ffmpeg's error follows the reason. The graphics chip or its driver does not support the encode. Freetvarr uses software.
+- **`VAAPI test encode failed`**: [FFmpeg](https://ffmpeg.org/)'s error follows the reason. The graphics chip or its driver does not support the encode. Freetvarr uses software.
 - **`is not one of auto, hardware, software, copy`**: `LIVE_TV_TRANSCODE` has a typo. Freetvarr uses software.
 
 If the line says `software` and the channel stutters, the CPU is too slow for the software path. Choose a smaller stream or add hardware transcoding. See [Video handling](/guide/live-tv#video-handling).
 
 ## Missing captions
 
-- Your broadcaster sends captions as Teletext or as DVB subtitles. Australian broadcasters send Teletext. Some players decode Teletext and some don't (it isn't a recording fault). See [Captions in other apps](/guide/live-tv#captions-in-other-apps).
+- Your broadcaster sends captions as [Teletext](https://en.wikipedia.org/wiki/Teletext) or as DVB subtitles. Australian broadcasters send Teletext. Some players decode Teletext and some don't (it isn't a recording fault). See [Captions in other apps](/guide/live-tv#captions-in-other-apps).
 - In Freetvarr's player, **Captions** in the **⋯** menu shows only for channels and recordings that carry Teletext subtitles, and some programmes have none. See [Captions](/guide/live-tv#captions).
 
 ## Chrome Live Caption
@@ -373,7 +373,7 @@ Freetvarr signs its CSRF cookie (the cookie that protects browser requests from 
 
 Running Freetvarr from source (`npm start`) rather than in Docker fails at `better-sqlite3`.
 
-- Freetvarr needs Node `24` (`package.json` sets `engines`), and the pinned `better-sqlite3` ships prebuilt binaries for it. On a Node version with no prebuilt binary, `npm run setup` compiles `better-sqlite3` from source, which needs Python 3, `make`, and a C++ compiler. Use Node 24 instead. [Volta](https://volta.sh) picks the pinned version up from `package.json`. See the [deep dive](/deep-dive#local-development).
+- Freetvarr needs [Node](https://nodejs.org/) `24` (`package.json` sets `engines`), and the pinned `better-sqlite3` ships prebuilt binaries for it. On a Node version with no prebuilt binary, `npm run setup` compiles `better-sqlite3` from source, which needs Python 3, `make`, and a C++ compiler. Use Node 24 instead. [Volta](https://volta.sh) picks the pinned version up from `package.json`. See the [deep dive](/deep-dive#local-development).
 
 ## Reporting a bug
 
