@@ -1189,6 +1189,7 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     const plan = planForFile({ probe, encoder: await liveEncoderReady })
     const replace = typeof req.body?.replace === 'string' ? req.body.replace : null
     const player = typeof req.body?.player === 'string' ? req.body.player.slice(0, 64) : null
+    await liveSessions.releaseHeld({ clientToken: clientTokenOf(req.body?.client_token) })
     const session = await playbackSessions.start({
       recordingId: row.recording_id,
       label: recordingLabel(row),
@@ -1445,7 +1446,16 @@ mountActivityRoutes({
 })
 
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
-mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
+mountInProgressPlayback({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: playLimiter,
+  sessions: playbackSessions,
+  encoderReady: liveEncoderReady,
+  folders: inProgressFolders,
+  onError: liveError,
+  releaseHeld: liveSessions.releaseHeld,
+})
 
 app.get('/api/health-summary', healthSummaryRoute)
 

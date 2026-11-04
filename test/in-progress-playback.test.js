@@ -4,7 +4,8 @@ import { PassThrough, Readable } from 'stream'
 import { EventEmitter, getEventListeners } from 'events'
 
 import {
-  abortableSleep, feedGrowing, recordingChecker, recordingStartedAtOf, scheduledEndAtOf, skipFirstBytes, PROBE_HEAD_BYTES,
+  abortableSleep, feedGrowing, mountInProgressPlayback, recordingChecker, recordingStartedAtOf, scheduledEndAtOf, skipFirstBytes,
+  PROBE_HEAD_BYTES,
 } from '../src/in-progress-playback.js'
 import { createPlaybackSessions, planForFile, playbackArgsFor, view } from '../src/playback.js'
 
@@ -237,4 +238,27 @@ test('growing session: other ffmpeg failures do not retry the probe', async () =
   await settle()
   assert.equal(h.spawned.length, 1)
   assert.equal(session.status, 'ended')
+})
+
+test('mountInProgressPlayback: From the start first releases the held live stream of the same device', async () => {
+  const handlers = {}
+  const app = { post: (route, ...stack) => { handlers[route] = stack.at(-1) } }
+  const released = []
+  let failure = null
+  mountInProgressPlayback({
+    app,
+    csrf: () => {},
+    limiter: () => {},
+    sessions: null,
+    encoderReady: Promise.resolve({ kind: 'copy' }),
+    folders: async () => ({}),
+    releaseHeld: async ({ clientToken }) => {
+      released.push(clientToken)
+      throw new Error('released first')
+    },
+    onError: (res, err) => { failure = err },
+  })
+  await handlers['/api/play/in-progress']({ body: { dvrUuid: 'd1', client_token: 'phone' }, get: () => null }, {})
+  assert.deepEqual(released, ['phone'])
+  assert.equal(failure.message, 'released first')
 })

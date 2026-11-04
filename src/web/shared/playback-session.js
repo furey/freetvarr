@@ -4,7 +4,7 @@ import { DOUBLE_TAP_MS, emptyTapState, isTap, registerTap, clampSkip } from '/do
 import { captionsShowing, captionPreferenceAfterChange } from '/live-captions.js'
 import { csrfToken, api } from '/shared/api.js'
 import { addAttentionSource, reportAttention } from '/shared/attention-session.js'
-import { stopLive } from '/shared/live-session.js'
+import { stopLive, DEVICE_TOKEN } from '/shared/live-session.js'
 import { postRecordingPosition } from '/shared/recording-position.js'
 import { closePictureInPictureOf } from '/mini-player.js'
 import {
@@ -107,6 +107,7 @@ const startPlaybackAt = async (offset, { delayMs = 0 } = {}) => {
       ...(offset == null ? {} : { offset }),
       ...(replace ? { replace } : {}),
       player: PLAYER_TOKEN,
+      client_token: DEVICE_TOKEN,
     })
     if (run !== playRun) {
       api('DELETE', `/api/play/${r.session.id}`).catch(() => {})
