@@ -228,7 +228,7 @@ import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
 import { imageFocus } from './image-focus-service.js'
 import { canonicalFocusKeysOf } from './web/image-focus.js'
-import { createKnownTitles, createLookupGate, useLookupGate } from './lookup-gate.js'
+import { createKnownTitles, createLookupGate, libraryLookupTitles, useLookupGate } from './lookup-gate.js'
 import { startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import { activity } from './activity.js'
@@ -721,14 +721,16 @@ for (const route of [channelLogoRoute, programmeImageRoute, personImageRoute, sh
 
 const knownLookupTitles = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
-  const [history, recorded, watched] = await Promise.all([
+  const [history, recorded, watched, library] = await Promise.all([
     db('guide_programs').distinct(db.raw("json_extract(program_json, '$.title') as title")).catch(() => []),
     db('recordings').distinct('title').catch(() => []),
     db('watchlist').select('title').catch(() => []),
+    libraryLookupTitles({ database: db }).catch(() => []),
   ])
   return [
     ...[...(guide?.programByEventId?.values() || [])].map((programme) => programme.title),
     ...[...history, ...recorded, ...watched].map((row) => row.title),
+    ...library,
   ].filter(Boolean)
 }
 useLookupGate(createLookupGate({ isKnownTitle: createKnownTitles({ loadTitles: knownLookupTitles }) }))
