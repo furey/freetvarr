@@ -324,7 +324,7 @@ Freetvarr keeps two settings for one folder: `recordings_root` is where Freetvar
 
 ## Security
 
-Freetvarr has no login. Anyone who can reach the port can see everything and change settings, including the TVHeadend, Sonarr, and Radarr credentials it holds. CSRF protection (blocks forged requests from other sites), rate limiting, a strict CSP (a browser rule that limits which scripts run), and `noindex` headers are in place, but the design assumes a home network you trust. Do not port-forward or reverse-proxy it to the internet. [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model) covers the supply-chain hardening, the HTTP security headers, and the reason for each measure. [SECURITY.md](SECURITY.md) covers vulnerability reporting and the accepted residual risks.
+Freetvarr has no login. Anyone who can reach the port can see everything and change settings, including the TVHeadend, Sonarr, and Radarr credentials it holds. CSRF protection (blocks forged requests from other sites), rate limiting, a strict CSP (a browser rule that limits which scripts run), and `noindex` headers are in place, but the design assumes a home network you trust. Do not port-forward or reverse-proxy it to the internet. [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model) covers the supply-chain hardening and the HTTP security headers. [SECURITY.md](SECURITY.md) covers vulnerability reporting and the accepted residual risks.
 
 ## Technical deep dive
 
