@@ -6,9 +6,11 @@ import {
   SUGGESTIONS_HREF,
   chooserShownOf,
   doneLabelOf,
+  forYouLoadFailureOf,
   isScheduled,
   pageIntroOf,
   pickableOf,
+  picksErrorOf,
   scheduledKeysOf,
   sectionsOf,
 } from '/for-you.js'
@@ -188,8 +190,9 @@ export const ForYouView = {
         refreshFailed.value = false
         forYouStore.keep(fresh)
       } catch {
-        if (payload.value) refreshFailed.value = true
-        else missing.value = true
+        const failure = forYouLoadFailureOf({ hasPayload: Boolean(payload.value) })
+        missing.value = failure.missing
+        refreshFailed.value = failure.refreshFailed
       } finally {
         loaded.value = true
       }
@@ -228,7 +231,7 @@ export const ForYouView = {
         picksSaved.value = true
         await load()
       } catch (err) {
-        picksError.value = { text: `Could not save your picks. ${err.message}`, needsSettings: err.status === 409 }
+        picksError.value = picksErrorOf(err)
         savingPicks.value = false
         return
       }

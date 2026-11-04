@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 import { tmdbKeyFrom, tmdbKeyMessageOf } from '../src/tmdb-key.js'
+import { saveOnEnterOf } from '../src/web/tmdb-key-field.js'
 
 test('tmdbKeyFrom trims a key and refuses anything that cannot be one', () => {
   assert.equal(tmdbKeyFrom('  0123abcd  '), '0123abcd')
@@ -19,7 +20,13 @@ test('tmdbKeyMessageOf explains each validation result', () => {
   assert.match(tmdbKeyMessageOf({ ok: false, reason: 'whatever' }), /could not reach TMDB/)
 })
 
-test('TMDB key field: Enter saves the key and does not submit the Settings form', () => {
+test('saveOnEnterOf: Enter in the key field saves a typed key, and does nothing while empty or busy', () => {
+  assert.equal(saveOnEnterOf({ typedKey: '0123abcd', busy: '' }), true)
+  assert.equal(saveOnEnterOf({ typedKey: '  ', busy: '' }), false)
+  assert.equal(saveOnEnterOf({ typedKey: '0123abcd', busy: 'save' }), false)
+})
+
+test('TMDB key field: Enter is caught on the field, so it does not submit the Settings form', () => {
   const component = readFileSync(new URL('../src/web/components/tmdb-key-setting.js', import.meta.url), 'utf8')
-  assert.match(component, /<input v-no-autofill id="settings-tmdb-key"[^>]*@keydown\.enter\.prevent="typedKey && !busy && saveKey\(\)"/)
+  assert.match(component, /@keydown\.enter\.prevent="saveOnEnterOf\(/)
 })

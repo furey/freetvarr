@@ -59,15 +59,6 @@ export const showEntriesOf = ({ keyOf, shows = [], series = [] }) => {
   return [...entries.values()]
 }
 
-const showMetaOf = ({ recordingCount, hasRule }) => [
-  recordingCount === 1 ? '1 recording' : recordingCount > 1 && `${recordingCount} recordings`,
-  hasRule && 'Series rule',
-].filter(Boolean).join(' · ')
-
-const ALIAS_REASONS = new Set(['alias', 'yours', 'known-as'])
-
-const MAX_SHOW_RESULTS = 8
-
 export const guideSearchOutcomeOf = async (request) => {
   try {
     const body = await request()
@@ -76,3 +67,12 @@ export const guideSearchOutcomeOf = async (request) => {
     return { results: [], failure: failureText({ action: 'Could not search the guide', err }) }
   }
 }
+
+const showMetaOf = ({ recordingCount, hasRule }) => [
+  recordingCount === 1 ? '1 recording' : recordingCount > 1 && `${recordingCount} recordings`,
+  hasRule && 'Series rule',
+].filter(Boolean).join(' · ')
+
+const ALIAS_REASONS = new Set(['alias', 'yours', 'known-as'])
+
+const MAX_SHOW_RESULTS = 8
