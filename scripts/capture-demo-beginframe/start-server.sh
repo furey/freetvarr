@@ -11,7 +11,9 @@ set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-export DEMO_SHOWS="${DEMO_SHOWS:-Big Brother|Home and Away|Love Island Australia|Hard Quiz|Spicks and Specks|Mastermind Australia|Midsomer Murders|Beyond Paradise|NCIS|The Big Bang Theory|Young Sheldon|Seinfeld|Friends|Taronga: Who's Who In The Zoo|Grand Designs New Zealand|Bluey|The Graham Norton Show|The Celebrity Traitors UK}"
-export DEMO_FILMS="${DEMO_FILMS:-Ocean's Eleven|Wonder Woman|The Lost Boys|We Bought A Zoo|The Full Monty|Air Force One|Donnie Darko|O Brother, Where Art Thou?|True Grit}"
+DEFAULT_SHOWS="Big Brother|Home and Away|Love Island Australia|Hard Quiz|Spicks and Specks|Mastermind Australia|Midsomer Murders|Beyond Paradise|NCIS|The Big Bang Theory|Young Sheldon|Seinfeld|Friends|Taronga: Who's Who In The Zoo|Grand Designs New Zealand|Bluey|The Graham Norton Show|The Celebrity Traitors UK"
+DEFAULT_FILMS="Ocean's Eleven|Wonder Woman|The Lost Boys|We Bought A Zoo|The Full Monty|Air Force One|Donnie Darko|O Brother, Where Art Thou?|True Grit"
+export DEMO_SHOWS="${DEMO_SHOWS:-$DEFAULT_SHOWS}"
+export DEMO_FILMS="${DEMO_FILMS:-$DEFAULT_FILMS}"
 
 exec "$HERE/../capture-local-server.sh"

@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { launch } from './cdp.mjs'
 import { startLoopback } from '../capture-loopback.mjs'
 import { prepareDemoContext, simulatedNow } from '../capture-demo-api.mjs'
@@ -15,10 +15,14 @@ const FILM = process.env.FILM_TITLE || 'Die Hard'
 const SERIES = process.env.SERIES_TITLE || 'NCIS'
 const SHOW = process.env.SHOW_TITLE || 'Home and Away'
 const HOVER_REST = 600
-const END_HOLD_MS = 2400
+const TOUR = process.env.TOUR || 'demo'
+const END_HOLD_MS = TOUR === 'hero' ? 300 : 2400
+const LIVE_TITLE = 'Big Wave Season'
+const HERO_GUIDE_GLIDE = -160
+const HERO_PLAY_MS = 2400
+const CROSSFADE_MS = 380
 
 const run = async () => {
-  await rm(OUT, { recursive: true, force: true })
   await mkdir(OUT, { recursive: true })
   const base = await startLoopback({ target: SERVER_URL })
   const b = await launch({
@@ -307,6 +311,72 @@ const run = async () => {
     await mark('shot 17 home')
   }
 
+  const crossfadeTo = async (route) => {
+    if (!recording || !lastShot) return clickOn(tab(route))
+    await ev(`window.__hoverWatch(${tab(route)})`)
+    await glide(await centreOf(tab(route)))
+    await hold(150)
+    await ev(`(${coverWithFrame})(${JSON.stringify(`data:image/jpeg;base64,${lastShot.toString('base64')}`)}, ${CROSSFADE_MS})`)
+    await pumpUntil('window.__frameCoverReady()', 1000, 'frame cover')
+    await hold(150)
+    await press()
+    await pumpUntil(viewSettled(route), 3000, `${route} under the crossfade`)
+    await ev('window.__fadeFrameCover()')
+    await hold(CROSSFADE_MS)
+  }
+
+  const heroHomeAndPark = async () => {
+    await crossfadeTo('home')
+    await glide(PARK)
+  }
+
+  const heroTour = async ({ warm }) => {
+    const settle = warm ? settleArt : async () => {}
+    await mark('hero 1 home')
+    await hold(warm ? 300 : 1000)
+    await mark('hero 2 on now')
+    const onNow = `[...document.querySelectorAll('.ui-section')].find((sec) => /on now/i.test(sec.querySelector('.ui-section-title')?.textContent || ''))`
+    const scrollDy = await ev(`(() => { const sec = ${onNow}; if (!sec) return 0; const r = sec.getBoundingClientRect(); return Math.max(0, Math.round(r.top - 300)) })()`)
+    await scrollEased({ selector: '.app-content', dy: scrollDy, ms: 1000 })
+    if (warm) await settle('home on now')
+    const liveTile = `[...(${onNow})?.querySelectorAll('a, button') || []].find((el) => el.textContent.includes(${JSON.stringify(LIVE_TITLE)}))`
+    await hoverOn(liveTile, { fy: 0.4, rest: 400 })
+    await mark('hero 3 live tv')
+    await crossfadeTo('live')
+    await pumpUntil(`!!document.querySelector('.live-row')`, 8000, 'live rows')
+    await settle('live')
+    await hold(350)
+    await mark('hero 4 guide')
+    await crossfadeTo('guide')
+    await pumpUntil(`!!document.querySelector('.epg-cell')`, 8000, 'guide cells')
+    if (warm) { await settle('guide'); await settleLayout('guide') }
+    await hold(200)
+    await scrollEased({ selector: '.epg-scroll', dx: HERO_GUIDE_GLIDE, ms: 800 })
+    await hold(200)
+    if (warm) await settle('guide glide')
+    await mark('hero 5 sheet')
+    const liveCell = onNowCellOf(LIVE_TITLE)
+    await ev(`window.__hoverWatch(${liveCell})`)
+    await glide(await ev(`(${visibleCentreOf})(${liveCell})`))
+    await hold(150)
+    await press()
+    const watchLive = `[...document.querySelectorAll('.ui-sheet-backdrop button')].find((el) => /watch live/i.test(el.textContent) && el.offsetParent)`
+    await pumpUntil(`!!(${watchLive})`, 6000, 'watch live button')
+    if (warm) await settle('live sheet')
+    await hold(150)
+    await revealInSheet(watchLive)
+    await hoverOn(watchLive, { rest: 400 })
+    await mark('hero 6 watch')
+    await press()
+    await pumpUntil(`!!document.querySelector('.live-frame .pl-logo')`, 4000, 'player logo')
+    await pumpUntil(VIDEO_UNVEILED, 12000, 'video unveiled')
+    await mark('hero 6b video visible')
+    await hold(HERO_PLAY_MS)
+    await mark('hero 7 close')
+    await clickOn(`document.querySelector('.live-frame .pl-round')`)
+    await pumpUntil(PLAYER_CLOSED, 6000, 'player closed')
+  }
+
   const revealInSheet = async (expression) => {
     const dy = await ev(`(() => { const el = ${expression}; if (!el) return 0; let box = el.parentElement; while (box && !(box.scrollHeight > box.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(box).overflowY))) box = box.parentElement; if (!box) return 0; box.dataset.wtScroll = 'sheet'; const r = el.getBoundingClientRect(); const limit = Math.min(innerHeight, box.getBoundingClientRect().bottom) - 24; return Math.max(0, Math.round(r.bottom - limit)) })()`)
     if (dy > 0) await scrollEased({ selector: '[data-wt-scroll=sheet]', dy, ms: 700 })
@@ -321,15 +391,17 @@ const run = async () => {
     return null
   }
 
+  const tours = { demo: tour, hero: heroTour }
+  const homeAndPark = TOUR === 'hero' ? heroHomeAndPark : goHomeAndPark
   try {
-    console.log('warming')
+    console.log(`warming the ${TOUR} tour`)
     const t0 = Date.now()
     s('Page.navigate', { url: `${base}/#/home` })
     await pumpUntil(`!!document.querySelector('a.app-nav-item[href="#/live"]')`, 30000, 'app shell')
     await settleArt('home')
     await pumpUntil(HERO_DECODED, 30000, 'hero decoded')
     await step([{ type: 'mouseMoved' }])
-    await tour({ warm: true })
+    await tours[TOUR]({ warm: true })
     await goHomeAndPark()
     await settleArt('home again')
     await pumpUntil(HERO_DECODED, 30000, 'hero decoded again')
@@ -350,8 +422,8 @@ const run = async () => {
     await ev('window.__artWatch && (window.__artWatch.since = performance.now(), window.__artWatch.issues.clear())')
     recording = true
     const started = Date.now()
-    await tour({ warm: false })
-    await goHomeAndPark()
+    await tours[TOUR]({ warm: false })
+    await homeAndPark()
     await hold(END_HOLD_MS)
     await mark('end')
     const artIssues = await ev(`JSON.stringify([...window.__artWatch.issues.values()].map((i) => ({ ...i, forMs: i.lastMs - i.atMs })).filter((i) => i.forMs > 50))`)
@@ -371,6 +443,33 @@ const run = async () => {
 }
 
 const cellOf = (title, { notNow = false } = {}) => `[...document.querySelectorAll('.epg-cell')].filter((c) => c.textContent.includes(${JSON.stringify(title)}) && !(${notNow} && c.matches('.is-now, .on-now, .now'))).find((c) => { const r = c.getBoundingClientRect(); return r.width > 30 && r.top > 120 && r.bottom < innerHeight - 10 && r.left > 330 })`
+
+const coverWithFrame = (src, fadeMs) => {
+  const cover = document.createElement('img')
+  cover.decoding = 'sync'
+  cover.style.cssText = `position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:2147483646;pointer-events:none;transition:opacity ${fadeMs}ms ease-in-out`
+  cover.src = src
+  document.documentElement.append(cover)
+  window.__frameCoverReady = () => cover.complete && cover.naturalWidth > 0
+  window.__fadeFrameCover = () => {
+    cover.style.opacity = '0'
+    setTimeout(() => cover.remove(), fadeMs + 60)
+    return 1
+  }
+  return 1
+}
+
+const viewSettled = (route) => `location.hash === '#/${route}' && [...document.querySelectorAll('img')].filter((i) => i.getAttribute('src') && i.closest('.app-content') && i.getBoundingClientRect().bottom > 0 && i.getBoundingClientRect().top < innerHeight).every((i) => i.complete)`
+
+const onNowCellOf = (title) => `[...document.querySelectorAll('.epg-cell')].find((c) => { const r = c.getBoundingClientRect(); const now = document.querySelector('.epg-nowline')?.getBoundingClientRect().left; return c.textContent.includes(${JSON.stringify(title)}) && r.width > 30 && r.top > 120 && r.bottom < innerHeight - 10 && (now === undefined || (r.left <= now && r.right >= now)) })`
+
+const visibleCentreOf = (el) => {
+  const r = el.getBoundingClientRect()
+  const rail = document.querySelector('.epg-rail-cell')?.getBoundingClientRect().right ?? 0
+  const left = Math.max(r.left, rail + 12)
+  const right = Math.min(r.right, innerWidth - 12)
+  return [left + Math.min(110, (right - left) / 2), r.top + r.height * 0.45]
+}
 
 const fakeContext = ({ s }) => ({
   request: {
