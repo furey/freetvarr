@@ -49,6 +49,7 @@ import {
   notifyPlexSectionRefresh,
   discoverLocalPlexServers,
   getPlexPrefsPath,
+  storedPlexToken,
 } from './plex.js'
 import {
   testConnection as testTvheadendConnection,
@@ -102,7 +103,7 @@ import {
   localAddressToward,
   serveShiftedFeed,
 } from './guide-feed.js'
-import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
 import { countryForTimeZone } from './zone-countries.js'
 import {
@@ -249,6 +250,10 @@ import {
   stopUserEvents,
 } from './user-events-log.js'
 import { loadExternalIds } from './external-ids-store.js'
+import { savePlexConnection, saveTvheadendConnection } from './connection-secrets.js'
+import { ownValueOf } from './query-lookup.js'
+import { restrictDatabaseFiles } from './database-file-modes.js'
+import { RESET_REFUSED_MESSAGE, isResetConfirmed } from './web/confirm-copy.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -258,7 +263,8 @@ const STARTUP_TIME_ZONE = await applyStoredTimeZone({ getSetting })
 console.log(`[server] time zone ${STARTUP_TIME_ZONE.zone} (${STARTUP_TIME_ZONE.source})`)
 
 const PORT = Number(process.env.PORT || 3733)
-const CONFIG_DIR = path.dirname(process.env.DB_PATH || path.join(__dirname, '..', 'config', 'state.db'))
+const DB_FILE = process.env.DB_PATH || path.join(__dirname, '..', 'config', 'state.db')
+const CONFIG_DIR = path.dirname(DB_FILE)
 const loadCsrfSecret = async () => {
   try {
     const { secret, source, file } = await resolveCsrfSecret({ envSecret: process.env.CSRF_SECRET, configDir: CONFIG_DIR })
@@ -276,6 +282,8 @@ const loadCsrfSecret = async () => {
   }
 }
 const CSRF_SECRET = await loadCsrfSecret()
+await restrictDatabaseFiles({ dbPath: DB_FILE })
+  .catch((err) => console.warn(`[server] cannot restrict the database file modes (${err.code || err.message})`))
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const LIBRARY_CHOICES = ['include', 'exclude']
 const LIBRARY_FOLDER_NOT_READY = 'The library folder for this recording is missing or empty. Check that the media share is mounted, then try again. If you emptied the folder yourself, delete its recordings in Freetvarr first.'
@@ -551,13 +559,13 @@ app.get('/api/recordings', async (req, res) => {
 
   const page = Math.max(1, parseInt(req.query.page, 10) || 1)
   const pageSize = Math.min(200, Math.max(10, parseInt(req.query.pageSize, 10) || 50))
-  const sortColumn = SORT_COLUMNS[req.query.sort] || SORT_COLUMNS.aired_at
+  const sortColumn = ownValueOf(SORT_COLUMNS, req.query.sort) || SORT_COLUMNS.aired_at
   const sortDir = req.query.dir === 'asc' ? 'asc' : 'desc'
   const statusFilter = STATUS_VALUES.includes(req.query.status) ? req.query.status : null
   const showIdRaw = req.query.show_id ? Number(req.query.show_id) : null
   const showIdFilter = Number.isInteger(showIdRaw) ? showIdRaw : null
-  const sinceInterval = SINCE_INTERVALS[req.query.since] || null
-  const deletedClause = DELETED_FILTERS[req.query.deleted] || null
+  const sinceInterval = ownValueOf(SINCE_INTERVALS, req.query.since)
+  const deletedClause = ownValueOf(DELETED_FILTERS, req.query.deleted)
 
   const applyFilters = (q) => {
     whereInLog(q)
@@ -565,7 +573,7 @@ app.get('/api/recordings', async (req, res) => {
     else if (statusFilter) q.where('recordings.status', statusFilter).whereNull('recordings.library_state')
     if (showIdFilter != null) q.where('recordings.show_id', showIdFilter)
     if (sinceInterval) {
-      q.where('recordings.imported_at', '>=', db.raw(`datetime('now', '${sinceInterval}')`))
+      q.where('recordings.imported_at', '>=', db.raw("datetime('now', ?)", [sinceInterval]))
     }
     if (deletedClause) q.whereRaw(deletedClause)
     return q
@@ -1657,7 +1665,7 @@ app.get('/api/settings', async (req, res) => {
     getTvhRecordingsPath(),
     getSetting('sync_cron'),
     getSetting('plex_url'),
-    getSetting('plex_token'),
+    storedPlexToken(),
     getSetting('plex_tv_section_id'),
     getSetting('delete_after_plex_refresh_only'),
     getPlexPrefsPath(),
@@ -1728,20 +1736,18 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const refusal = settingsSaveRefusalOf(body)
   if (refusal) return res.status(400).json({ error: refusal })
   const timeZone = body.time_zone === undefined ? undefined : String(body.time_zone).trim()
+  const rootProblem = await rootSettingsProblem({ body, current: await currentRootSettings(), configDir: CONFIG_DIR })
+  if (rootProblem) return res.status(400).json(rootProblem)
   const rootsError = libraryRootsSaveError({ before: await loadLibraryRoots(), after: await rootsAfterSaveOf(body) })
   if (rootsError) return res.status(400).json({ error: rootsError })
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))
   }
-  await writeString('tvh_url', body.tvh_url, { trim: true })
-  await writeString('tvh_username', body.tvh_username, { trim: true })
-  if (body.tvh_password) await setSetting('tvh_password', String(body.tvh_password))
+  const cleared = await saveTvheadendConnection({ body })
   await writeString('recordings_root', body.recordings_root, { trim: true })
   await writeString('tvh_recordings_path', body.tvh_recordings_path, { trim: true })
-  await writeString('plex_url', body.plex_url, { trim: true })
-  // Empty token/pin preserves the stored value.
-  if (body.plex_token) await setSetting('plex_token', String(body.plex_token))
+  cleared.push(...(await savePlexConnection({ body })))
   await writeString('plex_tv_section_id', body.plex_tv_section_id, { trim: true })
   await writeString('plex_prefs_path', body.plex_prefs_path, { trim: true })
   await writeString('media_root', body.media_root, { trim: true })
@@ -1788,7 +1794,15 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   if (body.sync_cron !== undefined) await setSetting('sync_cron', String(body.sync_cron))
   if (body.sync_cron !== undefined || timeZone !== undefined) await startScheduler()
   await rebaseFilePaths()
-  res.json({ ok: true })
+  res.json({ ok: true, ...(cleared.length ? { cleared } : {}) })
+})
+
+const currentRootSettings = async () => ({
+  media_root: await getMediaRoot(),
+  oneoff_root: await getOneOffRoot(),
+  movies_root: await getMoviesRoot(),
+  recordings_root: await getRecordingsRoot(),
+  tvh_recordings_path: await getTvhRecordingsPath(),
 })
 
 app.post('/api/tvh-test', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
@@ -2310,7 +2324,8 @@ app.post('/api/plex-detect-token', doubleCsrfProtection, async (req, res) => {
   res.status(result.ok ? 200 : 502).json(result)
 })
 
-app.post('/api/reset', doubleCsrfProtection, async (req, res) => {
+app.post('/api/reset', syncLimiter, doubleCsrfProtection, async (req, res) => {
+  if (!isResetConfirmed(req.body)) return res.status(400).json({ error: RESET_REFUSED_MESSAGE })
   if (getActiveSyncId()) {
     return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }

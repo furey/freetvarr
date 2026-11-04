@@ -22,6 +22,7 @@ import { storedTmdbKey } from './fallback-artwork.js'
 import { PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
 import { kindOf } from './library.js'
 import { getPlexConnection } from './plex.js'
+import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
 
 export const mountArtworkChoiceRoutes = ({
   app,
@@ -90,8 +91,10 @@ export const mountArtworkChoiceRoutes = ({
     try {
       const candidate = (await offeredFor(key))?.offered.find((entry) => entry.id === req.params.id)
       const image = candidate && await loadImage({ origin: candidate.origin, kind: candidate.kind, width })
-      if (!image) return sendMissingImage(res)
-      res.setHeader('Content-Type', image.contentType)
+      const contentType = image && rasterTypeOf(image.body)
+      if (!contentType) return sendMissingImage(res)
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
       res.setHeader('Cache-Control', `public, max-age=${IMAGE_MAX_AGE_S}`)
       res.send(image.body)
     } catch {

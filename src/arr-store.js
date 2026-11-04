@@ -4,6 +4,7 @@ import { getSetting, setSetting } from './db.js'
 import { ARR_APPS, ARR_DEFAULT_PORTS, arrConfigOf, createArrClient, pingArr, recycleBinOf } from './arr-client.js'
 import { createCircuitBreaker } from './outbound-http.js'
 import { radarrEntryOf, sonarrEntryOf } from './arr-files.js'
+import { hostOf as urlHostOf, isThisMachineHost, keepsSecretBinding, portOf } from './url-binding.js'
 
 export const loadArrSettings = async ({ readConfig = readArrConfig } = {}) => {
   const entries = await Promise.all(ARR_APPS.map(async (app) => {
@@ -12,32 +13,38 @@ export const loadArrSettings = async ({ readConfig = readArrConfig } = {}) => {
       getSetting(`${app}_api_key`),
       readConfig(app),
     ])
-    return [app, arrSettingOf({ url, savedKey, fileConfig })]
+    return [app, arrSettingOf({ app, url, savedKey, fileConfig })]
   }))
   const unmonitor = await getSetting(UNMONITOR_KEY)
   return { ...Object.fromEntries(entries), unmonitorOnDelete: unmonitor !== 'false' }
 }
 
-export const arrSettingOf = ({ url, savedKey, fileConfig }) => {
-  const key = savedKey || fileConfig?.apiKey || null
+export const arrSettingOf = ({ app, url, savedKey, fileConfig, interfaces }) => {
+  const cleanUrl = (url || '').trim().replace(/\/+$/, '') || null
+  const fileKey = fileConfig?.apiKey && fileKeyFits({ app, url: cleanUrl, fileConfig, interfaces }) ? fileConfig.apiKey : null
   return {
-    url: (url || '').trim().replace(/\/+$/, '') || null,
-    apiKey: key,
-    keySource: savedKey ? 'saved' : fileConfig?.apiKey ? 'config.xml' : null,
+    url: cleanUrl,
+    apiKey: savedKey || fileKey || null,
+    keySource: savedKey ? 'saved' : fileKey ? 'config.xml' : null,
     configFound: Boolean(fileConfig),
   }
 }
 
 export const saveArrSettings = async (patch) => {
+  const cleared = []
   for (const app of ARR_APPS) {
     const entry = patch[app]
     if (!entry) continue
+    if (entry.url !== undefined && entry.apiKey === undefined && !keepsSecretBinding({ url: entry.url, previous: await getSetting(`${app}_url`) })) {
+      if (await getSetting(`${app}_api_key`)) cleared.push(`${app}_api_key`)
+      await setSetting(`${app}_api_key`, '')
+    }
     if (entry.url !== undefined) await setSetting(`${app}_url`, entry.url || '')
     if (entry.apiKey !== undefined) await setSetting(`${app}_api_key`, entry.apiKey || '')
     clients.delete(app)
   }
   if (typeof patch.unmonitorOnDelete === 'boolean') await setSetting(UNMONITOR_KEY, String(patch.unmonitorOnDelete))
-  return loadArrSettings()
+  return { ...(await loadArrSettings()), cleared }
 }
 
 export const arrClientFor = async (app, { settings } = {}) => {
@@ -139,6 +146,13 @@ const hostOf = (url) => {
   } catch {
     return null
   }
+}
+
+const fileKeyFits = ({ app, url, fileConfig, interfaces }) => {
+  if (!url) return true
+  const host = urlHostOf(url)
+  const onThisMachine = host === app || isThisMachineHost(host, { interfaces })
+  return onThisMachine && portOf(url) === String(fileConfig.port ?? ARR_DEFAULT_PORTS[app])
 }
 
 const addEntry = (index, entry) => {

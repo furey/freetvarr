@@ -40,6 +40,18 @@ const RULES = [
     }),
   },
   {
+    pattern: /is outside the recordings folder/,
+    explain: () => ({
+      title: 'Recording file is outside the recordings folder',
+      meaning: 'The recording file is a link to a place outside the Recordings folder, so Freetvarr does not import it. A subfolder that links to another disk counts as outside too.',
+      steps: [
+        'Move the recording into the folder TVHeadend records to, or set TVHeadend to record straight into that folder.',
+        'The next sync imports the recording.',
+      ],
+      doc: 'guide/troubleshooting#skipped-recordings',
+    }),
+  },
+  {
     pattern: /(TV|one-off|movies) folder .+? is empty, but imported recordings point into it/,
     explain: ([, kind]) => ({
       title: `${FOLDER_TITLES[kind]} folder is empty`,

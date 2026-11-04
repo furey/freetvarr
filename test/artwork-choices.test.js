@@ -69,7 +69,7 @@ before(async () => {
     choices,
     loadImage: async ({ origin, kind, width }) => {
       loaded.push({ origin, kind, width })
-      return { body: Buffer.from('img'), contentType: 'image/webp' }
+      return { body: Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 ')]), contentType: 'image/webp' }
     },
   })
   appServer = app.listen(0, '127.0.0.1')
@@ -173,6 +173,7 @@ test('GET a candidate tile loads it by the server-side origin', async () => {
   const { status, headers } = await call('GET', `/api/library/shows/the-block/artwork-candidates/${id}?w=192`)
   assert.equal(status, 200)
   assert.equal(headers.get('content-type'), 'image/webp')
+  assert.equal(headers.get('content-security-policy'), "default-src 'none'; sandbox")
   assert.deepEqual(loaded, [{ origin: 'recording:r1', kind: 'background', width: 192 }])
   assert.equal((await call('GET', `/api/library/shows/the-block/artwork-candidates/${id}?w=999`)).status, 400)
   assert.equal((await call('GET', '/api/library/shows/the-block/artwork-candidates/ffffffffffffffff')).status, 404)

@@ -37,9 +37,11 @@ import {
   plexNoTokenProblem,
   plexUnreachableProblem,
   LOCAL_PLEX_URL,
+  detectedPlexTokenState,
 } from '/setup-folders.js'
 import { formatClock } from '/time-format.js'
 import { api, fetchSettings } from '/shared/api.js'
+import { reenterLineOf } from '/save-notice.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { DOCS_BASE } from '/shared/constants.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
@@ -795,12 +797,17 @@ export const WelcomeView = {
         ...changedSettings([['plex_prefs_path', plexPrefsPath.value, saved.plexPrefsPath]]),
         ...(plexToken.value ? { plex_token: plexToken.value } : {}),
       }
-      await api('POST', '/api/settings', body)
+      const result = await api('POST', '/api/settings', body)
       Object.assign(saved, {
         plexUrl: plexUrl.value,
         plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
       })
+      if (!result?.cleared?.includes('plex_token')) return true
+      plexTokenSet.value = false
+      plexAdvancedOpen.value = true
+      setPlexTokenStatus(reenterLineOf('plex_token'), 'err', 0)
+      return false
     }
 
     const next = async () => {
@@ -822,7 +829,8 @@ export const WelcomeView = {
         } else if (from === 5) {
           await saveStorage()
         } else if (from === 6) {
-          await savePlex()
+          const kept = await savePlex()
+          if (kept === false) return
         }
         step.value = nextStepAfter({ from, current: step.value })
       } catch (err) {
@@ -884,11 +892,16 @@ export const WelcomeView = {
       return { problem: plexNoTokenProblem(url) }
     }
 
+    const applyDetectedPlexToken = (response) => {
+      const state = detectedPlexTokenState(response)
+      plexTokenSet.value = state.plexTokenSet
+      plexToken.value = state.plexToken
+    }
+
     const detectPlexTokenQuietly = async () => {
       const r = await api('POST', '/api/plex-detect-token').catch(() => ({}))
       if (!r.ok) return
-      plexToken.value = r.token || ''
-      plexTokenSet.value = true
+      applyDetectedPlexToken(r)
     }
 
     const discoverPlexServers = () => api('POST', '/api/discover-plex')
@@ -937,7 +950,7 @@ export const WelcomeView = {
         }
         const r = await api('POST', '/api/plex-detect-token')
         if (r.ok) {
-          plexToken.value = r.token || ''
+          applyDetectedPlexToken(r)
           setPlexTokenStatus(`Token detected from ${r.source}.`, 'ok', 5000)
         } else {
           setPlexTokenStatus(`Auto-detect failed: ${r.reason}`, 'err', 8000)
@@ -1126,6 +1139,7 @@ export const WelcomeView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        if (r.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         setTvhText(tvhTestSummary(r), 'ok', 8000)
         tvhConnected.value = true
         return true

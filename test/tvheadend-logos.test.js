@@ -4,7 +4,8 @@ import http from 'node:http'
 
 import { channelLogoSources, getChannelIcon, indexEpgIconsByChannel } from '../src/tvheadend.js'
 
-const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d])
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01])
 
 const withServer = async (routes, run) => {
   const server = http.createServer((req, res) => {
@@ -58,12 +59,26 @@ test('getChannelIcon: falls back to the EPG icon when the TVHeadend icon is miss
 })
 
 test('getChannelIcon: serves the TVHeadend icon when it exists', async () => {
-  await withServer({ '/imagecache/28': { contentType: 'image/jpeg', body: PNG } }, async (base) => {
+  await withServer({ '/imagecache/28': { contentType: 'image/jpeg', body: JPEG } }, async (base) => {
     const image = await getChannelIcon({
       sources: ['imagecache/28', `${base}/xmltv/nine.png`],
       conn: { url: base, username: '', password: '' },
     })
     assert.equal(image.contentType, 'image/jpeg')
+  })
+})
+
+test('getChannelIcon: takes the image type from the bytes and accepts raster or SVG images only', async () => {
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>')
+  await withServer({
+    '/svg': { contentType: 'image/svg+xml', body: svg },
+    '/html-as-image': { contentType: 'image/png', body: '<html><body>page</body></html>' },
+    '/untyped': { contentType: 'application/octet-stream', body: PNG },
+  }, async (base) => {
+    const conn = { url: base, username: '', password: '' }
+    assert.equal((await getChannelIcon({ sources: ['svg'], conn })).contentType, 'image/svg+xml')
+    assert.equal(await getChannelIcon({ sources: ['html-as-image'], conn }), null)
+    assert.equal((await getChannelIcon({ sources: ['untyped'], conn })).contentType, 'image/png')
   })
 })
 

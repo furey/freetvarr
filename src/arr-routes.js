@@ -33,6 +33,7 @@ export const arrBodyOf = (settings) => ({
     configFound: settings[app].configFound,
   }])),
   unmonitorOnDelete: settings.unmonitorOnDelete,
+  ...(settings.cleared?.length ? { cleared: settings.cleared } : {}),
 })
 
 export const arrPatchFrom = (body = {}) => {

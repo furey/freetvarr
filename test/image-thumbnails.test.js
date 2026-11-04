@@ -13,7 +13,10 @@ import {
   heroWidthFrom,
   HERO_IMAGE_WIDTHS,
   PROGRAMME_IMAGE_WIDTHS,
+  createRenderQueue,
+  landscapeOf,
 } from '../src/image-thumbnails.js'
+import { sourceImageTypeOf } from '../src/raster-type.js'
 
 const MB = 1024 * 1024
 const ORIGINAL = { body: Buffer.from('original'), contentType: 'image/png' }
@@ -133,13 +136,105 @@ test('createThumbnailStore: a missing original gives nothing and writes nothing'
   assert.deepEqual(await cachedFiles(), [])
 })
 
-test('createThumbnailStore: serves the original when resizing fails or the image is SVG, uncached', async () => {
-  const store = createThumbnailStore({ dir, resize: async () => { throw new Error('corrupt') } })
-  const broken = await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal: countingLoader() })
-  assert.equal(broken, ORIGINAL)
-  const svg = { body: Buffer.from('<svg/>'), contentType: 'image/svg+xml' }
-  assert.equal(await store.thumbnailFor({ key: 'channel:2', width: 96, loadOriginal: countingLoader(svg) }), svg)
+test('createThumbnailStore: gives no image when resizing fails, uncached, and skips the original for a while', async () => {
+  let clock = 1000
+  const store = createThumbnailStore({ dir, resize: async () => { throw new Error('corrupt') }, now: () => clock })
+  const loadOriginal = countingLoader()
+  assert.equal(await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal }), null)
+  assert.equal(await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal }), null)
+  assert.equal(loadOriginal.calls, 1)
+  clock += 11 * 60 * 1000
+  assert.equal(await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal }), null)
+  assert.equal(loadOriginal.calls, 2)
   assert.deepEqual(await cachedFiles(), [])
+})
+
+test('createThumbnailStore: renders an SVG original to a WebP thumbnail at the requested width', async () => {
+  const store = createThumbnailStore({ dir })
+  const svg = Buffer.from('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="32" height="16"><rect width="32" height="16" fill="#c00"/></svg>')
+  const thumbnail = await store.thumbnailFor({ key: 'channel:svg', width: 96, loadOriginal: countingLoader({ body: svg, contentType: 'image/svg+xml' }) })
+  assert.equal(thumbnail.contentType, 'image/webp')
+  const { format, width, height } = await sharp(thumbnail.body).metadata()
+  assert.deepEqual({ format, width, height }, { format: 'webp', width: 96, height: 48 })
+})
+
+const FILTER_SVGS = [
+  '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><filter id="b"><feGaussianBlur stdDeviation="9"/></filter><rect width="40" height="20" filter="url(#b)"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><svg:FILTER id="b"/><rect width="40" height="20"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" style="filter: blur(9px)"/></svg>',
+]
+
+test('createThumbnailStore: refuses an SVG with a filter without rendering it', async () => {
+  let renders = 0
+  const store = createThumbnailStore({ dir, rasterize: async () => { renders += 1; return { body: Buffer.alloc(1), contentType: 'image/webp' } } })
+  for (const [at, text] of FILTER_SVGS.entries()) {
+    const thumbnail = await store.thumbnailFor({ key: `channel:filter-${at}`, width: 96, loadOriginal: countingLoader({ body: Buffer.from(text), contentType: 'image/svg+xml' }) })
+    assert.equal(thumbnail, null, text)
+    assert.equal(sourceImageTypeOf(Buffer.from(text)), null, text)
+  }
+  assert.equal(renders, 0)
+})
+
+test('createThumbnailStore: never hands an SVG it cannot vouch for to the raster resize', async () => {
+  let resizes = 0
+  const store = createThumbnailStore({ dir, resize: async () => { resizes += 1; return { body: Buffer.alloc(1), contentType: 'image/webp' } } })
+  const entity = Buffer.from('<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a "aaaa">]><svg xmlns="http://www.w3.org/2000/svg" width="4" height="4">&a;</svg>')
+  assert.equal(await store.thumbnailFor({ key: 'channel:entity', width: 96, loadOriginal: countingLoader({ body: entity, contentType: 'image/svg+xml' }) }), null)
+  assert.equal(resizes, 0)
+})
+
+test('createThumbnailStore: renders one SVG at a time', async () => {
+  const events = []
+  const releases = []
+  const rasterize = ({ width }) => new Promise((resolve) => {
+    events.push(`start ${width}`)
+    releases.push(() => {
+      events.push(`end ${width}`)
+      resolve({ body: Buffer.alloc(width), contentType: 'image/webp' })
+    })
+  })
+  const store = createThumbnailStore({ dir, rasterize, svgQueue: createRenderQueue({ maxWaiting: 20 }) })
+  const svg = { body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>'), contentType: 'image/svg+xml' }
+  const first = store.thumbnailFor({ key: 'channel:a', width: 96, loadOriginal: countingLoader(svg) })
+  const second = store.thumbnailFor({ key: 'channel:b', width: 192, loadOriginal: countingLoader(svg) })
+  while (releases.length < 1) await new Promise((resolve) => setTimeout(resolve, 5))
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.deepEqual(events, ['start 96'])
+  releases[0]()
+  while (releases.length < 2) await new Promise((resolve) => setTimeout(resolve, 5))
+  releases[1]()
+  await Promise.all([first, second])
+  assert.deepEqual(events, ['start 96', 'end 96', 'start 192', 'end 192'])
+})
+
+test('landscapeOf: leaves an SVG unrendered for the thumbnail store to vet', async () => {
+  const svg = { body: Buffer.from(FILTER_SVGS[0]), contentType: 'image/svg+xml' }
+  assert.equal(await landscapeOf(svg), svg)
+})
+
+test('createRenderQueue: runs one task at a time and refuses tasks past the waiting limit', async () => {
+  const queue = createRenderQueue({ maxWaiting: 1 })
+  let release
+  const running = queue.run(() => new Promise((resolve) => { release = resolve }))
+  const waiting = queue.run(async () => 'second')
+  await assert.rejects(queue.run(async () => 'third'), (err) => err.code === 'busy')
+  release('first')
+  assert.equal(await running, 'first')
+  assert.equal(await waiting, 'second')
+})
+
+test('createThumbnailStore: renders an SVG with a script and an outside link to plain pixels and fetches nothing', async () => {
+  const store = createThumbnailStore({ dir })
+  const svg = Buffer.from([
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100000 100000">',
+    '<script>alert(1)</script>',
+    '<image href="http://192.0.2.1/x.png" xlink:href="http://192.0.2.1/x.png" width="10" height="10"/>',
+    '<rect width="100000" height="100000" fill="#0c0"/></svg>',
+  ].join(''))
+  const thumbnail = await store.thumbnailFor({ key: 'channel:hostile', width: 192, loadOriginal: countingLoader({ body: svg, contentType: 'image/svg+xml' }) })
+  assert.equal(thumbnail.contentType, 'image/webp')
+  assert.equal((await sharp(thumbnail.body).metadata()).width, 192)
+  assert.ok(!thumbnail.body.includes('script'))
 })
 
 test('createThumbnailStore: shares one resize between concurrent requests for the same thumbnail', async () => {

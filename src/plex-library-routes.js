@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
-import { listPlexSections } from './plex.js'
+import { listPlexSections, storedPlexToken } from './plex.js'
+import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
 import { loadWholeLibrarySettings, saveWholeLibrarySettings } from './plex-library-store.js'
 
 export const mountPlexLibraryRoutes = ({ app, csrf, limiter, sync, fetchImage = fetchPlexImage }) => {
@@ -25,8 +26,10 @@ export const mountPlexLibraryRoutes = ({ app, csrf, limiter, sync, fetchImage = 
     const source = row?.[kind] || row?.thumb || null
     if (!source) return res.status(404).end()
     const image = await imageCache.get({ key: `${source}|${width}`, load: () => fetchImage({ source, width }) })
-    if (!image) return res.status(404).end()
-    res.setHeader('Content-Type', image.contentType)
+    const contentType = image && rasterTypeOf(image.body)
+    if (!contentType) return res.status(404).end()
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
     res.setHeader('Cache-Control', 'private, max-age=86400')
     res.end(image.body)
   })
@@ -87,7 +90,7 @@ const wholeLibraryBody = async () => {
 }
 
 const fetchPlexImage = async ({ source, width }) => {
-  const [url, token] = await Promise.all([getSetting('plex_url'), getSetting('plex_token')])
+  const [url, token] = await Promise.all([getSetting('plex_url'), storedPlexToken()])
   if (!url || !token) return null
   const height = Math.round(width * 1.5)
   const response = await axios.get(`${url.replace(/\/$/, '')}/photo/:/transcode`, {

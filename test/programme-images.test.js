@@ -5,9 +5,11 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
+import sharp from 'sharp'
+
 import { createProgrammeImages } from '../src/programme-images.js'
 
-const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])
+const JPEG = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 9, g: 9, b: 9 } } }).jpeg().toBuffer()
 const CHANNEL = 'ch-9hd'
 
 let tmpDir
@@ -123,14 +125,14 @@ test('getProgrammeImage: a dead image link falls back to another airing of the s
   const image = await epg.getProgrammeImage({ eventId: '105' })
   assert.deepEqual(image.body, JPEG)
   const thumbnail = await epg.getProgrammeThumbnail({ eventId: '105', width: 192 })
-  assert.deepEqual(thumbnail.body, JPEG)
+  assert.equal(thumbnail.contentType, 'image/webp')
 })
 
-test('getProgrammeThumbnail: unknown and imageless events give nothing; an unreadable image comes back as is', async () => {
+test('getProgrammeThumbnail: unknown and imageless events give nothing; a known image comes back as a WebP thumbnail', async () => {
   assert.equal(await epg.getProgrammeThumbnail({ eventId: '999', width: 192 }), null)
   assert.equal(await epg.getProgrammeThumbnail({ eventId: '104', width: 192 }), null)
   const image = await epg.getProgrammeThumbnail({ eventId: '101', width: 192 })
-  assert.deepEqual(image.body, JPEG)
+  assert.equal(image.contentType, 'image/webp')
 })
 
 test('createProgrammeImages: evicts the least recently used image past the entry limit', async () => {

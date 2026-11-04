@@ -19,6 +19,13 @@ test('diagnoseRecordingError: reads both sizes of a short copy, old and new word
   }
 })
 
+test('diagnoseRecordingError: explains a recording file whose real path is outside the recordings folder', () => {
+  const d = diagnoseRecordingError('/recordings/Show/ep.ts is outside the recordings folder /recordings')
+  assert.equal(d.title, 'Recording file is outside the recordings folder')
+  assert.match(d.meaning, /link/)
+  assert.equal(d.doc, 'guide/troubleshooting#skipped-recordings')
+})
+
 test('diagnoseRecordingError: names the missing library folder', () => {
   const d = diagnoseRecordingError('movies folder /data/media/movies not found; mount it or change it in Settings')
   assert.equal(d.title, 'Movies folder not found')

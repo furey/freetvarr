@@ -15,7 +15,9 @@ import {
   looksLikeFilm,
   buildFilmPath,
   libraryKind,
+  syncErrorLogOf,
 } from '../src/sync.js'
+import { AxiosError } from 'axios'
 
 test('matchShow: case-insensitive substring match', () => {
   const shows = [
@@ -203,6 +205,15 @@ test('localPathFor: returns null when the file lives outside the mount', () => {
   )
 })
 
+test('localPathFor: keeps every TVHeadend file name inside the recordings root', () => {
+  const mapped = (tvhFilename) => localPathFor({ tvhFilename, tvhRecordingsPath: '/recordings', recordingsRoot: '/tvh' })
+  assert.equal(mapped('/recordings/a/../../etc/x'), null)
+  assert.equal(mapped('/recordings/../etc/x'), null)
+  assert.equal(mapped('/recordings/Show/..'), null)
+  assert.equal(mapped('/recordings/Show/ep..ts'), '/tvh/Show/ep..ts')
+  assert.equal(mapped('/recordings/Show/ep.ts'), '/tvh/Show/ep.ts')
+})
+
 test('classifyImport: matching size → done / imported', () => {
   const o = classifyImport({ expectedSize: 1000, actualSize: 1000 })
   assert.equal(o.dbStatus, 'done')
@@ -262,6 +273,18 @@ test('libraryKind: an automatic title match does not hold a sport title with no 
   assert.equal(libraryKind({ show: { id: 1, origin: 'user' }, item: game, moviesRoot: '/m', evidence }), 'tv')
   assert.equal(libraryKind({ show: null, item: { ...game, autorecId: 'a1' }, moviesRoot: '/m', evidence }), 'tv')
   assert.equal(libraryKind({ show: { id: 1, origin: 'auto' }, item: game, moviesRoot: '/m' }), 'tv')
+})
+
+test('syncErrorLogOf: logs the message and stack of a failed request without its token', () => {
+  const err = new AxiosError('Request failed with status code 500', 'ERR_BAD_RESPONSE', {
+    url: 'http://plex:32400/library/sections/1/refresh',
+    params: { 'X-Plex-Token': 'secret-token' },
+    headers: { 'X-Api-Key': 'secret-key' },
+  })
+  const line = syncErrorLogOf(err)
+  assert.match(line, /Request failed with status code 500/)
+  assert.ok(!line.includes('secret-token'))
+  assert.ok(!line.includes('secret-key'))
 })
 
 test('episodeFilename: dates an unnumbered airing by the local day', () => {

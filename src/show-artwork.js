@@ -6,6 +6,7 @@ import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { externalIdsOf, hasExternalIds, idKeyedCacheKeyOf } from './external-ids.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
+import { storedPlexToken } from './plex.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import { artworkClient } from './fallback-artwork.js'
 
@@ -213,7 +214,7 @@ export const plexShowSources = async ({ previous = new Map(), loadSettings = ple
 
 const plexSettings = async () => ({
   url: ((await getSetting('plex_url')) || '').replace(/\/$/, ''),
-  token: await getSetting('plex_token'),
+  token: await storedPlexToken(),
   sections: [
     { id: await getSetting('plex_tv_section_id'), kind: PLEX_SHOWS },
     { id: await getSetting('plex_movies_section_id'), kind: PLEX_MOVIES },

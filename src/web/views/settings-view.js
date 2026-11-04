@@ -6,10 +6,12 @@ import {
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
-import { resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
+import { RESET_CONFIRM_BODY, resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { holdAtLeast } from '/pending.js'
+import { clearedSecretToastOf, rootFieldErrorOf } from '/save-notice.js'
+import { toast } from '/shared/toast.js'
 import { createSettingBaseline } from '/setting-baseline.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
@@ -706,6 +708,20 @@ export const SettingsView = {
       clearStatusLater(ms)
     }
 
+    const rootFieldStatus = {
+      media_root: [mediaRootStatus, mediaRootStatusKind],
+      oneoff_root: [oneOffRootStatus, oneOffRootStatusKind],
+      movies_root: [moviesRootStatus, moviesRootStatusKind],
+    }
+    const showRootFieldError = (problem) => {
+      if (!problem) return
+      if (problem.field === 'recordings_root') return recordingsCheck.show({ text: problem.text, kind: 'err' })
+      if (problem.field === 'tvh_recordings_path') return tvhPathCheck.show({ text: problem.text, kind: 'err' })
+      const [text, kind] = rootFieldStatus[problem.field]
+      text.value = problem.text
+      kind.value = 'err'
+    }
+
     const clearPlexStatusLater = createClearTimer({ clear: () => (plexStatus.value = '') })
     const setPlexStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexStatus.value = msg
@@ -825,12 +841,12 @@ export const SettingsView = {
       saving.value = true
       try {
         const body = settingsBody()
-        await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
+        const saved = await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
         await saveGenreLookup()
         await plexWatchSetting.value?.save()
         await plexLibrarySetting.value?.save()
-        await arrSettings.value?.save()
+        const arrCleared = await arrSettings.value?.save()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -841,10 +857,16 @@ export const SettingsView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        if (saved?.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
+        if (saved?.cleared?.includes('plex_token')) plexTokenSet.value = false
+        const cleared = [...(saved?.cleared ?? []), ...(arrCleared ?? [])]
+        const clearedToast = clearedSecretToastOf(cleared)
+        if (clearedToast) toast(clearedToast)
+        else flash({ msg: 'Saved.' })
         await rememberSavedBody()
-        flash({ msg: 'Saved.' })
         await refreshSyncSchedule()
       } catch (err) {
+        showRootFieldError(rootFieldErrorOf(err))
         flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       } finally {
         saving.value = false
@@ -960,7 +982,7 @@ export const SettingsView = {
         const r = await api('POST', '/api/plex-detect-token')
         if (r.ok) {
           plexTokenSet.value = true
-          plexToken.value = r.token || ''
+          plexToken.value = ''
           setPlexTokenStatus(`Token detected from ${r.source}.`, 'ok', 5000)
         } else {
           setPlexTokenStatus(`Auto-detect failed: ${r.reason}`, 'err', 8000)
@@ -1060,7 +1082,7 @@ export const SettingsView = {
       resetting.value = true
       resetError.value = ''
       try {
-        await api('POST', '/api/reset')
+        await api('POST', '/api/reset', RESET_CONFIRM_BODY)
         window.location.hash = '#/welcome'
         window.location.reload()
       } catch (err) {

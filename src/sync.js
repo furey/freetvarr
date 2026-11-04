@@ -46,6 +46,8 @@ export const startSync = async (options = {}) => {
   }
 }
 
+export const syncErrorLogOf = (err) => err?.stack || String(err?.message ?? err)
+
 const beginSync = async ({ trigger = 'manual', showId = null, identityFor = showIdentityFor }) => {
   const missingUrl = await tvheadendUrlMissing()
   if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
@@ -54,7 +56,7 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
   const syncId = await createSync(trigger, showId)
   const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId, identityFor }))
     .catch((err) => {
-      console.error('[sync] unhandled error:', err)
+      console.error(`[sync] unhandled error: ${syncErrorLogOf(err)}`)
     })
     .finally(() => {
       inFlight = null
@@ -230,7 +232,21 @@ export const localPathFor = ({ tvhFilename, tvhRecordingsPath, recordingsRoot })
   const localRoot = recordingsRoot.replace(/\/+$/, '')
   if (tvhFilename === remoteRoot) return localRoot
   if (!tvhFilename.startsWith(`${remoteRoot}/`)) return null
-  return path.join(localRoot, tvhFilename.slice(remoteRoot.length + 1))
+  const relative = tvhFilename.slice(remoteRoot.length + 1)
+  if (relative.split('/').includes('..')) return null
+  const result = path.join(localRoot, relative)
+  return isInside({ filePath: result, root: localRoot }) ? result : null
+}
+
+const isInside = ({ filePath, root }) => {
+  const resolvedRoot = path.resolve(root)
+  const relative = path.relative(resolvedRoot, path.resolve(filePath))
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+const isInsideRealRoot = async ({ filePath, root }) => {
+  const [realFile, realRoot] = await Promise.all([fs.realpath(filePath), fs.realpath(root)]).catch(() => [])
+  return Boolean(realFile && realRoot) && isInside({ filePath: realFile, root: realRoot })
 }
 
 export const createValidFilename = (name) =>
@@ -336,8 +352,9 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     mediaRoot: await getMediaRoot(),
     oneOffRoot: await getOneOffRoot(),
     moviesRoot: await getMoviesRoot(),
+    recordingsRoot: await getRecordingsRoot(),
   }
-  const recordingsRoot = await getRecordingsRoot()
+  const { recordingsRoot } = roots
   const tvhRecordingsPath = await getTvhRecordingsPath()
   const importUnmatched = (await getSetting('import_unmatched')) !== 'false'
   const rootProblemOf = createRootCheck()
@@ -678,6 +695,10 @@ const processItem = async ({ item, show, kind, roots, rootProblemOf }) => {
     sourceStat = await fs.stat(item.sourcePath)
   } catch {
     return skipItem({ item, show, existing, error: `file not found at ${item.sourcePath}; check the recordings mount` })
+  }
+
+  if (!(await isInsideRealRoot({ filePath: item.sourcePath, root: roots.recordingsRoot }))) {
+    return skipItem({ item, show, existing, error: `${item.sourcePath} is outside the recordings folder ${roots.recordingsRoot}` })
   }
 
   const kindRoot = { tv: roots.mediaRoot, oneOff: roots.oneOffRoot, film: roots.moviesRoot }[kind]

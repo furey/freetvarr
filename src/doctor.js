@@ -6,7 +6,7 @@ import path from 'path'
 import { db, getSetting } from './db.js'
 import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
-import { countPlexSectionItems, listPlexSections } from './plex.js'
+import { countPlexSectionItems, listPlexSections, storedPlexToken } from './plex.js'
 import { hasOneOffPlaceholder, hasRecordingFiles } from './one-off-placeholder.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
 import { describeBenchmark } from './live-benchmark.js'
@@ -842,7 +842,7 @@ const readSettings = async () => {
       getRecordingsRoot(),
       getTvhRecordingsPath(),
       getSetting('plex_url'),
-      getSetting('plex_token'),
+      storedPlexToken(),
       getSetting('plex_tv_section_id'),
       getSetting('plex_oneoff_section_id'),
       getSetting('sync_cron'),

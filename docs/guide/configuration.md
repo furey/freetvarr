@@ -121,6 +121,8 @@ The TVHeadend URL, username, and password, the Plex URL, token, and section, the
 - **SYSTEM**: Setup, Health, Activity, Schedule, and TVHeadend.
 - **DANGER ZONE**: Reset.
 
+Freetvarr sends a saved password, token, or API key only to the address it was saved with. When you change the TVHeadend, Plex, Sonarr, or Radarr address, enter its password, token, or API key again in the same save.
+
 [Settings](/guide/settings) describes each page. Press **Save settings** to keep your changes. An optional [TMDB](https://www.themoviedb.org/) (The Movie Database) API key for film posters, film ratings, reviews, and film cast goes in Settings → WATCHING → Film and TV info ([TMDB key](/guide/tv-guide#tmdb-key)); Freetvarr stores it in its database and never sends it to the browser. In Settings → RECORDING → Media library, **Test path** checks each folder (the media root, the one-off folder, the movies folder, and Freetvarr's recordings folder), and **Check TVHeadend** reads TVHeadend's recording path from its DVR profile and compares it with yours.
 
 <!-- markdownlint-disable MD033 -->

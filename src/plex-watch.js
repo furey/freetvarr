@@ -1,6 +1,6 @@
 import { trackJob } from './activity.js'
 import { db, getSetting, setSetting } from './db.js'
-import { plexSectionsToSearch } from './plex.js'
+import { plexSectionsToSearch, storedPlexToken } from './plex.js'
 import { createPlexWatchSync } from './plex-watch-sync.js'
 import { createLibraryScan } from './plex-library-scan.js'
 import {
@@ -17,7 +17,7 @@ import { createArrLookup } from './arr-files.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot } from './sync.js'
 
 export const loadPlexWatchConfig = async () => {
-  const [url, token, sections] = await Promise.all([getSetting('plex_url'), getSetting('plex_token'), plexSectionsToSearch()])
+  const [url, token, sections] = await Promise.all([getSetting('plex_url'), storedPlexToken(), plexSectionsToSearch()])
   if (!url || !token || !sections.length) return null
   return { url: url.replace(/\/$/, ''), token, sections }
 }
