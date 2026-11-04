@@ -674,9 +674,28 @@ export const seriesAiringOf = ({ program, channelName = null }) => ({
 })
 
 export const cancelSeries = async (args) => {
-  const result = await disableSeriesTag(args)
-  invalidateRecordingState()
-  return result
+  try {
+    return await disableSeriesTag(args)
+  } finally {
+    invalidateRecordingState()
+  }
+}
+
+export const cancelSeriesRules = async ({ seriesLinkIds, stopRecordingNow = false, cancel = cancelSeries }) => {
+  const cancelled = []
+  for (const seriesLinkId of seriesLinkIds) {
+    cancelled.push(await cancel({ seriesLinkId, stopRecordingNow }).catch((err) => alreadyCancelled({ err, seriesLinkId })))
+  }
+  return {
+    cancelled,
+    stopped: cancelled.flatMap((c) => c.stopped),
+    stopFailed: cancelled.flatMap((c) => c.stopFailed ?? []),
+  }
+}
+
+const alreadyCancelled = ({ err, seriesLinkId }) => {
+  if (!(err instanceof TvheadendError) || err.code !== 'not-found') throw err
+  return { ok: true, seriesLinkId, alreadyCancelled: true, stopped: [], stopFailed: [] }
 }
 
 export const pauseSeries = async ({ seriesLinkIds, paused }) => {

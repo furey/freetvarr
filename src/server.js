@@ -120,7 +120,7 @@ import {
   recordProgram,
   cancelProgram,
   recordSeries,
-  cancelSeries,
+  cancelSeriesRules,
   pauseSeries,
   setChannelPrefs,
   getChannelPrefs,
@@ -820,19 +820,11 @@ app.post('/api/epg/cancel-series', epgLimiter, doubleCsrfProtection, async (req,
   const seriesLinkIds = Array.isArray(series_link_ids) ? series_link_ids : [series_link_id].filter((id) => id != null)
   if (seriesLinkIds.length === 0) return res.status(400).json({ error: 'series_link_id or series_link_ids is required' })
   try {
-    const cancelled = []
-    for (const seriesLinkId of seriesLinkIds) {
-      cancelled.push(await cancelSeries({ seriesLinkId, stopRecordingNow: stop_recording_now === true }))
-    }
+    const result = await cancelSeriesRules({ seriesLinkIds, stopRecordingNow: stop_recording_now === true })
     const titleMatchRemoved = title_match_id == null
       ? false
       : (await db('shows').where({ id: Number(title_match_id) }).delete()) > 0
-    res.json({
-      ok: true,
-      cancelled,
-      stopped: cancelled.flatMap((c) => c.stopped),
-      titleMatchRemoved,
-    })
+    res.json({ ok: true, ...result, titleMatchRemoved })
   } catch (err) {
     epgError(res, err, 'cancel-series')
   }

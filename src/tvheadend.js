@@ -351,10 +351,15 @@ export const disableSeriesTag = async ({ seriesLinkId, stopRecordingNow = false,
     : []
   await apiPost('idnode/delete', { uuid: autorec.id }, conn)
   const stopped = []
+  const stopFailed = []
   for (const entry of recordingNow) {
-    stopped.push(await stopRecordingEntry({ entry: { ...entry, autorecId: null }, nowMs, conn }))
+    await stopRecordingEntry({ entry: { ...entry, autorecId: null }, nowMs, conn })
+      .then((result) => stopped.push(result), (err) => {
+        console.warn(`[series] could not stop ${entry.uuid} after cancelling ${autorec.name}: ${err.message}`)
+        stopFailed.push(entry.uuid)
+      })
   }
-  return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped }
+  return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped, stopFailed }
 }
 
 export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => ({
