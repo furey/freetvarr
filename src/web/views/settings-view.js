@@ -787,7 +787,7 @@ export const SettingsView = {
         body.time_zone = timeZone.value
         if (plexToken.value) body.plex_token = plexToken.value
         if (tvhPassword.value) body.tvh_password = tvhPassword.value
-        await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
+        const saved = await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
         await saveGenreLookup()
         await plexWatchSetting.value?.save()
@@ -803,6 +803,7 @@ export const SettingsView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        if (saved?.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         flash({ msg: 'Saved.' })
         await refreshSyncSchedule()
       } catch (err) {
@@ -879,6 +880,7 @@ export const SettingsView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        if (r.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         tvhStatus.value = tvhTestSummary(r)
         tvhStatusKind.value = 'ok'
       } catch (err) {

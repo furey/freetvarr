@@ -243,6 +243,7 @@ import {
   stopUserEvents,
 } from './user-events-log.js'
 import { loadExternalIds } from './external-ids-store.js'
+import { saveTvheadendConnection } from './connection-secrets.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -1740,9 +1741,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))
   }
-  await writeString('tvh_url', body.tvh_url, { trim: true })
-  await writeString('tvh_username', body.tvh_username, { trim: true })
-  if (body.tvh_password) await setSetting('tvh_password', String(body.tvh_password))
+  const cleared = await saveTvheadendConnection({ body })
   await writeString('recordings_root', body.recordings_root, { trim: true })
   await writeString('tvh_recordings_path', body.tvh_recordings_path, { trim: true })
   await writeString('plex_url', body.plex_url, { trim: true })
@@ -1798,7 +1797,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   if (body.sync_cron !== undefined) await setSetting('sync_cron', String(body.sync_cron))
   if (body.sync_cron !== undefined || timeZone !== undefined) await startScheduler()
   await rebaseFilePaths()
-  res.json({ ok: true })
+  res.json({ ok: true, ...(cleared.length ? { cleared } : {}) })
 })
 
 app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) => {

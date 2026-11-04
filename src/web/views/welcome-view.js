@@ -1127,6 +1127,7 @@ export const WelcomeView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        if (r.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         setTvhText(tvhTestSummary(r), 'ok', 8000)
         tvhConnected.value = true
         return true

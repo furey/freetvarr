@@ -1,7 +1,7 @@
 import os from 'os'
 import axios from 'axios'
 
-import { getSetting, setSetting } from './db.js'
+import { deleteSetting, getSetting, setSetting } from './db.js'
 import { authorizationFor, createChallengeCache } from './http-auth.js'
 import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
@@ -9,6 +9,7 @@ import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
 import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
 import { earlierAiringOfEntry } from './repeat-match.js'
+import { sameOrigin } from './url-binding.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -27,13 +28,16 @@ export const testConnection = async ({ url, username, password, persist = true }
     listChannels(conn),
     listInputs(conn).catch(() => []),
   ])
+  const dropsPassword = persist && url !== undefined && !conn.password && Boolean(await getSetting('tvh_password'))
   if (persist) {
     if (url !== undefined) await setSetting('tvh_url', conn.url)
     if (username !== undefined) await setSetting('tvh_username', conn.username)
     if (password) await setSetting('tvh_password', conn.password)
+    if (dropsPassword) await deleteSetting('tvh_password')
   }
   return {
     ok: true,
+    ...(dropsPassword ? { cleared: ['tvh_password'] } : {}),
     version: info?.sw_version || '',
     apiVersion: info?.api_version ?? null,
     channels: channels.length,
@@ -645,8 +649,14 @@ export const resolveConnection = async ({ url, username, password } = {}) => {
     throw new TvheadendError('TVHeadend URL is not configured.', { stage: 'config', code: TVHEADEND_UNCONFIGURED_CODE })
   }
   const resolvedUser = (username ?? (await getSetting('tvh_username')) ?? '').trim()
-  const resolvedPass = password || (await getSetting('tvh_password')) || ''
+  const resolvedPass = password || (await storedPasswordFor(url)) || ''
   return { url: resolvedUrl, username: resolvedUser, password: resolvedPass }
+}
+
+const storedPasswordFor = async (url) => {
+  if (url === undefined) return getSetting('tvh_password')
+  const storedUrl = await getSetting('tvh_url')
+  return sameOrigin(url, storedUrl) ? getSetting('tvh_password') : null
 }
 
 const removeKeepingHistory = async ({ uuid, rerecords, conn }) => {
@@ -964,7 +974,9 @@ const request = async ({ method, path, params, form, conn }) => {
   }
   if (res.status === 401 || res.status === 403) {
     throw new TvheadendError(
-      `TVHeadend rejected the credentials (HTTP ${res.status}).`,
+      conn.password
+        ? `TVHeadend rejected the credentials (HTTP ${res.status}).`
+        : `TVHeadend asked for a login (HTTP ${res.status}). Enter the TVHeadend password.`,
       { stage: path, status: res.status, code: 'auth' },
     )
   }
