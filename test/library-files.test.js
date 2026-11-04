@@ -7,7 +7,7 @@ import path from 'node:path'
 const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-library-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
-const { db } = await import('../src/db.js')
+const { db, setSetting } = await import('../src/db.js')
 const { findReplacement, libraryStateOf, sweepLibraryStates } = await import('../src/library-files.js')
 
 const seasonDir = path.join(tmpDir, 'tv', 'My Kitchen Rules', 'Season 16')
@@ -98,4 +98,23 @@ test('sweepLibraryStates: saves each state and clears it once the file is back',
   await fs.writeFile(ours(6), '')
   await sweepLibraryStates()
   assert.equal((await states()).e6, null)
+})
+
+test('sweepLibraryStates: keeps stored states while a library folder is empty or missing', async () => {
+  const emptyShare = path.join(tmpDir, 'empty-share')
+  const missingShare = path.join(tmpDir, 'missing-share')
+  await fs.mkdir(emptyShare)
+  await fs.writeFile(path.join(emptyShare, '.freetvarr-keep'), '')
+  await setSetting('media_root', emptyShare)
+  await setSetting('oneoff_root', missingShare)
+  await db('recordings').insert([
+    { recording_id: 'share-tv', title: 'Bluey', status: 'done', file_path: path.join(emptyShare, 'Bluey', 'Season 03', 'Bluey - S03E01.ts') },
+    { recording_id: 'share-oneoff', title: 'Footy', status: 'done', file_path: path.join(missingShare, 'Footy', 'Footy - 2026-10-04 1930.ts') },
+  ])
+  await sweepLibraryStates()
+  const states = await db('recordings').whereIn('recording_id', ['share-tv', 'share-oneoff']).pluck('library_state')
+  assert.deepEqual(states, [null, null])
+  await fs.mkdir(path.join(emptyShare, 'Other Show'))
+  await sweepLibraryStates()
+  assert.equal((await db('recordings').where({ recording_id: 'share-tv' }).first()).library_state, 'not_in_library')
 })

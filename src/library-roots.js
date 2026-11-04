@@ -50,6 +50,16 @@ export const createRootCheck = (options) => {
   }
 }
 
+export const createPathRootReady = ({ loadRoots = loadLibraryRoots, ...options } = {}) => {
+  const problemOf = createRootCheck(options)
+  let roots = null
+  return async (filePath) => {
+    roots ??= loadRoots().then(Object.values)
+    const root = rootOfPath({ filePath, roots: await roots })
+    return root ? !(await problemOf(root)) : true
+  }
+}
+
 export const rootOfPath = ({ filePath, roots }) => roots
   .filter(Boolean)
   .map(withoutTrailingSlash)
