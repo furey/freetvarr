@@ -101,6 +101,7 @@ export const VIEW_PRELOADS = {
     '/plex-watch-text.js',
     '/recording-log-filters.js',
     '/recording-sort.js',
+    '/response-order.js',
     '/scan-confirm.js',
     '/sentence-case.js',
     '/series-order.js',
