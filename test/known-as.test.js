@@ -59,3 +59,24 @@ test('createKnownAs caches per show, spaces requests, and reports new names', as
   assert.deepEqual(sleeps, [700, 700])
   assert.equal(await knownAs.fromWikidataFilm({ title: 'Bad id', id: 'nope' }), false)
 })
+
+test('AKA lookups go through the shared TVmaze client', async () => {
+  const { createOutboundClient } = await import('../src/outbound-http.js')
+  const requests = []
+  const client = createOutboundClient({
+    hosts: { 'api.tvmaze.com': { concurrency: 1 } },
+    request: async (options) => {
+      requests.push(options.url)
+      return { status: 200, headers: { 'content-type': 'application/json' }, body: Buffer.from(JSON.stringify([{ name: 'MKR' }])) }
+    },
+  })
+  const written = []
+  const knownAs = createKnownAs({
+    client,
+    cache: { isFresh: async () => false, write: async (row) => { written.push(row) } },
+    sleep: async () => {},
+  })
+  assert.equal(await knownAs.fromTvmazeShow({ title: 'My Kitchen Rules', show: { id: 7 } }), true)
+  assert.deepEqual(requests, ['https://api.tvmaze.com/shows/7/akas'])
+  assert.deepEqual(written.map((row) => row.names), [['MKR']])
+})

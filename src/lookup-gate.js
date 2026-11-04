@@ -43,6 +43,14 @@ export const createLookupGate = ({
   return { allows }
 }
 
+export const libraryLookupTitles = async ({ database }) => {
+  const [shows, films] = await Promise.all([
+    database('library_items').whereNotNull('show_title').distinct('show_title as title'),
+    database('library_items').whereNot('kind', 'episode').distinct('title'),
+  ])
+  return [...shows, ...films].map((row) => row.title).filter(Boolean)
+}
+
 export const createKnownTitles = ({ loadTitles, ttlMs = KNOWN_TITLES_TTL_MS, now = Date.now }) => {
   let keys = null
   let loadedAt = 0

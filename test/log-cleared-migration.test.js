@@ -40,7 +40,7 @@ test('migration 0040: a log clear of an imported row becomes log_cleared_at, and
     recording({ recording_id: 'failed', status: 'failed' }),
     recording({ recording_id: 'kept', purged_at: null }),
   ])
-  await db.migrate.latest()
+  await migrateTo('0040_log_cleared.js')
   assert.deepEqual(await stateOf(), {
     'log-cleared': [null, CLEARED_AT],
     'library-deleted': [CLEARED_AT, null],

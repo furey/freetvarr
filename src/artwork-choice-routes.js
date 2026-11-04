@@ -133,7 +133,10 @@ export const mountArtworkChoiceRoutes = ({
     }
     try {
       const saved = await uploads.save({ key, kind, body: await prepare({ body: req.body, kind }) })
-      const choice = await choices.choose({ key, kind, origin: saved.origin, source: saved.source })
+      const choice = await choices.choose({ key, kind, origin: saved.origin, source: saved.source }).catch(async (err) => {
+        await uploads.remove(saved.origin).catch(() => {})
+        throw err
+      })
       const candidate = withIdOf(saved)
       res.status(201).json({
         ok: true,

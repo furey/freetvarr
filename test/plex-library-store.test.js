@@ -37,6 +37,16 @@ test('saveScannedItems: a full pass removes items Plex no longer lists; a quick 
   assert.deepEqual((await db('library_items')).map((row) => row.rating_key), ['7'])
 })
 
+test('saveScannedItems: a part deleted in Freetvarr stays out of the list for 30 minutes while Plex still lists it', async () => {
+  const deletedAt = Date.parse('2026-11-04T10:00:00Z')
+  await store.saveScannedItems({ rows: [part()], full: true, sectionId: '2', seenAt: 10 })
+  await store.removePartsByFile(part().file_path, { nowMs: deletedAt })
+  await store.saveScannedItems({ rows: [part({ seen_at: 20 })], full: false, sectionId: '2', seenAt: 20, nowMs: deletedAt + 60_000 })
+  assert.equal((await db('library_items')).length, 0)
+  await store.saveScannedItems({ rows: [part({ seen_at: 30 })], full: false, sectionId: '2', seenAt: 30, nowMs: deletedAt + 31 * 60_000 })
+  assert.equal((await db('library_items')).length, 1)
+})
+
 test('markItemWatched and saveItemPosition: change the item now and leave a change waiting for Plex', async () => {
   await store.saveScannedItems({ rows: [part()], full: true, sectionId: '2', seenAt: 10 })
   const result = await store.markItemWatched({ itemId: 'plex-7', watched: true, nowMs: 1000 })

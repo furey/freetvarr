@@ -485,6 +485,7 @@ const recordingClassifications = async (entries) => {
   const sourceOf = (entry) => ({
     title: entry.name,
     start: entry.startDate,
+    channelName: entry.channelName,
     rating: entry.rating,
     ratingLabel: entry.ratingLabel,
   })

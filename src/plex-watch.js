@@ -74,7 +74,16 @@ const pruneSnapshots = async (keepIds) => {
   }
 }
 
-const applyPull = ({ recordingId, patch }) => db('recordings').where({ recording_id: recordingId }).update(patch)
+export const applyPull = ({ recordingId, patch, expected = null }) => {
+  const query = db('recordings').where({ recording_id: recordingId })
+  if (expected) {
+    for (const column of PULL_GUARD_COLUMNS) {
+      if (expected[column] == null) query.whereNull(column)
+      else query.where(column, expected[column])
+    }
+  }
+  return query.update(patch)
+}
 
 const loadLibraryRoots = async () => Promise.all([getMediaRoot(), getMoviesRoot(), getOneOffRoot()])
 
@@ -107,6 +116,7 @@ export const plexWatchSync = createPlexWatchSync({
 })
 
 const FROM_PLEX_KEY = 'plex_watch_from_plex'
+const PULL_GUARD_COLUMNS = ['watched_at', 'playback_position_s']
 const TO_PLEX_KEY = 'plex_watch_to_plex'
 const STATUS_KEY = 'plex_watch_status'
 const DELETE_CHUNK = 500

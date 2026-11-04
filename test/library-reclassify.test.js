@@ -8,7 +8,7 @@ const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'freetv
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db, setSetting } = await import('../src/db.js')
-const { planReclassification, runReclassification, runReclassificationOnce, RECLASSIFY_DONE_KEY } = await import('../src/library-reclassify.js')
+const { moveFile, planReclassification, runReclassification, runReclassificationOnce, RECLASSIFY_DONE_KEY } = await import('../src/library-reclassify.js')
 
 const roots = { mediaRoot: path.join(tmpDir, 'tv'), oneOffRoot: path.join(tmpDir, 'one-offs'), moviesRoot: path.join(tmpDir, 'movies') }
 const AIRED = new Date(2026, 9, 28, 19, 30).getTime()
@@ -260,4 +260,23 @@ test('runReclassification: when TVHeadend series recordings cannot be read, noth
   const thrown = await runReclassification({ loadSeries: async () => { throw new Error('offline') }, identityFor: async () => null })
   assert.equal(thrown.moved, 0)
   assert.equal((await runReclassification({ loadSeries: async () => ({ series: [] }), identityFor: async () => null })).moved, 1)
+})
+
+test('moveFile across mounts leaves no partial file at the target when the copy stops part-way', async () => {
+  const folder = path.join(tmpDir, 'exdev')
+  await fs.mkdir(folder, { recursive: true })
+  const from = path.join(folder, 'source.ts')
+  const to = path.join(folder, 'moved', 'target.ts')
+  await fs.writeFile(from, 'whole recording')
+  const crossDevice = async () => { throw Object.assign(new Error('cross-device link'), { code: 'EXDEV' }) }
+  const stoppedCopy = async (_, target) => {
+    await fs.writeFile(target, 'whole')
+    throw new Error('stopped')
+  }
+  await assert.rejects(moveFile({ from, to, rename: crossDevice, copyFile: stoppedCopy }))
+  await assert.rejects(fs.access(to))
+  await moveFile({ from, to, rename: crossDevice })
+  assert.equal(await fs.readFile(to, 'utf8'), 'whole recording')
+  await assert.rejects(fs.access(from))
+  assert.deepEqual(await fs.readdir(path.dirname(to)), ['target.ts'])
 })

@@ -170,14 +170,15 @@ export const createArtPool = ({
     const cached = await readSizedCache({ read: cache.read, key: cacheKey })
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs: tvmazeHitTtlMs, hasValue: Boolean(cached?.sources?.length) })
     if (state === 'fresh') return cached.sources
-    const lookup = lookUpTvmazePool({ title, cacheKey })
+    const lookup = lookUpTvmazePool({ title, cacheKey, refreshingHit: state === 'stale' })
     return state === 'stale' ? lookup.catch(() => cached.sources) : lookup
   }
 
-  const lookUpTvmazePool = async ({ title, cacheKey }) => {
+  const lookUpTvmazePool = async ({ title, cacheKey, refreshingHit = false }) => {
     const hints = await Promise.resolve().then(() => hintsFor(title)).catch(() => null)
     const show = await findSeriesShow({ title, hints })
     const entries = show ? tvmazePoolOf({ show, images: await loadTvmazeImages(show.id) }) : []
+    if (!entries.length && refreshingHit && !hints) throw new Error('refresh had no guide details')
     const missTtlMs = hints ? tvmazeMissTtlMs : TVMAZE_UNHINTED_MISS_TTL_MS
     const expiresAt = now() + (entries.length ? tvmazeHitTtlMs : missTtlMs)
     await cache.write({ key: sizedKeyOf(cacheKey), sources: entries, expiresAt }).catch(() => {})

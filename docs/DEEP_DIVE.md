@@ -221,9 +221,9 @@ Freetvarr stores state in SQLite through Knex and [better-sqlite3](https://githu
 | `title_known_as`            | `0012`                         | Cached alternative titles per `title_key`                                                                                                                                                                                                                                    | `src/known-as.js`                      |
 | `artwork_lookups`           | `0013`                         | Cached Wikipedia and TMDB picture lookups                                                                                                                                                                                                                                    | `src/fallback-artwork.js`              |
 | `programme_ratings`         | `0015`, `0020`                 | Cached rating lookups, with `miss_reason`                                                                                                                                                                                                                                    | `src/programme-ratings.js`             |
-| `programme_classifications` | `0016`                         | Classification label per `title_key` and `start_ms`                                                                                                                                                                                                                          | `src/classification-labels.js`         |
+| `programme_classifications` | `0016`, `0041`                 | Classification label per `title_key`, `start_ms`, and `shift_hours`                                                                                                                                                                                                          | `src/classification-labels.js`         |
 | `programme_credits`         | `0017`, `0020`                 | Cached cast and crew lookups, with `miss_reason`                                                                                                                                                                                                                             | `src/programme-credits.js`             |
-| `programme_categories`      | `0019`                         | XMLTV category per `title_key` and `start_ms`                                                                                                                                                                                                                                | `src/classification-labels.js`         |
+| `programme_categories`      | `0019`, `0041`                 | XMLTV category per `title_key`, `start_ms`, and `shift_hours`                                                                                                                                                                                                                | `src/classification-labels.js`         |
 | `art_pools`                 | `0021`                         | Cached picture pools per `pool_key`                                                                                                                                                                                                                                          | `src/art-pool.js`                      |
 | `show_artwork_choices`      | `0022`                         | The chosen picture per `show_key` and `kind`                                                                                                                                                                                                                                 | `src/artwork-choices.js`               |
 | `image_focus`               | `0024`, `0027`                 | Focus point and face box per picture URL                                                                                                                                                                                                                                     | `src/image-focus-service.js`           |
@@ -773,7 +773,7 @@ A single show wins. Otherwise the top show needs at least `10` points and a lead
 - A `show` group: each file in the one-off folder moves to `buildDestPath` under the matched or a new folder.
 - A `oneoff` group: each file in the TV folder moves to `buildOneOffPath`.
 
-`applyMove` skips a move while ad removal runs, when `file_path` changed since the plan, when the file is missing, or when the target exists. `moveFile` calls `fs.rename`, or copies and deletes on `EXDEV`. The `.orig` backup and the `.edl` file move with the video. After moves, the Plex TV and one-off sections refresh. `planRetiredTitleMatches` disables each `auto` folder whose title is now a one-off and that keeps no file.
+`applyMove` skips a move while ad removal runs, when `file_path` changed since the plan, when the file is missing, or when the target exists. `moveFile` calls `fs.rename`. On `EXDEV` it copies to `<target>.part`, checks the size, renames the copy into place, and deletes the source; a failed copy deletes the `.part` file. The `.orig` backup and the `.edl` file move with the video. After moves, the Plex TV and one-off sections refresh. `planRetiredTitleMatches` disables each `auto` folder whose title is now a one-off and that keeps no file.
 
 The pass runs `3` min after startup when the setting `library_reclassify_v1` is unset (`runReclassificationOnce`), after every sync, and after `PUT` or `DELETE /api/programme-kind/:showKey`. When TVHeadend's series rules cannot be read, the pass changes nothing. `node scripts/reclassify-library.mjs --db <copy of state.db> --dry-run` prints the planned moves.
 
@@ -1125,14 +1125,14 @@ flowchart TD
   kind -- film --> onlineFilm
 ```
 
-| Source             | Code                                                 | Rule                                                                                |
-| ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                        |
-| Plex               | `plexSourcesOf` in `src/show-artwork.js`             | `art` and `thumb` of the item with the same title key in the TV and movies sections |
-| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                     |
-| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                     |
+| Source             | Code                                                 | Rule                                                                                                                                                               |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                                                                                                       |
+| Plex               | `plexShowSources` in `src/show-artwork.js`           | `art` and `thumb` of the item with the same title key in the TV and movies sections; a movies item is skipped for a title whose guide airings have episode details |
+| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                                                                                                    |
+| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                    |
 
-The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
+`plexShowSources` lists each section with a `15 s` timeout. A section that fails keeps its entries from the last good list, and a refresh where every section fails keeps the whole list for another `10` min. The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
 
 ### Online lookup
 
@@ -1142,22 +1142,22 @@ The setting `show_artwork_lookup` (default on) switches off the TVmaze and onlin
 2. Otherwise it searches Wikidata (`wbsearchentities`), then Wikipedia, for each title variant, and keeps items with the same title key.
 3. One [SPARQL](https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/queries) query keeps films (`Q11424`) and television programmes (`Q15416`), with the year, the English article, and the TMDB and [IMDb](https://www.imdb.com/) ids.
 4. `rankEntities` scores the items by year fit, database ids, and search order; `matchEvidenceOf` must accept the article text.
-5. With a key, the TMDB id gives the pictures; else the Wikipedia article image is the result.
+5. With a key, the TMDB id gives the pictures; else the Wikipedia article image is the result. When the TMDB call fails, the Wikipedia image is stored for `6 h` only, so TMDB is asked again.
 6. With a key and no Wikidata match, a TMDB search (`/search/movie`, `/search/tv`, or `/search/multi`) runs for each title variant.
 
 `matchEvidenceOf` compares the hints with a candidate's text. It rejects a candidate on a year mismatch or on cast names that do not appear. It accepts a candidate on a cast name, a year within one, or shared proper nouns and distinctive words; else the result is `no-evidence`. TMDB gives up to `8` pictures per kind (`MAX_TMDB_PICTURES`): backdrops at `original` and posters at `w780`, English first.
 
 ### Lookup caches
 
-| Store                       | Table                                    | Hit    | Miss                                  |
-| --------------------------- | ---------------------------------------- | ------ | ------------------------------------- |
-| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d`                                 |
-| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without |
-| **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                 |
-| Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`                                 |
+| Store                       | Table                                    | Hit    | Miss                                                               |
+| --------------------------- | ---------------------------------------- | ------ | ------------------------------------------------------------------ |
+| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d`                                                              |
+| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without                              |
+| **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                                              |
+| Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`; `6 h` for a film with no guide details (`no-guide-details`) |
 
 - Keys start with `wide-v1:` and hold the mode (`tmdb` with a key, `open` without), the kind, and the title key; stored external ids end the key.
-- An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old.
+- An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old. A refresh with no guide hints, no year, and no stored external ids that finds nothing counts as a failure, so it never replaces a hit.
 - A failed lookup is not stored; the key waits `10` min in memory.
 - Routes wait for a lookup within a budget, then answer pending: `1.5 s` for guide images and for ratings, `3 s` for a show picture, `6 s` for the **Change picture** list.
 
@@ -1213,9 +1213,9 @@ Picture focus stores a face box or a focus point for each picture URL, so the cl
 | Circuit breaker | `5` failures in a row open the breaker for `60 s`, doubling per trip up to `30` min                                                   |
 | User-Agent      | `Freetvarr (https://github.com/furey/freetvarr)` ([Wikimedia policy](https://foundation.wikimedia.org/wiki/Policy:User-Agent_policy)) |
 
-Errors name the host and the status, never the address, so a TMDB key never reaches a log. `src/genre-enrichment.js`, `src/known-as.js`, `src/show-artwork.js`, and `fetchProgrammeImage` call [axios](https://axios-http.com/docs/intro) directly.
+Errors name the host and the status, never the address, so a TMDB key never reaches a log. Every TVmaze API call goes through `artworkClient`, including genre searches and AKA lookups (as background requests) and image lists. Wikidata calls in `src/genre-enrichment.js` and `src/known-as.js`, the Plex section lists in `src/show-artwork.js`, and `fetchProgrammeImage` call [axios](https://axios-http.com/docs/intro) directly.
 
-`src/lookup-gate.js` limits lookups for titles that Freetvarr does not know. A title is known when it is in the guide, `guide_programs`, `recordings`, or `watchlist`. Unknown titles may start `60` lookups an hour (`UNKNOWN_TITLE_BUDGET`); a refused lookup answers `none`.
+`src/lookup-gate.js` limits lookups for titles that Freetvarr does not know. A title is known when it is in the guide, `guide_programs`, `recordings`, `watchlist`, or `library_items` (`show_title`, and `title` for items that are not episodes). Unknown titles may start `60` lookups an hour (`UNKNOWN_TITLE_BUDGET`); a refused lookup answers `none`.
 
 `src/cache-prune.js` runs `10` min after start, then daily. It deletes rows of the lookup tables whose `expires_at` is more than `90 d` past, then keeps the newest `20000` rows per table. `src/link-health.js` checks each link host at most every `5` min; links to a host that is down become `null`.
 
@@ -1247,7 +1247,7 @@ Errors name the host and the status, never the address, so a TMDB key never reac
 A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+` (`CLASSIFICATIONS` in `src/classification-labels.js`).
 
 - `serveShiftedFeed` records the `<rating>` and `<category>` of each XMLTV programme while TVHeadend reads `/guide/xmltv.xml`. It prefers an Australian rating system.
-- The labels go in `programme_classifications` and `programme_categories` (`title_key`, `start_ms`). Rows older than `3 d` are deleted after each feed load.
+- The labels go in `programme_classifications` and `programme_categories` (`title_key`, `start_ms`, `shift_hours`). A +1 copy stores its label with `shift_hours` `1`, so it never replaces the base channel's label at the same time. Readers, including the sync and upcoming timers, take `shift_hours` from the channel name (`timeshiftHours`). Rows older than `3 d` are deleted after each feed load.
 - `fallbackClassification` uses the TVHeadend rating label, else maps the TVHeadend age `15` to `MA15+` and `18` to `R18+`.
 - The sync stores the label in `recordings.classification` and keeps the first label. Each prune copies labels into recordings with a `null` label.
 - Guide cells, live now and next, upcoming recordings, For you items, library rows, and episode rows carry `classification`. Scores and reviews are not part of list payloads.
@@ -1287,6 +1287,8 @@ A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`
 | End margin              | A Plex resume point within `30 s` of the end marks the recording watched                                                          |
 | Toggles                 | `plex_watch_from_plex` and `plex_watch_to_plex` (both on) block writes to one side                                                |
 
+A copy from Plex updates a recording only when its `watched_at` and `playback_position_s` still match what the run read; otherwise that row waits for the next run. When `/library/metadata` answers `404` for a batch, the client asks for each key alone and drops the keys that answer `404`. The run finishes, and `fullPassDue` in the status makes the next run a full pass.
+
 Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a time. When Plex does not answer, automatic runs wait `5` min doubling up to `2 h`. A `401` stops automatic runs until the token changes. The status is in the setting `plex_watch_status`; `GET` and `PUT /api/plex/watch-sync` read it and set the toggles.
 
 ### Whole library
@@ -1294,9 +1296,10 @@ Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a t
 `createLibraryScan` in `src/plex-library-scan.js` runs at the end of each watched sync when the setting `plex_whole_library` is not `false`. The sections are in `plex_library_sections` (default: the TV and movies sections; never the one-off section).
 
 - Each Plex file part becomes a `library_items` row (`rating_key`, `part_id`). A full pass deletes rows that it did not see. `recording_id` is set when the file is a Freetvarr recording.
-- `localPathOf` in `src/plex-library.js` maps a Plex path to a local path by the root folder names.
+- `localPathOf` in `src/plex-library.js` maps a Plex path to a local path by the root folder names. A recording also links to a Plex file whose path ends with the recording's path below its library root (at least `2` segments).
+- Files deleted through Freetvarr stay out of `library_items` for `30` min, in memory, so a scan before Plex notices the delete does not save them again.
 - The scan links each row with no `recording_id` to its Sonarr or Radarr manager, and writes Plex and Sonarr GUIDs to `external_ids`.
-- `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Any other item becomes a row with the id `plex-<ratingKey>`.
+- `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Only a recording with a playable file (`done` or `partial`, no `library_state`) takes the Plex episode; a `failed` or `skipped` recording of that episode is dropped and the Plex episode stays. Any other item becomes a row with the id `plex-<ratingKey>`.
 - A watched mark or resume point on a `plex-` row sets `pending_push` (`scrobble`, `unscrobble`, or `progress`); the next scan sends it.
 
 `GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`.
@@ -1305,7 +1308,7 @@ Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a t
 
 Sonarr and Radarr link to Freetvarr in three places: the settings routes, the library scan, and the delete flow. The user guide covers the setup ([Sonarr and Radarr](/guide/sonarr-radarr)).
 
-`src/arr-client.js` calls the v3 API of each app with the header `X-Api-Key`. Reads time out after `8 s` with `1` retry; writes time out after `15 s` with no retry. A `401` gives an `ArrError` of kind `key`, `404` gives `missing`, and `409` gives `conflict`. `arrClientFor` in `src/arr-store.js` caches one client and one circuit breaker per `<url>|<apiKey>`.
+`src/arr-client.js` calls the v3 API of each app with the header `X-Api-Key`. Reads time out after `8 s` with `1` retry and a `20 MB` limit; the full series and movie lists get `60 s` and `200 MB`. Writes time out after `15 s` with no retry. A `401` gives an `ArrError` of kind `key`, `404` gives `missing`, and `409` gives `conflict`. `arrClientFor` in `src/arr-store.js` caches one client and one circuit breaker per `<url>|<apiKey>`.
 
 The settings are `sonarr_url`, `radarr_url`, `sonarr_api_key`, `radarr_api_key`, and `arr_unmonitor_on_delete` (**Stop downloading it again**, default on). Without a saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `SONARR_CONFIG_PATH` or `RADARR_CONFIG_PATH`.
 
@@ -1340,13 +1343,14 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 | Similarity | `src/for-you-similarity.js`, `src/for-you-engine.js` | Compares programme texts by [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) or by embedding vectors |
 | Upkeep     | `src/for-you-service.js`                             | Runs the embeddings and genre lookups once a day                                                     |
 
-- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `thumb_up`, `thumb_down`, and `programme_opened`.
-- The setting `viewing_history_enabled` stops all writes when `false`. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
+- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `not_interested_undo`, `thumb_up`, `thumb_down`, `thumb_clear`, and `programme_opened`.
+- `thumb_clear` empties both thumbs of a show; the client sends it when a thumb turns off, and **Show again** writes it with `not_interested_undo` when the newest thumb is down. **Hidden shows** lists `not_interested` shows of the last `90` days and shows whose newest thumb is down.
+- The setting `viewing_history_enabled` stops writes when `false`, except the choices in `CHOICE_KINDS` (`not_interested`, `thumb_up`, `thumb_down`, `thumb_clear`). A feedback post with a choice flushes the events, forgets the cached For you result, and rebuilds the Home hero. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
 - `profileOf` decays each event with a half-life of `60` days. A show with `3` or more starts, under `15%` finished, and no thumbs up is abandoned and keeps `0.3` of its affinity.
 - Fewer than `5` engaged shows (`COLD_START_SHOWS`) give a cold start: sections `premieres`, `top-rated`, and `movies`. A warm response adds `coming-up`, `new-seasons`, and `might-like`.
 - `src/top-rated.js` weights a film score as `(votes / (votes + 1000)) * score + (1000 / (votes + 1000)) * 6.5`, and keeps at most `10` films.
 - `scoreAiring` adds weighted features (`affinity`, `interest`, `new-season`, `back`, `premiere`, `habit`, `hour`, `genre`, `similar`, `pinned`, `prime`, `image`) and applies a penalty for dismissals and thumbs down.
-- `src/genre-enrichment.js` stores TVmaze and Wikidata genres in `title_genres` when the setting `for_you_genre_lookup` is on.
+- `src/genre-enrichment.js` stores TVmaze and Wikidata genres in `title_genres` when the setting `for_you_genre_lookup` is on. `lookupOrderOf` merges the entries of one title, so a title that airs as a film is looked up on Wikidata even when it is also a recording or an event. A film miss stores a miss and never falls back to a TVmaze series. A run stops after `5` failed lookups in a row.
 
 `similar` uses one of three levels:
 
@@ -1356,7 +1360,7 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 | `standard` | Embeddings through [`@huggingface/transformers`](https://huggingface.co/docs/transformers.js) in a child process (`src/for-you-embed-worker.js`) | [`Xenova/all-MiniLM-L6-v2`](https://huggingface.co/Xenova/all-MiniLM-L6-v2), `q8`, `384` dimensions   |
 | `plus`     | Embeddings from Ollama when it lists an embedding model, else the local model                                                                    | [`Xenova/bge-small-en-v1.5`](https://huggingface.co/Xenova/bge-small-en-v1.5), `q8`, `384` dimensions |
 
-`src/for-you-capability.js` picks the level: `plus` when Ollama lists an embedding model; `basic` when the ONNX runtime does not load, free memory is under `400 MB`, or the daily texts take over `300 s`; `plus` when the `standard` time times `2.5` is under `120 s`; else `standard`. The setting `for_you_tier_override` forces a level. The embeddings are cached in `text_embeddings`; the model files download into `models/` on first use.
+`src/for-you-capability.js` picks the level: `plus` when Ollama lists an embedding model; `basic` when the ONNX runtime does not load, free memory is under `400 MB`, or the daily texts take over `300 s`; `plus` when the `standard` time times `2.5` is under `120 s`; else `standard`. The setting `for_you_tier_override` forces a level. The embeddings are cached in `text_embeddings`; the model files download into `models/` on first use. When the level changes during an embed run, another run starts with the new model as soon as the first ends (`createLatestRun`, up to `3` runs).
 
 `runForYouUpkeep` runs on each cron tick. It starts upkeep when none has run, the last run is over `36 h` old, or the local hour is `2–5` and the last run was on another day. The service builds the For you result `3 s` after startup and after each guide load.
 

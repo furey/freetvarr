@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
+import { artworkClient } from './fallback-artwork.js'
 import { showTitleKey } from './show-artwork.js'
 import { FILM_MIN_MS } from './film-rule.js'
 import { MOVIE, NOT_MOVIE, ONE_OFF_KIND, SHOW_KIND, loadKindOverrides, withKindOverrides } from './programme-kind.js'
@@ -154,20 +155,26 @@ export const filmRowsOf = (sparql) => (sparql?.results?.bindings || []).map((bin
 }))
 
 export const lookupOrderOf = ({ titles = [], cachedKeys = new Set(), budget = DEFAULT_BUDGET }) => {
-  const seen = new Set()
-  const pending = []
+  const merged = new Map()
   for (const item of titles) {
     const key = showKeyOf(item.title)
-    if (!item.title || seen.has(key) || cachedKeys.has(key)) continue
-    seen.add(key)
-    if (keywordCategoriesOf(item.title).length && !item.priority) continue
-    pending.push({ ...item, key })
+    if (!item.title || cachedKeys.has(key)) continue
+    merged.set(key, merged.has(key) ? mergedLookupOf(merged.get(key), item) : { ...item, key })
   }
+  const pending = [...merged.values()].filter((item) => !keywordCategoriesOf(item.title).length || item.priority)
   return pending.sort((a, b) => (b.priority || 0) - (a.priority || 0)).slice(0, budget)
 }
 
+const mergedLookupOf = (kept, item) => ({
+  ...kept,
+  movie: Boolean(kept.movie || item.movie),
+  year: kept.year ?? item.year ?? null,
+  priority: Math.max(kept.priority || 0, item.priority || 0),
+})
+
 export const createGenreEnrichment = ({
-  searchTvmaze = tvmazeSearch,
+  client = artworkClient,
+  searchTvmaze = (title) => tvmazeSearch({ client, title }),
   searchWikidata = wikidataSearch,
   queryWikidata = wikidataQuery,
   cache = databaseCache,
@@ -181,10 +188,7 @@ export const createGenreEnrichment = ({
   let running = null
 
   const lookUp = async ({ title, movie, year }) => {
-    if (movie) {
-      const film = await lookUpFilm({ title, year })
-      if (film) return film
-    }
+    if (movie) return lookUpFilm({ title, year })
     await sleep(gapMs)
     const show = pickTvmazeShow({ results: await searchTvmaze(title), title })
     if (show) notify(() => onTvmazeShow({ title, show }))
@@ -206,8 +210,13 @@ export const createGenreEnrichment = ({
     const cachedKeys = await cache.freshKeys(now())
     const pending = lookupOrderOf({ titles, cachedKeys, budget })
     let found = 0
+    let looked = 0
+    let failuresInRow = 0
     for (const item of pending) {
+      if (failuresInRow >= MAX_FAILURES_IN_ROW) break
+      looked += 1
       const record = await lookUp(item).catch(() => FAILED)
+      failuresInRow = record === FAILED ? failuresInRow + 1 : 0
       if (record === FAILED) continue
       if (record) found += 1
       await cache.write({
@@ -218,7 +227,7 @@ export const createGenreEnrichment = ({
         expiresAt: now() + (record ? HIT_TTL_MS : MISS_TTL_MS),
       }).catch(() => {})
     }
-    return { looked: pending.length, found }
+    return { looked, found }
   }
 
   const run = (options) => {
@@ -274,15 +283,9 @@ const parseList = (json) => {
 
 const genreLookupEnabled = async () => genreLookupEnabledFrom(await getSetting(GENRE_LOOKUP_KEY))
 
-const tvmazeSearch = async (title) => {
-  const res = await axios.get(`${TVMAZE_API}/search/shows`, {
-    params: { q: title },
-    timeout: REQUEST_TIMEOUT_MS,
-    validateStatus: () => true,
-    headers: { 'User-Agent': USER_AGENT },
-  })
-  if (res.status !== 200) throw new Error(`TVmaze HTTP ${res.status}`)
-  return Array.isArray(res.data) ? res.data : []
+const tvmazeSearch = async ({ client, title }) => {
+  const results = await client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: title }, isBackground: true })
+  return Array.isArray(results) ? results : []
 }
 
 const wikidataSearch = async (title) => {
@@ -418,6 +421,7 @@ const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|ru
 
 const NEWS_OR_SPORT = new Set(['news', 'sport'])
 const FAILED = Symbol('failed')
+const MAX_FAILURES_IN_ROW = 5
 const MAX_FILM_AIRINGS = 4
 const DEFAULT_BUDGET = 1500
 const LOOKUP_GAP_MS = 700

@@ -215,7 +215,7 @@ import { recordingTitlesOf } from './recording-now-library.js'
 import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
-import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
+import { classificationKeyOf, createClassificationStore, isRatingsLikely, shiftHoursByChannelOf } from './classification-labels.js'
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
@@ -229,7 +229,7 @@ import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
 import { imageFocus } from './image-focus-service.js'
 import { canonicalFocusKeysOf } from './web/image-focus.js'
-import { createKnownTitles, createLookupGate, useLookupGate } from './lookup-gate.js'
+import { createKnownTitles, createLookupGate, libraryLookupTitles, useLookupGate } from './lookup-gate.js'
 import { startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import { activity } from './activity.js'
@@ -722,14 +722,16 @@ for (const route of [channelLogoRoute, programmeImageRoute, personImageRoute, sh
 
 const knownLookupTitles = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
-  const [history, recorded, watched] = await Promise.all([
+  const [history, recorded, watched, library] = await Promise.all([
     db('guide_programs').distinct(db.raw("json_extract(program_json, '$.title') as title")).catch(() => []),
     db('recordings').distinct('title').catch(() => []),
     db('watchlist').select('title').catch(() => []),
+    libraryLookupTitles({ database: db }).catch(() => []),
   ])
   return [
     ...[...(guide?.programByEventId?.values() || [])].map((programme) => programme.title),
     ...[...history, ...recorded, ...watched].map((row) => row.title),
+    ...library,
   ].filter(Boolean)
 }
 useLookupGate(createLookupGate({ isKnownTitle: createKnownTitles({ loadTitles: knownLookupTitles }) }))
@@ -754,7 +756,8 @@ const warmUpcomingRatings = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
   const upcoming = upcomingProgrammesOf({ guide, nowMs: Date.now(), windowMs: RATINGS_WARM_WINDOW_MS })
   const categories = await programmeCategories.categoriesAt(upcoming.map((programme) => programme.start)).catch(() => new Map())
-  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start }))
+  const shiftHoursOf = shiftHoursByChannelOf(guide?.channels)
+  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start, shiftHours: shiftHoursOf(programme) }))
   programmeRatings.warm(upcoming.filter((programme) => isRatingsLikely({ kind: programme.kind, category: categoryOf(programme) })))
 }
 const warmWeekFilmRatings = async () => {
@@ -1355,7 +1358,15 @@ const refreshAfterKindChange = () => {
   rebuildForYou().catch(() => {})
 }
 mountProgrammeKindRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: refreshAfterKindChange, titlesFor: titlesForKeys })
-mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
+mountUserEvents({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: playPingLimiter,
+  onChoice: () => {
+    forgetForYouCache()
+    homeHero.invalidate()
+  },
+})
 const warmedForYou = new WeakSet()
 const warmForYou = (result) => {
   if (warmedForYou.has(result)) return

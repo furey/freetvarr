@@ -141,11 +141,11 @@ test('createShiftedFeedStream reports each rated programme and its shifted copie
   assert.ok(out.includes('<value>MA 15+</value>'))
   const start = Date.UTC(2026, 9, 9, 22, 30)
   assert.deepEqual(reported, [
-    { titleKey: 'the project', startMs: start, label: 'PG', category: null },
-    { titleKey: 'the project', startMs: start + 60 * 60_000, label: 'PG', category: null },
-    { titleKey: 'gogglebox – café & co', startMs: start + 60 * 60_000, label: 'MA15+', category: null },
-    { titleKey: 'gogglebox – café & co', startMs: start + 2 * 60 * 60_000, label: 'MA15+', category: null },
-    { titleKey: 'news', startMs: start, label: 'G', category: null },
+    { titleKey: 'the project', startMs: start, shiftHours: 0, label: 'PG', category: null },
+    { titleKey: 'the project', startMs: start + 60 * 60_000, shiftHours: 1, label: 'PG', category: null },
+    { titleKey: 'gogglebox – café & co', startMs: start + 60 * 60_000, shiftHours: 0, label: 'MA15+', category: null },
+    { titleKey: 'gogglebox – café & co', startMs: start + 2 * 60 * 60_000, shiftHours: 1, label: 'MA15+', category: null },
+    { titleKey: 'news', startMs: start, shiftHours: 0, label: 'G', category: null },
   ])
 })
 

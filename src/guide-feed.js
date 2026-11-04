@@ -84,7 +84,7 @@ export const programmeClassifications = ({ xml, shifts = [] }) => {
     const channel = decodeAttribute(programme.match(CHANNEL_ATTRIBUTE)?.[1] ?? '')
     const copies = shifts
       .filter((shift) => shift.baseId === channel)
-      .map((shift) => ({ ...entry, startMs: entry.startMs + shift.hours * HOUR_MS }))
+      .map((shift) => ({ ...entry, startMs: entry.startMs + shift.hours * HOUR_MS, shiftHours: shift.hours }))
     return [entry, ...copies]
   })
 }

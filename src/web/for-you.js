@@ -227,6 +227,10 @@ export const feedbackOf = ({ kind, item, source }) => ({
   source,
 })
 
+export const thumbToggleOf = ({ current, direction }) => (current === direction
+  ? { next: null, kind: 'thumb_clear' }
+  : { next: direction, kind: direction === 'up' ? 'thumb_up' : 'thumb_down' })
+
 export const programmeOpenedOf = ({ programme, channelId }) => feedbackOf({
   kind: 'programme_opened',
   item: { title: programme.title, start: programme.start, channelId },
@@ -365,9 +369,9 @@ export const tierReasonOf = (settings) => {
 }
 
 export const historyClearCopyOf = (count) => {
-  if (!count) return 'Removes your viewing history and your thumbs up and down. Suggestions start again from new.'
+  if (!count) return 'Removes your viewing history, your thumbs up and down, and your hidden shows. Suggestions start again from new.'
   const entries = count === 1 ? '1 history entry' : `${count.toLocaleString('en-AU')} history entries`
-  return `Removes ${entries}, including your thumbs up and down. Suggestions start again from new.`
+  return `Removes ${entries}, including your thumbs up and down and your hidden shows. Suggestions start again from new.`
 }
 
 export const whyRowsOf = (why) => {

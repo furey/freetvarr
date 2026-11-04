@@ -63,6 +63,23 @@ test('metadata asks for rating keys in batches', async () => {
   assert.ok(calls[0].endsWith(`/library/metadata/${keys.slice(0, METADATA_BATCH).join(',')}`))
 })
 
+test('metadata retries a batch that Plex answers 404 key by key and drops the missing keys', async () => {
+  const calls = []
+  const client = createPlexWatchClient({
+    url: 'http://plex',
+    token: 'x',
+    request: async (options) => {
+      calls.push(options.url)
+      const keys = options.url.split('/library/metadata/')[1].split(',')
+      if (keys.includes('old')) return { status: 404 }
+      return { status: 200, data: { MediaContainer: { Metadata: keys.map((ratingKey) => ({ ratingKey })) } } }
+    },
+  })
+  const items = await client.metadata(['1', 'old', '2'])
+  assert.deepEqual(items.map((entry) => entry.ratingKey), ['1', '2'])
+  assert.equal(calls.length, 4)
+})
+
 test('writes use scrobble, unscrobble, and progress with the library identifier', async () => {
   const calls = []
   const client = createPlexWatchClient({ url: 'http://plex', token: 'x', request: async (options) => { calls.push(options); return { status: 200 } } })
