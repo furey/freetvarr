@@ -133,12 +133,12 @@ test('createThumbnailStore: a missing original gives nothing and writes nothing'
   assert.deepEqual(await cachedFiles(), [])
 })
 
-test('createThumbnailStore: serves the original when resizing fails or the image is SVG, uncached', async () => {
+test('createThumbnailStore: gives no image when resizing fails or the image is SVG, uncached', async () => {
   const store = createThumbnailStore({ dir, resize: async () => { throw new Error('corrupt') } })
   const broken = await store.thumbnailFor({ key: 'channel:1', width: 96, loadOriginal: countingLoader() })
-  assert.equal(broken, ORIGINAL)
+  assert.equal(broken, null)
   const svg = { body: Buffer.from('<svg/>'), contentType: 'image/svg+xml' }
-  assert.equal(await store.thumbnailFor({ key: 'channel:2', width: 96, loadOriginal: countingLoader(svg) }), svg)
+  assert.equal(await store.thumbnailFor({ key: 'channel:2', width: 96, loadOriginal: countingLoader(svg) }), null)
   assert.deepEqual(await cachedFiles(), [])
 })
 

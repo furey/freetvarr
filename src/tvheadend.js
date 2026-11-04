@@ -10,6 +10,7 @@ import { cleanGuideText } from './consumer-advice.js'
 import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
 import { earlierAiringOfEntry } from './repeat-match.js'
 import { sameOrigin } from './url-binding.js'
+import { rasterTypeOf } from './raster-type.js'
 
 export class TvheadendError extends Error {
   constructor(message, { stage, status, code } = {}) {
@@ -628,7 +629,6 @@ export const fetchProgrammeImage = async ({ source, conn } = {}) => {
     conn: c,
     timeout: PROGRAMME_IMAGE_TIMEOUT_MS,
     maxBytes: PROGRAMME_IMAGE_MAX_BYTES,
-    imagesOnly: true,
   }).catch(() => null)
 }
 
@@ -863,7 +863,7 @@ const listEpgIconsByChannel = async (conn) => {
   return indexEpgIconsByChannel(body?.entries || [])
 }
 
-const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes, imagesOnly = false }) => {
+const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes }) => {
   const limits = { timeout, ...(maxBytes ? { maxContentLength: maxBytes } : {}) }
   const res = isAbsoluteUrl(source)
     ? await axios.get(source, { responseType: 'arraybuffer', validateStatus: () => true, ...limits })
@@ -873,10 +873,10 @@ const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes
       responseType: 'arraybuffer',
       ...limits,
     }, conn)
-  const contentType = String(res.headers['content-type'] || '')
-  if (res.status >= 400 || contentType.startsWith('text/')) return null
-  if (imagesOnly && !contentType.startsWith('image/')) return null
-  return { body: Buffer.from(res.data), contentType: contentType || 'image/png' }
+  if (res.status >= 400) return null
+  const body = Buffer.from(res.data)
+  const contentType = rasterTypeOf(body)
+  return contentType ? { body, contentType } : null
 }
 
 const isAbsoluteUrl = (source) => /^https?:\/\//i.test(source)

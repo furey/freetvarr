@@ -138,14 +138,15 @@ export const createThumbnailStore = ({ dir, maxBytes = DEFAULT_IMAGE_CACHE_BYTES
   }
 
   const shrink = async (original, width) => {
-    if (original.contentType.includes('svg')) return original
-    return resize({ body: original.body, width }).catch(() => original)
+    if (original.contentType.includes('svg')) return null
+    return resize({ body: original.body, width }).catch(() => null)
   }
 
   const createThumbnail = async ({ name, width, loadOriginal }) => {
     const original = await loadOriginal()
     if (!original) return null
     const thumbnail = await shrink(original, width)
+    if (!thumbnail) return null
     if (usable && thumbnail.contentType === WEBP) await save(name, thumbnail.body).catch(() => {})
     return thumbnail
   }
