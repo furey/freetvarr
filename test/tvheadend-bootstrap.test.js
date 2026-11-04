@@ -83,7 +83,7 @@ const runApply = ({ http, store, ...overrides }) => applyBootstrap({
   url: URL,
   adminUsername: 'admin',
   adminPassword: 'correct-horse',
-  prefixes: ['192.168.86.0/24', '127.0.0.0/8'],
+  prefixes: ['192.168.1.0/24', '127.0.0.0/8'],
   generatePassword: () => 'generated-password-0123456789',
   attempts: 3,
   delayMs: 0,
@@ -156,7 +156,7 @@ test('applyBootstrap: creates both users, saves the login and backup, and remove
     ['freetvarr', 'generated-password-0123456789'],
   ])
   for (const entry of state.access) {
-    assert.equal(entry.prefix, '192.168.86.0/24,127.0.0.0/8')
+    assert.equal(entry.prefix, '192.168.1.0/24,127.0.0.0/8')
     assert.equal(entry.admin, true)
     assert.equal(entry.webui, true)
     assert.deepEqual(entry.streaming, ['basic', 'advanced', 'htsp'])
@@ -237,12 +237,12 @@ test('undoBootstrap: recreates the open entry from the backup without its uuid',
 test('suggestLanPrefixes: one /24 per LAN address plus loopback, de-duplicated', () => {
   const interfaces = {
     lo: [{ family: 'IPv4', address: '127.0.0.1', internal: true }],
-    eth0: [{ family: 'IPv4', address: '192.168.86.254', internal: false }, { family: 'IPv6', address: 'fe80::1', internal: false }],
-    eth1: [{ family: 'IPv4', address: '192.168.86.10', internal: false }],
+    eth0: [{ family: 'IPv4', address: '192.168.1.254', internal: false }, { family: 'IPv6', address: 'fe80::1', internal: false }],
+    eth1: [{ family: 'IPv4', address: '192.168.1.10', internal: false }],
     eth2: [{ family: 4, address: '10.0.5.7', internal: false }],
     eth3: [{ family: 'IPv4', address: '169.254.1.2', internal: false }],
   }
-  assert.deepEqual(suggestLanPrefixes(interfaces), ['192.168.86.0/24', '10.0.5.0/24', '127.0.0.0/8'])
+  assert.deepEqual(suggestLanPrefixes(interfaces), ['192.168.1.0/24', '10.0.5.0/24', '127.0.0.0/8'])
 })
 
 test('parsePrefixes: splits on commas and spaces and flags bad networks', () => {

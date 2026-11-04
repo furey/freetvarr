@@ -160,3 +160,23 @@ test('isKept uses the longer window for failed runs', () => {
   assert.equal(isKept({ run: { state: 'done', finishedAt: 0 }, nowMs: 2 * 24 * HOUR }), false)
   assert.equal(isKept({ run: { state: 'failed', finishedAt: 0 }, nowMs: 2 * 24 * HOUR }), true)
 })
+
+test('a job that acts on one recording carries its subject in the list, the detail, and the store', async () => {
+  const saved = []
+  const store = { save: async (run) => saved.push(JSON.parse(JSON.stringify(run))), load: async () => [], prune: async () => 0 }
+  const activity = createActivity({ now: clock().now })
+  await activity.useStore(store)
+  const subject = { recordingId: 'r1', title: 'Big Brother', season: null, episode: null, airedAt: 1_000 }
+  let listed = null
+  await assert.rejects(activity.track({ kind: 'ads', subject }, async () => {
+    listed = activity.snapshot().running[0]
+    throw new Error('Ad cut failed')
+  }))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(listed.subject, subject)
+  const [failed] = activity.snapshot().recent
+  assert.deepEqual(activity.get(failed.id).subject, subject)
+  assert.deepEqual(saved[0].subject, subject)
+  await activity.track({ kind: 'health' }, async () => {})
+  assert.equal(activity.snapshot().recent.find((run) => run.kind === 'health').subject, null)
+})

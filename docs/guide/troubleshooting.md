@@ -374,6 +374,43 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 
 - TVHeadend follows the host clock's zone through its `/etc/localtime` mount. Set `TZ` in your `.env` to override it.
 
+## Allowed hostnames
+
+A hostname is the name in the web address, such as `nas` in `http://nas:3733` or `tv.example.com` in `https://tv.example.com`. Freetvarr checks the hostname of each browser request. In `2.8.0` it notes each name it does not know. From `3.0.0` the check blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
+
+These names always work, with no setup:
+
+- IP addresses, such as `http://192.168.1.10:3733`
+- `localhost`, and one-word names such as `nas` or `diskstation`
+- Names that end in `.local`, `.lan`, `.home`, `.home.arpa`, `.internal`, `.localdomain`, or `.corp`, such as `freetvarr.lan` or `nas.local`
+- The name of the computer that runs Freetvarr
+
+Any other name needs to be on the list, for example a reverse proxy name such as `freetvarr.example.com`, a full Tailscale name such as `nas.tail1234.ts.net`, or a router name such as `nas.fritz.box`.
+
+> [!IMPORTANT]<br>
+> Until `3.0.0`, Freetvarr only reports a name that is not on the list: the [Health](/guide/doctor#host-names) check **Allowed hostnames** warns and names it. From `3.0.0`, Freetvarr refuses those names. The IP address always works.
+
+To add a name:
+
+1. Open Freetvarr by its IP address, or by a name that already works. Freetvarr does not change the list for a page opened by a name that is not on it.
+2. Open Settings → SYSTEM → Setup → **Allowed hostnames**.
+3. Type the name.
+4. Press **Add**.
+
+On Health, **Allow `<name>`** adds the name in one step. Health offers it only for a name you opened from the address bar, a bookmark, or the Home Screen; for other names it offers **Open setup**. Add only names you use yourself. A name you do not know can be a website that tried to reach Freetvarr through a browser on your network.
+
+`*.example.com` allows every name under `example.com`, but not `example.com` itself. A wildcard needs at least two parts after `*.`, so `*.com` is refused. Enter names only, with no `http://`, port, or path.
+
+If you cannot open Settings, add the names to `FREETVARR_ALLOWED_HOSTS` in your `.env`, separated by commas, then recreate the Freetvarr container:
+
+```sh
+docker compose up -d
+```
+
+An install from before `2.8.0` keeps its old `docker-compose.yml`, which does not pass `FREETVARR_ALLOWED_HOSTS` to the container. Add `- FREETVARR_ALLOWED_HOSTS=${FREETVARR_ALLOWED_HOSTS:-}` under `environment:` of the `freetvarr` service, as in [`docker-compose.example.yml`](https://github.com/furey/freetvarr/blob/main/docker-compose.example.yml).
+
+Settings shows the `.env` names marked **from the .env file**; remove them in `.env`. One `*` entry makes Freetvarr answer to any name, which turns the check off, and Health warns about it.
+
 ## CSRF secret
 
 Freetvarr signs its CSRF cookie (the cookie that protects browser requests from forgery) with a secret it keeps in a file ([CSRF secret](/guide/configuration#csrf-secret)).

@@ -1563,6 +1563,7 @@ button.ui-group-row {
   font-size: 13px;
   line-height: 18px;
   color: var(--color-text-2);
+  text-wrap: pretty;
 }
 
 .ui-group-row-value {

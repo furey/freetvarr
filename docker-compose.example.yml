@@ -126,6 +126,9 @@ services:
       # Megabytes of resized guide images and channel logos kept on disk.
       - IMAGE_CACHE_MAX_MB=${IMAGE_CACHE_MAX_MB:-100}
       - CSRF_SECRET
+      # Extra names Freetvarr answers to, e.g. freetvarr.example.com. IP
+      # addresses, localhost, and .local, .lan, and one-word names always work.
+      - FREETVARR_ALLOWED_HOSTS=${FREETVARR_ALLOWED_HOSTS:-}
       # Where the "Auto-detect token" button reads Plex's Preferences.xml. Empty
       # unless PLEX_PREFS_PATH is set, which makes Freetvarr read the plex
       # profile's settings folder.

@@ -11,6 +11,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { forgetPastAirings, listFinished, removeRecordings } = await import('../src/tvheadend.js')
 const { startSync, getActiveSyncId, usePlaybackCheck } = await import('../src/sync.js')
 const { db } = await import('../src/db.js')
+const { activity } = await import('../src/activity.js')
 
 const RECORDINGS_ROOT = path.join(tmpDir, 'recordings')
 const MEDIA_ROOT = path.join(tmpDir, 'media')
@@ -173,6 +174,22 @@ test('sync: removes an imported recording from TVHeadend', async () => {
   ])
   const row = await db('recordings').where({ recording_id: 'rec-1' }).first()
   assert.ok(row.deleted_from_tvh_at)
+})
+
+test('sync: an import job names the show the library groups it under, with the episode as its subject', async () => {
+  await fs.writeFile(path.join(RECORDINGS_ROOT, 'rec-7.ts'), 'mpeg-ts-ok')
+  await db('recordings').insert({ recording_id: 'rec-7', title: 'The Block', show_title_override: 'The Block (AU)', status: 'failed' })
+  tvh.finished = [finishedEntry('rec-7', { filesize: 10 })]
+  await runSync()
+  const run = activity.snapshot().recent.find((entry) => entry.kind === 'import' && entry.ref?.recordingId === 'rec-7')
+  assert.equal(run.title, 'Import · The Block (AU)')
+  assert.equal(run.subject.title, 'The Block (AU)')
+  assert.equal(run.subject.season, 22)
+  assert.equal(run.subject.episode, 35)
+  assert.equal(run.subject.episodeTitle, 'Kids Room and Re-Do Room Week')
+  assert.equal(run.subject.airedAt, 1_790_760_660_000)
+  assert.equal(run.subject.film, false)
+  assert.match(run.subject.file, /The Block - S22E35/)
 })
 
 test('sync: leaves TVHeadend alone when the import fails', async () => {

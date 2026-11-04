@@ -8,7 +8,7 @@ export const SETUP_STEPS = [
   { key: 'plex', title: 'Plex', part: 2 },
 ]
 
-export const SETUP_DRAWERS = ['tvheadend', 'channels', 'guide', 'folders', 'plex', 'time-zone']
+export const SETUP_DRAWERS = ['tvheadend', 'channels', 'guide', 'folders', 'plex', 'time-zone', 'hostnames']
 
 export const partFills = (current) => SETUP_PARTS.map((_, part) => {
   const steps = stepsInPart(part)
@@ -100,7 +100,7 @@ export const readySummaryRows = ({
   },
 ]
 
-export const setupSettingsRows = ({ settings = {}, channelStatus = null, guideStatus = null, folders = null }) => {
+export const setupSettingsRows = ({ settings = {}, channelStatus = null, guideStatus = null, folders = null, hosts = null }) => {
   const channels = channelStatus?.channels || 0
   const guide = guideStatus?.suggestion || null
   const network = channelStatus?.networks?.[0]?.name || ''
@@ -150,6 +150,7 @@ export const setupSettingsRows = ({ settings = {}, channelStatus = null, guideSt
       value: settings.time_zone || settings.tz || '',
       tone: '',
     },
+    hostnamesRow(hosts),
   ]
 }
 
@@ -207,6 +208,30 @@ const stepUnits = ({ index, current }) => {
 const railStateOf = ({ index, current }) => {
   if (index < current) return 'done'
   return index === current ? 'current' : 'next'
+}
+
+const hostnamesRow = (hosts) => {
+  const added = hosts ? [...new Set([...hosts.hosts, ...hosts.env_hosts])].filter((name) => name !== '*').length : 0
+  return {
+    key: 'hostnames',
+    title: 'Allowed hostnames',
+    meta: hostnamesLine(hosts),
+    value: added ? String(added) : '',
+    tone: hostnamesTone({ hosts, added }),
+  }
+}
+
+const hostnamesLine = (hosts) => {
+  if (!hosts) return 'Checking…'
+  if (hosts.any_host) return 'Answers to any name'
+  if (hosts.seen.length) return `Opened as ${hosts.seen[0].name}, which 3.0.0 will refuse`
+  return 'IP addresses and local names always work'
+}
+
+const hostnamesTone = ({ hosts, added }) => {
+  if (!hosts) return ''
+  if (hosts.any_host || hosts.seen.length) return 'warn'
+  return added ? 'ok' : ''
 }
 
 const signInLine = (username) => (username ? `Signs in as ${username}` : 'Signs in without a login')

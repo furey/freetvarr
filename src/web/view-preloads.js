@@ -77,8 +77,10 @@ export const VIEW_PRELOADS = {
   settings: [
     '/activity-rows.js',
     '/ad-scan.js',
+    '/allowed-hosts.js',
     '/arr-text.js',
     '/clear-list.js',
+    '/components/allowed-hosts-setting.js',
     '/components/arr-settings.js',
     '/components/controls-hide-setting.js',
     '/components/live-streams-settings.js',
@@ -146,7 +148,9 @@ export const VIEW_PRELOADS = {
     '/views/welcome-shared.js',
   ],
   welcome: [
+    '/allowed-hosts.js',
     '/arr-text.js',
+    '/components/allowed-hosts-setting.js',
     '/components/arr-settings.js',
     '/components/live-streams-settings.js',
     '/components/movie-corrections.js',

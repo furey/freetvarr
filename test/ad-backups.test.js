@@ -19,6 +19,7 @@ const {
   swapInCut,
 } = await import('../src/commercials.js')
 const { isRestorablePath, adScanModeOf } = await import('../src/ad-original-routes.js')
+const { activity, trackJob } = await import('../src/activity.js')
 
 const ORIGINAL = 'intro|AD|part one|AD|part two'
 const DAY_MS = 86_400_000
@@ -298,4 +299,29 @@ test('adScanModeOf: a show with ad removal off finds ads only', () => {
   assert.equal(adScanModeOf(null), 'detect')
   assert.equal(adScanModeOf('detect'), 'detect')
   assert.equal(adScanModeOf('cut'), 'cut')
+})
+
+const latestRunOf = (kind) => activity.snapshot().recent.find((run) => run.kind === kind)
+
+test('an ad scan on its own is an ads job named after the show, with the recording as its subject', async () => {
+  await db('recordings').where({ recording_id: RECORDING_ID }).update({
+    title: 'The Block: Live', show_title_override: 'The Block', season: 22, episode: 35, channel_name: '9HD', aired_at: 1_790_760_660_000,
+  })
+  await processRecordingAds({ filePath, mode: 'detect', recordingId: RECORDING_ID, tools: fakeTools() })
+  const run = latestRunOf('ads')
+  assert.equal(run.title, 'Ad removal · The Block')
+  assert.deepEqual(run.subject, {
+    recordingId: RECORDING_ID, title: 'The Block', season: 22, episode: 35, episodeTitle: null, channelName: '9HD',
+    airedAt: 1_790_760_660_000, year: null, film: false, file: filePath,
+  })
+})
+
+test('an ad scan inside an import joins the import job and keeps its subject', async () => {
+  const subject = { recordingId: RECORDING_ID, title: 'The Block', season: 22, episode: 35 }
+  const adRuns = () => activity.snapshot().recent.filter((run) => run.kind === 'ads').length
+  const before = adRuns()
+  await trackJob({ kind: 'import', title: 'Import · The Block', subject }, () =>
+    processRecordingAds({ filePath, mode: 'detect', recordingId: RECORDING_ID, tools: fakeTools() }))
+  assert.deepEqual(latestRunOf('import').subject, subject)
+  assert.equal(adRuns(), before)
 })

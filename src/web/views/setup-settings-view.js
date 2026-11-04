@@ -60,6 +60,7 @@ export const SetupSettingsView = {
                 <a class="ui-button ui-button-secondary" href="#/settings/plex">Open Plex settings</a>
               </div>
             </template>
+            <allowed-hosts-setting v-else-if="row.key === 'hostnames'" @change="hosts = $event" />
             <template v-else-if="row.key === 'time-zone'">
               <p class="setup-hint">Change the time zone on the Schedule page.</p>
               <div class="setup-drawer-actions">
@@ -77,6 +78,7 @@ export const SetupSettingsView = {
     const channelStatus = ref(null)
     const guideStatus = ref(null)
     const folders = ref(null)
+    const hosts = ref(null)
     const folderList = ref([])
     const checkingFolders = ref(false)
     const restarting = ref(false)
@@ -87,6 +89,7 @@ export const SetupSettingsView = {
       channelStatus: channelStatus.value,
       guideStatus: guideStatus.value,
       folders: folders.value,
+      hosts: hosts.value,
     }))
 
     const toggle = (key) => {
@@ -97,6 +100,10 @@ export const SetupSettingsView = {
 
     const loadChannels = async () => {
       channelStatus.value = await api('GET', '/api/tvh-setup/status').catch(() => ({ channels: 0 }))
+    }
+
+    const loadHosts = async () => {
+      hosts.value = await api('GET', '/api/allowed-hosts').catch(() => null)
     }
 
     const loadGuide = async () => {
@@ -145,11 +152,11 @@ export const SetupSettingsView = {
 
     onMounted(async () => {
       settings.value = await fetchSettings().catch(() => ({}))
-      await Promise.all([loadChannels(), loadGuide(), checkFolders()])
+      await Promise.all([loadChannels(), loadGuide(), checkFolders(), loadHosts()])
     })
 
     return {
-      settings, rows, open, toggle, folders, folderList, checkingFolders, checkFolders,
+      settings, rows, open, toggle, folders, folderList, checkingFolders, checkFolders, hosts,
       noteChannels, noteGuide, restarting, runFromStart,
     }
   },

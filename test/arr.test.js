@@ -118,7 +118,7 @@ test('arrSettingOf: uses the config.xml key only for a URL on this machine at th
 test('findArr: tries each host on the config port and reports whether a key is readable', async () => {
   const pinged = []
   const found = await findArr({
-    hosts: ['192.168.86.254', 'localhost'],
+    hosts: ['192.168.1.254', 'localhost'],
     readConfig: async (app) => (app === 'sonarr' ? { apiKey: KEY, port: 8989, urlBase: '' } : null),
     ping: async ({ url }) => {
       pinged.push(url)
@@ -127,8 +127,8 @@ test('findArr: tries each host on the config port and reports whether a key is r
   })
   assert.deepEqual(found.sonarr, { url: 'http://localhost:8989', keyFound: true })
   assert.deepEqual(found.radarr, { url: null, keyFound: false })
-  assert.ok(pinged.includes('http://192.168.86.254:7878'))
-  assert.deepEqual(discoveryHostsOf({ plexUrl: 'http://192.168.86.254:32400', tvhUrl: 'http://192.168.86.254:9981' })[0], '192.168.86.254')
+  assert.ok(pinged.includes('http://192.168.1.254:7878'))
+  assert.deepEqual(discoveryHostsOf({ plexUrl: 'http://192.168.1.254:32400', tvhUrl: 'http://192.168.1.254:9981' })[0], '192.168.1.254')
 })
 
 test('buildManagerIndex: maps Sonarr episode files and Radarr movie files by path; nothing connected gives an empty index', async () => {
