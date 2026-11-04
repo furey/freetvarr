@@ -38,7 +38,7 @@ Freetvarr keeps its database and settings in a folder called `freetvarr`, inside
 
 In a NAS container app, stop the project, copy the `config/freetvarr` folder in the NAS file manager, and start the project again.
 
-A backup matters most before an update that changes the database, because an older Freetvarr cannot always open a database that a newer one updated. [Backups](/guide/configuration#backups) also covers the settings folder of [TVHeadend](https://tvheadend.org/).
+A backup matters most before an update that changes the database, because an older Freetvarr cannot always open a database that a newer one updated. Without a backup, you can undo database changes one at a time ([Go back without a backup](#go-back-without-a-backup)). [Backups](/guide/configuration#backups) also covers the settings folder of [TVHeadend](https://tvheadend.org/).
 
 ## Update
 
@@ -110,6 +110,17 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### Next release
+
+- **Database**: the first start adds one database change (database change `0041`). It adds a column that keeps the rating and category labels of a +1 channel apart from those of its main channel. A version that is older than `0041` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+
+### 2.6.4
+
+[Release notes for `2.6.4`](https://github.com/furey/freetvarr/releases/tag/2.6.4)
+
+- **Cleared items stay in the library**: **Clear** on the Recording log no longer hides a recording from the library. The first start moves each cleared date to a new column.
+- **Database**: the first start adds one database change (database change `0040`). Version `2.6.3` and older cannot open the database after it; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+
 ### 2.4.0
 
 [Release notes for `2.4.0`](https://github.com/furey/freetvarr/releases/tag/2.4.0)
@@ -166,3 +177,40 @@ To go back, restore the backup you made before the update:
    ```
 
 To return to the newest release later, change the image back to `ghcr.io/furey/freetvarr:latest`, then [update](#update) as usual.
+
+## Go back without a backup
+
+Use this when you updated, did not make a backup, and want the older version. The older version fails to start on the newer database: its container stops and restarts again and again, because the database lists a database change that the older version does not have. The fix is to undo those database changes with the newer version, then change the image.
+
+Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
+
+1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
+   - To go back from the next release to `2.6.4`, undo `0041`.
+   - To go back from the next release to `2.6.3` or older, undo `0041`, then `0040`.
+   - To go back from `2.6.4` to `2.6.3` or older, undo `0040`.
+2. Stop Freetvarr:
+
+   ```sh
+   docker compose stop freetvarr
+   ```
+
+3. Undo the newest database change:
+
+   ```sh
+   docker compose run --rm --entrypoint "" freetvarr node node_modules/.bin/knex migrate:down
+   ```
+
+4. Run the command in step 3 again for each remaining database change from step 1. Each run undoes the next newest change.
+5. In your `docker-compose.yml`, change the image of the `freetvarr` service to the older version, such as `ghcr.io/furey/freetvarr:2.6.3`.
+6. Start Freetvarr:
+
+   ```sh
+   docker compose up -d
+   ```
+
+The command has two parts that matter:
+
+- **`--entrypoint ""`**: the Freetvarr image starts through a script, `docker-entrypoint.sh`, that ignores the command you give it. It runs every pending database change and starts Freetvarr. Without `--entrypoint ""`, the command above would run `knex migrate:latest`, undo nothing, and start the server. The empty value removes the script for this one run.
+- **`migrate:down`, not `migrate:rollback`**: `migrate:down` undoes one database change. `migrate:rollback` undoes every change from the last start that ran database changes. If you skipped versions, that is more than one change, and it can include a change that the older version needs.
+
+An undo restores the old columns and keeps your recordings, series, and settings. Data that only the newer version stores, such as the +1 labels of `0041`, is dropped.
