@@ -203,6 +203,15 @@ test('localPathFor: returns null when the file lives outside the mount', () => {
   )
 })
 
+test('localPathFor: keeps every TVHeadend file name inside the recordings root', () => {
+  const mapped = (tvhFilename) => localPathFor({ tvhFilename, tvhRecordingsPath: '/recordings', recordingsRoot: '/tvh' })
+  assert.equal(mapped('/recordings/a/../../etc/x'), null)
+  assert.equal(mapped('/recordings/../etc/x'), null)
+  assert.equal(mapped('/recordings/Show/..'), null)
+  assert.equal(mapped('/recordings/Show/ep..ts'), '/tvh/Show/ep..ts')
+  assert.equal(mapped('/recordings/Show/ep.ts'), '/tvh/Show/ep.ts')
+})
+
 test('classifyImport: matching size → done / imported', () => {
   const o = classifyImport({ expectedSize: 1000, actualSize: 1000 })
   assert.equal(o.dbStatus, 'done')

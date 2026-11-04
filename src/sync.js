@@ -239,7 +239,21 @@ export const localPathFor = ({ tvhFilename, tvhRecordingsPath, recordingsRoot })
   const localRoot = recordingsRoot.replace(/\/+$/, '')
   if (tvhFilename === remoteRoot) return localRoot
   if (!tvhFilename.startsWith(`${remoteRoot}/`)) return null
-  return path.join(localRoot, tvhFilename.slice(remoteRoot.length + 1))
+  const relative = tvhFilename.slice(remoteRoot.length + 1)
+  if (relative.split('/').includes('..')) return null
+  const result = path.join(localRoot, relative)
+  return isInside({ filePath: result, root: localRoot }) ? result : null
+}
+
+const isInside = ({ filePath, root }) => {
+  const resolvedRoot = path.resolve(root)
+  const relative = path.relative(resolvedRoot, path.resolve(filePath))
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+const isInsideRealRoot = async ({ filePath, root }) => {
+  const [realFile, realRoot] = await Promise.all([fs.realpath(filePath), fs.realpath(root)]).catch(() => [])
+  return Boolean(realFile && realRoot) && isInside({ filePath: realFile, root: realRoot })
 }
 
 export const createValidFilename = (name) =>
@@ -340,8 +354,9 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     mediaRoot: await getMediaRoot(),
     oneOffRoot: await getOneOffRoot(),
     moviesRoot: await getMoviesRoot(),
+    recordingsRoot: await getRecordingsRoot(),
   }
-  const recordingsRoot = await getRecordingsRoot()
+  const { recordingsRoot } = roots
   const tvhRecordingsPath = await getTvhRecordingsPath()
   const importUnmatched = (await getSetting('import_unmatched')) !== 'false'
 
@@ -655,6 +670,14 @@ const processItem = async ({ item, show, kind, roots }) => {
     await upsertRecording({
       item, show, file_path: null, status: 'skipped',
       error: `file not found at ${item.sourcePath}; check the recordings mount`,
+    })
+    return { summaryKey: 'skipped' }
+  }
+
+  if (!(await isInsideRealRoot({ filePath: item.sourcePath, root: roots.recordingsRoot }))) {
+    await upsertRecording({
+      item, show, file_path: null, status: 'skipped',
+      error: `${item.sourcePath} is outside the recordings folder ${roots.recordingsRoot}`,
     })
     return { summaryKey: 'skipped' }
   }
