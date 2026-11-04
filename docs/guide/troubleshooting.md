@@ -191,10 +191,11 @@ TVHeadend finished a recording, but nothing appears in Recordings or in your med
 
 ## Skipped recordings
 
-The row's error in the [recording log](/guide/recordings#recording-log) says which of the two causes it was. Press the row for the full error and steps to fix it.
+The row's error in the [recording log](/guide/recordings#recording-log) says which cause it was. Press the row for the full error and steps to fix it.
 
 - **"file not found" or no filename**: TVHeadend has no finished file yet. A recording in progress shows this, and post-recording padding can keep it here for up to ten minutes after the programme ends. The next sync picks it up.
 - **"outside the recordings mount"**: TVHeadend reported a path Freetvarr can't translate. The two recordings paths have to match. Press **Check TVHeadend** in Settings → RECORDING → Media library, and see [the two recordings paths](/guide/configuration#the-two-recordings-paths).
+- **"outside the recordings folder"**: the recording file is a link to a place outside the Recordings folder, such as a subfolder that links to another disk. Freetvarr does not import it. Move the recording into the folder TVHeadend records to; the next sync imports it.
 
 ## Partial recordings
 
