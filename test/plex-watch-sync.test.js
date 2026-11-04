@@ -26,7 +26,7 @@ const item = (id, patch = {}) => ({
   ...patch,
 })
 
-const harness = ({ rows = [], items = [], snapshots = [], status = {}, toggles = { fromPlex: true, toPlex: true }, config = { url: 'http://plex:32400', token: 'tok', sections: SECTIONS }, client = {}, afterSync } = {}) => {
+const harness = ({ rows = [], items = [], snapshots = [], status = {}, toggles = { fromPlex: true, toPlex: true }, config = { url: 'http://plex:32400', token: 'tok', sections: SECTIONS }, client = {}, afterSync, applyPull } = {}) => {
   const state = {
     rows: rows.map((r) => ({ ...r })),
     snapshots: new Map(snapshots.map((s) => [s.recording_id, { ...s }])),
@@ -71,10 +71,10 @@ const harness = ({ rows = [], items = [], snapshots = [], status = {}, toggles =
     loadSnapshots: async () => [...state.snapshots.values()].map((s) => ({ ...s })),
     saveSnapshots: async (list) => { for (const s of list) state.snapshots.set(s.recording_id, { ...s }) },
     pruneSnapshots: async (keep) => { for (const id of [...state.snapshots.keys()]) if (!keep.includes(id)) state.snapshots.delete(id) },
-    applyPull: async ({ recordingId, patch }) => {
+    applyPull: applyPull ?? (async ({ recordingId, patch }) => {
       state.pulls.push({ recordingId, patch })
       Object.assign(state.rows.find((r) => r.recording_id === recordingId), patch)
-    },
+    }),
     loadStatus: async () => ({ ...state.status }),
     saveStatus: async (next) => { state.status = { ...next } },
     track: async (options, fn) => {
@@ -162,6 +162,26 @@ test('a quick run whose Plex item moved finishes, runs the whole library step, a
   assert.deepEqual(state.writes, [{ ratingKey: 'k1', action: 'scrobble' }])
   assert.equal(state.status.fullPassDue, false)
   assert.deepEqual(afterSyncCalls, [false, true])
+})
+
+test('a pull that finds the row changed since it was read is skipped and leaves the snapshot alone', async () => {
+  const snapshots = [{ recording_id: '1', rating_key: 'k1', plex_watched: false, plex_offset_s: 0, ft_watched: false, ft_position_s: 0 }]
+  const expectations = []
+  const { sync, state } = harness({
+    rows: [row('1')],
+    items: [item('1', { viewCount: 1, lastViewedAt: Math.floor(NOW / 1000) - 600 })],
+    snapshots,
+    status: { lastRunAt: NOW - 30 * 60_000, lastFullAt: NOW - 60 * 60_000 },
+    applyPull: async ({ expected }) => {
+      expectations.push(expected)
+      return 0
+    },
+  })
+  const result = await sync.run({ trigger: 'sync' })
+  assert.equal(result.pulled, 0)
+  assert.deepEqual(expectations, [{ watched_at: null, playback_position_s: null }])
+  assert.equal(state.snapshots.get('1').plex_watched, false)
+  assert.deepEqual(state.writes, [])
 })
 
 test('a full pass runs daily, on demand, and hourly while recordings have no Plex match', () => {

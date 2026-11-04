@@ -114,11 +114,12 @@ export const createPlexWatchSync = ({
     if (fullPass && planned.ambiguous) job.fact('More than one match', planned.ambiguous)
     const rowById = new Map(rows.map((row) => [row.recording_id, row]))
     job.step('Copy from Plex')
-    const pulled = await applyPulls({ plans: planned.plans, rowById, job })
+    const { pulled, staleIds } = await applyPulls({ plans: planned.plans, rowById, job })
+    const freshPlans = planned.plans.filter((plan) => !staleIds.has(plan.recordingId))
     job.step('Send to Plex')
-    const pushOutcome = await applyPushes({ plans: planned.plans, rowById, client, job })
+    const pushOutcome = await applyPushes({ plans: freshPlans, rowById, client, job })
     job.step('Save state')
-    await saveSnapshots(snapshotsToSave({ plans: planned.plans, snapshotById, pushOutcome }))
+    await saveSnapshots(snapshotsToSave({ plans: freshPlans, snapshotById, pushOutcome }))
     const library = await afterSync({ client, full: fullPass, status, job }).catch((err) => {
       if (err.kind === 'token') throw err
       job.log(`Whole library: ${err.message}`, 'warn')
@@ -170,12 +171,18 @@ export const createPlexWatchSync = ({
 
   const applyPulls = async ({ plans, rowById, job }) => {
     let pulled = 0
+    const staleIds = new Set()
     for (const plan of plans.filter((entry) => entry.pull)) {
-      await applyPull({ recordingId: plan.recordingId, patch: plan.pull })
+      const row = rowById.get(plan.recordingId)
+      const changed = await applyPull({ recordingId: plan.recordingId, patch: plan.pull, expected: expectedStateOf(row) })
+      if (changed === 0) {
+        staleIds.add(plan.recordingId)
+        continue
+      }
       pulled += 1
-      job.item({ label: labelOf(rowById.get(plan.recordingId)), detail: pullText(plan.pull) })
+      job.item({ label: labelOf(row), detail: pullText(plan.pull) })
     }
-    return pulled
+    return { pulled, staleIds }
   }
 
   const applyPushes = async ({ plans, rowById, client, job }) => {
@@ -260,6 +267,11 @@ export const outcomeText = ({ pulled, pushed, failed = 0 }) => {
   ].filter(Boolean)
   return parts.length ? parts.join(' · ') : 'No changes'
 }
+
+const expectedStateOf = (row) => ({
+  watched_at: row?.watched_at ?? null,
+  playback_position_s: row?.playback_position_s ?? null,
+})
 
 const metadataOrMissing = async ({ client, keys }) => {
   try {
