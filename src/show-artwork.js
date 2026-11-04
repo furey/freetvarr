@@ -21,7 +21,7 @@ export const showTitleKey = (title) => String(title || '')
   .replace(/^the\s+/, '')
 
 export const createShowArtwork = ({
-  loadPlexShows = () => plexShowSources(),
+  loadPlexShows = (previous) => plexShowSources({ previous }),
   searchTvmaze = null,
   findSeriesShow = null,
   hintsFor = guideHintsFor,
@@ -193,15 +193,18 @@ export const plexSourcesOf = ({ items = [], url, token }) => {
   return byTitle
 }
 
-export const plexShowSources = async ({ loadSettings = plexSettings, listSection = plexSectionItems } = {}) => {
+export const plexShowSources = async ({ previous = new Map(), loadSettings = plexSettings, listSection = plexSectionItems } = {}) => {
   const { url, token, sections } = await loadSettings()
   if (!url || !token || !sections.length) return new Map()
   const listed = await Promise.allSettled(sections.map(({ id }) => listSection({ url, token, id })))
   if (listed.every((result) => result.status === 'rejected')) throw listed[0].reason
   const entries = new Map()
   sections.forEach((section, at) => {
-    const items = listed[at].status === 'fulfilled' ? listed[at].value : []
-    for (const [key, sources] of plexSourcesOf({ items, url, token })) {
+    if (listed[at].status === 'rejected') {
+      for (const [key, entry] of previous) if (entry.section === section.kind && !entries.has(key)) entries.set(key, entry)
+      return
+    }
+    for (const [key, sources] of plexSourcesOf({ items: listed[at].value, url, token })) {
       if (!entries.has(key)) entries.set(key, { sources, section: section.kind })
     }
   })
@@ -258,7 +261,7 @@ const createExpiringValue = ({ load, ttlMs, fallback, now }) => {
   let pending = null
   const refresh = () => {
     pending ??= Promise.resolve()
-      .then(load)
+      .then(() => load(value))
       .then((loaded) => { value = loaded })
       .catch(() => {})
       .finally(() => {

@@ -452,3 +452,39 @@ test('sourcesFor: a failed Plex refresh keeps the last good list', async () => {
   clock += 11
   assert.deepEqual(await artwork.sourcesFor('Chefs Ahoy'), ['http://plex/thumb'])
 })
+
+test('plexShowSources: a Plex section that fails keeps its entries from the last good list', async () => {
+  const previous = new Map([
+    ['bluey', { sources: ['http://plex/bluey'], section: 'show' }],
+    ['dune', { sources: ['http://plex/old-dune'], section: 'movie' }],
+  ])
+  const entries = await plexShowSources({
+    previous,
+    loadSettings: async () => ({ url: 'http://plex', token: 't', sections: [{ id: '1', kind: 'show' }, { id: '2', kind: 'movie' }] }),
+    listSection: async ({ id }) => {
+      if (id === '1') throw new Error('Plex timed out')
+      return [{ title: 'Dune', thumb: '/thumb' }]
+    },
+  })
+  assert.deepEqual(Object.fromEntries(entries), {
+    bluey: { sources: ['http://plex/bluey'], section: 'show' },
+    dune: { sources: ['http://plex/thumb?X-Plex-Token=t'], section: 'movie' },
+  })
+})
+
+test('sourcesFor: the Plex list loader gets the last good list', async () => {
+  const seen = []
+  let clock = 1_000
+  const artwork = artworkWith({
+    now: () => clock,
+    plexTtlMs: 10,
+    loadPlexShows: async (previous) => {
+      seen.push(previous.size)
+      return new Map([['chefs ahoy', { sources: ['http://plex/thumb'], section: 'show' }]])
+    },
+  })
+  await artwork.sourcesFor('Chefs Ahoy')
+  clock += 11
+  await artwork.sourcesFor('Chefs Ahoy')
+  assert.deepEqual(seen, [0, 1])
+})
