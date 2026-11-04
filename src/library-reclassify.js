@@ -225,19 +225,29 @@ const showFor = async ({ move, shows, identityFor }) => {
   return show
 }
 
-export const moveFile = async ({ from, to }) => {
+export const moveFile = async ({ from, to, rename = fs.rename, copyFile = fs.copyFile }) => {
   await fs.mkdir(path.dirname(to), { recursive: true })
   try {
-    await fs.rename(from, to)
+    await rename(from, to)
   } catch (err) {
     if (err.code !== 'EXDEV') throw err
-    await fs.copyFile(from, to, fs.constants.COPYFILE_EXCL)
-    const [source, copy] = await Promise.all([fs.stat(from), fs.stat(to)])
-    if (source.size !== copy.size) {
-      await fs.rm(to, { force: true })
-      throw new Error(`copy size mismatch (${copy.size} of ${source.size} bytes)`)
-    }
+    await copyThenRename({ from, to, copyFile })
     await fs.unlink(from)
+  }
+}
+
+const copyThenRename = async ({ from, to, copyFile }) => {
+  const part = `${to}${PART_SUFFIX}`
+  await fs.rm(part, { force: true })
+  try {
+    await copyFile(from, part, fs.constants.COPYFILE_EXCL)
+    const [source, copy] = await Promise.all([fs.stat(from), fs.stat(part)])
+    if (source.size !== copy.size) throw new Error(`copy size mismatch (${copy.size} of ${source.size} bytes)`)
+    if (await exists(to)) throw new Error('a file already exists there')
+    await fs.rename(part, to)
+  } catch (err) {
+    await fs.rm(part, { force: true })
+    throw err
   }
 }
 
@@ -248,6 +258,8 @@ const removeEmptyFolder = async ({ filePath, roots }) => {
 }
 
 const exists = (filePath) => fs.access(filePath).then(() => true, () => false)
+
+const PART_SUFFIX = '.part'
 
 const isMovable = (row) => row.purged_at == null && ['done', 'partial'].includes(row.status) && Boolean(row.file_path)
 
