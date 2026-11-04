@@ -163,8 +163,10 @@ export const ArrSettings = {
         if (Object.keys(entry).length) body[app.key] = entry
       }
       if (unmonitor.value !== savedUnmonitor) body.unmonitor_on_delete = unmonitor.value
-      if (!Object.keys(body).length) return
-      use(await api('PUT', '/api/arr', body))
+      if (!Object.keys(body).length) return []
+      const result = await api('PUT', '/api/arr', body)
+      use(result)
+      return result.cleared ?? []
     }
 
     onMounted(load)

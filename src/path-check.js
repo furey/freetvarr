@@ -89,32 +89,44 @@ export const codedErrorText = ({ code, message = '' }) => {
 }
 
 const tvhPathProblem = (value) => {
-  if (!value.startsWith('/')) return 'tvh_recordings_path must be an absolute path (start with /)'
-  if (path.resolve(value) === '/') return 'tvh_recordings_path cannot be /'
+  const label = ROOT_LABELS.tvh_recordings_path
+  if (!value.startsWith('/')) return `${label} must be a full path that starts with /.`
+  if (path.resolve(value) === '/') return `${label} cannot be /.`
   return null
 }
 
 const localRootProblem = async ({ key, value, configDir }) => {
-  if (!value.startsWith('/')) return `${key} must be an absolute path (start with /)`
+  const label = ROOT_LABELS[key]
+  if (!value.startsWith('/')) return `${label} must be a full path that starts with /.`
   const resolved = path.resolve(value)
-  const real = await fs.realpath(resolved).catch(() => resolved)
-  const reserved = [resolved, real].find((candidate) => isReservedFolder({ folder: candidate, configDir }))
-  if (reserved) return `${key} cannot be ${reserved}`
+  const candidates = [resolved, await fs.realpath(resolved).catch(() => resolved)]
+  const system = candidates.find(isSystemFolder)
+  if (system) return `${label} cannot be ${system}, a system folder.`
+  if (configDir && candidates.some((folder) => touchesConfigFolder({ folder, configDir }))) {
+    return `${label} cannot be the Freetvarr config folder, a folder inside it, or a folder that holds it.`
+  }
   const stat = await fs.stat(resolved).catch(() => null)
-  if (!stat) return `${key}: ${value} does not exist inside the container`
-  if (!stat.isDirectory()) return `${key}: ${value} is not a directory`
+  if (!stat) return `${label} ${value} does not exist inside the Freetvarr container.`
+  if (!stat.isDirectory()) return `${label} ${value} is not a folder.`
   return null
 }
 
-const isReservedFolder = ({ folder, configDir }) => {
-  if (folder === '/') return true
-  if (RESERVED_TREES.some((tree) => isAtOrInside({ folder, tree }))) return true
-  if (!configDir) return false
+const isSystemFolder = (folder) => folder === '/' || RESERVED_TREES.some((tree) => isAtOrInside({ folder, tree }))
+
+const touchesConfigFolder = ({ folder, configDir }) => {
   const config = path.resolve(configDir)
   return isAtOrInside({ folder, tree: config }) || isAtOrInside({ folder: config, tree: folder })
 }
 
 const isAtOrInside = ({ folder, tree }) => folder === tree || folder.startsWith(`${tree}/`)
+
+const ROOT_LABELS = {
+  media_root: 'Media root',
+  oneoff_root: 'One-off folder',
+  movies_root: 'Movies folder',
+  recordings_root: 'Recordings folder (as Freetvarr sees it)',
+  tvh_recordings_path: 'Recordings folder (as TVHeadend sees it)',
+}
 
 const RESERVED_TREES = ['/etc', '/proc', '/sys', '/dev', '/app', '/private/etc']
 

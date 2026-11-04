@@ -41,6 +41,7 @@ import {
 } from '/setup-folders.js'
 import { formatClock } from '/time-format.js'
 import { api, fetchSettings } from '/shared/api.js'
+import { reenterLineOf } from '/save-notice.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { DOCS_BASE } from '/shared/constants.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
@@ -796,12 +797,16 @@ export const WelcomeView = {
         ...(plexToken.value ? { plex_token: plexToken.value } : {}),
       }
       const result = await api('POST', '/api/settings', body)
-      if (result?.cleared?.includes('plex_token')) plexTokenSet.value = false
       Object.assign(saved, {
         plexUrl: plexUrl.value,
         plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
       })
+      if (!result?.cleared?.includes('plex_token')) return true
+      plexTokenSet.value = false
+      plexAdvancedOpen.value = true
+      setPlexTokenStatus(reenterLineOf('plex_token'), 'err', 0)
+      return false
     }
 
     const next = async () => {
@@ -822,7 +827,8 @@ export const WelcomeView = {
         } else if (step.value === 5) {
           await saveStorage()
         } else if (step.value === 6) {
-          await savePlex()
+          const kept = await savePlex()
+          if (kept === false) return
         }
         step.value++
       } catch (err) {

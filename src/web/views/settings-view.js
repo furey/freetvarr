@@ -10,6 +10,7 @@ import { RESET_CONFIRM_BODY, resetConfirm, restoreOpenAccessConfirm } from '/con
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { holdAtLeast } from '/pending.js'
+import { rootFieldErrorOf, savedNoticeOf } from '/save-notice.js'
 import { createSettingBaseline } from '/setting-baseline.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
@@ -695,6 +696,20 @@ export const SettingsView = {
       if (ms > 0) setTimeout(() => (status.value = ''), ms)
     }
 
+    const rootFieldStatus = {
+      media_root: [mediaRootStatus, mediaRootStatusKind],
+      oneoff_root: [oneOffRootStatus, oneOffRootStatusKind],
+      movies_root: [moviesRootStatus, moviesRootStatusKind],
+    }
+    const showRootFieldError = (problem) => {
+      if (!problem) return
+      if (problem.field === 'recordings_root') return recordingsCheck.show({ text: problem.text, kind: 'err' })
+      if (problem.field === 'tvh_recordings_path') return tvhPathCheck.show({ text: problem.text, kind: 'err' })
+      const [text, kind] = rootFieldStatus[problem.field]
+      text.value = problem.text
+      kind.value = 'err'
+    }
+
     const setPlexStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexStatus.value = msg
       plexStatusKind.value = kind
@@ -792,7 +807,7 @@ export const SettingsView = {
         await saveGenreLookup()
         await plexWatchSetting.value?.save()
         await plexLibrarySetting.value?.save()
-        await arrSettings.value?.save()
+        const arrCleared = await arrSettings.value?.save()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -805,9 +820,11 @@ export const SettingsView = {
         }
         if (saved?.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         if (saved?.cleared?.includes('plex_token')) plexTokenSet.value = false
-        flash({ msg: 'Saved.' })
+        const cleared = [...(saved?.cleared ?? []), ...(arrCleared ?? [])]
+        flash({ msg: savedNoticeOf(cleared), ...(cleared.length ? { kind: 'info', ms: 10000 } : {}) })
         await refreshSyncSchedule()
       } catch (err) {
+        showRootFieldError(rootFieldErrorOf(err))
         flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       } finally {
         saving.value = false
