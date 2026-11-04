@@ -226,20 +226,19 @@ export const listAutorecs = async (conn) => {
   }))
 }
 
-export const scheduleRecording = async ({
-  programId,
-  leadTime = DEFAULT_LEAD_MINUTES,
-  lagTime = DEFAULT_LAG_MINUTES,
-  addToLibrary = true,
-} = {}) => {
+export const scheduleRecording = async ({ programId, leadTime, lagTime, addToLibrary = true } = {}) => {
   const conn = await resolveConnection()
   const comment = addToLibrary ? LIBRARY_TAGS.include : LIBRARY_TAGS.exclude
-  const skipped = (await listUpcoming(conn))
-    .find((e) => !e.enabled && String(e.programId) === String(programId))
+  const existing = (await listUpcoming(conn)).filter((e) => String(e.programId) === String(programId))
+  const scheduled = existing.find((e) => e.enabled)
+  const skipped = existing.find((e) => !e.enabled)
+  const padding = paddingFieldsOf({ leadTime, lagTime })
+  if (scheduled) {
+    const paddingSaved = Object.keys(padding).length === 0 || await savePadding({ uuid: scheduled.uuid, padding, conn })
+    return { ok: true, uuid: scheduled.uuid, programId, ...(paddingSaved ? {} : { paddingSaved: false }) }
+  }
   if (skipped) {
-    await apiPost('idnode/save', {
-      node: JSON.stringify({ uuid: skipped.uuid, enabled: true, start_extra: leadTime, stop_extra: lagTime }),
-    }, conn)
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: skipped.uuid, enabled: true, ...padding }) }, conn)
     return { ok: true, uuid: skipped.uuid, programId }
   }
   const body = await apiPost('dvr/entry/create_by_event', {
@@ -251,11 +250,24 @@ export const scheduleRecording = async ({
   if (!uuid) {
     throw new TvheadendError('TVHeadend did not return a recording uuid.', { stage: 'record', code: 'no-uuid' })
   }
-  await apiPost('idnode/save', {
-    node: JSON.stringify({ uuid, start_extra: leadTime, stop_extra: lagTime }),
-  }, conn)
-  return { ok: true, uuid, programId }
+  const paddingSaved = await savePadding({
+    uuid,
+    padding: paddingFieldsOf({ leadTime: leadTime ?? DEFAULT_LEAD_MINUTES, lagTime: lagTime ?? DEFAULT_LAG_MINUTES }),
+    conn,
+  })
+  return { ok: true, uuid, programId, ...(paddingSaved ? {} : { paddingSaved: false }) }
 }
+
+const paddingFieldsOf = ({ leadTime, lagTime }) => ({
+  ...(leadTime != null ? { start_extra: leadTime } : {}),
+  ...(lagTime != null ? { stop_extra: lagTime } : {}),
+})
+
+const savePadding = ({ uuid, padding, conn }) => apiPost('idnode/save', { node: JSON.stringify({ uuid, ...padding }) }, conn)
+  .then(() => true, (err) => {
+    console.warn(`[record] could not save the padding of ${uuid}: ${err.message}`)
+    return false
+  })
 
 export const cancelRecording = async ({ programId, nowMs = Date.now() } = {}) => {
   const conn = await resolveConnection()

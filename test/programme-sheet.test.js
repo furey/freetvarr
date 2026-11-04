@@ -10,6 +10,7 @@ import {
   initialStrengthOf,
   keepLabel,
   minutesShort,
+  scheduledMessageOf,
   pendingActionLabelOf,
   primaryActionOf,
   seasonEpisodeShort,
@@ -119,4 +120,18 @@ test('activeWatchItemFor finds the watchlist entry that is still waiting', () =>
   const items = [{ id: 1, key: 'vera', fulfilledAt: 5 }, { id: 2, key: 'vera', fulfilledAt: null }, { id: 3, key: 'bluey' }]
   assert.equal(activeWatchItemFor({ items, key: 'vera' }).id, 2)
   assert.equal(activeWatchItemFor({ items, key: 'frasier' }), null)
+})
+
+test('a failed sheet action reloads the recording state, so the sheet shows what TVHeadend has', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const source = await readFile(new URL('../src/web/components/programme-sheet-host.js', import.meta.url), 'utf8')
+  const runner = source.slice(source.indexOf('const runSheetAction = async'), source.indexOf('const afterRecordingChange = async'))
+  const failure = runner.slice(runner.indexOf('} catch (err) {'), runner.indexOf('} finally {'))
+  assert.match(failure, /reloadAfterFailedChange\(\)/)
+  assert.match(source, /const reloadAfterFailedChange = \(\) => \{\n\s+refreshAfterRecordingChange\(\)\n\s+loadEpgState\(\{ fresh: true \}\)\.catch\(\(\) => \{\}\)/)
+})
+
+test('scheduledMessageOf: says when TVHeadend did not save the padding', () => {
+  assert.equal(scheduledMessageOf({ title: 'The Chase' }), 'Scheduled "The Chase".')
+  assert.equal(scheduledMessageOf({ title: 'The Chase', paddingSaved: false }), 'Scheduled "The Chase", but TVHeadend did not save Start early and Finish late.')
 })

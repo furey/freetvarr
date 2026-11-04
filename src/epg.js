@@ -563,17 +563,21 @@ export const invalidateRecordingState = () => {
 }
 
 export const recordProgram = async (args) => {
-  const result = (await removePendingSkip(args.programId))
-    ? { ok: true, programId: args.programId, pendingSkipRemoved: true }
-    : await scheduleRecording(args)
-  invalidateRecordingState()
-  return result
+  try {
+    return (await removePendingSkip(args.programId))
+      ? { ok: true, programId: args.programId, pendingSkipRemoved: true }
+      : await scheduleRecording(args)
+  } finally {
+    invalidateRecordingState()
+  }
 }
 
 export const cancelProgram = async (args) => {
-  const result = await cancelRecording(args).catch((err) => skipExpectedEpisode({ err, programId: args.programId }))
-  invalidateRecordingState()
-  return result
+  try {
+    return await cancelRecording(args).catch((err) => skipExpectedEpisode({ err, programId: args.programId }))
+  } finally {
+    invalidateRecordingState()
+  }
 }
 
 export const enforcePendingSkips = async () => {
