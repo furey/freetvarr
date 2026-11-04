@@ -226,6 +226,7 @@ import { mountInProgressPlayback, inProgressFolders } from './in-progress-playba
 import { listSyncs, syncPageParams } from './sync-history.js'
 import { TV_LOGIN_KEYS, createTvLoginRoute, deleteTvLoginRoute } from './tv-login.js'
 import { OPEN_ENTRY_BACKUP_KEY, resetFreetvarrData } from './reset.js'
+import { claimRun } from './setup-runs.js'
 import { transmitterLabel } from './web/transmitter-label.js'
 import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
@@ -2013,22 +2014,14 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
   const tunerIds = Array.isArray(body.tuner_ids) ? body.tuner_ids.map(String) : []
   const networkId = body.network_id ? String(body.network_id) : null
   if (!tunerIds.length) return res.status(400).json({ ok: false, error: 'Choose at least one tuner.' })
-  const previousSetupRun = setupRun
-  setupRun = { running: true, steps: [], result: null }
-  let setup
-  try {
-    setup = await readChannelSetup()
-  } catch (err) {
-    setupRun = previousSetupRun
-    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
-  }
-  const transmitter = setup.transmitters.find((t) => t.key === body.transmitter_key) || null
-  if (!networkId && !transmitter) {
-    setupRun = previousSetupRun
-    return res.status(400).json({ ok: false, error: 'Choose a transmitter.' })
-  }
-  const steps = planChannelSetup({ networkId }).steps.map((step) => ({ ...step, status: 'pending', detail: null }))
-  setupRun = { running: true, steps, result: null }
+  const claim = await claimRun({
+    getRun: () => setupRun,
+    setRun: (run) => { setupRun = run },
+    prepare: () => prepareChannelSetup({ transmitterKey: body.transmitter_key, networkId }),
+  })
+  if (!claim.claimed) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up channels.' })
+  if (claim.refusal) return res.status(claim.refusal.status).json(claim.refusal.body)
+  const { setup, transmitter, steps } = claim
   res.status(202).json({ ok: true, steps })
   const result = await applyChannelSetup({
     http: setupHttp,
@@ -2045,6 +2038,19 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
   else console.warn(`[tvh-setup] stopped at ${result.failedStep}: ${result.error}`)
   setupRun = { running: false, steps: result.steps, result: outcome }
 })
+
+const prepareChannelSetup = async ({ transmitterKey, networkId }) => {
+  let setup
+  try {
+    setup = await readChannelSetup()
+  } catch (err) {
+    return { refusal: { status: 502, body: { ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` } } }
+  }
+  const transmitter = setup.transmitters.find((t) => t.key === transmitterKey) || null
+  if (!networkId && !transmitter) return { refusal: { status: 400, body: { ok: false, error: 'Choose a transmitter.' } } }
+  const steps = planChannelSetup({ networkId }).steps.map((step) => ({ ...step, status: 'pending', detail: null }))
+  return { setup, transmitter, steps }
+}
 
 const defaultFavouritesAfterScan = async (conn) => {
   try {
@@ -2146,6 +2152,15 @@ const timeshiftsForFeed = async (feedChannels) => {
   }
 }
 
+const prepareGuideSetup = async () => {
+  try {
+    const conn = await resolveConnection()
+    return { conn, steps: planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null })) }
+  } catch (err) {
+    return { refusal: { status: 502, body: { ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` } } }
+  }
+}
+
 const shiftedFeedFor = async (conn) => {
   try {
     return {
@@ -2186,17 +2201,14 @@ app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (
   if (!/^https?:\/\/[^\s]+$/i.test(url)) {
     return res.status(400).json({ ok: false, error: 'Enter a guide address that starts with http:// or https://.' })
   }
-  const previousGuideRun = guideRun
-  guideRun = { running: true, steps: [], result: null }
-  let conn
-  try {
-    conn = await resolveConnection()
-  } catch (err) {
-    guideRun = previousGuideRun
-    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
-  }
-  const steps = planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null }))
-  guideRun = { running: true, steps, result: null }
+  const claim = await claimRun({
+    getRun: () => guideRun,
+    setRun: (run) => { guideRun = run },
+    prepare: prepareGuideSetup,
+  })
+  if (!claim.claimed) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up the guide.' })
+  if (claim.refusal) return res.status(claim.refusal.status).json(claim.refusal.body)
+  const { conn, steps } = claim
   res.status(202).json({ ok: true, steps })
   const result = await applyGuideSetup({
     http: setupHttp,
