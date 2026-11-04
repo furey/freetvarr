@@ -244,6 +244,7 @@ import {
 } from './user-events-log.js'
 import { loadExternalIds } from './external-ids-store.js'
 import { savePlexConnection, saveTvheadendConnection } from './connection-secrets.js'
+import { ownValueOf } from './query-lookup.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_ROOT = path.join(__dirname, 'web')
@@ -548,13 +549,13 @@ app.get('/api/recordings', async (req, res) => {
 
   const page = Math.max(1, parseInt(req.query.page, 10) || 1)
   const pageSize = Math.min(200, Math.max(10, parseInt(req.query.pageSize, 10) || 50))
-  const sortColumn = SORT_COLUMNS[req.query.sort] || SORT_COLUMNS.aired_at
+  const sortColumn = ownValueOf(SORT_COLUMNS, req.query.sort) || SORT_COLUMNS.aired_at
   const sortDir = req.query.dir === 'asc' ? 'asc' : 'desc'
   const statusFilter = STATUS_VALUES.includes(req.query.status) ? req.query.status : null
   const showIdRaw = req.query.show_id ? Number(req.query.show_id) : null
   const showIdFilter = Number.isInteger(showIdRaw) ? showIdRaw : null
-  const sinceInterval = SINCE_INTERVALS[req.query.since] || null
-  const deletedClause = DELETED_FILTERS[req.query.deleted] || null
+  const sinceInterval = ownValueOf(SINCE_INTERVALS, req.query.since)
+  const deletedClause = ownValueOf(DELETED_FILTERS, req.query.deleted)
 
   const applyFilters = (q) => {
     whereInLog(q)
@@ -562,7 +563,7 @@ app.get('/api/recordings', async (req, res) => {
     else if (statusFilter) q.where('recordings.status', statusFilter).whereNull('recordings.library_state')
     if (showIdFilter != null) q.where('recordings.show_id', showIdFilter)
     if (sinceInterval) {
-      q.where('recordings.imported_at', '>=', db.raw(`datetime('now', '${sinceInterval}')`))
+      q.where('recordings.imported_at', '>=', db.raw("datetime('now', ?)", [sinceInterval]))
     }
     if (deletedClause) q.whereRaw(deletedClause)
     return q
