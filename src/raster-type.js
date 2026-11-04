@@ -6,7 +6,11 @@ export const rasterTypeOf = (body) => {
 export const isSvgBody = (body) =>
   Buffer.isBuffer(body) && body.length <= SVG_MAX_BYTES && SVG_START.test(body.toString('utf8', 0, SVG_SNIFF_BYTES))
 
-export const sourceImageTypeOf = (body) => rasterTypeOf(body) ?? (isSvgBody(body) ? SVG_TYPE : null)
+export const isRenderableSvg = (body) => isSvgBody(body) && !SVG_FILTER.test(body.toString('utf8'))
+
+export const mentionsSvg = (body) => Buffer.isBuffer(body) && SVG_TAG.test(body.toString('utf8'))
+
+export const sourceImageTypeOf = (body) => rasterTypeOf(body) ?? (isRenderableSvg(body) ? SVG_TYPE : null)
 
 export const IMAGE_RESPONSE_CSP = "default-src 'none'; sandbox"
 
@@ -25,4 +29,6 @@ const SIGNATURES = [
 const SVG_TYPE = 'image/svg+xml'
 const SVG_MAX_BYTES = 1024 * 1024
 const SVG_SNIFF_BYTES = 4096
+const SVG_FILTER = /<\s*([\w-]+:)?filter\b|\bfilter\s*[=:]/i
+const SVG_TAG = /<\s*([\w-]+:)?svg\b/i
 const SVG_START = /^﻿?\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE\s+svg[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i

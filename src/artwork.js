@@ -3,7 +3,7 @@ import path from 'path'
 import { spawn } from 'child_process'
 
 import knexConfig from '../knexfile.js'
-import { isSvgBody } from './raster-type.js'
+import { mentionsSvg } from './raster-type.js'
 
 export const getArtworkRoot = () =>
   process.env.ARTWORK_PATH || path.join(path.dirname(knexConfig.connection.filename), 'artwork')
@@ -57,7 +57,7 @@ export const pruneRecordingArtwork = async ({
 }
 
 export const shrinkImage = async (image, { maxWidth = MAX_IMAGE_WIDTH, run = runFfmpeg } = {}) => {
-  if (image.body.length <= SMALL_IMAGE_BYTES || isSvgBody(image.body)) return image
+  if (image.body.length <= SMALL_IMAGE_BYTES || mentionsSvg(image.body)) return image
   const body = await run({
     input: image.body,
     args: [

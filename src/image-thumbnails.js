@@ -4,7 +4,7 @@ import path from 'path'
 import sharp from 'sharp'
 
 import knexConfig from '../knexfile.js'
-import { isSvgBody } from './raster-type.js'
+import { isRenderableSvg, mentionsSvg, rasterTypeOf } from './raster-type.js'
 
 export const PROGRAMME_IMAGE_WIDTHS = [192, 384, 768]
 export const HERO_IMAGE_WIDTHS = [...PROGRAMME_IMAGE_WIDTHS, 1280, 1920]
@@ -46,7 +46,29 @@ export const rasterizeSvg = async ({ body, width }) => {
   }
 }
 
+export const createRenderQueue = ({ maxWaiting = SVG_QUEUE_MAX_WAITING } = {}) => {
+  const waiting = []
+  let busy = false
+  const next = () => {
+    const task = waiting.shift()
+    if (!task) {
+      busy = false
+      return
+    }
+    busy = true
+    task.work().then(task.resolve, task.reject).finally(next)
+  }
+  const run = (work) => {
+    if (busy && waiting.length >= maxWaiting) return Promise.reject(busyError())
+    const pending = new Promise((resolve, reject) => waiting.push({ work, resolve, reject }))
+    if (!busy) next()
+    return pending
+  }
+  return { run }
+}
+
 export const landscapeOf = async (image) => {
+  if (!rasterTypeOf(image.body)) return image
   const { width, height } = await sharp(image.body).metadata()
   if (!width || !height || width / height >= MIN_LANDSCAPE_RATIO) return image
   const canvasHeight = Math.min(height, LANDSCAPE_MAX_HEIGHT)
@@ -69,6 +91,7 @@ export const createThumbnailStore = ({
   maxBytes = DEFAULT_IMAGE_CACHE_BYTES,
   resize = resizeToWebp,
   rasterize = rasterizeSvg,
+  svgQueue = sharedSvgQueue,
   now = Date.now,
 }) => {
   const files = new Map()
@@ -154,9 +177,12 @@ export const createThumbnailStore = ({
     await prune()
   }
 
-  const shrink = (original, width) => {
-    const render = isSvgBody(original.body) ? rasterize : resize
-    return render({ body: original.body, width }).catch(() => null)
+  const shrink = async (original, width) => {
+    const { body } = original
+    if (rasterTypeOf(body)) return resize({ body, width }).catch(() => null)
+    if (isRenderableSvg(body)) return svgQueue.run(() => rasterize({ body, width })).catch(rethrowBusy)
+    if (mentionsSvg(body)) return null
+    return resize({ body, width }).catch(() => null)
   }
 
   const recentlyFailed = (name) => {
@@ -176,7 +202,8 @@ export const createThumbnailStore = ({
   const createThumbnail = async ({ name, width, loadOriginal }) => {
     const original = await loadOriginal()
     if (!original) return null
-    const thumbnail = await shrink(original, width)
+    const thumbnail = await shrink(original, width).catch(() => BUSY)
+    if (thumbnail === BUSY) return null
     if (!thumbnail) {
       noteFailure(name)
       return null
@@ -202,6 +229,15 @@ export const createThumbnailStore = ({
   return { prepare, thumbnailFor, stats }
 }
 
+const busyError = () => Object.assign(new Error('SVG render queue is full'), { code: 'busy' })
+
+const rethrowBusy = (err) => {
+  if (err?.code === 'busy') throw err
+  return null
+}
+
+const BUSY = Symbol('busy')
+
 const svgWidthAt72Dpi = async (body) => {
   const atBase = await sharp(body).metadata().catch(() => null)
   if (atBase?.width) return atBase.width
@@ -226,9 +262,12 @@ const WEBP_QUALITY = 72
 const SVG_BASE_DENSITY = 72
 const SVG_MIN_DENSITY = 1
 const SVG_MAX_DENSITY = 2400
+const SVG_QUEUE_MAX_WAITING = 20
 const FAILED_RESIZE_TTL_MS = 10 * 60 * 1000
 const FAILED_RESIZE_MAX_ENTRIES = 500
 const BYTES_PER_MB = 1024 * 1024
 const DEFAULT_IMAGE_CACHE_BYTES = 100 * BYTES_PER_MB
 const PARTIAL_SUFFIX = '.partial'
 const THUMBNAIL_NAME = /^[0-9a-f]{64}\.webp$/
+
+const sharedSvgQueue = createRenderQueue()
