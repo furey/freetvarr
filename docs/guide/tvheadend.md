@@ -75,7 +75,7 @@ A fresh [linuxserver](https://docs.linuxserver.io/images/docker-tvheadend/) TVHe
 When setup finds a TVHeadend with only the default entry, it asks for three things:
 
 - **An admin username and password.** The password needs at least `8` characters. You sign in to TVHeadend's web interface with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
-- **The allowed networks.** Both logins work only from these address ranges. Setup fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.86.254` gives `192.168.86.0/24`). Add any other network you sign in from.
+- **The allowed networks.** Both logins work only from these address ranges. Setup fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.1.10` gives `192.168.1.0/24`). Add any other network you sign in from.
 - **Confirmation.** Press **Secure and connect** to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
 <!-- markdownlint-disable MD033 -->
@@ -248,7 +248,7 @@ If you already set up TVHeadend users, create one for Freetvarr by hand in TVHea
 
 1. Open **Configuration → Users → Access Entries** and press **Add**.
 2. Tick **Enabled**. Set **Username** to `freetvarr` (or any name you like).
-3. **Allowed networks**: your home network's prefix (LAN prefix), the same one as the admin entry (`192.168.86.0/24` for a host at `192.168.86.254`). Freetvarr connects from the host's own LAN address, so that address has to fall inside the prefix.
+3. **Allowed networks**: your home network's prefix (LAN prefix), the same one as the admin entry (`192.168.1.0/24` for a host at `192.168.1.10`). Freetvarr connects from the host's own LAN address, so that address has to fall inside the prefix.
 4. **Change parameters**: keep **Rights** ticked, or the entry grants nothing.
 5. Tick the rights in the table below, then press **Save**.
 6. Open **Configuration → Users → Passwords** and press **Add**. Tick **Enabled**, enter the same username, set a password, and press **Save**. You enter this username and password in Freetvarr setup once.
