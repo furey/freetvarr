@@ -45,7 +45,7 @@ Freetvarr removes a recording only after it imports the file, and only when both
 - **The Plex guard.** If Plex is set up and the library refresh after the import failed, Freetvarr skips the remove and the recording stays in TVHeadend. To turn this off, switch off **Wait for Plex before removing recordings from TVHeadend** in Settings → RECORDING → Plex.
 - **The cut guard.** For a show whose ad removal is in **Cut** mode (Freetvarr cuts the ad breaks out of its copy), the TVHeadend copy is the last untouched original once Freetvarr has rewritten the local file. The remove waits for the cut to pass its checks. A failed cut keeps the original ([Ad removal](/guide/ad-removal)).
 
-Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheadend), marked `NOT IN TVHEADEND`, for 30 days.
+Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheadend), marked `NOT IN TVHEADEND`, until you clear them.
 
 **Delete** in [Recordings](/guide/recordings#delete-episodes) uses the same calls when it removes a recording from TVHeadend, so a deleted episode does not record again either.
 

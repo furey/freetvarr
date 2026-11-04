@@ -30,7 +30,6 @@ import {
   getMoviesRoot,
   getRecordingsRoot,
   getTvhRecordingsPath,
-  forgetRecordingArtwork,
   rebaseFilePaths,
   resetInterruptedImports,
   closeInterruptedSyncs,
@@ -204,6 +203,8 @@ import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountPlexLibraryRoutes } from './plex-library-routes.js'
 import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
+import { clearableRows, mountRecordingLogRoutes, whereInLog } from './recording-log-routes.js'
+import { recordOptionsFrom } from './recording-padding.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf, MISSES_RETRIED_AFTER_MS } from './artwork-match.js'
 import { listWatchlist, mountWatchlist } from './watchlist.js'
@@ -270,7 +271,6 @@ const loadCsrfSecret = async () => {
 }
 const CSRF_SECRET = await loadCsrfSecret()
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
-const UNIMPORTED_STATUSES = ['failed', 'skipped', 'not_imported']
 const LIBRARY_CHOICES = ['include', 'exclude']
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = Promise.all([
@@ -496,48 +496,7 @@ app.post(
 
 mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: syncLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
 
-app.delete('/api/recordings', doubleCsrfProtection, async (req, res) => {
-  if (req.query.deleted !== 'true') {
-    return res.status(400).json({ error: 'refusing bulk delete without ?deleted=true' })
-  }
-  const ids = await db('recordings')
-    .whereNotNull('deleted_from_tvh_at')
-    .whereNull('purged_at')
-    .pluck('recording_id')
-  if (ids.length) {
-    await db('recordings')
-      .whereIn('recording_id', ids)
-      .update({ purged_at: new Date().toISOString() })
-  }
-  res.json({ ok: true, deleted: ids.length, ids })
-})
-
-app.post('/api/recordings/restore', doubleCsrfProtection, async (req, res) => {
-  const ids = req.body?.ids
-  const isIdList = Array.isArray(ids) && ids.length > 0 && ids.every((id) => typeof id === 'string')
-  if (!isIdList) return res.status(400).json({ error: 'ids must be a non-empty list of recording ids' })
-  const restored = await db('recordings')
-    .whereIn('recording_id', ids)
-    .whereNotNull('deleted_from_tvh_at')
-    .whereNotNull('purged_at')
-    .update({ purged_at: null })
-  res.json({ ok: true, restored })
-})
-
-app.delete('/api/recordings/:recording_id', doubleCsrfProtection, async (req, res) => {
-  const recordingId = req.params.recording_id
-  const row = await db('recordings').where({ recording_id: recordingId }).first()
-  if (!row) return res.status(404).json({ error: 'recording not found' })
-  const isUnimported = UNIMPORTED_STATUSES.includes(row.status)
-  if (!row.deleted_from_tvh_at && !isUnimported) {
-    return res.status(409).json({ error: 'recording still in TVHeadend. Remove it there first.' })
-  }
-  await db('recordings')
-    .where({ recording_id: recordingId })
-    .update({ purged_at: new Date().toISOString() })
-  if (!row.deleted_from_tvh_at) await forgetRecordingArtwork(recordingId)
-  res.json({ ok: true })
-})
+mountRecordingLogRoutes({ app, csrf: doubleCsrfProtection })
 
 app.post('/api/recordings/:recording_id/library', syncLimiter, doubleCsrfProtection, async (req, res) => {
   const recordingId = req.params.recording_id
@@ -597,7 +556,7 @@ app.get('/api/recordings', async (req, res) => {
   const deletedClause = DELETED_FILTERS[req.query.deleted] || null
 
   const applyFilters = (q) => {
-    q.whereNull('recordings.purged_at')
+    whereInLog(q)
     if (LIBRARY_STATES.includes(statusFilter)) q.where('recordings.library_state', statusFilter)
     else if (statusFilter) q.where('recordings.status', statusFilter).whereNull('recordings.library_state')
     if (showIdFilter != null) q.where('recordings.show_id', showIdFilter)
@@ -628,9 +587,7 @@ app.get('/api/recordings', async (req, res) => {
     .limit(pageSize)
     .offset((page - 1) * pageSize)
 
-  const clearableQuery = db('recordings')
-    .whereNotNull('deleted_from_tvh_at')
-    .whereNull('purged_at')
+  const clearableQuery = clearableRows()
     .count({ count: 'recording_id' })
     .first()
 
@@ -842,13 +799,14 @@ app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) =
   if (channel_id == null || program_id == null || epg_program_id == null) {
     return res.status(400).json({ error: 'channel_id, program_id and epg_program_id are required' })
   }
+  const { error, options } = recordOptionsFrom({ lead_time, lag_time })
+  if (error) return res.status(400).json({ error })
   try {
     const result = await recordProgram({
       channelId: channel_id,
       programId: program_id,
       epgProgramId: epg_program_id,
-      ...(lead_time != null ? { leadTime: Number(lead_time) } : {}),
-      ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
+      ...options,
       addToLibrary: add_to_library !== false,
     })
     if (result.uuid) saveArtworkFromGuide({ recordingId: result.uuid, eventId: program_id })
@@ -878,6 +836,8 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       error: 'series_link, channel_id, program_id and epg_program_id are required',
     })
   }
+  const { error, options } = recordOptionsFrom({ lead_time, lag_time, episodes_to_keep })
+  if (error) return res.status(400).json({ error })
   try {
     const result = await recordSeries({
       seriesLink: series_link,
@@ -886,9 +846,7 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
       programId: program_id,
       anyChannel: any_channel === true,
       paused: paused === true,
-      ...(lead_time != null ? { leadTime: Number(lead_time) } : {}),
-      ...(lag_time != null ? { lagTime: Number(lag_time) } : {}),
-      ...(episodes_to_keep != null ? { episodesToKeep: Number(episodes_to_keep) } : {}),
+      ...options,
     })
     const showRule = add_show_rule === false ? null : await ensureShowRule(result.title, result.airing)
     res.json({ ok: true, ...result, showRule })

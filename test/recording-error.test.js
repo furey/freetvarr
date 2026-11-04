@@ -10,9 +10,13 @@ test('diagnoseRecordingError: names the missing file path', () => {
   assert.equal(d.doc, 'guide/troubleshooting#skipped-recordings')
 })
 
-test('diagnoseRecordingError: reads both sizes of a short copy', () => {
-  const d = diagnoseRecordingError('short copy: on-disk 1200000000 bytes vs TVHeadend 1900000000 bytes (Δ 700000000)')
-  assert.equal(d.meaning, 'The imported file is 1.20 GB, but TVHeadend reported 1.90 GB.')
+test('diagnoseRecordingError: reads both sizes of a short copy, old and new wording', () => {
+  for (const source of ['TVHeadend', 'source']) {
+    const d = diagnoseRecordingError(`short copy: on-disk 1200000000 bytes vs ${source} 1900000000 bytes (Δ 700000000)`)
+    assert.equal(d.title, 'Import came up short')
+    assert.equal(d.meaning, 'The imported file is 1.20 GB, but the TVHeadend recording file is 1.90 GB.')
+    assert.doesNotMatch(d.steps.join(' '), /weak signal/)
+  }
 })
 
 test('diagnoseRecordingError: names the missing library folder', () => {

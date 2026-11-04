@@ -198,7 +198,7 @@ The row's error in the [recording log](/guide/recordings#recording-log) says whi
 
 ## Partial recordings
 
-- The imported file came up more than `1MB` short of what TVHeadend reported. The next sync imports the file again. If it stays **PARTIAL**, the source itself is short. In TVHeadend's web interface, check the status of that entry (it usually reports data errors from a weak signal).
+- The imported file came up more than `1MB` short of the TVHeadend recording file. The next sync imports the file again. If it stays **PARTIAL**, the copy keeps failing. Check that the disk with your media library has free space and that Freetvarr can write to the media library folder, then run the checks in Settings → SYSTEM → Health.
 
 ## Replaced recordings
 
