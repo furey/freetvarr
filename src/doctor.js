@@ -409,7 +409,7 @@ const LATER_CHECKS = [
       return {
         status: 'warn',
         detail: `${joinAnd(empty)} ${empty.length === 1 ? 'is' : 'are'} empty, but imported recordings point into ${empty.length === 1 ? 'it' : 'them'}. Syncs skip imports into ${empty.length === 1 ? 'it' : 'them'}.`,
-        fix: 'Check that the media share is mounted on the host, then restart the Freetvarr container.',
+        fix: 'Check that the media share is mounted on the host, then restart the Freetvarr container. If you emptied the folder yourself, or moved the media root, delete those recordings in Freetvarr so that syncs import into it again.',
       }
     },
   },

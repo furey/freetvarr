@@ -46,6 +46,7 @@ const RULES = [
       meaning: `Freetvarr files this recording in the ${kind} folder. That folder (below) is empty, but recordings Freetvarr imported earlier point into it, so the media share is most likely not mounted.`,
       steps: [
         'Mount the media share on the host, then restart the Freetvarr Docker container.',
+        'If you emptied the folder yourself, or moved the media root, delete those recordings in Freetvarr so that syncs import into it again.',
         'The next sync imports the recording.',
       ],
       doc: 'guide/troubleshooting#empty-library-folder',

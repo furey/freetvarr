@@ -32,6 +32,7 @@ test('diagnoseRecordingError: names a missing TV folder and an empty library fol
   const empty = diagnoseRecordingError('TV folder /data/media/tv is empty, but imported recordings point into it; check that it is mounted')
   assert.equal(empty.title, 'TV folder is empty')
   assert.equal(empty.doc, 'guide/troubleshooting#empty-library-folder')
+  assert.match(empty.steps[1], /emptied the folder yourself/)
 })
 
 test('diagnoseRecordingError: covers path mismatches, TVHeadend status, and permissions', () => {

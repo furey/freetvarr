@@ -327,6 +327,7 @@ test('runDoctor: an empty library folder that imported recordings point into war
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /media is empty, but imported recordings point into it\. Syncs skip imports into it\.$/)
   assert.match(check.fix, /mounted/)
+  assert.match(check.fix, /emptied the folder yourself, or moved the media root, delete those recordings/)
 })
 
 test('runDoctor: a real link between the test folders passes the hardlink check', async () => {

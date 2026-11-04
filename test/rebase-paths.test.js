@@ -85,7 +85,7 @@ test('rebasePrefix: matches the old folder exactly, not as a pattern', async () 
 
 test('nestedRootsError: refuses library folders that are the same or sit inside each other', () => {
   assert.equal(nestedRootsError({ mediaRoot: '/data/media/tv', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }), null)
-  assert.match(nestedRootsError({ mediaRoot: '/data/media', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }), /one-off folder \/data\/media\/one-offs is inside the TV folder \/data\/media\./)
+  assert.match(nestedRootsError({ mediaRoot: '/data/media', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }), /One-off folder \/data\/media\/one-offs is inside the Media root \/data\/media\./)
   assert.match(nestedRootsError({ mediaRoot: '/data/tv/', oneOffRoot: '/data/tv', moviesRoot: '' }), /same folder/)
   assert.equal(nestedRootsError({ mediaRoot: '/data/tv', oneOffRoot: '/data/tv-extra', moviesRoot: '' }), null)
 })
@@ -93,7 +93,7 @@ test('nestedRootsError: refuses library folders that are the same or sit inside 
 test('libraryRootsSaveError: checks the folders only when the save changes one', () => {
   const nested = { mediaRoot: '/data/media', oneOffRoot: '/data/media/one-offs', moviesRoot: '' }
   assert.equal(libraryRootsSaveError({ before: nested, after: nested }), null)
-  assert.match(libraryRootsSaveError({ before: { ...nested, mediaRoot: '/data/media/tv' }, after: nested }), /inside the TV folder/)
+  assert.match(libraryRootsSaveError({ before: { ...nested, mediaRoot: '/data/media/tv' }, after: nested }), /inside the Media root/)
 })
 
 test('rootsAfterSaveOf: uses the posted folders and falls back to the stored ones', async () => {

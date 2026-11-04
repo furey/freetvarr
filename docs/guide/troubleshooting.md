@@ -208,7 +208,7 @@ While a library folder is empty and Freetvarr's imported recordings point into i
 2. Restart the Freetvarr Docker container. A share mounted after the container started does not reach the container.
 3. Run a sync. The skipped recordings import.
 
-If you emptied the folder yourself, delete the shows in Freetvarr ([Delete episodes](/guide/recordings#delete-episodes)) so that no imported recordings point into it.
+If you emptied the folder yourself, or moved the media root without moving the files, delete those recordings in Freetvarr ([Delete episodes](/guide/recordings#delete-episodes)) so that syncs import into it again.
 
 ## Partial recordings
 

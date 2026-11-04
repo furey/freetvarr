@@ -77,8 +77,8 @@ export const nestedRootsError = (roots) => {
   for (const outer of named) {
     for (const inner of named) {
       if (outer === inner) continue
-      if (inner.root === outer.root) return `The ${inner.label} and ${outer.label} folders are the same folder (${inner.root}). Choose a separate folder for each.`
-      if (inner.root.startsWith(`${outer.root}${path.sep}`)) return `The ${inner.label} folder ${inner.root} is inside the ${outer.label} folder ${outer.root}. Choose folders that do not sit inside each other.`
+      if (inner.root === outer.root) return `The ${inner.label} and the ${outer.label} are the same folder (${inner.root}). Choose a separate folder for each.`
+      if (inner.root.startsWith(`${outer.root}${path.sep}`)) return `The ${inner.label} ${inner.root} is inside the ${outer.label} ${outer.root}. Choose folders that do not sit inside each other.`
     }
   }
   return null
@@ -106,7 +106,7 @@ const withoutTrailingSlash = (root) => String(root).replace(/\/+$/, '')
 
 const isContentEntry = (name) => !/^[.@#]/.test(name)
 
-const ROOT_LABELS = { mediaRoot: 'TV', oneOffRoot: 'one-off', moviesRoot: 'movies' }
+const ROOT_LABELS = { mediaRoot: 'Media root', oneOffRoot: 'One-off folder', moviesRoot: 'Movies folder' }
 const IMPORTED_STATUSES = ['done', 'partial']
 const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_ONEOFF_ROOT = '/media/one-offs'
