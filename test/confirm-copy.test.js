@@ -37,4 +37,5 @@ test('clearSyncHistoryConfirm: says the running sync stays', () => {
 test('resetConfirm: names the media root and falls back to /media/tv', () => {
   assert.match(resetConfirm({ mediaRoot: '/data/media/tv' }).body[1], /^Your video files in \/data\/media\/tv /)
   assert.match(resetConfirm({ mediaRoot: '' }).body[1], /^Your video files in \/media\/tv /)
+  assert.equal(resetConfirm({ mediaRoot: '' }).body[2], 'The first sync after setup imports the recordings still in TVHeadend again.')
 })
