@@ -7,9 +7,9 @@ description: >-
 
 # From Fetcharr
 
-If you ran [Fetcharr](https://github.com/furey/fetcharr) against a Fetch TV box, the notes below cover the move. If you never used Fetcharr, read [Leaving Fetch TV](/guide/leaving-fetch) instead. That page covers the levy, saving your recordings, the tuner, and cancelling.
+If you ran [Fetcharr](https://github.com/furey/fetcharr) (the earlier tool that copied recordings from a [Fetch TV](https://www.fetchtv.com.au/) box into Plex) against a Fetch TV box, the notes below cover the move. If you never used Fetcharr, read [Leaving Fetch TV](/guide/leaving-fetch) instead. That page covers the levy, saving your recordings, the tuner, and cancelling.
 
-Freetvarr is Fetcharr with the recorder swapped out. The series folders, the filing of episodes into your media library, and the ad removal work the same way. TVHeadend and a TVHeadend-compatible tuner replace the Fetch box.
+Freetvarr is Fetcharr with the recorder swapped out. The series folders, the filing of episodes into your media library, and the ad removal work the same way. [TVHeadend](https://tvheadend.org/) (free recording software that runs on a home computer) and a TVHeadend-compatible tuner replace the Fetch box.
 
 ## The database
 
@@ -21,15 +21,15 @@ Recreate each series folder in Settings → RECORDING → [Series rules](/guide/
 
 ## Series recordings
 
-In Freetvarr's [TV guide](/guide/tv-guide), pick **Every episode** and press **Record series** on each series again. A Fetch series tag has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry (an automatic recording rule) that matches on title and channel.
+In Freetvarr's [TV guide](/guide/tv-guide), pick **Every episode** and press **Record series** on each series again. A Fetch series tag (Fetch's way to record every episode of a show) has nothing to import into. A series recording in Freetvarr is a TVHeadend autorec entry (an automatic recording rule) that matches on title and channel.
 
 ## What changed
 
-|                     | Fetcharr                                     | Freetvarr                                 |
-| ------------------- | -------------------------------------------- | ----------------------------------------- |
-| Recorder            | Fetch Mighty Gen 3                           | TVHeadend + a TVHeadend-compatible tuner  |
-| Guide               | Fetch's cloud API                            | XMLTV, 7 days, free                       |
-| Series recording    | Fetch series tag                             | TVHeadend autorec entry (title + channel) |
-| Getting the file    | HTTP download from the box                   | Hardlink or copy from a shared folder     |
-| Deleting the source | Fetch cloud, WebSocket, often flaky          | One TVHeadend API call, reliable          |
-| Ongoing cost        | `$29.99` levy, or a new box at `$4.99`/month | `$0`                                      |
+|                     | Fetcharr                                     | Freetvarr                                                 |
+| ------------------- | -------------------------------------------- | --------------------------------------------------------- |
+| Recorder            | Fetch Mighty Gen 3                           | TVHeadend + a TVHeadend-compatible tuner                  |
+| Guide               | Fetch's cloud API                            | [XMLTV](https://xmltv.org) (a free TV guide file), 7 days |
+| Series recording    | Fetch series tag                             | TVHeadend autorec entry (title + channel)                 |
+| Getting the file    | HTTP download from the box                   | Hardlink or copy from a shared folder                     |
+| Deleting the source | Fetch's cloud service, often unreliable      | One TVHeadend API call, reliable                          |
+| Ongoing cost        | `$29.99` levy, or a new box at `$4.99`/month | `$0`                                                      |

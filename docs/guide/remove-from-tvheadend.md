@@ -9,16 +9,16 @@ description: >-
 
 <Illustration name="removes-that-work" />
 
-Once an episode is in your library, you no longer need the copy in TVHeadend's recordings folder. Freetvarr can remove it after the import (and after the Plex refresh, if you use [Plex](/guide/plex)). This is optional, and you turn it on per series.
+Once an episode is in your library, you no longer need the copy in [TVHeadend](https://tvheadend.org/)'s recordings folder. Freetvarr can remove it after the import (Freetvarr's copy of the finished recording into your media library) and after the Plex refresh, if you use [Plex](/guide/plex). This is optional, and you turn it on per series.
 
 ## How it works
 
 Freetvarr deletes the recording file and keeps TVHeadend's entry for it. That entry is how TVHeadend knows the episode is already recorded. Before a series recording records a repeat, TVHeadend's duplicate check looks for an earlier entry with the same episode. If the entry is gone, TVHeadend records the repeat, and the next [sync](/guide/syncs) imports the same episode again.
 
-For each recording, Freetvarr makes these calls to TVHeadend's DVR API, in this order:
+For each recording, Freetvarr makes these calls to TVHeadend's DVR API (its web API for recordings), in this order:
 
 1. `idnode/delete` on any re-record TVHeadend has scheduled for the recording ([Re-records](#re-records)).
-2. `idnode/save` sets the entry's **DVR log retention** to `Forever`. The entry otherwise takes the DVR profile's **Recording info retention period**, which defaults to `On file removal` and drops the entry as soon as the file goes.
+2. `idnode/save` sets the entry's **DVR log retention** to `Forever`. The entry otherwise takes the DVR profile's (TVHeadend's recording settings) **Recording info retention period**, which defaults to `On file removal` and drops the entry as soon as the file goes.
 3. `dvr/entry/prevrec/set` marks the entry as previously recorded. The mark survives a TVHeadend restart and stops TVHeadend from re-recording the entry.
 4. `dvr/entry/remove` deletes the file. The entry moves to TVHeadend's **Removed Recordings** tab.
 
@@ -51,6 +51,6 @@ Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheaden
 
 ## If a remove fails
 
-- **"Recording not in TVHeadend's finished list"** means the entry has left TVHeadend's **Finished Recordings** tab, usually because you removed or deleted it in TVHeadend's own web interface. Nothing needs fixing (the row stays as it is).
-- **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. In TVHeadend's web interface, tick **Video recorder** `Basic` and `Manage all` under **Configuration → Users → Access Entries** (`Manage all` covers recordings another user scheduled). See [TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr).
-- **A file that won't disappear** is a permissions problem, not an API one. TVHeadend deletes the file as its own user, so check that `PUID` and `PGID` (the user and group IDs that own the files) in the `.env` file match across both Docker containers ([Compose environment](/guide/configuration#compose-environment)).
+- **"Recording(s) not in TVHeadend's finished list"** means the entry has left TVHeadend's **Finished Recordings** tab, usually because you removed or deleted it in TVHeadend's own web interface. Nothing needs fixing (the row stays as it is).
+- **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. In TVHeadend's web interface, tick **Video recorder** `Basic`, `View all`, and `Manage all` under **Configuration → Users → Access Entries** (`Manage all` covers recordings another user scheduled). See [TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr).
+- **A file that won't disappear** is a permissions problem, not an API one. TVHeadend deletes the file as its own user, so check that `PUID` and `PGID` (the user and group IDs that own the files) in the `.env` file match across both [Docker](https://www.docker.com/) containers ([Compose environment](/guide/configuration#compose-environment)).
