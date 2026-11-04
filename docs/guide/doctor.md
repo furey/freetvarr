@@ -88,6 +88,10 @@ Compares **Recording system path** on TVHeadend's default DVR profile with **As 
 
 Checks that the media folder exists and that Freetvarr can write to it. When it cannot, the row names the folder's owner and the user Freetvarr runs as. See [Permission errors](/guide/troubleshooting#permission-errors).
 
+## Library folders {#paths-mounted}
+
+Warns when the media root, the one-off folder, or the movies folder is empty while Freetvarr's imported recordings point into it. Hidden files such as `.freetvarr-keep` do not count. An empty folder on a new install passes. See [Empty library folder](/guide/troubleshooting#empty-library-folder).
+
 ## Hardlinks {#paths-hardlink}
 
 Makes a real test hardlink from the recordings folder into the media folder, the one-off folder, and the movies folder (when set). A hardlink is a second name for the same file data, which uses no extra space. If a link fails, each import copies the file, and every episode uses twice the space until TVHeadend's copy is deleted. The warning says either that the folders are on different disks, or that they are on one disk but in separate mounts. A mount is a folder attached to the Docker container from the host. For separate mounts, mount one folder that holds both. See [One shared mount](/guide/configuration#one-shared-mount).

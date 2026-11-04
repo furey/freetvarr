@@ -77,17 +77,20 @@ test('refreshShowArtwork clears recording artwork and show cache', async () => {
   const removed = []
   const reset = []
   const forgotten = []
+  const retried = []
   const result = await refreshShowArtwork({
     key: 'show',
     loadRows: async () => [
-      { recording_id: 'a', title: 'Show' },
-      { recording_id: 'b', title: 'Show' },
+      { recording_id: 'a', title: 'Show', image_url: 'imagecache/1' },
+      { recording_id: 'b', title: 'Show', image_url: null },
     ],
     removeImage: async (args) => removed.push(args.id),
     resetRows: async (ids) => reset.push(...ids),
     forgetShow: (title) => forgotten.push(title),
+    forgetFailedSources: (sources) => retried.push(...sources),
   })
   assert.deepEqual(result, { cleared: 3 })
+  assert.deepEqual(retried, ['imagecache/1'])
   assert.deepEqual(removed, ['a', 'b'])
   assert.deepEqual(reset, ['a', 'b'])
   assert.deepEqual(forgotten, ['Show'])

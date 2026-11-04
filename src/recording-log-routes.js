@@ -38,7 +38,7 @@ export const mountRecordingLogRoutes = ({ app, csrf }) => {
       return res.status(409).json({ error: 'recording still in TVHeadend. Remove it there first.' })
     }
     await clearFromLog([recordingId])
-    if (!row.deleted_from_tvh_at) await forgetRecordingArtwork(recordingId)
+    if (!row.deleted_from_tvh_at) await forgetPicture(recordingId)
     res.json({ ok: true })
   })
 }
@@ -56,6 +56,11 @@ const clearFromLog = async (ids) => {
     .update({ log_cleared_at: now })
   await db('recordings').whereIn('recording_id', ids).whereNotIn('status', IMPORTED_STATUSES)
     .update({ purged_at: now })
+}
+
+const forgetPicture = async (recordingId) => {
+  await forgetRecordingArtwork(recordingId)
+  await db('recordings').where({ recording_id: recordingId }).update({ image_path: null, image_checked_at: null })
 }
 
 const IMPORTED_STATUSES = ['done', 'partial']

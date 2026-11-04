@@ -25,6 +25,16 @@ test('diagnoseRecordingError: names the missing library folder', () => {
   assert.match(d.steps[1], /Movies folder/)
 })
 
+test('diagnoseRecordingError: names a missing TV folder and an empty library folder', () => {
+  const missing = diagnoseRecordingError('TV folder /data/media/tv not found; mount it or change it in Settings')
+  assert.equal(missing.title, 'TV folder not found')
+  assert.match(missing.steps[1], /Media root/)
+  const empty = diagnoseRecordingError('TV folder /data/media/tv is empty, but imported recordings point into it; check that it is mounted')
+  assert.equal(empty.title, 'TV folder is empty')
+  assert.equal(empty.doc, 'guide/troubleshooting#empty-library-folder')
+  assert.match(empty.steps[1], /emptied the folder yourself/)
+})
+
 test('diagnoseRecordingError: covers path mismatches, TVHeadend status, and permissions', () => {
   assert.equal(diagnoseRecordingError('TVHeadend file path is outside the recordings mount (Completed OK)').title, 'Recording path does not match')
   assert.equal(diagnoseRecordingError('TVHeadend reported: Data errors').title, 'TVHeadend reported a problem')

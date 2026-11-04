@@ -40,13 +40,26 @@ const RULES = [
     }),
   },
   {
-    pattern: /(one-off|movies) folder .+? not found/,
+    pattern: /(TV|one-off|movies) folder .+? is empty, but imported recordings point into it/,
     explain: ([, kind]) => ({
-      title: `${kind === 'movies' ? 'Movies' : 'One-off'} folder not found`,
+      title: `${FOLDER_TITLES[kind]} folder is empty`,
+      meaning: `Freetvarr files this recording in the ${kind} folder. That folder (below) is empty, but recordings Freetvarr imported earlier point into it, so the media share is most likely not mounted.`,
+      steps: [
+        'Mount the media share on the host, then restart the Freetvarr Docker container.',
+        'If you emptied the folder yourself, or moved the media root, delete those recordings in Freetvarr so that syncs import into it again.',
+        'The next sync imports the recording.',
+      ],
+      doc: 'guide/troubleshooting#empty-library-folder',
+    }),
+  },
+  {
+    pattern: /(TV|one-off|movies) folder .+? not found/,
+    explain: ([, kind]) => ({
+      title: `${FOLDER_TITLES[kind]} folder not found`,
       meaning: `Freetvarr files this recording in the ${kind} folder, but that folder (below) does not exist inside the Freetvarr Docker container.`,
       steps: [
         `Mount the host folder for ${kind} into the Freetvarr Docker container, then restart the container.`,
-        `Or, in Settings → RECORDING → Media library, change the ${kind === 'movies' ? 'Movies' : 'One-off'} folder and press Test path.`,
+        `Or, in Settings → RECORDING → Media library, change the ${FOLDER_SETTINGS[kind]} and press Test path.`,
         'The next sync imports the recording.',
       ],
       doc: 'guide/troubleshooting#test-path-failures',
@@ -104,6 +117,10 @@ const RULES = [
     }),
   },
 ]
+
+const FOLDER_TITLES = { TV: 'TV', 'one-off': 'One-off', movies: 'Movies' }
+
+const FOLDER_SETTINGS = { TV: 'Media root', 'one-off': 'One-off folder', movies: 'Movies folder' }
 
 const FALLBACK = {
   title: 'Import error',

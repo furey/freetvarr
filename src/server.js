@@ -36,7 +36,8 @@ import {
   closeInterruptedSyncs,
   airingOf,
 } from './sync.js'
-import { LIBRARY_STATES, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
+import { LIBRARY_STATES, libraryChoicePatchOf, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
+import { libraryRootReadyFor, libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
 import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
@@ -277,6 +278,7 @@ const loadCsrfSecret = async () => {
 const CSRF_SECRET = await loadCsrfSecret()
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
 const LIBRARY_CHOICES = ['include', 'exclude']
+const LIBRARY_FOLDER_NOT_READY = 'The library folder for this recording is missing or empty. Check that the media share is mounted, then try again. If you emptied the folder yourself, delete its recordings in Freetvarr first.'
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = Promise.all([
   detectLiveEncoder({
@@ -514,12 +516,10 @@ app.post('/api/recordings/:recording_id/library', rowActionLimiter, doubleCsrfPr
   if (row.status === 'importing' || (row.status === 'done' && state !== 'not_in_library')) {
     return res.status(409).json({ error: 'recording is already in the library' })
   }
-  await db('recordings').where({ recording_id: recordingId }).update({
-    library_choice: choice,
-    ...(choice === 'include'
-      ? { status: 'pending', error: null, library_state: null, library_replacement: null }
-      : {}),
-  })
+  if (choice === 'include' && row.file_path && !(await libraryRootReadyFor(row.file_path))) {
+    return res.status(409).json({ error: LIBRARY_FOLDER_NOT_READY })
+  }
+  await db('recordings').where({ recording_id: recordingId }).update(libraryChoicePatchOf(choice))
   const sync = choice === 'include' ? await startSync({ trigger: 'manual:import' }) : null
   res.json({ ok: true, choice, syncId: sync?.syncId ?? null })
 })
@@ -1728,6 +1728,8 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const refusal = settingsSaveRefusalOf(body)
   if (refusal) return res.status(400).json({ error: refusal })
   const timeZone = body.time_zone === undefined ? undefined : String(body.time_zone).trim()
+  const rootsError = libraryRootsSaveError({ before: await loadLibraryRoots(), after: await rootsAfterSaveOf(body) })
+  if (rootsError) return res.status(400).json({ error: rootsError })
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))

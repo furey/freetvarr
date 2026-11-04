@@ -79,7 +79,7 @@ The third path, **media root** (`media_root`; `/media/tv` in the code, `/data/me
 
 ## The one-off folder
 
-The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example Docker Compose file) holds recordings that match no [series folder](/guide/series#recordings-with-no-series). On the host it is `${DATA_PATH}/media/one-offs`. The example Docker Compose file creates the host folder. Create it yourself only if you moved `oneoff_root`, and make `PUID:PGID` the owner. If the folder is missing, these recordings show as **SKIPPED** with a note.
+The **one-off folder** (`oneoff_root`; `/media/one-offs` in the code, `/data/media/one-offs` in the example Docker Compose file) holds recordings that match no [series folder](/guide/series#recordings-with-no-series). On the host it is `${DATA_PATH}/media/one-offs`. The example Docker Compose file creates the host folder. Create it yourself only if you moved `oneoff_root`, and make `PUID:PGID` the owner. If the folder is missing, these recordings show as **SKIPPED** with a note. The same goes for the media root and the movies folder.
 
 The optional **movies folder** (`movies_root` in Settings, or `MOVIES_ROOT` in the `.env`) takes [films](/guide/series#films) with no series folder. Leave both empty to send films to the one-off folder. It must sit inside the same [shared mount](#one-shared-mount) as the recordings, for example `/data/media/movies`. Clear the movies folder in Settings to use `MOVIES_ROOT` again. Films already filed stay where they are, and new films go to `MOVIES_ROOT`. If `MOVIES_ROOT` seems ignored, press **Save settings** once with the movies folder empty, or enter the folder in Settings.
 
@@ -109,7 +109,7 @@ If your folders live in separate places, mount one parent folder that holds both
 
 For the technically minded: Freetvarr imports with a hardlink (a second name for the same file), and Linux refuses a hardlink across two mounts with the `EXDEV` error.
 
-To move the TV library or the one-off folder, move the folder on the host yourself, then change `media_root` or `oneoff_root` in Settings. Freetvarr updates the file paths stored in its database at startup and when you save Settings, so you do not edit the database.
+To move the TV library or the one-off folder, move the folder on the host yourself, then change `media_root` or `oneoff_root` in Settings. Freetvarr updates the file paths stored in its database at startup and when you save Settings, so you do not edit the database. The media root, the one-off folder, and the movies folder must be separate folders: Settings refuses a save that puts one inside another, or makes two the same.
 
 ## Runtime settings
 
