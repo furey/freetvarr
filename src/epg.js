@@ -45,6 +45,7 @@ import { artworkUploads } from './artwork-uploads.js'
 import { getPlexConnection } from './plex.js'
 import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
+import { createRecordingStateCache } from './recording-state-cache.js'
 import { orderChannels } from './channel-order.js'
 import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
@@ -477,32 +478,7 @@ const guideIdentities = new WeakMap()
 // cooldown during which no new attempt starts, and the last good state is
 // served with stale:true instead of an error. Mutations clear the cooldown
 // (via invalidateRecordingState) so a successful command retries immediately.
-export const getRecordingState = async ({ fresh = false } = {}) => {
-  const now = Date.now()
-  if (!fresh && stateCache && stateCache.expiresAt > now) return stateCache.value
-  if (!fresh && now < stateFailedUntil) {
-    if (stateCache) return { ...stateCache.value, stale: true }
-    throw stateLastError
-  }
-  if (!fresh && stateCache) {
-    reloadRecordingState(now).catch(() => {})
-    return stateCache.value
-  }
-  return reloadRecordingState(now)
-}
-
-const reloadRecordingState = (now) => {
-  if (stateInflight) return stateInflight
-  stateInflight = measureJob('recording-state', () => loadRecordingState(now))
-    .catch((err) => {
-      stateFailedUntil = Date.now() + STATE_RETRY_MS
-      stateLastError = err
-      if (stateCache) return { ...stateCache.value, stale: true }
-      throw err
-    })
-    .finally(() => { stateInflight = null })
-  return stateInflight
-}
+export const getRecordingState = (options) => recordingStateCache.get(options)
 
 const loadRecordingState = async (now) => {
   const [loadedState, guide, storageInfo, loadedSkips] = await Promise.all([
@@ -546,8 +522,6 @@ const loadRecordingState = async (now) => {
     activeRecordingIds: state.activeRecordingIds,
     fetchedAt: now,
   }
-  stateCache = { value, expiresAt: now + STATE_TTL_MS }
-  stateFailedUntil = 0
   return value
 }
 
@@ -584,8 +558,7 @@ export const withSeriesImages = ({ seriesTags = [], guide, nowMs = Date.now() })
 }
 
 export const invalidateRecordingState = () => {
-  stateCache = null
-  stateFailedUntil = 0
+  recordingStateCache.invalidate()
   invalidateRecordingNow()
 }
 
@@ -607,7 +580,7 @@ export const enforcePendingSkips = async () => {
   if (await hasPendingSkips() || hasRepeatsAwaitingOriginal()) await getRecordingState({ fresh: true })
 }
 
-const hasRepeatsAwaitingOriginal = () => (stateCache?.value?.repeatRecordings || []).some(isRepeatAwaitingOriginal)
+const hasRepeatsAwaitingOriginal = () => (recordingStateCache.peek()?.repeatRecordings || []).some(isRepeatAwaitingOriginal)
 
 export const watchPendingSkips = () => {
   const enforce = () => enforcePendingSkips().catch((err) => console.warn(`[epg] saved skips: ${err.message}`))
@@ -1062,10 +1035,6 @@ const recordingsStorageInfo = async () => {
 
 export const clearGuideCache = () => guideCache.clear()
 
-let stateCache = null
-let stateInflight = null
-let stateFailedUntil = 0
-let stateLastError = null
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
@@ -1112,6 +1081,12 @@ const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
 const guideListeners = new Set()
+const recordingStateCache = createRecordingStateCache({
+  load: (now) => measureJob('recording-state', () => loadRecordingState(now)),
+  ttlMs: STATE_TTL_MS,
+  retryMs: STATE_RETRY_MS,
+})
+
 const guideCache = createGuideCache({
   load: (startMs) => measureJob('guide-load', () => loadGuide(startMs), { kind: 'guide' }).then(announceGuideLoaded),
   staleRetryMs: GUIDE_STALE_RETRY_MS,
