@@ -47,7 +47,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
   app.post('/api/for-you/picks', limiter, csrf, async (req, res) => {
     const { seriesKeys, error } = picksFrom(req.body)
     if (error) return res.status(400).json({ error })
-    if (!(await isViewingHistoryEnabled())) return res.status(409).json({ error: 'Turn on viewing history to save picks' })
+    if (!(await isViewingHistoryEnabled())) return res.status(409).json({ error: 'Turn on viewing history to save picks.' })
     const titles = await titlesForKeys(seriesKeys)
     const logged = seriesKeys
       .filter((seriesKey) => logUserEvent({ kind: 'thumb_up', series_key: seriesKey, title: titles.get(seriesKey) || null, source: 'for-you-picks' }))
