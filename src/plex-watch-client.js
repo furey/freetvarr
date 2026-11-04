@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export const PAGE_SIZE = 500
-export const MAX_PAGES = 40
+export const MAX_PAGES = 400
 export const MAX_PAGE_BYTES = 20 * 1024 * 1024
 export const READ_TIMEOUT_MS = 15_000
 export const WRITE_TIMEOUT_MS = 10_000
@@ -34,7 +34,7 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
     return response.data
   }
 
-  const listItems = ({ section, viewedSinceS = null, addedSinceS = null }) => listPaged({
+  const listAllItems = ({ section, viewedSinceS = null, addedSinceS = null }) => listPaged({
     section,
     params: {
       type: section.type === 'show' ? EPISODE_TYPE : MOVIE_TYPE,
@@ -44,7 +44,9 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
     },
   })
 
-  const listShows = ({ section }) => listPaged({ section, params: { type: SHOW_TYPE, includeGuids: 1 } })
+  const listItems = async (options) => (await listAllItems(options)).items
+
+  const listShows = async ({ section }) => (await listPaged({ section, params: { type: SHOW_TYPE, includeGuids: 1 } })).items
 
   const listPaged = async ({ section, params }) => {
     const items = []
@@ -57,9 +59,9 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
       const batch = metadataOf(data)
       items.push(...batch)
       const total = Number(data?.MediaContainer?.totalSize)
-      if (batch.length < PAGE_SIZE || (Number.isFinite(total) && items.length >= total)) return items
+      if (batch.length < PAGE_SIZE || (Number.isFinite(total) && items.length >= total)) return { items, truncated: false }
     }
-    return items
+    return { items, truncated: true }
   }
 
   const metadata = async (ratingKeys) => {
@@ -82,7 +84,7 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
   const sections = async () => directoriesOf(await get({ path: '/library/sections' }))
     .map((directory) => ({ id: String(directory.key), type: directory.type, title: directory.title ?? '' }))
 
-  return { listItems, listShows, metadata, write, sections }
+  return { listItems, listAllItems, listShows, metadata, write, sections }
 }
 
 export const metadataOf = (data) => {
