@@ -1617,6 +1617,7 @@ a.settings-row-link:hover {
 
   .activity-sub {
     white-space: normal;
+    text-wrap: pretty;
   }
 
   .activity-side {

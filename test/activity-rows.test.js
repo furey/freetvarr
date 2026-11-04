@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  clientLabelOf, durationText, startedByText, jobRowOf, recordingRowOf, serverLineOf, sessionRowOf, triggerText, upNextRowOf, uptimeText,
+  clientLabelOf, durationText, startedByText, jobRowOf, recordingRowOf, serverLineOf, sessionRowOf, subjectFactsOf, subjectLineOf, subjectLinkOf,
+  triggerText, upNextRowOf, uptimeText,
 } from '../src/web/activity-rows.js'
 
 const timeZone = 'Australia/Sydney'
@@ -62,8 +63,8 @@ test('a recording row counts down to the padded stop and shows its slot', () => 
     nowMs: at('20:02'),
     timeZone,
   })
-  assert.equal(row.title, 'Recording · Big Brother S16 E12')
-  assert.equal(row.sub, '10 HD · 7:30pm–8:40pm, stops 8:50pm · Tuner 2')
+  assert.equal(row.title, 'Recording · Big Brother')
+  assert.equal(row.sub, 'S16 E12 · 10 HD · 7:30pm–8:40pm, stops 8:50pm · Tuner 2')
   assert.equal(row.side, '48m left')
   assert.equal(row.percent, 41)
   assert.equal(row.live, true)
@@ -120,4 +121,65 @@ test('small formatters', () => {
   assert.equal(triggerText('cron'), null)
   assert.equal(startedByText('cron'), 'Schedule')
   assert.equal(startedByText('manual'), 'manual')
+})
+
+const bigBrother = (patch = {}) => ({
+  recordingId: 'bb1', title: 'Big Brother', season: null, episode: null, episodeTitle: null, channelName: '7',
+  airedAt: Date.parse('2026-11-02T19:00:00+11:00'), year: null, film: false,
+  file: '/media/tv/Big Brother/Season 00/Big Brother - 2026-11-02.ts', ...patch,
+})
+
+test('a job on one recording starts its line with the episode, so two jobs on one show differ', () => {
+  const first = jobRowOf({ run: run({ kind: 'ads', title: 'Ad removal · Big Brother', step: 'Cut ads', subject: bigBrother() }), nowMs: at('21:59'), timeZone })
+  const second = jobRowOf({
+    run: run({ kind: 'ads', title: 'Ad removal · Big Brother', step: 'Scan for ads', subject: bigBrother({ airedAt: Date.parse('2026-11-03T19:00:00+11:00') }) }),
+    nowMs: at('21:59'),
+    timeZone,
+  })
+  assert.equal(first.sub, 'Mon 2 Nov · Cut ads')
+  assert.equal(second.sub, 'Tue 3 Nov · Scan for ads')
+})
+
+test('the episode on the line is the season and episode, else the air date, and a film shows its year', () => {
+  assert.equal(subjectLineOf({ subject: bigBrother({ season: 17, episode: 10, episodeTitle: 'Day 23' }), timeZone }), 'S17 E10')
+  assert.equal(subjectLineOf({ subject: bigBrother({ season: 17, episode: null, episodeTitle: 'Episode 10' }), timeZone }), 'S17 E10')
+  assert.equal(subjectLineOf({ subject: bigBrother({ episode: 1030 }), timeZone }), 'E1030')
+  assert.equal(subjectLineOf({ subject: bigBrother({ film: true, year: 2000 }), timeZone }), '2000')
+  assert.equal(subjectLineOf({ subject: bigBrother({ film: true }), timeZone }), 'Mon 2 Nov')
+  assert.equal(subjectLineOf({ subject: bigBrother({ airedAt: null, episodeTitle: 'Grand final' }), timeZone }), 'Grand final')
+  assert.equal(subjectLineOf({ subject: null, timeZone }), null)
+})
+
+test('finished and failed jobs on one recording also lead with the episode', () => {
+  const done = jobRowOf({
+    run: run({ kind: 'ads', state: 'done', outcome: 'Ads cut', trigger: 'recording-finished', finishedAt: at('21:50'), subject: bigBrother({ season: 17, episode: 10 }) }),
+    nowMs: at('22:00'),
+    timeZone,
+  })
+  assert.equal(done.sub, 'S17 E10 · Ads cut · after a recording')
+  const failed = jobRowOf({ run: run({ kind: 'ads', state: 'failed', error: 'Ad cut failed', finishedAt: at('21:50'), subject: bigBrother() }), nowMs: at('22:00'), timeZone })
+  assert.equal(failed.sub, 'Mon 2 Nov · Ad cut failed')
+})
+
+test('the drawer names the show, episode, air time, channel, and file', () => {
+  const facts = subjectFactsOf({ subject: bigBrother({ season: 17, episode: 10, episodeTitle: 'Day 23' }), timeZone })
+  assert.deepEqual(facts, [
+    { label: 'Show', value: 'Big Brother' },
+    { label: 'Episode', value: 'S17 E10 · Day 23' },
+    { label: 'Aired', value: 'Mon 2 Nov, 7:00pm' },
+    { label: 'Channel', value: '7' },
+    { label: 'File', value: 'Big Brother - 2026-11-02.ts' },
+    { label: 'Folder', value: '/media/tv/Big Brother/Season 00' },
+  ])
+  const film = subjectFactsOf({ subject: bigBrother({ title: 'The Dish', film: true, year: 2000, file: null }), timeZone })
+  assert.deepEqual(film.map((fact) => fact.label), ['Movie', 'Year', 'Aired', 'Channel'])
+  const placeholder = subjectFactsOf({ subject: bigBrother({ season: 11, episode: 4, episodeTitle: 'Episode 4' }), timeZone })
+  assert.equal(placeholder.find((fact) => fact.label === 'Episode').value, 'S11 E4')
+  assert.deepEqual(subjectFactsOf({ subject: null, timeZone }), [])
+})
+
+test('the drawer links to the show page of the recording', () => {
+  assert.deepEqual(subjectLinkOf(bigBrother()), { href: '#/recordings/show/big-brother', label: 'Open show' })
+  assert.deepEqual(subjectLinkOf(bigBrother({ title: 'The Dish', film: true })), { href: '#/recordings/show/the-dish', label: 'Open movie' })
+  assert.equal(subjectLinkOf(null), null)
 })
