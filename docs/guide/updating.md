@@ -114,7 +114,7 @@ These releases change something on your install when you update to them. Read ea
 
 [Release notes for `2.8.0`](https://github.com/furey/freetvarr/releases/tag/2.8.0)
 
-- **Hostname check, report only**: Freetvarr notes each hostname it does not know, but refuses nothing yet. Open [Health](/guide/doctor#host-names) and check **Allowed hostnames**. If it names a hostname you use, such as a reverse proxy name, add it to [Allowed hostnames](/guide/troubleshooting#allowed-hostnames) before `3.0.0`, which refuses unlisted names.
+- **Hostname check, report only**: Freetvarr notes each hostname it does not know, but refuses nothing yet, except changes to the list from a page opened by an unlisted name. Open [Health](/guide/doctor#host-names) and check **Allowed hostnames**. If it names a hostname you use, such as a reverse proxy name, add it to [Allowed hostnames](/guide/troubleshooting#allowed-hostnames) before `3.0.0`, which refuses unlisted names.
 - **`FREETVARR_ALLOWED_HOSTS`**: an old `docker-compose.yml` does not pass this variable to the container. To use it, add `- FREETVARR_ALLOWED_HOSTS=${FREETVARR_ALLOWED_HOSTS:-}` under `environment:` of the `freetvarr` service, as in [`docker-compose.example.yml`](https://github.com/furey/freetvarr/blob/main/docker-compose.example.yml).
 
 ### 2.7.0
