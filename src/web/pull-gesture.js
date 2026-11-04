@@ -27,3 +27,5 @@ export const pullProgressOf = (offset) => {
 }
 
 export const isPullCommitted = (offset) => offset >= PULL_COMMIT_OFFSET_PX
+
+export const isPullRefreshAllowed = ({ route, unsavedSettings = false }) => route !== 'welcome' && !unsavedSettings

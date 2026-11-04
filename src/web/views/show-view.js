@@ -39,6 +39,8 @@ import { browserStorage } from '/shared/storage.js'
 import { readHomeCache } from '/home-cache.js'
 import { knownShowTitleOf } from '/show-key.js'
 import { createResponseOrder } from '/response-order.js'
+import { AD_JOB_POLL_MS, hasAdJobRunning } from '/ad-confirm.js'
+import { createPoll } from '/poll.js'
 import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
 import { showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
@@ -452,11 +454,20 @@ export const ShowView = {
       failedImages.value = { ...failedImages.value, [episode.recordingId]: true }
     }
 
+    const adJobPoll = createPoll({
+      run: load,
+      delayOf: () => (hasAdJobRunning(allEpisodes.value) ? AD_JOB_POLL_MS : null),
+    })
+    watch(show, () => {
+      if (!adJobPoll.isBooked()) adJobPoll.book()
+    })
+
     onMounted(() => {
       load()
       window.addEventListener('keydown', onSelectKeydown)
     })
     onUnmounted(() => {
+      adJobPoll.stop()
       window.removeEventListener('keydown', onSelectKeydown)
       document.body.classList.remove('library-selecting')
     })

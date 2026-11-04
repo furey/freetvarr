@@ -16,6 +16,14 @@ export const adActionLabelOf = (ads = NO_ADS) => {
 
 export const isAdJobRunning = (ads = NO_ADS) => ads.status === 'scanning'
 
+export const AD_JOB_POLL_MS = 5000
+
+export const hasAdJobRunning = (episodes = []) => episodes.some((episode) => isAdJobRunning(episode.ads || NO_ADS))
+
+export const freshEpisodeOf = ({ episode, episodes = [] }) => (episode
+  ? episodes.find((candidate) => candidate.recordingId === episode.recordingId) || episode
+  : null)
+
 export const adMenuItemOf = (episode) => {
   const ads = episode.ads || NO_ADS
   if (!isAdJobRunning(ads)) return { key: 'remove-ads', label: adActionLabelOf(ads), icon: 'ads' }

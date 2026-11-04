@@ -1,6 +1,7 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { isStaleBuild } from '/stale-build.js'
 import { sharedCsrfToken, withCsrfRetry } from '/shared/csrf-retry.js'
+import { reachServer, responseErrorOf } from '/shared/request-errors.js'
 
 export let csrfToken = null
 
@@ -34,7 +35,7 @@ export const staleBuild = computed(() => isStaleBuild({
 }))
 
 const fetchCsrf = async () => {
-  const res = noteBuild(await fetch('/api/csrf-token'))
+  const res = noteBuild(await reachServer(() => fetch('/api/csrf-token')))
   if (!res.ok) throw new Error(`csrf-token HTTP ${res.status}`)
   const data = await res.json().catch(() => {
     throw new Error(`csrf-token returned non-JSON (HTTP ${res.status})`)
@@ -49,20 +50,13 @@ const apiCall = async (method, url, body, headersExtra = {}) => {
   const isFile = typeof Blob !== 'undefined' && body instanceof Blob
   const contentType = isFile ? body.type || 'application/octet-stream' : 'application/json'
   const headers = { 'Content-Type': contentType, ...headersExtra }
-  const res = noteBuild(await fetch(url, {
+  const res = noteBuild(await reachServer(() => fetch(url, {
     method,
     headers,
     body: isFile ? body : body ? JSON.stringify(body) : undefined,
-  }))
+  })))
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    const err = new Error(data.error || data.reason || `HTTP ${res.status}`)
-    err.code = data.code || null
-    err.stage = data.stage || null
-    err.status = res.status
-    err.data = data
-    throw err
-  }
+  if (!res.ok) throw responseErrorOf({ status: res.status, data })
   return data
 }
 

@@ -1,6 +1,6 @@
 import { ref, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { resolveRoute } from '/route-table.js'
-import { entryStateWithOrigin, replacedEntryStateOf } from '/back-target.js'
+import { entryStateWithOrigin, replaceUrlKeepingEntry, replacedEntryStateOf } from '/back-target.js'
 import { createScrollMemory, entryStateWithKey, restoreScrollTop } from '/scroll-memory.js'
 
 const resolveCurrentHash = () => {
@@ -104,6 +104,12 @@ export const replaceHash = (hash) => {
   if (window.location.hash === hash) return
   history.replaceState(replacedEntryStateOf(history.state), '', hash)
   window.dispatchEvent(new HashChangeEvent('hashchange'))
+}
+
+export const replaceSectionInPlace = ({ hash, section }) => {
+  replaceUrlKeepingEntry({ history, hash })
+  currentHash = window.location.hash
+  routeSection.value = section
 }
 
 export const navigateFrom = ({ hash, originHash }) => {

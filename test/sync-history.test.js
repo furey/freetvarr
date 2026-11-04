@@ -84,6 +84,18 @@ test('listSyncs: matches any chosen outcome and counts the empty syncs', async (
   await db.destroy()
 })
 
+test('listSyncs: a sync started by a finished recording lists under auto, not under cron or manual', async (t) => {
+  const db = await openDb()
+  t.after(() => db.destroy())
+  await seedRow(db, { minute: 1, summary: { trigger: 'cron', imported: 1 } })
+  await seedRow(db, { minute: 2, summary: { trigger: 'recording-finished', imported: 1 } })
+  await seedRow(db, { minute: 3, summary: { trigger: 'manual:import', imported: 1 } })
+  assert.equal(syncPageParams({ trigger: 'auto' }).trigger, 'auto')
+  assert.deepEqual((await listSyncs({ db, trigger: 'auto' })).syncs.map((s) => s.id), [2])
+  assert.deepEqual((await listSyncs({ db, trigger: 'cron' })).syncs.map((s) => s.id), [1])
+  assert.deepEqual((await listSyncs({ db, trigger: 'manual' })).syncs.map((s) => s.id), [3])
+})
+
 test('pruneSyncHistory: drops the oldest empty syncs first, then caps the total', async () => {
   const db = await openDb()
   for (let minute = 1; minute <= 6; minute++) {

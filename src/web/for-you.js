@@ -1,4 +1,5 @@
 import { airingWhenOf, durationText } from './home-hero.js'
+import { failureText } from './shared/request-errors.js'
 import { localDayNumber } from './guide-time.js'
 import { showKeyOf } from './show-key.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
@@ -397,6 +398,15 @@ export const whyIconOf = (text) => {
 export const pickableOf = (payload) => (Array.isArray(payload) ? payload : payload?.items ?? [])
 
 export const hiddenShowsOf = (payload) => (Array.isArray(payload) ? payload : payload?.items ?? payload?.shows ?? [])
+
+export const forYouLoadFailureOf = ({ hasPayload }) => (hasPayload
+  ? { missing: false, refreshFailed: true }
+  : { missing: true, refreshFailed: false })
+
+export const picksErrorOf = (err) => ({
+  text: failureText({ action: 'Could not save your picks', err }),
+  needsSettings: err?.status === 409,
+})
 
 const orderedSections = (sections = []) => [...sections].sort((a, b) => rankOf(a.key) - rankOf(b.key))
 

@@ -13,3 +13,9 @@ export const createResponseOrder = () => {
   const isLatest = (ticket) => ticket === issued
   return { issue, accept, isLatest }
 }
+
+export const latestOnly = (order = createResponseOrder()) => async (request) => {
+  const ticket = order.issue()
+  const result = await request()
+  return order.isLatest(ticket) ? { latest: true, result } : { latest: false, result: null }
+}

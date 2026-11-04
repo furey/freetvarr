@@ -35,6 +35,21 @@ export const createOverlayStack = ({ entries = null } = {}) => {
   return { push, remove, isTop, has, size, backTo, subscribe }
 }
 
+export const createOverlayLayer = ({ stack, onClose, target = typeof window === 'undefined' ? null : window }) => {
+  let layer = null
+  const open = () => {
+    if (layer) return
+    layer = stack.push({ onBack: onClose })
+    target?.addEventListener('hashchange', onClose)
+  }
+  const release = () => {
+    target?.removeEventListener('hashchange', onClose)
+    if (layer) stack.remove(layer.id)
+    layer = null
+  }
+  return { open, release, isOpen: () => layer !== null }
+}
+
 export const createHistoryEntries = ({ history, usesBackGesture, later = (run) => setTimeout(run) }) => {
   let pendingPops = 0
   let stack = null
