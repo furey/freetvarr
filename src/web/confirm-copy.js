@@ -59,6 +59,7 @@ export const resetConfirm = ({ mediaRoot }) => ({
       + ' and so do the recordings and settings in TVHeadend.',
     'The first sync after setup imports the recordings still in TVHeadend again.',
     'Freetvarr keeps the TV login it made. You can still delete it, or restore open access, after setup.',
+    'Freetvarr also keeps the Allowed hostnames.',
     'You cannot undo this.',
   ],
   confirmLabel: 'Reset Freetvarr',
