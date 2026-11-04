@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import { tmdbKeyFrom, tmdbKeyMessageOf } from '../src/tmdb-key.js'
 
@@ -16,4 +17,9 @@ test('tmdbKeyMessageOf explains each validation result', () => {
   assert.equal(tmdbKeyMessageOf({ ok: true }), 'TMDB accepted the key.')
   assert.match(tmdbKeyMessageOf({ ok: false, reason: 'invalid' }), /did not accept/)
   assert.match(tmdbKeyMessageOf({ ok: false, reason: 'whatever' }), /could not reach TMDB/)
+})
+
+test('TMDB key field: Enter saves the key and does not submit the Settings form', () => {
+  const component = readFileSync(new URL('../src/web/components/tmdb-key-setting.js', import.meta.url), 'utf8')
+  assert.match(component, /<input v-no-autofill id="settings-tmdb-key"[^>]*@keydown\.enter\.prevent="typedKey && !busy && saveKey\(\)"/)
 })

@@ -11,6 +11,7 @@ export const TmdbKeySetting = {
           <div class="field-action">
             <div class="field-action-controls">
               <input v-no-autofill id="settings-tmdb-key" type="password" :class="['field-input', { 'is-invalid': statusText && statusKind === 'err' }]" v-model="typedKey"
+                @keydown.enter.prevent="typedKey && !busy && saveKey()"
                 :placeholder="keySet ? '••••• (stored)' : 'Paste an API key or read access token'" autocomplete="off" spellcheck="false" />
               <button type="button" :class="['ui-button', { 'is-pending': busy === 'test' }]" :disabled="busy || (!typedKey && !keySet)" @click="testKey">
                 <template v-if="busy === 'test'"><span class="spinner" aria-hidden="true"></span> Testing…</template><template v-else><pulse-icon /> Test key</template>
