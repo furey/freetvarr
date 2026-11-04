@@ -36,8 +36,8 @@ import {
   airingOf,
   usePlaybackCheck,
 } from './sync.js'
-import { LIBRARY_STATES, libraryChoicePatchOf, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
-import { libraryRootReadyFor, libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
+import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
+import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
 import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
@@ -54,7 +54,6 @@ import {
 import {
   testConnection as testTvheadendConnection,
   detectServers as detectTvheadendServers,
-  removeRecordings as removeTvhRecordings,
   listFinished,
   resolveConnection,
   listChannels,
@@ -209,6 +208,7 @@ import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountPlexLibraryRoutes } from './plex-library-routes.js'
 import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
+import { mountRecordingTvhRoutes } from './recording-tvh-routes.js'
 import { clearableRows, mountRecordingLogRoutes, whereInLog } from './recording-log-routes.js'
 import { recordOptionsFrom } from './recording-padding.js'
 import { recordRequestError, seriesRequestError } from './record-requests.js'
@@ -287,8 +287,6 @@ const CSRF_SECRET = await loadCsrfSecret()
 await restrictDatabaseFiles({ dbPath: DB_FILE })
   .catch((err) => console.warn(`[server] cannot restrict the database file modes (${err.code || err.message})`))
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
-const LIBRARY_CHOICES = ['include', 'exclude']
-const LIBRARY_FOLDER_NOT_READY = 'The library folder for this recording is missing or empty. Check that the media share is mounted, then try again. If you emptied the folder yourself, delete its recordings in Freetvarr first.'
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = Promise.all([
   detectLiveEncoder({
@@ -483,56 +481,11 @@ app.delete('/api/syncs/:id', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true })
 })
 
-app.post(
-  '/api/recordings/:recording_id/delete-from-tvh',
-  rowActionLimiter,
-  doubleCsrfProtection,
-  async (req, res) => {
-    const recordingId = req.params.recording_id
-    const row = await db('recordings').where({ recording_id: recordingId }).first()
-    if (!row) return res.status(404).json({ error: 'recording not found' })
-    if (row.deleted_from_tvh_at) {
-      return res.status(409).json({ error: 'recording already marked removed from TVHeadend' })
-    }
-    try {
-      await removeTvhRecordings({ recordingIds: [recordingId] })
-      const now = new Date().toISOString()
-      await db('recordings')
-        .where({ recording_id: recordingId })
-        .update({ deleted_from_tvh_at: now })
-      res.json({ ok: true, deleted_from_tvh_at: now })
-    } catch (err) {
-      const stage = err instanceof TvheadendError ? err.stage : 'unknown'
-      const code = err instanceof TvheadendError ? err.code : undefined
-      console.error(`[tvheadend] delete-from-tvh failed for ${recordingId} (stage ${stage}): ${err.message}`)
-      res.status(502).json({ ok: false, error: err.message, stage, code })
-    }
-  },
-)
+mountRecordingTvhRoutes({ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter })
 
 mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
 
 mountRecordingLogRoutes({ app, csrf: doubleCsrfProtection })
-
-app.post('/api/recordings/:recording_id/library', rowActionLimiter, doubleCsrfProtection, async (req, res) => {
-  const recordingId = req.params.recording_id
-  const choice = req.body?.choice
-  if (!LIBRARY_CHOICES.includes(choice)) {
-    return res.status(400).json({ error: `choice must be one of ${LIBRARY_CHOICES.join(', ')}` })
-  }
-  const row = await db('recordings').where({ recording_id: recordingId }).first()
-  if (!row) return res.status(404).json({ error: 'recording not found' })
-  const { state } = await libraryStateOf(row)
-  if (row.status === 'importing' || (row.status === 'done' && state !== 'not_in_library')) {
-    return res.status(409).json({ error: 'recording is already in the library' })
-  }
-  if (choice === 'include' && row.file_path && !(await libraryRootReadyFor(row.file_path))) {
-    return res.status(409).json({ error: LIBRARY_FOLDER_NOT_READY })
-  }
-  await db('recordings').where({ recording_id: recordingId }).update(libraryChoicePatchOf(choice))
-  const sync = choice === 'include' ? await startSync({ trigger: 'manual:import' }) : null
-  res.json({ ok: true, choice, syncId: sync?.syncId ?? null })
-})
 
 const titleSortExpression = (column) =>
   `(CASE WHEN lower(${column}) LIKE 'the %' THEN substr(${column}, 5) ELSE ${column} END) COLLATE NOCASE`

@@ -38,7 +38,10 @@ export const getActiveSyncId = () => inFlight?.syncId ?? null
 
 export const startSync = async (options = {}) => {
   while (starting) await starting.catch(() => {})
-  if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
+  if (inFlight) {
+    if (options.followUp) followUpTrigger = options.trigger ?? 'manual'
+    return { syncId: inFlight.syncId, alreadyRunning: true, ...(options.followUp ? { followUp: true } : {}) }
+  }
   const attempt = beginSync(options)
   starting = attempt
   try {
@@ -63,10 +66,20 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
     .finally(() => {
       inFlight = null
       syncFinishedListeners.forEach((listener) => notifySyncFinished({ listener, syncId, trigger }))
+      startFollowUpSync()
     })
   inFlight = { syncId, promise }
   return { syncId, alreadyRunning: false }
 }
+
+const startFollowUpSync = () => {
+  if (!followUpTrigger) return
+  const nextTrigger = followUpTrigger
+  followUpTrigger = null
+  startSync({ trigger: nextTrigger }).catch((err) => console.warn(`[sync] follow-up sync failed to start: ${err.message}`))
+}
+
+let followUpTrigger = null
 
 export const onSyncFinished = (listener) => {
   syncFinishedListeners.add(listener)
@@ -619,7 +632,7 @@ const noteArtworkAttempt = (source) => {
 
 const holdRecording = async ({ item, existing, reason }) => {
   if (['done', 'partial', 'importing'].includes(existing?.status) || existing?.deleted_from_tvh_at) return
-  await db('recordings').where({ recording_id: item.id }).update({
+  await db('recordings').where({ recording_id: item.id }).where(notChosenForImport).update({
     status: 'not_imported',
     error: reason,
     file_path: null,
@@ -627,6 +640,8 @@ const holdRecording = async ({ item, existing, reason }) => {
     log_cleared_at: null,
   })
 }
+
+const notChosenForImport = (query) => query.whereNull('library_choice').orWhereNot('library_choice', 'include')
 
 export const refreshSection = async (key) => {
   const sectionId = await getSetting(key)

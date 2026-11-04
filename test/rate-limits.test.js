@@ -36,9 +36,8 @@ test('row action limiter: a cleanup pass of six rows in a minute all reach the h
 
 test('server: row actions and setup checks have their own limiters, apart from the sync limiter', () => {
   assert.doesNotMatch(server, /express-rate-limit/)
-  assert.match(server, /delete-from-tvh',\s*rowActionLimiter/)
+  assert.match(server, /mountRecordingTvhRoutes\(\{ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter \}\)/)
   assert.match(server, /mountAdOriginalRoutes\(\{ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter,/)
-  assert.match(server, /app\.post\('\/api\/recordings\/:recording_id\/library', rowActionLimiter,/)
   for (const route of ['tvh-recordings-path-check', 'tvh-shows', 'tvh-test', 'tvh-detect', 'discover-plex', 'plex-libraries/create']) {
     assert.match(server, new RegExp(`app\\.post\\('/api/${route}', setupCheckLimiter,`))
   }
