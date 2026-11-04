@@ -72,6 +72,15 @@ test('rootSettingsProblem: accepts an existing folder, an unchanged value, and a
   assert.equal(await problemFor({ movies_root: '' }), null)
 })
 
+test('settings save: checks root paths before the nested-folder check, so a bad path gets the path message', async () => {
+  const source = await fs.readFile(new URL('../src/server.js', import.meta.url), 'utf8')
+  const route = source.slice(source.indexOf("app.post('/api/settings'"), source.indexOf("app.post('/api/tvh-test'"))
+  const pathCheck = route.indexOf('rootSettingsProblem(')
+  const nestedCheck = route.indexOf('libraryRootsSaveError(')
+  assert.ok(pathCheck > 0 && nestedCheck > 0)
+  assert.ok(pathCheck < nestedCheck)
+})
+
 test('rootSettingsProblem: checks the TVHeadend recordings path as a container path only', async () => {
   assert.equal(await problemFor({ tvh_recordings_path: '/tvh-recordings-not-on-this-machine' }), null)
   assert.deepEqual(await problemFor({ tvh_recordings_path: '/' }), {

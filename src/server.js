@@ -1736,10 +1736,10 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const refusal = settingsSaveRefusalOf(body)
   if (refusal) return res.status(400).json({ error: refusal })
   const timeZone = body.time_zone === undefined ? undefined : String(body.time_zone).trim()
-  const rootsError = libraryRootsSaveError({ before: await loadLibraryRoots(), after: await rootsAfterSaveOf(body) })
-  if (rootsError) return res.status(400).json({ error: rootsError })
   const rootProblem = await rootSettingsProblem({ body, current: await currentRootSettings(), configDir: CONFIG_DIR })
   if (rootProblem) return res.status(400).json(rootProblem)
+  const rootsError = libraryRootsSaveError({ before: await loadLibraryRoots(), after: await rootsAfterSaveOf(body) })
+  if (rootsError) return res.status(400).json({ error: rootsError })
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))
