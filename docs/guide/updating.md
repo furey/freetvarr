@@ -110,7 +110,7 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
-### Next release
+### 2.7.0
 
 - **Database**: the first start adds one database change (database change `0041`). It adds a column that keeps the rating and category labels of a +1 channel apart from those of its main channel. A version that is older than `0041` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
 
@@ -185,8 +185,8 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
-   - To go back from the next release to `2.6.4`, undo `0041`.
-   - To go back from the next release to `2.6.3` or older, undo `0041`, then `0040`.
+   - To go back from `2.7.0` to `2.6.4`, undo `0041`.
+   - To go back from `2.7.0` to `2.6.3` or older, undo `0041`, then `0040`.
    - To go back from `2.6.4` to `2.6.3` or older, undo `0040`.
 2. Stop Freetvarr:
 
