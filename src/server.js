@@ -100,7 +100,7 @@ import {
   localAddressToward,
   serveShiftedFeed,
 } from './guide-feed.js'
-import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths } from './path-check.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
 import { countryForTimeZone } from './zone-countries.js'
 import {
@@ -1737,6 +1737,8 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   if (timeZone !== undefined && !isKnownTimeZone(timeZone)) {
     return res.status(400).json({ error: `Unknown time zone "${timeZone}"` })
   }
+  const rootProblem = await rootSettingsProblem({ body, current: await currentRootSettings(), configDir: CONFIG_DIR })
+  if (rootProblem) return res.status(400).json(rootProblem)
   const writeString = async (key, value, { trim = false } = {}) => {
     if (value === undefined) return
     await setSetting(key, trim ? String(value).trim() : String(value))
@@ -1796,6 +1798,14 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   if (body.sync_cron !== undefined || timeZone !== undefined) await startScheduler()
   await rebaseFilePaths()
   res.json({ ok: true, ...(cleared.length ? { cleared } : {}) })
+})
+
+const currentRootSettings = async () => ({
+  media_root: await getMediaRoot(),
+  oneoff_root: await getOneOffRoot(),
+  movies_root: await getMoviesRoot(),
+  recordings_root: await getRecordingsRoot(),
+  tvh_recordings_path: await getTvhRecordingsPath(),
 })
 
 app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) => {

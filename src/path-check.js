@@ -58,6 +58,21 @@ export const checkMediaRoot = async (mediaRoot) => {
   return { ok: true, path: probePath, ownerUid: stat.uid }
 }
 
+export const ROOT_SETTING_KEYS = ['media_root', 'oneoff_root', 'movies_root', 'recordings_root', 'tvh_recordings_path']
+
+export const rootSettingsProblem = async ({ body, current, configDir }) => {
+  for (const key of ROOT_SETTING_KEYS) {
+    if (body[key] === undefined) continue
+    const value = String(body[key]).trim()
+    if (!value || value === String(current[key] ?? '').trim()) continue
+    const error = key === 'tvh_recordings_path'
+      ? tvhPathProblem(value)
+      : await localRootProblem({ key, value, configDir })
+    if (error) return { field: key, error }
+  }
+  return null
+}
+
 export const compareRecordingPaths = ({ configured, tvhStorage }) => {
   const tvhPath = trimTrailingSlash(tvhStorage)
   const configuredPath = trimTrailingSlash(configured)
@@ -72,6 +87,36 @@ export const codedErrorText = ({ code, message = '' }) => {
   const prefix = `${code || 'error'}: `
   return message.startsWith(prefix) ? message : `${prefix}${message}`
 }
+
+const tvhPathProblem = (value) => {
+  if (!value.startsWith('/')) return 'tvh_recordings_path must be an absolute path (start with /)'
+  if (path.resolve(value) === '/') return 'tvh_recordings_path cannot be /'
+  return null
+}
+
+const localRootProblem = async ({ key, value, configDir }) => {
+  if (!value.startsWith('/')) return `${key} must be an absolute path (start with /)`
+  const resolved = path.resolve(value)
+  const real = await fs.realpath(resolved).catch(() => resolved)
+  const reserved = [resolved, real].find((candidate) => isReservedFolder({ folder: candidate, configDir }))
+  if (reserved) return `${key} cannot be ${reserved}`
+  const stat = await fs.stat(resolved).catch(() => null)
+  if (!stat) return `${key}: ${value} does not exist inside the container`
+  if (!stat.isDirectory()) return `${key}: ${value} is not a directory`
+  return null
+}
+
+const isReservedFolder = ({ folder, configDir }) => {
+  if (folder === '/') return true
+  if (RESERVED_TREES.some((tree) => isAtOrInside({ folder, tree }))) return true
+  if (!configDir) return false
+  const config = path.resolve(configDir)
+  return isAtOrInside({ folder, tree: config }) || isAtOrInside({ folder: config, tree: folder })
+}
+
+const isAtOrInside = ({ folder, tree }) => folder === tree || folder.startsWith(`${tree}/`)
+
+const RESERVED_TREES = ['/etc', '/proc', '/sys', '/dev', '/app', '/private/etc']
 
 const describeAccessError = ({ err, probePath, need }) => {
   if (err.code === 'ENOENT') return { problem: 'missing', error: `${probePath} does not exist inside the container` }
