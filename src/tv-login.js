@@ -42,7 +42,30 @@ export const deleteTvLogin = async ({ http, conn, username }) => {
   return { username: name, removed: uuids }
 }
 
-export const deleteTvLoginRoute = ({ http, resolveConnection, readLogin, clearLogin }) => async (req, res) => {
+export const TV_LOGIN_KEYS = { username: 'tv_login_username', password: 'tv_login_password', authCode: 'tv_login_auth_code' }
+
+export const createTvLoginRoute = ({ http, resolveConnection, readLogin, saveLogin, fallbackPrefix }) => async (req, res) => {
+  const stored = await readLogin()
+  if (stored.username) {
+    return res.status(409).json({ ok: false, error: `Freetvarr already made the TV login ${stored.username}. Delete it first to make another.`, code: 'exists' })
+  }
+  try {
+    const login = await createTvLogin({
+      http,
+      conn: await resolveConnection(),
+      username: req.body?.username,
+      fallbackPrefix: fallbackPrefix(),
+    })
+    await saveLogin(login)
+    console.log(`[tv-login] made the watch-only TVHeadend login ${login.username}`)
+    res.json({ ok: true, ...login })
+  } catch (err) {
+    if (err instanceof TvLoginError) return res.status(err.code === 'taken' ? 409 : 400).json({ ok: false, error: err.message, code: err.code })
+    res.status(502).json({ ok: false, error: `TVHeadend did not make the TV login: ${err.message}` })
+  }
+}
+
+export const deleteTvLoginRoute =({ http, resolveConnection, readLogin, clearLogin }) => async (req, res) => {
   const stored = await readLogin()
   const requested = String(req.body?.username ?? '').trim()
   if (!stored.username) return res.status(404).json({ ok: false, error: 'There is no TV login to delete.' })
