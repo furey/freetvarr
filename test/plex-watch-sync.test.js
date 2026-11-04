@@ -26,7 +26,7 @@ const item = (id, patch = {}) => ({
   ...patch,
 })
 
-const harness = ({ rows = [], items = [], snapshots = [], status = {}, toggles = { fromPlex: true, toPlex: true }, config = { url: 'http://plex:32400', token: 'tok', sections: SECTIONS }, client = {} } = {}) => {
+const harness = ({ rows = [], items = [], snapshots = [], status = {}, toggles = { fromPlex: true, toPlex: true }, config = { url: 'http://plex:32400', token: 'tok', sections: SECTIONS }, client = {}, afterSync } = {}) => {
   const state = {
     rows: rows.map((r) => ({ ...r })),
     snapshots: new Map(snapshots.map((s) => [s.recording_id, { ...s }])),
@@ -82,6 +82,7 @@ const harness = ({ rows = [], items = [], snapshots = [], status = {}, toggles =
       return fn(jobHandle)
     },
     createClient: () => fakeClient,
+    ...(afterSync ? { afterSync } : {}),
     now: () => state.nowMs,
     setTimer: (fn, ms) => ({ fn, ms }),
     clearTimer: () => {},
@@ -138,6 +139,29 @@ test('a quick run reads only recently viewed items plus Freetvarr changes by rat
   assert.deepEqual(state.metadataCalls, [['k2']])
   assert.deepEqual(state.pulls.map((p) => p.recordingId), ['1'])
   assert.deepEqual(state.writes, [{ ratingKey: 'k2', action: 'scrobble' }])
+})
+
+test('a quick run whose Plex item moved finishes, runs the whole library step, and makes the next run full', async () => {
+  const snapshots = [{ recording_id: '1', rating_key: 'gone', plex_watched: false, plex_offset_s: 0, ft_watched: false, ft_position_s: 0 }]
+  const afterSyncCalls = []
+  const { sync, state } = harness({
+    rows: [row('1', { watched_at: '2026-10-30T09:59:00Z' })],
+    items: [item('1')],
+    snapshots,
+    status: { lastRunAt: NOW - 30 * 60_000, lastFullAt: NOW - 60 * 60_000 },
+    client: { metadata: async () => { throw new PlexWatchError('Plex HTTP 404', { status: 404 }) } },
+    afterSync: async ({ full }) => { afterSyncCalls.push(full) },
+  })
+  const quick = await sync.run({ trigger: 'sync' })
+  assert.equal(quick.full, false)
+  assert.equal(state.status.failures, 0)
+  assert.equal(state.status.nextAttemptAt, null)
+  state.nowMs += 60_000
+  const next = await sync.run({ trigger: 'sync' })
+  assert.equal(next.full, true)
+  assert.deepEqual(state.writes, [{ ratingKey: 'k1', action: 'scrobble' }])
+  assert.equal(state.status.fullPassDue, false)
+  assert.deepEqual(afterSyncCalls, [false, true])
 })
 
 test('a full pass runs daily, on demand, and hourly while recordings have no Plex match', () => {
