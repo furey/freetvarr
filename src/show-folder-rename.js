@@ -2,7 +2,8 @@ import path from 'path'
 import fs from 'fs/promises'
 
 import { db } from './db.js'
-import { getActiveSyncId, getMediaRoot } from './sync.js'
+import { getMediaRoot, isSyncBusy } from './sync.js'
+import { runLibraryChange } from './library-busy.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import { isAdJobRunning } from './commercials.js'
 import { isReclassifying } from './library-reclassify.js'
@@ -54,7 +55,7 @@ export const renameShowFolder = async ({
   mediaRootOf = getMediaRoot,
   fsApi = fs,
   refreshPlex = notifyPlexSectionRefresh,
-  isSyncRunning = () => getActiveSyncId() != null,
+  isSyncRunning = isSyncBusy,
   isRecordingBusy = isAdJobRunning,
   isSorting = isReclassifying,
 }) => {
@@ -62,6 +63,12 @@ export const renameShowFolder = async ({
   if (!show) throw folderFixError('not-found', 'That series is no longer in Freetvarr.')
   if (!isPlainFolderName(to)) throw folderFixError('bad-name', 'The new folder name must be one folder inside the TV folder.')
   if (to === show.dest_folder) return { from: show.dest_folder, to, recordings: 0, moved: false, plex: null }
+  const { recordings, moved } = await runLibraryChange(() => moveShowFolder({ show, showId, to, identity, database, mediaRootOf, fsApi, isSyncRunning, isRecordingBusy, isSorting }))
+  const plex = moved || recordings.length ? await Promise.resolve().then(refreshPlex).catch(() => null) : null
+  return { from: show.dest_folder, to, recordings: recordings.length, moved, plex }
+}
+
+const moveShowFolder = async ({ show, showId, to, identity, database, mediaRootOf, fsApi, isSyncRunning, isRecordingBusy, isSorting }) => {
   if (isSyncRunning()) throw folderFixError('busy', 'A sync is running. Try again when it finishes.')
   if (isSorting()) throw folderFixError('busy', 'Freetvarr is moving recordings into their library folders. Try again when it finishes.')
   const mediaRoot = await mediaRootOf()
@@ -96,8 +103,7 @@ export const renameShowFolder = async ({
     if (moved) await fsApi.rename(paths.to, paths.from).catch(() => { err.message = `${err.message}; the folder is still at ${paths.to}` })
     throw err
   }
-  const plex = moved || recordings.length ? await Promise.resolve().then(refreshPlex).catch(() => null) : null
-  return { from: show.dest_folder, to, recordings: recordings.length, moved, plex }
+  return { recordings, moved }
 }
 
 export const keepShowFolder = async ({ showId, database = db }) => {

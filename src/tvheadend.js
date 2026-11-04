@@ -7,7 +7,7 @@ import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
-import { autorecMatchFieldsOf, escapeAutorecTitle, literalTitleOf } from './autorec-match.js'
+import { anchorAutorecTitle, autorecMatchFieldsOf, literalTitleOf } from './autorec-match.js'
 import { earlierAiringOfEntry } from './repeat-match.js'
 import { sameOrigin } from './url-binding.js'
 import { sourceImageTypeOf } from './raster-type.js'
@@ -166,14 +166,27 @@ export const listUpcoming = async (conn) => {
   return (body?.entries || []).map(normaliseEntry)
 }
 
-export const listFinished = async (conn) => {
-  const body = await apiGet('dvr/entry/grid_finished', { limit: 5000 }, conn)
-  return (body?.entries || []).map(normaliseEntry)
+export const listFinished = (conn) => allGridEntries('dvr/entry/grid_finished', conn)
+
+export const listRemovedIds = async (conn, nowMs = Date.now()) => {
+  const removed = pastAiringsCache?.url === conn.url && pastAiringsCache.expiresAt > nowMs
+    ? pastAiringsCache.value.filter((e) => e.removed)
+    : await cachedRemovedEntries(conn, nowMs)
+  return removed.filter((e) => e.fileRemoved).map((e) => e.uuid)
+}
+
+const cachedRemovedEntries = async (conn, nowMs) => {
+  if (removedCache?.url === conn.url && removedCache.expiresAt > nowMs) return removedCache.value
+  const generation = pastAiringsGeneration
+  const value = await allGridEntries('dvr/entry/grid_removed', conn)
+  if (generation === pastAiringsGeneration) removedCache = { url: conn.url, value, expiresAt: nowMs + PAST_AIRINGS_TTL_MS }
+  return value
 }
 
 export const forgetPastAirings = () => {
   pastAiringsGeneration++
   pastAiringsCache = null
+  removedCache = null
 }
 
 const listPastAirings = async (conn, nowMs = Date.now()) => {
@@ -209,6 +222,7 @@ const allGridEntries = async (path, conn) => {
 }
 
 let pastAiringsCache = null
+let removedCache = null
 let pastAiringsGeneration = 0
 
 export const listAutorecs = async (conn) => {
@@ -226,20 +240,19 @@ export const listAutorecs = async (conn) => {
   }))
 }
 
-export const scheduleRecording = async ({
-  programId,
-  leadTime = DEFAULT_LEAD_MINUTES,
-  lagTime = DEFAULT_LAG_MINUTES,
-  addToLibrary = true,
-} = {}) => {
+export const scheduleRecording = async ({ programId, leadTime, lagTime, addToLibrary = true } = {}) => {
   const conn = await resolveConnection()
   const comment = addToLibrary ? LIBRARY_TAGS.include : LIBRARY_TAGS.exclude
-  const skipped = (await listUpcoming(conn))
-    .find((e) => !e.enabled && String(e.programId) === String(programId))
+  const existing = (await listUpcoming(conn)).filter((e) => String(e.programId) === String(programId))
+  const scheduled = existing.find((e) => e.enabled)
+  const skipped = existing.find((e) => !e.enabled)
+  const padding = paddingFieldsOf({ leadTime, lagTime })
+  if (scheduled) {
+    const paddingSaved = Object.keys(padding).length === 0 || await savePadding({ uuid: scheduled.uuid, padding, conn })
+    return { ok: true, uuid: scheduled.uuid, programId, ...(paddingSaved ? {} : { paddingSaved: false }) }
+  }
   if (skipped) {
-    await apiPost('idnode/save', {
-      node: JSON.stringify({ uuid: skipped.uuid, enabled: true, start_extra: leadTime, stop_extra: lagTime }),
-    }, conn)
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: skipped.uuid, enabled: true, ...padding }) }, conn)
     return { ok: true, uuid: skipped.uuid, programId }
   }
   const body = await apiPost('dvr/entry/create_by_event', {
@@ -251,11 +264,24 @@ export const scheduleRecording = async ({
   if (!uuid) {
     throw new TvheadendError('TVHeadend did not return a recording uuid.', { stage: 'record', code: 'no-uuid' })
   }
-  await apiPost('idnode/save', {
-    node: JSON.stringify({ uuid, start_extra: leadTime, stop_extra: lagTime }),
-  }, conn)
-  return { ok: true, uuid, programId }
+  const paddingSaved = await savePadding({
+    uuid,
+    padding: paddingFieldsOf({ leadTime: leadTime ?? DEFAULT_LEAD_MINUTES, lagTime: lagTime ?? DEFAULT_LAG_MINUTES }),
+    conn,
+  })
+  return { ok: true, uuid, programId, ...(paddingSaved ? {} : { paddingSaved: false }) }
 }
+
+const paddingFieldsOf = ({ leadTime, lagTime }) => ({
+  ...(leadTime != null ? { start_extra: leadTime } : {}),
+  ...(lagTime != null ? { stop_extra: lagTime } : {}),
+})
+
+const savePadding = ({ uuid, padding, conn }) => apiPost('idnode/save', { node: JSON.stringify({ uuid, ...padding }) }, conn)
+  .then(() => true, (err) => {
+    console.warn(`[record] could not save the padding of ${uuid}: ${err.message}`)
+    return false
+  })
 
 export const cancelRecording = async ({ programId, nowMs = Date.now() } = {}) => {
   const conn = await resolveConnection()
@@ -338,10 +364,15 @@ export const disableSeriesTag = async ({ seriesLinkId, stopRecordingNow = false,
     : []
   await apiPost('idnode/delete', { uuid: autorec.id }, conn)
   const stopped = []
+  const stopFailed = []
   for (const entry of recordingNow) {
-    stopped.push(await stopRecordingEntry({ entry: { ...entry, autorecId: null }, nowMs, conn }))
+    await stopRecordingEntry({ entry: { ...entry, autorecId: null }, nowMs, conn })
+      .then((result) => stopped.push(result), (err) => {
+        console.warn(`[series] could not stop ${entry.uuid} after cancelling ${autorec.name}: ${err.message}`)
+        stopFailed.push(entry.uuid)
+      })
   }
-  return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped }
+  return { ok: true, uuid: autorec.id, seriesLinkId: autorec.seriesLinkId, title: autorec.name, stopped, stopFailed }
 }
 
 export const setSeriesTagsEnabled = async ({ seriesLinkIds = [], enabled, conn } = {}) => ({
@@ -372,7 +403,7 @@ const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
 export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, configName }) => ({
   enabled: !paused,
   name: title,
-  title: escapeAutorecTitle(title),
+  title: anchorAutorecTitle(title),
   fulltext: false,
   channel: channelId,
   start: 'Any',
@@ -405,22 +436,29 @@ export const removeRecordings = async ({ recordingIds } = {}) => {
   const known = new Set(finished.map((e) => e.uuid))
   const removed = []
   const unknown = []
+  const failed = []
   for (const id of ids) {
     if (!known.has(id)) {
       unknown.push(id)
       continue
     }
     const rerecords = upcoming.filter((e) => e.parentId === id)
-    await removeKeepingHistory({ uuid: id, rerecords, conn })
-    removed.push(id)
+    try {
+      await removeKeepingHistory({ uuid: id, rerecords, conn })
+      removed.push(id)
+    } catch (err) {
+      console.warn(`[tvheadend] could not remove ${id}: ${err.message}`)
+      failed.push({ id, error: err })
+    }
   }
+  if (removed.length === 0 && failed.length > 0) throw failed[0].error
   if (removed.length === 0) {
     throw new TvheadendError(
       `Recording(s) not in TVHeadend's finished list: ${unknown.join(', ')}.`,
       { stage: 'remove', code: 'not-found' },
     )
   }
-  return { ok: true, removed, unknown }
+  return { ok: true, removed, unknown, failed: failed.map((f) => f.id) }
 }
 
 export const getState = async () => {
@@ -464,7 +502,9 @@ export const splitRepeats = ({ upcoming = [], pastAirings = [] }) => {
   const recordings = []
   const repeats = []
   for (const entry of upcoming.filter((e) => e.enabled)) {
-    const repeatOf = entry.schedStatus === 'scheduled' ? repeatOriginalOf({ entry, upcoming, pastAirings }) : null
+    const repeatOf = entry.schedStatus === 'scheduled' && (entry.duplicateOfStart || entry.autorecId != null)
+      ? repeatOriginalOf({ entry, upcoming, pastAirings })
+      : null
     if (repeatOf) repeats.push({ ...entry, repeatOf })
     else recordings.push(entry)
   }
@@ -717,6 +757,7 @@ const normaliseEntry = (e) => {
     parentId: e.parent || null,
     filename: e.filename || null,
     filesize: e.filesize ?? null,
+    fileRemoved: Boolean(e.fileremoved),
     image: e.image || null,
     description: guideText.synopsis || null,
     advice: guideText.advice,
@@ -868,20 +909,41 @@ const listEpgIconsByChannel = async (conn) => {
 const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes }) => {
   const limits = { timeout, ...(maxBytes ? { maxContentLength: maxBytes } : {}) }
   const res = isAbsoluteUrl(source)
-    ? await axios.get(source, { responseType: 'arraybuffer', validateStatus: () => true, ...limits })
+    ? await fetchGuideImage({ source, limits })
     : await sendAuthenticated({
       method: 'get',
       url: `${conn.url}/${source.replace(/^\//, '')}`,
       responseType: 'arraybuffer',
       ...limits,
     }, conn)
-  if (res.status >= 400) return null
+  if (!res || res.status >= 400) return null
   const body = Buffer.from(res.data)
   const contentType = sourceImageTypeOf(body)
   return contentType ? { body, contentType } : null
 }
 
 const isAbsoluteUrl = (source) => /^https?:\/\//i.test(source)
+
+const fetchGuideImage = ({ source, limits }) => {
+  const origin = new URL(source)
+  return axios.get(source, {
+    responseType: 'arraybuffer',
+    validateStatus: () => true,
+    ...limits,
+    maxRedirects: IMAGE_MAX_REDIRECTS,
+    beforeRedirect: (options) => {
+      if (options.hostname !== origin.hostname || (origin.protocol === 'https:' && options.protocol !== 'https:')) {
+        throw Object.assign(new Error(`image redirect to ${options.protocol}//${options.hostname} refused`), { code: IMAGE_REDIRECT_REFUSED })
+      }
+    },
+  }).catch((err) => {
+    if (isRefusedRedirect(err)) return null
+    throw err
+  })
+}
+
+const isRefusedRedirect = (err) => err?.code === 'ERR_FR_TOO_MANY_REDIRECTS'
+  || [err, err?.cause, err?.cause?.cause].some((cause) => cause?.code === IMAGE_REDIRECT_REFUSED)
 
 const channelNumber = (raw) => {
   const n = Number(raw)
@@ -1100,5 +1162,7 @@ const SERVICE_MUX_TTL_MS = 10 * 60 * 1000
 const LIVE_STREAM_WEIGHT = 50
 const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const RETAIN_FOREVER = 2147483647
+const IMAGE_MAX_REDIRECTS = 3
+const IMAGE_REDIRECT_REFUSED = 'image-redirect-refused'
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10

@@ -22,6 +22,7 @@ import { detectDockerVm } from './docker-host.js'
 import { measureJob } from './event-loop-lag.js'
 import { activity, trackJob } from './activity.js'
 import { guideFeedUrl, isGuideFeedUrl, localAddressToward, serverPort } from './guide-feed.js'
+import { readAnchorFailures } from './autorec-anchor.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -270,6 +271,21 @@ const LATER_CHECKS = [
         }
       }
       return { status: 'pass', detail: `${plural(total, 'channel')} in TVHeadend.` }
+    },
+  },
+  {
+    id: 'tvh.rules',
+    group: 'tvheadend',
+    title: 'Series recordings',
+    doc: 'guide/series#how-a-series-recording-works',
+    run: async (ctx) => {
+      const failed = await ctx.deps.anchorFailures()
+      if (!failed.length) return { status: 'pass', detail: 'Each series recording Freetvarr made matches its whole show title.' }
+      return {
+        status: 'warn',
+        detail: `TVHeadend did not save the whole-title change for ${joinAnd(failed.map((rule) => rule.name))}, so ${failed.length === 1 ? 'that series recording' : 'those series recordings'} can still record longer titles that contain the show title.`,
+        fix: 'Freetvarr tries again after the next sync. If this stays, check the Freetvarr log for the TVHeadend error.',
+      }
     },
   },
   {
@@ -903,6 +919,7 @@ const defaultDeps = () => ({
   probeHardlink,
   statfs: (folder) => fs.statfs(folder),
   latestSync: readLatestSync,
+  anchorFailures: readAnchorFailures,
   schedulerExpression: getSchedulerExpression,
   liveEncoder: async () => null,
   liveStreams: async () => null,

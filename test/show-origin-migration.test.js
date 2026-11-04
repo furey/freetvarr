@@ -15,7 +15,12 @@ after(async () => {
 })
 
 const migrateTo = async (name) => {
-  while (!(await db.migrate.list())[0].some((done) => done.name === name)) await db.migrate.up()
+  for (;;) {
+    const [done, pending] = await db.migrate.list()
+    if (done.some((migration) => migration.name === name)) return
+    if (!pending.some((migration) => migration.file === name)) throw new Error(`migration ${name} does not exist`)
+    await db.migrate.up()
+  }
 }
 
 test('migration 0039: a sync-made folder is automatic unless you asked for a series recording of that title', async () => {

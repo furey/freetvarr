@@ -10,6 +10,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 const { db, setSetting } = await import('../src/db.js')
 const { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } = await import('../src/show-folder-rename.js')
 const { ensureShowFolder, settleShowIdentity } = await import('../src/show-folders.js')
+const { startSync } = await import('../src/sync.js')
 const { chooseShowIdentity, declineShowIdentity, showIdentityStatus } = await import('../src/show-identity-choice.js')
 const { loadIdentityPick, saveIdentityPick } = await import('../src/show-identity-store.js')
 
@@ -98,6 +99,21 @@ test('renameShowFolder: renames the folder and updates every stored path in one 
   assert.equal((await db('library_items').first()).file_path, moved)
 })
 
+test('renameShowFolder: a sync that starts during a rename waits and imports into the new folder', async () => {
+  let release
+  const held = new Promise((resolve) => { release = resolve })
+  const order = []
+  const slowFs = { ...fs, access: async (target) => { await held; return fs.access(target) } }
+  const rename = renameShowFolder(options({ to: NEW_FOLDER, fsApi: slowFs, isSyncRunning: undefined })).then(() => order.push('renamed'))
+  await new Promise(setImmediate)
+  const sync = startSync({ trigger: 'cron' }).then(() => order.push('sync'))
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.deepEqual(order, [])
+  release()
+  await Promise.all([rename, sync])
+  assert.deepEqual(order, ['renamed', 'sync'])
+})
+
 test('renameShowFolder: an existing target folder stops the rename', async () => {
   await fs.mkdir(path.join(mediaRoot, NEW_FOLDER))
   await assert.rejects(renameShowFolder(options({ to: NEW_FOLDER })), { code: 'target-exists' })
@@ -178,6 +194,16 @@ test('ensureShowFolder: a sync makes an automatic title match; Record series cla
   const claimed = await ensureShowFolder({ title: 'Offsiders', shows: [made], identityFor, origin: 'user' })
   assert.equal(claimed.created, false)
   assert.equal((await db('shows').where({ id: made.id }).first()).origin, 'user')
+})
+
+test('ensureShowFolder: Record series on a longer title makes its own folder and leaves the auto row auto', async () => {
+  await setSetting('media_root', mediaRoot)
+  const identityFor = async () => ({ state: 'none', identity: null, candidates: [] })
+  const survivor = await ensureShowFolder({ title: 'Survivor', shows: [], identityFor })
+  const australian = await ensureShowFolder({ title: 'Australian Survivor', shows: [survivor], identityFor, origin: 'user' })
+  assert.equal(australian.created, true)
+  assert.equal(australian.show_pattern, 'Australian Survivor')
+  assert.equal((await db('shows').where({ id: survivor.id }).first()).origin, 'auto')
 })
 
 const OFFICE_CHOICES = {

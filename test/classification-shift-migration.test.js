@@ -15,14 +15,19 @@ after(async () => {
 })
 
 const migrateTo = async (name) => {
-  while (!(await db.migrate.list())[0].some((done) => done.name === name)) await db.migrate.up()
+  for (;;) {
+    const [done, pending] = await db.migrate.list()
+    if (done.some((migration) => migration.name === name)) return
+    if (!pending.some((migration) => migration.file === name)) throw new Error(`migration ${name} does not exist`)
+    await db.migrate.up()
+  }
 }
 
 test('migration 0041: labels and categories gain a shift column, and rollback keeps the base-channel rows', async () => {
   await migrateTo('0040_log_cleared.js')
   await db('programme_classifications').insert({ title_key: 'gogglebox', start_ms: 1000, label: 'M' })
   await db('programme_categories').insert({ title_key: 'gogglebox', start_ms: 1000, category: 'reality' })
-  await db.migrate.latest()
+  await migrateTo('0041_classification_shift.js')
   assert.deepEqual(await db('programme_classifications').select('*'), [{ title_key: 'gogglebox', start_ms: 1000, shift_hours: 0, label: 'M' }])
   assert.deepEqual(await db('programme_categories').select('*'), [{ title_key: 'gogglebox', start_ms: 1000, shift_hours: 0, category: 'reality' }])
   await db('programme_classifications').insert({ title_key: 'gogglebox', start_ms: 1000, shift_hours: 1, label: 'MA15+' })
@@ -30,6 +35,6 @@ test('migration 0041: labels and categories gain a shift column, and rollback ke
   await db.migrate.down()
   assert.deepEqual(await db('programme_classifications').select('*'), [{ title_key: 'gogglebox', start_ms: 1000, label: 'M' }])
   assert.deepEqual(await db('programme_categories').select('*'), [{ title_key: 'gogglebox', start_ms: 1000, category: 'reality' }])
-  await db.migrate.latest()
+  await migrateTo('0041_classification_shift.js')
   assert.equal((await db('programme_classifications').select('*'))[0].shift_hours, 0)
 })

@@ -17,6 +17,7 @@ import { resolveCsrfSecret } from './csrf-secret.js'
 import { applyStoredTimeZone, currentTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
+import { anchorSeriesRulesQuietly } from './autorec-anchor.js'
 import { USER_ORIGIN } from './show-origin.js'
 import { FOLDER_UNWRITABLE, PLACEHOLDER_KEPT, keepOneOffFolder } from './one-off-placeholder.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
@@ -33,9 +34,10 @@ import {
   getTvhRecordingsPath,
   rebaseFilePaths,
   airingOf,
+  usePlaybackCheck,
 } from './sync.js'
-import { LIBRARY_STATES, libraryChoicePatchOf, libraryStateOf, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
-import { libraryRootReadyFor, libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
+import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
+import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
 import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
 import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
@@ -52,7 +54,6 @@ import {
 import {
   testConnection as testTvheadendConnection,
   detectServers as detectTvheadendServers,
-  removeRecordings as removeTvhRecordings,
   listFinished,
   resolveConnection,
   listChannels,
@@ -119,7 +120,7 @@ import {
   recordProgram,
   cancelProgram,
   recordSeries,
-  cancelSeries,
+  cancelSeriesRules,
   pauseSeries,
   setChannelPrefs,
   getChannelPrefs,
@@ -207,6 +208,8 @@ import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountPlexLibraryRoutes } from './plex-library-routes.js'
 import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
+import { mountRecordingTvhRoutes } from './recording-tvh-routes.js'
+import { showFieldErrorOf } from './show-fields.js'
 import { clearableRows, mountRecordingLogRoutes, whereInLog } from './recording-log-routes.js'
 import { recordOptionsFrom } from './recording-padding.js'
 import { recordRequestError, seriesRequestError } from './record-requests.js'
@@ -285,8 +288,6 @@ const CSRF_SECRET = await loadCsrfSecret()
 await restrictDatabaseFiles({ dbPath: DB_FILE })
   .catch((err) => console.warn(`[server] cannot restrict the database file modes (${err.code || err.message})`))
 const AD_REMOVAL_MODES = ['off', 'detect', 'cut']
-const LIBRARY_CHOICES = ['include', 'exclude']
-const LIBRARY_FOLDER_NOT_READY = 'The library folder for this recording is missing or empty. Check that the media share is mounted, then try again. If you emptied the folder yourself, delete its recordings in Freetvarr first.'
 const LIVE_TV_BUFFER_MINUTES = liveBufferMinutesFrom(process.env.LIVE_TV_BUFFER_MINUTES)
 const liveEncoderReady = Promise.all([
   detectLiveEncoder({
@@ -481,56 +482,11 @@ app.delete('/api/syncs/:id', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true })
 })
 
-app.post(
-  '/api/recordings/:recording_id/delete-from-tvh',
-  rowActionLimiter,
-  doubleCsrfProtection,
-  async (req, res) => {
-    const recordingId = req.params.recording_id
-    const row = await db('recordings').where({ recording_id: recordingId }).first()
-    if (!row) return res.status(404).json({ error: 'recording not found' })
-    if (row.deleted_from_tvh_at) {
-      return res.status(409).json({ error: 'recording already marked removed from TVHeadend' })
-    }
-    try {
-      await removeTvhRecordings({ recordingIds: [recordingId] })
-      const now = new Date().toISOString()
-      await db('recordings')
-        .where({ recording_id: recordingId })
-        .update({ deleted_from_tvh_at: now })
-      res.json({ ok: true, deleted_from_tvh_at: now })
-    } catch (err) {
-      const stage = err instanceof TvheadendError ? err.stage : 'unknown'
-      const code = err instanceof TvheadendError ? err.code : undefined
-      console.error(`[tvheadend] delete-from-tvh failed for ${recordingId} (stage ${stage}): ${err.message}`)
-      res.status(502).json({ ok: false, error: err.message, stage, code })
-    }
-  },
-)
+mountRecordingTvhRoutes({ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter })
 
 mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
 
 mountRecordingLogRoutes({ app, csrf: doubleCsrfProtection })
-
-app.post('/api/recordings/:recording_id/library', rowActionLimiter, doubleCsrfProtection, async (req, res) => {
-  const recordingId = req.params.recording_id
-  const choice = req.body?.choice
-  if (!LIBRARY_CHOICES.includes(choice)) {
-    return res.status(400).json({ error: `choice must be one of ${LIBRARY_CHOICES.join(', ')}` })
-  }
-  const row = await db('recordings').where({ recording_id: recordingId }).first()
-  if (!row) return res.status(404).json({ error: 'recording not found' })
-  const { state } = await libraryStateOf(row)
-  if (row.status === 'importing' || (row.status === 'done' && state !== 'not_in_library')) {
-    return res.status(409).json({ error: 'recording is already in the library' })
-  }
-  if (choice === 'include' && row.file_path && !(await libraryRootReadyFor(row.file_path))) {
-    return res.status(409).json({ error: LIBRARY_FOLDER_NOT_READY })
-  }
-  await db('recordings').where({ recording_id: recordingId }).update(libraryChoicePatchOf(choice))
-  const sync = choice === 'include' ? await startSync({ trigger: 'manual:import' }) : null
-  res.json({ ok: true, choice, syncId: sync?.syncId ?? null })
-})
 
 const titleSortExpression = (column) =>
   `(CASE WHEN lower(${column}) LIKE 'the %' THEN substr(${column}, 5) ELSE ${column} END) COLLATE NOCASE`
@@ -864,19 +820,11 @@ app.post('/api/epg/cancel-series', epgLimiter, doubleCsrfProtection, async (req,
   const seriesLinkIds = Array.isArray(series_link_ids) ? series_link_ids : [series_link_id].filter((id) => id != null)
   if (seriesLinkIds.length === 0) return res.status(400).json({ error: 'series_link_id or series_link_ids is required' })
   try {
-    const cancelled = []
-    for (const seriesLinkId of seriesLinkIds) {
-      cancelled.push(await cancelSeries({ seriesLinkId, stopRecordingNow: stop_recording_now === true }))
-    }
+    const result = await cancelSeriesRules({ seriesLinkIds, stopRecordingNow: stop_recording_now === true })
     const titleMatchRemoved = title_match_id == null
       ? false
       : (await db('shows').where({ id: Number(title_match_id) }).delete()) > 0
-    res.json({
-      ok: true,
-      cancelled,
-      stopped: cancelled.flatMap((c) => c.stopped),
-      titleMatchRemoved,
-    })
+    res.json({ ok: true, ...result, titleMatchRemoved })
   } catch (err) {
     epgError(res, err, 'cancel-series')
   }
@@ -980,6 +928,7 @@ const playbackSessions = createPlaybackSessions({
   streamsElsewhere: () => liveSessions.labels(),
   ...playbackSessionHooks(),
 })
+usePlaybackCheck((recordingId) => playbackSessions.list().some((session) => String(session.recordingId) === String(recordingId)))
 
 const liveStreams = createLiveStreams({
   envValue: process.env.LIVE_TV_MAX_SESSIONS,
@@ -1462,12 +1411,11 @@ app.post('/api/shows', doubleCsrfProtection, async (req, res) => {
   if (ad_removal !== undefined && !AD_REMOVAL_MODES.includes(ad_removal)) {
     return res.status(400).json({ error: `ad_removal must be one of ${AD_REMOVAL_MODES.join(', ')}` })
   }
-  for (const key of ['dest_folder', 'season_template']) {
-    const value = key === 'dest_folder' ? dest_folder : season_template
-    if (value !== undefined && escapesMediaRoot(String(value))) {
-      return res.status(400).json({ error: `${key} must stay within the media root (no '..' or leading '/')` })
-    }
-  }
+  const fieldError = [['show_pattern', show_pattern], ['dest_folder', dest_folder], ['season_template', season_template]]
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => showFieldErrorOf({ key, value }))
+    .find(Boolean)
+  if (fieldError) return res.status(400).json({ error: fieldError })
   const inserted = await db('shows').insert({
     show_pattern: String(show_pattern).trim(),
     dest_folder: String(dest_folder).trim(),
@@ -1488,9 +1436,8 @@ app.patch('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   for (const key of ['show_pattern', 'dest_folder', 'season_template']) {
     if (req.body?.[key] === undefined) continue
     const value = String(req.body[key]).trim()
-    if (key !== 'show_pattern' && escapesMediaRoot(value)) {
-      return res.status(400).json({ error: `${key} must stay within the media root (no '..' or leading '/')` })
-    }
+    const fieldError = showFieldErrorOf({ key, value })
+    if (fieldError) return res.status(400).json({ error: fieldError })
     patch[key] = value
   }
   if (req.body?.enabled !== undefined) patch.enabled = Boolean(req.body.enabled)
@@ -2441,11 +2388,6 @@ const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWR
   ? `Freetvarr cannot write to ${oneOffRoot}. Freetvarr runs as uid ${process.getuid?.() ?? 'unknown'}; set PUID and PGID in .env to the user and group that own the folder, then recreate the Freetvarr container.`
   : `${oneOffRoot} is not there. Check the one-off folder in Settings.`)
 
-const escapesMediaRoot = (value) =>
-  value.startsWith('/')
-  || value.startsWith('\\')
-  || value.split(/[/\\]+/).includes('..')
-
 const closeSyncsLeftByRestart = async () => {
   try {
     const closedSyncs = await reconcileInterruptedSyncs()
@@ -2485,6 +2427,8 @@ const server = app.listen(PORT, async () => {
   watchPendingSkips()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
+  anchorSeriesRulesQuietly()
+  onSyncFinished(() => anchorSeriesRulesQuietly())
   onSyncFinished(() => reclassifyLibrary('sync'))
   setTimeout(() => runReclassificationOnce()
     .catch((err) => console.warn(`[library] folder sort failed: ${err.message}`)), RECLASSIFY_STARTUP_DELAY_MS).unref()

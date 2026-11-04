@@ -68,6 +68,10 @@ Counts the tuners in TVHeadend's hardware list and the inputs in its status page
 
 Counts TVHeadend's channels. It fails at `0` (the **Channels** step of [setup](/guide/getting-started#_2-run-setup) adds them). See [No channels](/guide/troubleshooting#no-channels).
 
+## Series recordings {#tvh-rules}
+
+Reads Freetvarr's own record of the one-off change to the [whole-title form](/guide/series#how-a-series-recording-works) of the series recordings it made. It warns when TVHeadend did not save that change for a series recording, and names the series. That series recording keeps its old title and can still record longer titles that contain it. Freetvarr tries again after the next sync; if the warning stays, the Freetvarr log has the TVHeadend error (`[rules] could not change the title`).
+
 ## Guide depth {#guide-depth}
 
 Skips with "No channels yet" when TVHeadend has none. Otherwise it finds the last programme in TVHeadend's TV guide and counts the channels with nothing in the next `24` hours. It fails when the TV guide ends within `12` hours. It warns when the TV guide ends within `48` hours, or when more than a quarter of the channels are empty. It also warns when the TVHeadend guide grabber reads Freetvarr's own +1 guide feed at an address that is not Freetvarr's address now (for example after the NAS address changed), and names both addresses; run the guide step again to fix it. See [Empty guide](/guide/troubleshooting#empty-guide).

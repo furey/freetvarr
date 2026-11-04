@@ -1,6 +1,22 @@
 export const escapeAutorecTitle = (title) => String(title ?? '').replace(REGEX_SYNTAX, '\\$&')
 
-export const literalTitleOf = (pattern) => {
+export const anchorAutorecTitle = (title) => `^${escapeAutorecTitle(title)}${SAME_SHOW_SUFFIX}`
+
+export const literalTitleOf = (pattern) => anchoredLiteralOf(pattern) ?? plainLiteralOf(pattern)
+
+export const anchoredLiteralOf = (pattern) => {
+  const source = String(pattern ?? '')
+  if (!source.startsWith('^') || !source.endsWith(SAME_SHOW_SUFFIX)) return null
+  return plainLiteralOf(source.slice(1, -SAME_SHOW_SUFFIX.length)) || null
+}
+
+export const isSameShowTitle = ({ title, show }) => {
+  const text = String(title ?? '').toLowerCase()
+  const wanted = String(show ?? '').toLowerCase()
+  return Boolean(wanted) && text.startsWith(wanted) && SAME_SHOW_REST.test(text.slice(wanted.length))
+}
+
+const plainLiteralOf = (pattern) => {
   const source = String(pattern ?? '')
   let literal = ''
   for (let at = 0; at < source.length; at++) {
@@ -60,7 +76,9 @@ const matcherOf = (title) => {
 }
 
 const buildMatcher = (title) => {
-  const literal = literalTitleOf(title)
+  const anchored = anchoredLiteralOf(title)
+  if (anchored) return (text) => isSameShowTitle({ title: text, show: anchored })
+  const literal = plainLiteralOf(title)
   if (literal != null) {
     const wanted = literal.toLowerCase()
     return (text) => text.toLowerCase().includes(wanted)
@@ -184,6 +202,8 @@ const isSet = (value) => Array.isArray(value) ? value.length > 0 : Boolean(value
 
 const compiled = new Map()
 
+const SAME_SHOW_SUFFIX = '( ?[:(-].*)?$'
+const SAME_SHOW_REST = /^(?: ?[:(-].*)?$/
 const REGEX_SYNTAX_CHARS = '.*+?^${}()|[]\\'
 const REGEX_SYNTAX = /[.*+?^${}()|[\]\\]/g
 const MAX_PATTERN_LENGTH = 200

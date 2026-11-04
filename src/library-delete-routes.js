@@ -3,16 +3,17 @@ import fs from 'fs/promises'
 
 import { db, getSetting } from './db.js'
 import {
-  getActiveSyncId,
   getMediaRoot,
   getMoviesRoot,
   getOneOffRoot,
   getRecordingsRoot,
   getTvhRecordingsPath,
+  isSyncBusy,
   localPathFor,
 } from './sync.js'
 import { listActiveRecordings, removeRecordings, resolveConnection, TvheadendError } from './tvheadend.js'
 import { notifyPlexSectionRefresh } from './plex.js'
+import { runLibraryChange } from './library-busy.js'
 import { groupKeyOf, withPlexRows } from './library.js'
 import { isPlexItemId } from './plex-library.js'
 import { loadLibraryItemRows, removePartsByFile, loadPartsByFile } from './plex-library-store.js'
@@ -59,18 +60,20 @@ export const mountLibraryDeleteRoutes = ({ app, csrf, limiter }) => {
     if (expectedCount == null) return res.status(400).json({ error: 'expected_count must be a whole number' })
     const { choices, error: choiceError } = versionChoicesFrom(req.body)
     if (choiceError) return res.status(400).json({ error: choiceError })
-    const context = await deletionContext()
-    const plan = await planDeletion({ request, choices, context })
-    const blocked = plan.blocked || blockedReasonOf({ rows: plan.recordingRows, syncing: getActiveSyncId() != null })
-    if (blocked) return res.status(409).json({ error: blocked })
-    if (plan.count !== expectedCount) {
-      return res.status(409).json({
-        error: 'The episodes changed since you checked. Review the list and try again.',
-        count: plan.count,
-      })
-    }
-    const outcome = await runPlan({ plan, context, removeSeries: req.body?.remove_series === true })
-    res.status(summarise(outcome.results).httpStatus).json(outcome)
+    await runLibraryChange(async () => {
+      const context = await deletionContext()
+      const plan = await planDeletion({ request, choices, context })
+      const blocked = plan.blocked || blockedReasonOf({ rows: plan.recordingRows, syncing: isSyncBusy() })
+      if (blocked) return res.status(409).json({ error: blocked })
+      if (plan.count !== expectedCount) {
+        return res.status(409).json({
+          error: 'The episodes changed since you checked. Review the list and try again.',
+          count: plan.count,
+        })
+      }
+      const outcome = await runPlan({ plan, context, removeSeries: req.body?.remove_series === true })
+      res.status(summarise(outcome.results).httpStatus).json(outcome)
+    })
   })
 }
 

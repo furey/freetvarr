@@ -44,6 +44,8 @@ test('stopConfirmOf: under 5 minutes is a red Stop and delete that names what go
   assert.equal(copy.danger, true)
   assert.equal(copy.goLabel, 'Stop and delete')
   assert.deepEqual(copy.deleted, [{ icon: 'trash', title: 'The 3 minutes recorded so far', detail: 'Freetvarr keeps a stopped recording only after 5 minutes' }])
+  assert.equal(copy.note, 'TVHeadend counts this episode as recorded, so its repeats do not record.')
+  assert.equal(copy.noteIcon, 'info')
   assert.deepEqual(copy.stays, [{ icon: 'check', title: 'The series recording', detail: 'The next episode still records on 9HD Sydney' }])
   assert.equal(copy.undo, "You can't undo this.")
 })
@@ -51,6 +53,8 @@ test('stopConfirmOf: under 5 minutes is a red Stop and delete that names what go
 test('stopConfirmOf: a one-off under a minute has nothing that stays', () => {
   const copy = stopConfirmOf({ recordedMs: 20_000 })
   assert.equal(copy.deleted[0].title, 'What it recorded so far')
+  assert.equal(copy.deleted.length, 1)
+  assert.equal(copy.note, undefined)
   assert.deepEqual(copy.stays, [])
 })
 
@@ -62,4 +66,11 @@ test('stopConfirmOf: from 5 minutes the recording stays and the button is not re
   assert.deepEqual(copy.stays.map((line) => line.title), ['The 5 minutes recorded so far', 'The series recording'])
   assert.equal(copy.stays[0].detail, 'They go into your library')
   assert.equal(stopConfirmOf({ recordedMs: 12 * MINUTE, addsToLibrary: false }).stays[0].detail, 'They stay in TVHeadend')
+})
+
+test('the stop dialog draws the repeats note with its own icon, not the trash of the deleted list', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const source = await readFile(new URL('../src/web/components/library-menus.js', import.meta.url), 'utf8')
+  const dialog = source.slice(source.indexOf('export const ActionConfirm'))
+  assert.match(dialog, /<p v-if="copy\.note" class="library-dialog-note"><menu-icon :name="copy\.noteIcon \|\| 'clock'" \/>/)
 })

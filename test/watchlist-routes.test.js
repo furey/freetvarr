@@ -78,3 +78,46 @@ test('POST /api/watchlist: rejects padding outside 0 to 240 minutes and titles w
   const symbols = await call('POST', '/api/watchlist', { title: '??', mode: 'notify' })
   assert.equal(symbols.status, 400)
 })
+
+const sweepGuide = (titles) => ({
+  channels: [{ id: 'c1', epgId: 'c1', name: 'ABC TV' }],
+  programsByChannel: {
+    c1: titles.map((title, i) => ({ program_id: i + 1, title, series_link: `c1|${title.toLowerCase()}`, start: Date.now() + 3_600_000, end: Date.now() + 7_200_000 })),
+  },
+})
+
+test('record sweep: one title that keeps failing does not stop the others', async () => {
+  const { createRecordSweeper } = await import('../src/watchlist.js')
+  await db('watchlist').insert([
+    { title: 'Broken Show', title_key: 'broken-show', mode: 'record', channel_id: 'c1' },
+    { title: 'Working Show', title_key: 'working-show', mode: 'record', channel_id: 'c1' },
+  ])
+  const recorded = []
+  const record = async ({ seriesLink }) => {
+    if (seriesLink === 'c1|broken show') throw new Error('TVHeadend refused')
+    recorded.push(seriesLink)
+    return { seriesLinkId: seriesLink, title: 'Working Show' }
+  }
+  const sweeper = createRecordSweeper({ onSeriesCreated: async () => {}, guideOf: async () => sweepGuide(['Broken Show', 'Working Show']), record })
+  await sweeper.sweep()
+  assert.deepEqual(recorded, ['c1|working show'])
+  const rows = Object.fromEntries((await db('watchlist').whereIn('title_key', ['broken-show', 'working-show'])).map((row) => [row.title_key, row.fulfilled_at]))
+  assert.equal(rows['broken-show'], null)
+  assert.ok(rows['working-show'])
+})
+
+test('GET /api/watchlist: answers without waiting for a slow record sweep', async () => {
+  const app = express()
+  app.use(express.json())
+  const sweeper = { sweep: () => new Promise(() => {}) }
+  mountWatchlist({ app, csrf: passThrough, sweeper })
+  const slowServer = app.listen(0, '127.0.0.1')
+  await new Promise((resolve) => slowServer.once('listening', resolve))
+  try {
+    const res = await fetch(`http://127.0.0.1:${slowServer.address().port}/api/watchlist`, { signal: AbortSignal.timeout(2000) })
+    assert.equal(res.status, 200)
+  } finally {
+    slowServer.closeAllConnections()
+    slowServer.close()
+  }
+})

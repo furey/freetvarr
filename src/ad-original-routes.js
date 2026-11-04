@@ -5,6 +5,7 @@ import { restoreOriginal, startManualAdScan } from './commercials.js'
 import { rootFor } from './library-delete.js'
 import { refreshPlexSection } from './library-delete-routes.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot } from './sync.js'
+import { isLibraryChanging } from './library-busy.js'
 
 export const mountAdOriginalRoutes = ({ app, csrf, limiter, isFilePresent }) => {
   app.post('/api/recordings/:recording_id/ad-scan', limiter, csrf, async (req, res) => {
@@ -12,6 +13,7 @@ export const mountAdOriginalRoutes = ({ app, csrf, limiter, isFilePresent }) => 
     const row = await db('recordings').where({ recording_id: recordingId }).first()
     const refusal = await adJobRefusalOf({ row, isFilePresent })
     if (refusal) return res.status(refusal.status).json({ error: refusal.error })
+    if (isLibraryChanging()) return res.status(409).json({ error: LIBRARY_CHANGING })
     const show = row.show_id ? await db('shows').where({ id: row.show_id }).first() : null
     const mode = adScanModeOf(show?.ad_removal)
     const started = startManualAdScan({
@@ -45,6 +47,8 @@ export const adScanModeOf = (showAdRemoval) => (!showAdRemoval || showAdRemoval 
 
 export const isRestorablePath = ({ filePath, roots }) =>
   typeof filePath === 'string' && path.isAbsolute(filePath) && Boolean(rootFor(filePath, roots))
+
+const LIBRARY_CHANGING = 'A library delete or folder rename is running. Try again when it finishes.'
 
 export const RESTORE_ERRORS = {
   busy: 'Freetvarr is working on this episode\'s ads. Try again when it finishes.',

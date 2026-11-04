@@ -7,6 +7,7 @@ import {
   fetchProgrammeImageOrThrow,
   listAutorecs,
   listFinished,
+  listRemovedIds,
   listUpcoming,
   removeRecordings as removeTvhRecordings,
   resolveConnection,
@@ -26,6 +27,8 @@ import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
+import { isSameShowTitle } from './autorec-match.js'
+import { isLibraryChanging, libraryChangesSettled } from './library-busy.js'
 import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
 import { showIdentityFor } from './show-identity.js'
 import { ROOT_EMPTY, createRootCheck, getMediaRoot, getMoviesRoot, getOneOffRoot } from './library-roots.js'
@@ -34,9 +37,19 @@ export { getMediaRoot, getMoviesRoot, getOneOffRoot }
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
+export const isSyncBusy = () => starting != null || inFlight != null
+
 export const startSync = async (options = {}) => {
-  while (starting) await starting.catch(() => {})
-  if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
+  const deadline = Date.now() + (options.libraryWaitMs ?? LIBRARY_WAIT_MS)
+  if (isLibraryChanging()) console.warn('[sync] waiting for a library delete or folder rename to finish before the sync starts')
+  while (starting || isLibraryChanging()) {
+    if (!(await libraryChangesSettled({ timeoutMs: deadline - Date.now() }))) return giveUpBehindLibraryChange(options)
+    while (starting) await starting.catch(() => {})
+  }
+  if (inFlight) {
+    if (options.followUp) followUpTrigger = options.trigger ?? 'manual'
+    return { syncId: inFlight.syncId, alreadyRunning: true, ...(options.followUp ? { followUp: true } : {}) }
+  }
   const attempt = beginSync(options)
   starting = attempt
   try {
@@ -44,6 +57,14 @@ export const startSync = async (options = {}) => {
   } finally {
     if (starting === attempt) starting = null
   }
+}
+
+const giveUpBehindLibraryChange = async ({ trigger = 'manual', showId = null }) => {
+  const message = LIBRARY_WAIT_ERROR
+  console.warn(`[sync] ${message}`)
+  const syncId = await createSync(trigger, showId)
+  await finishSync(syncId, 'error', { trigger, imported: 0, skipped: 0, failed: 0, errors: [message], items: [], steps: {}, message })
+  return { syncId, alreadyRunning: false, gaveUp: true }
 }
 
 export const syncErrorLogOf = (err) => err?.stack || String(err?.message ?? err)
@@ -61,10 +82,20 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
     .finally(() => {
       inFlight = null
       syncFinishedListeners.forEach((listener) => notifySyncFinished({ listener, syncId, trigger }))
+      startFollowUpSync()
     })
   inFlight = { syncId, promise }
   return { syncId, alreadyRunning: false }
 }
+
+const startFollowUpSync = () => {
+  if (!followUpTrigger) return
+  const nextTrigger = followUpTrigger
+  followUpTrigger = null
+  startSync({ trigger: nextTrigger }).catch((err) => console.warn(`[sync] follow-up sync failed to start: ${err.message}`))
+}
+
+let followUpTrigger = null
 
 export const onSyncFinished = (listener) => {
   syncFinishedListeners.add(listener)
@@ -80,6 +111,9 @@ const notifySyncFinished = ({ listener, syncId, trigger }) => {
 }
 
 const syncFinishedListeners = new Set()
+const UPDATE_CHUNK = 500
+const LIBRARY_WAIT_MS = 10 * 60 * 1000
+const LIBRARY_WAIT_ERROR = 'A library delete or folder rename was still running after 10 minutes, so this sync did not run. The next sync tries again.'
 let starting = null
 
 export const matchShow = (shows, showTitle, { sport = false } = {}) => {
@@ -89,9 +123,11 @@ export const matchShow = (shows, showTitle, { sport = false } = {}) => {
     .sort((a, b) => b.show_pattern.length - a.show_pattern.length)[0]
 }
 
-const titleMatchesShow = ({ show, title, sport }) => (sport && isAutoTitleMatch(show)
-  ? showKeyOf(show.show_pattern) === showKeyOf(title)
-  : wordPatternOf(show.show_pattern)?.test(title) ?? false)
+const titleMatchesShow = ({ show, title, sport }) => {
+  if (!isAutoTitleMatch(show)) return wordPatternOf(show.show_pattern)?.test(title) ?? false
+  const sameKey = showKeyOf(show.show_pattern) === showKeyOf(title)
+  return sport ? sameKey : sameKey || isSameShowTitle({ title, show: String(show.show_pattern ?? '').trim() })
+}
 
 const wordPatternOf = (pattern) => {
   const text = String(pattern ?? '').trim()
@@ -375,6 +411,8 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     await finishSync(syncId, 'error', summary)
     return
   }
+  await markRemovedByTvheadend({ conn, finished })
+    .catch((err) => console.warn(`[sync] removed recordings check: ${err.message}`))
 
   const classificationOf = await recordingClassifications(finished)
   const context = await importContextOf({ conn })
@@ -437,7 +475,9 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
   }
   summary.steps.imports = Date.now() - importsStartedAt
 
-  if (imported.tv > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
+  const retries = showId == null ? await pendingRemovals({ finished, shows, queued: deletables }) : []
+  deletables.push(...retries)
+  if (imported.tv > 0 || retries.length > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
   if (imported.oneOff > 0) summary.plexOneOffs = await timeStep('plexOneOffs', () => refreshSection('plex_oneoff_section_id'))
   if (imported.film > 0) summary.plexMovies = await timeStep('plexMovies', () => refreshSection('plex_movies_section_id'))
   if (deletables.length > 0) {
@@ -610,7 +650,7 @@ const noteArtworkAttempt = (source) => {
 
 const holdRecording = async ({ item, existing, reason }) => {
   if (['done', 'partial', 'importing'].includes(existing?.status) || existing?.deleted_from_tvh_at) return
-  await db('recordings').where({ recording_id: item.id }).update({
+  await db('recordings').where({ recording_id: item.id }).where(notChosenForImport).update({
     status: 'not_imported',
     error: reason,
     file_path: null,
@@ -618,6 +658,8 @@ const holdRecording = async ({ item, existing, reason }) => {
     log_cleared_at: null,
   })
 }
+
+const notChosenForImport = (query) => query.whereNull('library_choice').orWhereNot('library_choice', 'include')
 
 export const refreshSection = async (key) => {
   const sectionId = await getSetting(key)
@@ -855,30 +897,89 @@ const accumulateAdSummary = (summary, adResult) => {
   summary.ads.adSeconds += adResult.adSeconds
 }
 
+export const usePlaybackCheck = (isPlaying) => {
+  isRecordingPlaying = isPlaying
+}
+
+let isRecordingPlaying = () => false
+
+const markRemovedByTvheadend = async ({ conn, finished }) => {
+  const removed = new Set(await listRemovedIds(conn))
+  const finishedIds = new Set(finished.map((entry) => entry.uuid))
+  const ids = (await db('recordings').whereNull('deleted_from_tvh_at').pluck('recording_id'))
+    .filter((id) => removed.has(id) && !finishedIds.has(id))
+  const now = new Date().toISOString()
+  for (let at = 0; at < ids.length; at += UPDATE_CHUNK) {
+    await db('recordings').whereIn('recording_id', ids.slice(at, at + UPDATE_CHUNK))
+      .update({ deleted_from_tvh_at: now, tvh_remove_pending_at: null })
+  }
+  return ids.length
+}
+
+const pendingRemovals = async ({ finished, shows, queued }) => {
+  const finishedIds = new Set(finished.map((entry) => entry.uuid))
+  const queuedIds = new Set(queued.map((d) => d.recording_id))
+  const showById = new Map(shows.map((show) => [show.id, show]))
+  const rows = await db('recordings')
+    .whereNotNull('tvh_remove_pending_at')
+    .whereNull('deleted_from_tvh_at')
+    .where({ status: 'done' })
+    .select('recording_id', 'title', 'show_id', 'ad_status')
+  return rows
+    .filter((row) => finishedIds.has(row.recording_id) && !queuedIds.has(row.recording_id))
+    .filter((row) => {
+      const show = showById.get(row.show_id)
+      return Boolean(show?.delete_after_import) && shouldQueueAutoDelete({ show, adResult: { status: row.ad_status } })
+    })
+    .map((row) => ({ recording_id: row.recording_id, title: row.title }))
+}
+
+const markRemovalPending = async (ids) => {
+  if (ids.length === 0) return
+  await db('recordings').whereIn('recording_id', ids).whereNull('tvh_remove_pending_at')
+    .update({ tvh_remove_pending_at: new Date().toISOString() })
+}
+
 const runAutoDelete = async (deletables, plex) => {
   const ids = deletables.map((d) => d.recording_id)
+  const playing = ids.filter((id) => isRecordingPlaying(id))
+  const ready = ids.filter((id) => !playing.includes(id))
 
   const guardSettingRaw = (await getSetting('delete_after_plex_refresh_only')) ?? 'true'
   const guardOn = guardSettingRaw !== 'false'
   const plexAttemptedAndFailed = guardOn && plex && !plex.triggered
   const plexUnconfigured = plex?.skipped && plex?.reason === 'plex not configured'
   if (plexAttemptedAndFailed && !plexUnconfigured) {
+    await markRemovalPending(ids)
     return {
       skipped: true,
       reason: `plex refresh did not succeed (${plex.error || plex.reason || 'unknown'})`,
       candidates: ids.length,
     }
   }
+  await markRemovalPending(playing)
+  if (ready.length === 0) return { skipped: true, reason: 'playing now', candidates: ids.length, playing }
 
   try {
-    const result = await removeTvhRecordings({ recordingIds: ids })
+    const result = await removeTvhRecordings({ recordingIds: ready })
     const now = new Date().toISOString()
-    await db('recordings').whereIn('recording_id', result.removed).update({ deleted_from_tvh_at: now })
-    return { triggered: true, removed: result.removed, unmapped: result.unknown, removed_at: now }
+    await db('recordings').whereIn('recording_id', result.removed)
+      .update({ deleted_from_tvh_at: now, tvh_remove_pending_at: null })
+    await db('recordings').whereIn('recording_id', result.unknown).update({ tvh_remove_pending_at: null })
+    await markRemovalPending(result.failed)
+    return {
+      triggered: true,
+      removed: result.removed,
+      unmapped: result.unknown,
+      ...(result.failed.length ? { failed: result.failed } : {}),
+      ...(playing.length ? { playing } : {}),
+      removed_at: now,
+    }
   } catch (err) {
+    await markRemovalPending(ready)
     const stage = err instanceof TvheadendError ? err.stage : 'unknown'
     const code = err instanceof TvheadendError ? err.code : undefined
-    console.error(`[tvheadend] remove-after-import failed for ${ids.length} recording(s) (stage ${stage}): ${err.message}`)
+    console.error(`[tvheadend] remove-after-import failed for ${ready.length} recording(s) (stage ${stage}): ${err.message}`)
     return { error: err.message, stage, code, candidates: ids.length }
   }
 }
