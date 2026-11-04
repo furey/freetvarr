@@ -78,6 +78,11 @@ export const plexUnreachableProblem = ({ url, error }) => ({
 
 export const LOCAL_PLEX_URL = 'http://127.0.0.1:32400'
 
+export const detectedPlexTokenState = (response) => ({
+  plexTokenSet: Boolean(response?.ok && response?.plex_token_set),
+  plexToken: '',
+})
+
 const folderProblem = ({ result, path, name, access }) => {
   if (result.ok) return null
   const changeIt = `Press Change folders and correct the ${name}.`

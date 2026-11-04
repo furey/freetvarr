@@ -65,3 +65,5 @@ export const fromStartRecordingOf = ({ active = [], channelId, nowMs }) => activ
 export const startOverNoteOf = (options) => (options.some((o) => o.key === 'from-start')
   ? ''
   : '"From the start" shows only when Freetvarr is recording the programme.')
+
+export const retryActionOf = ({ fromStart }) => (fromStart?.recording ? 'from-start' : 'live')

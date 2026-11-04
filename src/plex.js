@@ -1,4 +1,5 @@
 import fs from 'fs/promises'
+import { basename } from 'path'
 import dgram from 'node:dgram'
 
 import axios from 'axios'
@@ -6,12 +7,33 @@ import { XMLParser } from 'fast-xml-parser'
 
 import { getSetting, setSetting } from './db.js'
 import { currentTimeZone } from './time-zone.js'
+import { isThisMachineUrl, sameOrigin } from './url-binding.js'
 import { countryForTimeZone } from './zone-countries.js'
+
+export const PLEX_TOKEN_SCOPE_KEY = 'plex_token_scope'
+export const THIS_MACHINE_SCOPE = 'this-machine'
+
+export const plexTokenBindsTo = ({ url, storedUrl, scope, interfaces }) =>
+  scope === THIS_MACHINE_SCOPE
+    ? isThisMachineUrl(url, { interfaces })
+    : !scope && sameOrigin(url, storedUrl)
+
+export const storedPlexTokenFor = async (url, { interfaces } = {}) => {
+  const [token, storedUrl, scope] = await Promise.all([
+    getSetting('plex_token'),
+    getSetting('plex_url'),
+    getSetting(PLEX_TOKEN_SCOPE_KEY),
+  ])
+  if (!token) return null
+  return plexTokenBindsTo({ url, storedUrl, scope, interfaces }) ? token : null
+}
+
+export const storedPlexToken = async () => storedPlexTokenFor(await getSetting('plex_url'))
 
 export const notifyPlexSectionRefresh = async (overrides = {}) => {
   const saved = await getConfig()
   const url = (overrides.url ?? saved.url ?? '').replace(/\/$/, '')
-  const token = overrides.token ?? saved.token
+  const token = overrides.token ?? (await storedPlexTokenFor(url))
   const sectionId = overrides.sectionId ?? saved.sectionId
   if (!url || !token || !sectionId) return { skipped: true, reason: 'plex not configured' }
   try {
@@ -29,6 +51,9 @@ export const notifyPlexSectionRefresh = async (overrides = {}) => {
 
 export const detectPlexTokenFromPreferences = async () => {
   const path = await resolvePlexPrefsPath()
+  if (!PLEX_PREFS_NAME.test(basename(path))) {
+    return { ok: false, path, reason: `${path} is not a Plex Preferences.xml file. Point the path at Preferences.xml.` }
+  }
   let raw
   try {
     raw = await fs.readFile(path, 'utf8')
@@ -53,7 +78,8 @@ export const detectPlexTokenFromPreferences = async () => {
     }
   }
   await setSetting('plex_token', token)
-  return { ok: true, path, source: 'preferences.xml', token }
+  await setSetting(PLEX_TOKEN_SCOPE_KEY, THIS_MACHINE_SCOPE)
+  return { ok: true, path, source: 'preferences.xml', plex_token_set: true }
 }
 
 export const listPlexSections = async (connection = {}) => {
@@ -294,15 +320,16 @@ const sectionAt = (sections, location) =>
 const samePath = (a, b) => a.replace(/(.)\/+$/, '$1') === b.replace(/(.)\/+$/, '$1')
 
 const resolveConnection = async ({ url, token } = {}) => {
-  if (!url || !token) {
-    const cfg = await getConfig()
-    url ||= cfg.url
-    token ||= cfg.token
-  }
-  url = (url || '').replace(/\/$/, '')
-  if (!url || !token) throw new Error('plex_url and plex_token are required')
-  return { url, token }
+  const resolvedUrl = (url || (await getSetting('plex_url')) || '').replace(/\/$/, '')
+  if (!resolvedUrl) throw new Error('plex_url and plex_token are required')
+  const resolvedToken = token || (await storedPlexTokenFor(resolvedUrl))
+  if (!resolvedToken) throw new Error(PASTE_TOKEN_MESSAGE)
+  return { url: resolvedUrl, token: resolvedToken }
 }
+
+const PASTE_TOKEN_MESSAGE = 'Paste the Plex token for this server.'
+
+const PLEX_PREFS_NAME = /(^|-)preferences\.xml$/i
 
 const resolvePlexPrefsPath = async () => {
   const fromSetting = await getSetting('plex_prefs_path')
@@ -314,7 +341,7 @@ export const getPlexPrefsPath = resolvePlexPrefsPath
 
 const getConfig = async () => {
   const url = (await getSetting('plex_url')) || ''
-  const token = (await getSetting('plex_token')) || ''
+  const token = (await storedPlexTokenFor(url)) || ''
   const sectionId = (await getSetting('plex_tv_section_id')) || ''
   return { url: url.replace(/\/$/, ''), token, sectionId }
 }

@@ -14,7 +14,7 @@ const memoryCache = () => {
   }
 }
 
-const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 1000 }, cache = memoryCache() }) => ({
+const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 1000 }, cache = memoryCache(), hintsFor = async (title) => ({ title }), tmdbRetryTtlMs, staleBeforeMs = 0 }) => ({
   cache,
   clock,
   artwork: createFallbackArtwork({
@@ -22,12 +22,13 @@ const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 100
     cache,
     isEnabled: async () => enabled,
     tmdbKey: async () => apiKey,
-    hintsFor: async (title) => ({ title }),
+    hintsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
     missTtlMs: 10,
     failureBackoffMs: 50,
-    staleBeforeMs: 0,
+    staleBeforeMs,
+    ...(tmdbRetryTtlMs ? { tmdbRetryTtlMs } : {}),
   }),
 })
 
@@ -317,4 +318,118 @@ test('fallback artwork keys a lookup with agent ids apart from the title-matched
   assert.deepEqual(await artwork.sourcesFor('Dark'), ['https://image.tmdb.org/t/p/original/dark.jpg'])
   assert.deepEqual(seen, [{ tmdb: '70523', tvdb: null, imdb: null }])
   assert.ok([...cache.rows.keys()].every((key) => key.endsWith('tmdb:dark@tmdb-70523')))
+})
+
+test('a refresh with no guide details does not wipe a cached picture', async () => {
+  let hinted = true
+  let calls = 0
+  const writes = []
+  const cache = memoryCache()
+  const write = cache.write
+  cache.write = async (row) => {
+    writes.push(row)
+    return write(row)
+  }
+  const { artwork, clock } = fallbackWith({
+    cache,
+    hintsFor: async (title) => (hinted ? { title } : null),
+    lookUp: async ({ hints }) => {
+      calls += 1
+      return hints ? { sources: ['https://upload.wikimedia.org/a.jpg'], reference: 'wikidata:Q1' } : null
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://upload.wikimedia.org/a.jpg'])
+  hinted = false
+  clock.ms = 1101
+  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 2)
+  assert.equal(writes.length, 1)
+  assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://upload.wikimedia.org/a.jpg'])
+  assert.equal(calls, 2)
+})
+
+test('a refresh with guide details can still replace a cached picture with a miss', async () => {
+  let found = true
+  const { artwork, cache, clock } = fallbackWith({
+    lookUp: async () => (found ? { sources: ['https://upload.wikimedia.org/a.jpg'], reference: 'wikidata:Q1' } : null),
+  })
+  await artwork.sourcesFor('Fisk')
+  found = false
+  clock.ms = 1101
+  await artwork.artworkFor('Fisk')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.deepEqual(cache.rows.get('wide-v1:open:fisk').sources, [])
+})
+
+test('a Wikipedia picture kept because TMDB failed is cached briefly so TMDB is tried again', async () => {
+  let calls = 0
+  let tmdbDown = true
+  const { artwork, cache, clock } = fallbackWith({
+    apiKey: 'k',
+    tmdbRetryTtlMs: 20,
+    lookUp: async () => {
+      calls += 1
+      return tmdbDown
+        ? { sources: ['https://upload.wikimedia.org/a.jpg'], reference: 'wikidata:Q1', retrySoon: true }
+        : { sources: ['https://image.tmdb.org/t/p/original/a.jpg'], reference: 'tmdb:movie:1' }
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Training Day'), ['https://upload.wikimedia.org/a.jpg'])
+  assert.equal(cache.rows.get('wide-v1:tmdb:training day').expiresAt, 1020)
+  tmdbDown = false
+  clock.ms = 1100
+  await artwork.artworkFor('Training Day')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 2)
+  assert.deepEqual(cache.rows.get('wide-v1:tmdb:training day').sources, ['https://image.tmdb.org/t/p/original/a.jpg'])
+})
+
+test('the lookup marks a Wikipedia picture for a quick retry when TMDB fails', async () => {
+  const client = fakeClient((path, params) => {
+    if (path === '/w/api.php' && params.action === 'wbsearchentities') return { search: [{ id: 'Q1', label: 'Training Day' }] }
+    if (path === '/sparql') {
+      return {
+        results: {
+          bindings: [{
+            item: { value: 'http://www.wikidata.org/entity/Q1' },
+            roots: { value: 'http://www.wikidata.org/entity/Q11424' },
+            year: { value: '2001' },
+            enwiki: { value: 'https://en.wikipedia.org/wiki/Training_Day' },
+            tmdbMovie: { value: '2034' },
+          }],
+        },
+      }
+    }
+    if (path === '/w/api.php' && params.titles) {
+      return { query: { pages: [{ title: 'Training Day', thumbnail: { source: 'https://upload.wikimedia.org/td.jpg' }, extract: 'A crime film with Denzel Washington.' }] } }
+    }
+    if (path.startsWith('/3/')) throw new Error('TMDB did not answer')
+    return null
+  })
+  const lookUp = createArtworkLookup({ client })
+  const hints = { ...programmeHintsOf([TRAINING_DAY]), kind: 'movie', isEpisode: false }
+  assert.deepEqual(await lookUp({ title: TRAINING_DAY.title, kind: 'movie', hints, apiKey: 'k' }), {
+    sources: ['https://upload.wikimedia.org/td.jpg'],
+    reference: 'wikidata:Q1',
+    retrySoon: true,
+  })
+})
+
+test('a Wikipedia picture kept because TMDB failed counts as saved now, so it is not looked up again before its expiry', async () => {
+  let calls = 0
+  const { artwork, clock } = fallbackWith({
+    apiKey: 'k',
+    tmdbRetryTtlMs: 80,
+    staleBeforeMs: 990,
+    lookUp: async () => {
+      calls += 1
+      return { sources: ['https://upload.wikimedia.org/a.jpg'], reference: 'wikidata:Q1', retrySoon: true }
+    },
+  })
+  await artwork.sourcesFor('Training Day')
+  clock.ms = 1060
+  assert.deepEqual(await artwork.artworkFor('Training Day'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 1)
 })

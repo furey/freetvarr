@@ -11,6 +11,8 @@ export const getSetting = async (key) => {
 
 export const setSetting = (key, value) => db('settings').insert({ key, value }).onConflict('key').merge()
 
+export const deleteSetting = (key) => db('settings').where({ key }).del()
+
 export const deleteInChunks = async ({ database = db, table, where, chunkSize = DELETE_CHUNK_SIZE }) => {
   let removed = 0
   for (;;) {

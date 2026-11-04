@@ -33,6 +33,7 @@ import {
   closeLivePictureInPicture,
   liveReasonText,
   toggleLivePause,
+  DEVICE_TOKEN,
 } from '/shared/live-session.js'
 import { live, playerMuted, captionTracksOf } from '/shared/player-shared.js'
 import { captionsShowing } from '/live-captions.js'
@@ -327,7 +328,7 @@ const startCompanion = async (id, channel) => {
   multi.companions[id] = { ...emptyCompanion(), channel, phase: 'tuning' }
   applyMuting()
   try {
-    const r = await api('POST', '/api/live', { channel_id: channel.id, picture_rank: PICTURES.indexOf(id) })
+    const r = await api('POST', '/api/live', { channel_id: channel.id, picture_rank: PICTURES.indexOf(id), client_token: DEVICE_TOKEN })
     if (run !== rig.run) {
       api('DELETE', `/api/live/${r.session.id}`).catch(() => {})
       return
@@ -527,6 +528,7 @@ const holdCompanions = () => {
 const repollCompanions = () => {
   for (const id of COMPANIONS) {
     if (!multi.companions[id].sessionId) continue
+    api('POST', `/api/live/${multi.companions[id].sessionId}/unhold`).catch(() => {})
     clearTimeout(rigs[id].pollTimer)
     pollCompanion(id, rigs[id].run)
   }

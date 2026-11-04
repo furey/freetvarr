@@ -8,6 +8,7 @@ import {
   keepLabel,
   pendingActionLabelOf,
   primaryActionOf,
+  scheduledMessageOf,
   seasonEpisodeShort,
   sheetMetaLineOf,
   sheetStrengthsFor,
@@ -661,12 +662,18 @@ export const ProgrammeSheetHost = {
         await task(token)
       } catch (err) {
         if (isSameSheet()) setModalStatus(`${failure}: ${err.message}`, 'err', 8000)
+        reloadAfterFailedChange()
       } finally {
         if (isSameSheet()) {
           modalBusy.value = false
           modalAction.value = ''
         }
       }
+    }
+
+    const reloadAfterFailedChange = () => {
+      refreshAfterRecordingChange()
+      loadEpgState({ fresh: true }).catch(() => {})
     }
 
     const afterRecordingChange = async (token = sheetToken) => {
@@ -681,7 +688,7 @@ export const ProgrammeSheetHost = {
         key: 'record',
         failure: 'Record failed',
         task: async (token) => {
-          await holdAtLeast({ task: () => api('POST', '/api/epg/record', {
+          const result = await holdAtLeast({ task: () => api('POST', '/api/epg/record', {
             channel_id: channel?.id ?? program.channelId,
             program_id: program.program_id,
             epg_program_id: program.epg_program_id,
@@ -689,7 +696,7 @@ export const ProgrammeSheetHost = {
             lag_time: lagTime.value,
             add_to_library: addToLibrary.value,
           }) })
-          flash({ msg: `Scheduled "${program.title}".` })
+          flash({ msg: scheduledMessageOf({ title: program.title, paddingSaved: result.paddingSaved }) })
           await afterRecordingChange(token)
         },
       })

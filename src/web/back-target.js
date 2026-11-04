@@ -34,6 +34,8 @@ export const replacedEntryStateOf = (state) => {
   return { cameFrom, ...(inHistory ? {} : { cameFromOutsideHistory: true }) }
 }
 
+export const replaceUrlKeepingEntry = ({ history, hash }) => history.replaceState(history.state, '', hash)
+
 export const libraryBackOf = ({ cameFrom, inHistory }) => (inHistory && isLibraryOverview(cameFrom) ? 'history' : 'navigate')
 
 const isLibraryOverview = (hash) => {

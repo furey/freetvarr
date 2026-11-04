@@ -59,6 +59,7 @@ const creditsWith = ({
   lookUp = null,
   linkOf = (url) => url,
   externalIdsFor = async () => null,
+  hintsFor = async () => hints,
 }) => {
   const client = fakeClient(routes || {})
   const matcher = createTitleMatcher({ client, countryCode: () => country, knownReference })
@@ -67,7 +68,7 @@ const creditsWith = ({
     cache,
     creditsEnabled: async () => creditsOn,
     tmdbKey: async () => apiKey,
-    hintsFor: async () => hints,
+    hintsFor,
     externalIdsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
@@ -496,4 +497,25 @@ test('creditsFor: the show page request for Dark answers from its ids once they 
   assert.equal(cache.rows.size, 2)
   assert.equal(lookupCacheControlOf(after), 'private, no-cache')
   assert.equal(lookupCacheControlOf({ status: 'pending' }), 'no-store')
+})
+
+test('a stale credits hit whose refresh has no guide details keeps the old cast', async () => {
+  let hinted = true
+  let calls = 0
+  const cast = { overview: 'A heist.', cast: [{ name: 'Al Pacino' }], crew: [], source: 'tmdb', url: null }
+  const { credits, cache, clock } = creditsWith({
+    hintsFor: async () => (hinted ? { title: 'Heat' } : null),
+    lookUp: async ({ hints }) => {
+      calls += 1
+      return hints ? cast : null
+    },
+  })
+  assert.equal((await settled(credits, 'Heat', { kind: 'movie' })).cast[0].name, 'Al Pacino')
+  const saved = cache.rows.get('tmdb:movie:heat')
+  hinted = false
+  clock.ms = 1101
+  assert.equal((await credits.creditsFor('Heat', { kind: 'movie' })).cast[0].name, 'Al Pacino')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 2)
+  assert.deepEqual(cache.rows.get('tmdb:movie:heat'), saved)
 })

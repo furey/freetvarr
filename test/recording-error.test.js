@@ -19,10 +19,27 @@ test('diagnoseRecordingError: reads both sizes of a short copy, old and new word
   }
 })
 
+test('diagnoseRecordingError: explains a recording file whose real path is outside the recordings folder', () => {
+  const d = diagnoseRecordingError('/recordings/Show/ep.ts is outside the recordings folder /recordings')
+  assert.equal(d.title, 'Recording file is outside the recordings folder')
+  assert.match(d.meaning, /link/)
+  assert.equal(d.doc, 'guide/troubleshooting#skipped-recordings')
+})
+
 test('diagnoseRecordingError: names the missing library folder', () => {
   const d = diagnoseRecordingError('movies folder /data/media/movies not found; mount it or change it in Settings')
   assert.equal(d.title, 'Movies folder not found')
   assert.match(d.steps[1], /Movies folder/)
+})
+
+test('diagnoseRecordingError: names a missing TV folder and an empty library folder', () => {
+  const missing = diagnoseRecordingError('TV folder /data/media/tv not found; mount it or change it in Settings')
+  assert.equal(missing.title, 'TV folder not found')
+  assert.match(missing.steps[1], /Media root/)
+  const empty = diagnoseRecordingError('TV folder /data/media/tv is empty, but imported recordings point into it; check that it is mounted')
+  assert.equal(empty.title, 'TV folder is empty')
+  assert.equal(empty.doc, 'guide/troubleshooting#empty-library-folder')
+  assert.match(empty.steps[1], /emptied the folder yourself/)
 })
 
 test('diagnoseRecordingError: covers path mismatches, TVHeadend status, and permissions', () => {

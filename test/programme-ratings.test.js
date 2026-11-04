@@ -67,6 +67,8 @@ const ratingsWith = ({
   linkOf = (url) => url,
   externalIdsFor = async () => null,
   missesBeforeMs = 0,
+  hintsFor = async () => hints,
+  unhintedMissTtlMs,
 }) => {
   const client = fakeClient(routes || {})
   const ratings = createProgrammeRatings({
@@ -75,7 +77,7 @@ const ratingsWith = ({
     ratingsEnabled: async () => ratingsOn,
     reviewsEnabled: async () => reviewsOn,
     tmdbKey: async () => apiKey,
-    hintsFor: async () => hints,
+    hintsFor,
     externalIdsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
@@ -84,6 +86,7 @@ const ratingsWith = ({
     linkOf,
     staleBeforeMs: 0,
     missesBeforeMs,
+    ...(unhintedMissTtlMs ? { unhintedMissTtlMs } : {}),
   })
   return { ratings, client, cache, clock }
 }
@@ -777,4 +780,57 @@ test('a miss saved before the retry cut-off is looked up again, and a later miss
   await settled(after.ratings, 'Die Hard', { kind: 'movie' })
   await settled(after.ratings, 'Die Hard', { kind: 'movie' })
   assert.deepEqual(calls, ['Die Hard', 'Die Hard'])
+})
+
+test('a stale hit whose refresh has no guide details keeps the old score', async () => {
+  let hinted = true
+  let calls = 0
+  const { ratings, cache, clock } = ratingsWith({
+    hintsFor: async () => (hinted ? { title: 'Film' } : null),
+    lookUp: async ({ hints }) => {
+      calls += 1
+      return hints ? { score: 7.8, votes: 100, source: 'tmdb', url: null, reviews: null, originalLanguage: 'en' } : { missReason: 'no-guide-details' }
+    },
+  })
+  assert.equal((await settled(ratings, 'Film', { kind: 'movie' })).score, 7.8)
+  const saved = cache.rows.get('tmdb:movie:film')
+  hinted = false
+  clock.ms = 1101
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 7.8)
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(calls, 2)
+  assert.deepEqual(cache.rows.get('tmdb:movie:film'), saved)
+  assert.equal((await ratings.ratingsFor('Film', { kind: 'movie' })).score, 7.8)
+  assert.equal(calls, 2)
+})
+
+test('an unhinted film miss expires within hours, then a hinted call looks it up again', async () => {
+  let hinted = false
+  const calls = []
+  const { ratings, cache, clock } = ratingsWith({
+    hintsFor: async () => (hinted ? { title: 'Film' } : null),
+    lookUp: async ({ hints }) => {
+      calls.push(Boolean(hints))
+      return hints ? { score: 7.8, votes: 100, source: 'tmdb', url: null, reviews: null, originalLanguage: 'en' } : { missReason: 'no-guide-details' }
+    },
+  })
+  assert.equal((await settled(ratings, 'Film', { kind: 'movie' })).status, 'none')
+  assert.equal(cache.rows.get('tmdb:movie:film').expiresAt, 1000 + 6 * 60 * 60 * 1000)
+  hinted = true
+  clock.ms = 1000 + 6 * 60 * 60 * 1000 + 1
+  assert.equal((await settled(ratings, 'Film', { kind: 'movie' })).score, 7.8)
+  assert.deepEqual(calls, [false, true])
+})
+
+test('an unhinted miss saved after the retry cut-off is not looked up again', async () => {
+  const calls = []
+  const { ratings } = ratingsWith({
+    clock: { ms: 1000 },
+    missesBeforeMs: 998,
+    unhintedMissTtlMs: 5,
+    lookUp: async ({ title }) => { calls.push(title); return { missReason: 'no-guide-details' } },
+  })
+  await settled(ratings, 'Die Hard', { kind: 'movie' })
+  await settled(ratings, 'Die Hard', { kind: 'movie' })
+  assert.deepEqual(calls, ['Die Hard'])
 })

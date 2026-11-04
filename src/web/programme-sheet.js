@@ -40,6 +40,10 @@ export const strengthLineOf = ({ strength, title, channelLabel = '', onAirUntil 
     : `Lists ${title} in Scheduled under Watchlist whenever it is in the guide. Nothing records.`
 }
 
+export const scheduledMessageOf = ({ title, paddingSaved }) => (paddingSaved === false
+  ? `Scheduled "${title}", but TVHeadend did not save Start early and Finish late.`
+  : `Scheduled "${title}".`)
+
 export const primaryActionOf = ({ strength }) => {
   if (strength === 'episode') return { key: 'record', label: 'Record', tone: 'record' }
   if (strength === 'series') return { key: 'record-series', label: 'Record series', tone: 'record' }

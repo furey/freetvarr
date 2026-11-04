@@ -44,6 +44,12 @@ export const deleteTvLoginConfirm = ({ username }) => ({
   danger: true,
 })
 
+export const RESET_CONFIRM_BODY = Object.freeze({ confirm: 'reset' })
+
+export const RESET_REFUSED_MESSAGE = 'Freetvarr did not reset. Reload the page, then press Reset again.'
+
+export const isResetConfirmed = (body) => body?.confirm === RESET_CONFIRM_BODY.confirm
+
 export const resetConfirm = ({ mediaRoot }) => ({
   title: 'Reset Freetvarr',
   body: [
@@ -51,6 +57,8 @@ export const resetConfirm = ({ mediaRoot }) => ({
       + ' The next time you open Freetvarr, setup starts from the beginning.',
     `Your video files in ${mediaRoot || '/media/tv'} and the other library folders stay where they are,`
       + ' and so do the recordings and settings in TVHeadend.',
+    'The first sync after setup imports the recordings still in TVHeadend again.',
+    'Freetvarr keeps the TV login it made. You can still delete it, or restore open access, after setup.',
     'You cannot undo this.',
   ],
   confirmLabel: 'Reset Freetvarr',

@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   CUSTOM_SYNC_SCHEDULE,
   DEFAULT_SYNC_CRON,
@@ -6,10 +6,12 @@ import {
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
-import { resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
+import { RESET_CONFIRM_BODY, resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { holdAtLeast } from '/pending.js'
+import { clearedSecretToastOf, rootFieldErrorOf } from '/save-notice.js'
+import { toast } from '/shared/toast.js'
 import { createSettingBaseline } from '/setting-baseline.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
@@ -23,6 +25,9 @@ import {
 import { routeSection, scrollToRouteSection } from '/shared/router.js'
 import { isLandingPending } from '/shared/setting-landing.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
+import { unsavedSettings } from '/shared/store.js'
+import { createClearTimer } from '/status-timer.js'
+import { RETRY_MIN_MS, canSaveSettings, hasUnsavedSettings, loadSettingsWith, settingsSnapshotOf, settingsTvhTestBodyOf } from '/settings-load.js'
 import { tz, browserTimeZone } from '/shared/time.js'
 
 const LICENCES = [
@@ -502,9 +507,13 @@ export const SettingsView = {
 
       <div class="settings-save-bar">
         <div class="settings-save-bar-inner">
-          <span v-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
+          <span v-if="loadError" class="status-readout err" role="alert">{{ loadError }}</span>
+          <span v-else-if="status" :class="['status-readout', statusKind]" role="status">{{ status }}</span>
           <span v-else class="settings-save-hint">Changes apply when you save.</span>
-          <button type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="saving" :aria-busy="saving">
+          <button v-if="loadError" type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': loading }]" :disabled="loading" :aria-busy="loading" @click="loadSettings({ retry: true })">
+            <template v-if="loading"><span class="spinner" aria-hidden="true"></span> Loading…</template><template v-else><refresh-icon /> Try again</template>
+          </button>
+          <button v-else type="submit" form="settings-form" :class="['ui-button', 'ui-button-primary', { 'is-pending': saving }]" :disabled="!canSaveSettings({ loaded, saving })" :aria-busy="saving">
             <template v-if="saving"><span class="spinner" aria-hidden="true"></span> Saving…</template><template v-else><check-icon /> Save settings</template>
           </button>
         </div>
@@ -658,6 +667,9 @@ export const SettingsView = {
     const plexStatus = ref('')
     const plexStatusKind = ref('ok')
     const saving = ref(false)
+    const loaded = ref(false)
+    const loading = ref(false)
+    const loadError = ref('')
     const resetting = ref(false)
     const resetError = ref('')
     const oneOffRoot = ref('')
@@ -689,22 +701,39 @@ export const SettingsView = {
     const mediaRootStatus = ref('')
     const mediaRootStatusKind = ref('ok')
 
+    const clearStatusLater = createClearTimer({ clear: () => (status.value = '') })
     const flash = ({ msg, kind = 'ok', ms = FLASH_DEFAULT_MS }) => {
       status.value = msg
       statusKind.value = kind
-      if (ms > 0) setTimeout(() => (status.value = ''), ms)
+      clearStatusLater(ms)
     }
 
+    const rootFieldStatus = {
+      media_root: [mediaRootStatus, mediaRootStatusKind],
+      oneoff_root: [oneOffRootStatus, oneOffRootStatusKind],
+      movies_root: [moviesRootStatus, moviesRootStatusKind],
+    }
+    const showRootFieldError = (problem) => {
+      if (!problem) return
+      if (problem.field === 'recordings_root') return recordingsCheck.show({ text: problem.text, kind: 'err' })
+      if (problem.field === 'tvh_recordings_path') return tvhPathCheck.show({ text: problem.text, kind: 'err' })
+      const [text, kind] = rootFieldStatus[problem.field]
+      text.value = problem.text
+      kind.value = 'err'
+    }
+
+    const clearPlexStatusLater = createClearTimer({ clear: () => (plexStatus.value = '') })
     const setPlexStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexStatus.value = msg
       plexStatusKind.value = kind
-      if (ms > 0) setTimeout(() => (plexStatus.value = ''), ms)
+      clearPlexStatusLater(ms)
     }
 
+    const clearPlexTokenStatusLater = createClearTimer({ clear: () => (plexTokenStatus.value = '') })
     const setPlexTokenStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexTokenStatus.value = msg
       plexTokenStatusKind.value = kind
-      if (ms > 0) setTimeout(() => (plexTokenStatus.value = ''), ms)
+      clearPlexTokenStatusLater(ms)
     }
 
     const dataCredits = ref(dataCreditsOf())
@@ -716,8 +745,19 @@ export const SettingsView = {
         genreLookupBaseline.remember(genreLookup.value)
       })
       .catch(() => {}))
+    const loadSettings = async ({ retry = false } = {}) => {
+      loading.value = true
+      const outcome = await loadSettingsWith({ fetchSettings, fill: fillFrom, minMs: retry ? RETRY_MIN_MS : 0 })
+      loaded.value = outcome.loaded
+      loadError.value = outcome.error
+      loading.value = false
+      if (outcome.loaded) await rememberSavedBody()
+    }
     onMounted(async () => {
-      const s = await fetchSettings()
+      await loadSettings()
+      if (!isLandingPending()) await scrollToRouteSection()
+    })
+    const fillFrom = (s) => {
       tvhUrl.value = s.tvh_url || ''
       tvhUsername.value = s.tvh_username || ''
       tvhPasswordSet.value = Boolean(s.tvh_password_set)
@@ -752,47 +792,61 @@ export const SettingsView = {
       adRemovalEnabled.value = Boolean(s.ad_removal_enabled)
       adOriginalRetentionDays.value = s.ad_original_retention_days || '7'
       comskipIniOverride.value = Boolean(s.comskip_ini_override)
-      if (!isLandingPending()) await scrollToRouteSection()
-    })
+    }
     const stopSectionWatch = watch(routeSection, () => isLandingPending() || scrollToRouteSection())
     onUnmounted(stopSectionWatch)
 
+    const savedBody = ref(null)
+    const rememberSavedBody = async () => {
+      await nextTick()
+      savedBody.value = settingsSnapshotOf(settingsBody())
+    }
+    const hasUnsavedChanges = computed(() => hasUnsavedSettings({ snapshot: savedBody.value, body: savedBody.value === null ? {} : settingsBody() }))
+    watch(hasUnsavedChanges, (unsaved) => { unsavedSettings.value = unsaved }, { immediate: true })
+    onUnmounted(() => { unsavedSettings.value = false })
+
+    const settingsBody = () => {
+      const body = {
+        tvh_url: tvhUrl.value,
+        tvh_username: tvhUsername.value,
+        recordings_root: recordingsRoot.value,
+        tvh_recordings_path: tvhRecordingsPath.value,
+        sync_cron: syncCron.value,
+        plex_url: plexUrl.value,
+        plex_tv_section_id: plexSectionId.value,
+        plex_prefs_path: plexPrefsPath.value,
+        media_root: mediaRoot.value,
+        oneoff_root: oneOffRoot.value,
+        import_unmatched: importUnmatched.value,
+        show_artwork_lookup: showArtworkLookup.value,
+        ratings_lookup_enabled: ratingsLookupEnabled.value,
+        face_focus_enabled: faceFocusEnabled.value,
+        reviews_lookup_enabled: reviewsLookupEnabled.value,
+        credits_lookup_enabled: creditsLookupEnabled.value,
+        plex_oneoff_section_id: plexOneOffSectionId.value,
+        movies_root: moviesRoot.value,
+        plex_movies_section_id: plexMoviesSectionId.value,
+        delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly.value,
+        ad_removal_enabled: adRemovalEnabled.value,
+        ad_original_retention_days: adOriginalRetentionDays.value,
+      }
+      body.time_zone = timeZone.value
+      if (plexToken.value) body.plex_token = plexToken.value
+      if (tvhPassword.value) body.tvh_password = tvhPassword.value
+      return body
+    }
+
     const save = async () => {
+      if (!loaded.value) return
       saving.value = true
       try {
-        const body = {
-          tvh_url: tvhUrl.value,
-          tvh_username: tvhUsername.value,
-          recordings_root: recordingsRoot.value,
-          tvh_recordings_path: tvhRecordingsPath.value,
-          sync_cron: syncCron.value,
-          plex_url: plexUrl.value,
-          plex_tv_section_id: plexSectionId.value,
-          plex_prefs_path: plexPrefsPath.value,
-          media_root: mediaRoot.value,
-          oneoff_root: oneOffRoot.value,
-          import_unmatched: importUnmatched.value,
-          show_artwork_lookup: showArtworkLookup.value,
-          ratings_lookup_enabled: ratingsLookupEnabled.value,
-          face_focus_enabled: faceFocusEnabled.value,
-          reviews_lookup_enabled: reviewsLookupEnabled.value,
-          credits_lookup_enabled: creditsLookupEnabled.value,
-          plex_oneoff_section_id: plexOneOffSectionId.value,
-          movies_root: moviesRoot.value,
-          plex_movies_section_id: plexMoviesSectionId.value,
-          delete_after_plex_refresh_only: deleteAfterPlexRefreshOnly.value,
-          ad_removal_enabled: adRemovalEnabled.value,
-          ad_original_retention_days: adOriginalRetentionDays.value,
-        }
-        body.time_zone = timeZone.value
-        if (plexToken.value) body.plex_token = plexToken.value
-        if (tvhPassword.value) body.tvh_password = tvhPassword.value
-        await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
+        const body = settingsBody()
+        const saved = await holdAtLeast({ task: () => api('POST', '/api/settings', body) })
         await saveRecordingDefaults()
         await saveGenreLookup()
         await plexWatchSetting.value?.save()
         await plexLibrarySetting.value?.save()
-        await arrSettings.value?.save()
+        const arrCleared = await arrSettings.value?.save()
         tz.value = timeZone.value
         tzSource.value = 'setting'
         if (plexToken.value) {
@@ -803,9 +857,16 @@ export const SettingsView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
-        flash({ msg: 'Saved.' })
+        if (saved?.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
+        if (saved?.cleared?.includes('plex_token')) plexTokenSet.value = false
+        const cleared = [...(saved?.cleared ?? []), ...(arrCleared ?? [])]
+        const clearedToast = clearedSecretToastOf(cleared)
+        if (clearedToast) toast(clearedToast)
+        else flash({ msg: 'Saved.' })
+        await rememberSavedBody()
         await refreshSyncSchedule()
       } catch (err) {
+        showRootFieldError(rootFieldErrorOf(err))
         flash({ msg: `Error: ${err.message}`, kind: 'err', ms: 5000 })
       } finally {
         saving.value = false
@@ -870,15 +931,11 @@ export const SettingsView = {
       tvhStatus.value = 'Contacting TVHeadend…'
       tvhStatusKind.value = 'busy'
       try {
-        const r = await api('POST', '/api/tvh-test', {
-          tvh_url: tvhUrl.value,
-          tvh_username: tvhUsername.value,
-          ...(tvhPassword.value ? { tvh_password: tvhPassword.value } : {}),
-        })
-        if (tvhPassword.value) {
-          tvhPasswordSet.value = true
-          tvhPassword.value = ''
-        }
+        const r = await api('POST', '/api/tvh-test', settingsTvhTestBodyOf({
+          url: tvhUrl.value,
+          username: tvhUsername.value,
+          password: tvhPassword.value,
+        }))
         tvhStatus.value = tvhTestSummary(r)
         tvhStatusKind.value = 'ok'
       } catch (err) {
@@ -925,7 +982,7 @@ export const SettingsView = {
         const r = await api('POST', '/api/plex-detect-token')
         if (r.ok) {
           plexTokenSet.value = true
-          plexToken.value = r.token || ''
+          plexToken.value = ''
           setPlexTokenStatus(`Token detected from ${r.source}.`, 'ok', 5000)
         } else {
           setPlexTokenStatus(`Auto-detect failed: ${r.reason}`, 'err', 8000)
@@ -1025,7 +1082,7 @@ export const SettingsView = {
       resetting.value = true
       resetError.value = ''
       try {
-        await api('POST', '/api/reset')
+        await api('POST', '/api/reset', RESET_CONFIRM_BODY)
         window.location.hash = '#/welcome'
         window.location.reload()
       } catch (err) {
@@ -1070,13 +1127,13 @@ export const SettingsView = {
       plexLibrarySetting,
       arrSettings,
       adRemovalEnabled, adOriginalRetentionDays, comskipIniOverride,
-      status, statusKind, plexStatus, plexStatusKind, saving,
+      status, statusKind, plexStatus, plexStatusKind, saving, loaded, loading, loadError, loadSettings,
       resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
       importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, genreLookup, genreCredits, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
-      save, loadPlexSections, refreshPlexNow, detectPlexToken,
+      canSaveSettings, save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,
       testTvh, detectTvh, tvhDetecting, tvhCandidates, useTvhCandidate,
       tvhDiscoverText, tvhDiscoverKind,

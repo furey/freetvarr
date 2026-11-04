@@ -16,7 +16,7 @@ const job = () => {
 
 const plexItem = (key) => ({ ratingKey: key, grandparentTitle: 'Show', parentIndex: 1, index: Number(key), Media: [{ Part: [{ id: key, file: `/data/media/tv/Show/Season 01/Show - S01E0${key}.mkv` }] }] })
 
-const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending = [], index = null, lookup = null, write = async () => {}, shows = [], movies = [], sonarrSeries = null } = {}) => {
+const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending = [], index = null, lookup = null, write = async () => {}, shows = [], movies = [], sonarrSeries = null, truncatedSections = [] } = {}) => {
   const state = { saved: [], cleared: [], managerUpdates: [], listCalls: [], writes: [], externalIds: [], showCalls: [] }
   const client = {
     sections: async () => [{ id: '2', type: 'show' }, { id: '1', type: 'movie' }, { id: '9', type: 'artist' }, { id: '5', type: 'movie' }],
@@ -25,6 +25,7 @@ const harness = ({ settings = { enabled: true, sectionIds: ['2', '1'] }, pending
       if (args.section.id === '2') return [plexItem('1'), plexItem('2')]
       return args.section.id === '1' ? movies : []
     },
+    listAllItems: async (args) => ({ items: await client.listItems(args), truncated: truncatedSections.includes(args.section.id) }),
     listShows: async ({ section }) => {
       state.showCalls.push(section.id)
       return shows
@@ -58,6 +59,14 @@ test('afterSync: a full pass reads every chosen show and movie library and saves
   assert.equal(result.scanned, 2)
   assert.equal(state.saved[0].full, true)
   assert.equal(state.saved[0].rows[0].rating_key, '1')
+})
+
+test('afterSync: a full pass of a section past the page limit keeps the rows it did not see', async () => {
+  const { scan, client, state } = harness({ truncatedSections: ['2'] })
+  const log = job()
+  await scan.afterSync({ client, full: true, job: log })
+  assert.deepEqual(state.saved.map((saved) => [saved.sectionId, saved.full]), [['2', false], ['1', true]])
+  assert.match(log.logs.join('\n'), /too big to read in full/)
 })
 
 test('afterSync: a quick pass reads only items added or watched since the last run', async () => {

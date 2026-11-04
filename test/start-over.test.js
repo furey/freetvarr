@@ -8,6 +8,7 @@ import {
   behindLiveText,
   fromStartRecordingOf,
   NOTHING_BUFFERED_TEXT,
+  retryActionOf,
 } from '../src/web/start-over.js'
 
 const clockText = (ms) => `@${new Date(ms).toISOString().slice(11, 16)}`
@@ -98,4 +99,10 @@ test('startOverActionOf opens the sheet when both choices are available', () => 
   const fromStart = { key: 'from-start', title: 'From the start', detail: 'x' }
   const tunedIn = { key: 'tuned-in', title: 'Back to when you tuned in', detail: 'y', disabled: false }
   assert.deepEqual(startOverActionOf([fromStart, tunedIn]), { kind: 'sheet' })
+})
+
+test('retryActionOf: Try again restarts From the start when that is what stopped, and live TV otherwise', () => {
+  assert.equal(retryActionOf({ fromStart: { recording: { dvrUuid: 'd1' } } }), 'from-start')
+  assert.equal(retryActionOf({ fromStart: { recording: null } }), 'live')
+  assert.equal(retryActionOf({ fromStart: null }), 'live')
 })

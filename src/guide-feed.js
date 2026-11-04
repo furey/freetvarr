@@ -84,7 +84,7 @@ export const programmeClassifications = ({ xml, shifts = [] }) => {
     const channel = decodeAttribute(programme.match(CHANNEL_ATTRIBUTE)?.[1] ?? '')
     const copies = shifts
       .filter((shift) => shift.baseId === channel)
-      .map((shift) => ({ ...entry, startMs: entry.startMs + shift.hours * HOUR_MS }))
+      .map((shift) => ({ ...entry, startMs: entry.startMs + shift.hours * HOUR_MS, shiftHours: shift.hours }))
     return [entry, ...copies]
   })
 }
@@ -127,6 +127,8 @@ export const localAddressToward = (url, { timeoutMs = CONNECT_TIMEOUT_MS } = {})
   })
   socket.once('error', reject)
 })
+
+export const serverPort = () => Number(process.env.PORT || 3733)
 
 export const guideFeedUrl = ({ address, port }) => {
   const host = String(address).replace(/^::ffff:/, '')

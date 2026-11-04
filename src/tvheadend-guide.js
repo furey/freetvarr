@@ -546,7 +546,7 @@ const linkedChannels = ({ channels, guideChannels, links }) => channels
 
 const isTimeshiftName = (name) => TIMESHIFT_NAME.test(String(name).trim())
 
-const timeshiftHours = (name) => Number(String(name).trim().match(TIMESHIFT_NAME)?.[1]) || 0
+export const timeshiftHours = (name) => Number(String(name).trim().match(TIMESHIFT_NAME)?.[1]) || 0
 
 const timeshiftBaseName = (name) => String(name).trim().replace(TIMESHIFT_NAME, '').trim()
 

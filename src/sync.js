@@ -4,9 +4,10 @@ import fs from 'fs/promises'
 import { db, getSetting, setSetting } from './db.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import {
-  fetchProgrammeImage,
+  fetchProgrammeImageOrThrow,
   listAutorecs,
   listFinished,
+  listRemovedIds,
   listUpcoming,
   removeRecordings as removeTvhRecordings,
   resolveConnection,
@@ -26,14 +27,29 @@ import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
+import { isSameShowTitle } from './autorec-match.js'
+import { isLibraryChanging, libraryChangesSettled } from './library-busy.js'
 import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
 import { showIdentityFor } from './show-identity.js'
+import { ROOT_EMPTY, createRootCheck, getMediaRoot, getMoviesRoot, getOneOffRoot } from './library-roots.js'
+
+export { getMediaRoot, getMoviesRoot, getOneOffRoot }
 
 export const getActiveSyncId = () => inFlight?.syncId ?? null
 
+export const isSyncBusy = () => starting != null || inFlight != null
+
 export const startSync = async (options = {}) => {
-  while (starting) await starting.catch(() => {})
-  if (inFlight) return { syncId: inFlight.syncId, alreadyRunning: true }
+  const deadline = Date.now() + (options.libraryWaitMs ?? LIBRARY_WAIT_MS)
+  if (isLibraryChanging()) console.warn('[sync] waiting for a library delete or folder rename to finish before the sync starts')
+  while (starting || isLibraryChanging()) {
+    if (!(await libraryChangesSettled({ timeoutMs: deadline - Date.now() }))) return giveUpBehindLibraryChange(options)
+    while (starting) await starting.catch(() => {})
+  }
+  if (inFlight) {
+    if (options.followUp) followUpTrigger = options.trigger ?? 'manual'
+    return { syncId: inFlight.syncId, alreadyRunning: true, ...(options.followUp ? { followUp: true } : {}) }
+  }
   const attempt = beginSync(options)
   starting = attempt
   try {
@@ -43,6 +59,16 @@ export const startSync = async (options = {}) => {
   }
 }
 
+const giveUpBehindLibraryChange = async ({ trigger = 'manual', showId = null }) => {
+  const message = LIBRARY_WAIT_ERROR
+  console.warn(`[sync] ${message}`)
+  const syncId = await createSync(trigger, showId)
+  await finishSync(syncId, 'error', { trigger, imported: 0, skipped: 0, failed: 0, errors: [message], items: [], steps: {}, message })
+  return { syncId, alreadyRunning: false, gaveUp: true }
+}
+
+export const syncErrorLogOf = (err) => err?.stack || String(err?.message ?? err)
+
 const beginSync = async ({ trigger = 'manual', showId = null, identityFor = showIdentityFor }) => {
   const missingUrl = await tvheadendUrlMissing()
   if (missingUrl && AUTOMATIC_TRIGGERS.includes(trigger)) return { skipped: true, reason: missingUrl.message }
@@ -51,15 +77,25 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
   const syncId = await createSync(trigger, showId)
   const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId, identityFor }))
     .catch((err) => {
-      console.error('[sync] unhandled error:', err)
+      console.error(`[sync] unhandled error: ${syncErrorLogOf(err)}`)
     })
     .finally(() => {
       inFlight = null
       syncFinishedListeners.forEach((listener) => notifySyncFinished({ listener, syncId, trigger }))
+      startFollowUpSync()
     })
   inFlight = { syncId, promise }
   return { syncId, alreadyRunning: false }
 }
+
+const startFollowUpSync = () => {
+  if (!followUpTrigger) return
+  const nextTrigger = followUpTrigger
+  followUpTrigger = null
+  startSync({ trigger: nextTrigger }).catch((err) => console.warn(`[sync] follow-up sync failed to start: ${err.message}`))
+}
+
+let followUpTrigger = null
 
 export const onSyncFinished = (listener) => {
   syncFinishedListeners.add(listener)
@@ -75,6 +111,9 @@ const notifySyncFinished = ({ listener, syncId, trigger }) => {
 }
 
 const syncFinishedListeners = new Set()
+const UPDATE_CHUNK = 500
+const LIBRARY_WAIT_MS = 10 * 60 * 1000
+const LIBRARY_WAIT_ERROR = 'A library delete or folder rename was still running after 10 minutes, so this sync did not run. The next sync tries again.'
 let starting = null
 
 export const matchShow = (shows, showTitle, { sport = false } = {}) => {
@@ -84,9 +123,11 @@ export const matchShow = (shows, showTitle, { sport = false } = {}) => {
     .sort((a, b) => b.show_pattern.length - a.show_pattern.length)[0]
 }
 
-const titleMatchesShow = ({ show, title, sport }) => (sport && isAutoTitleMatch(show)
-  ? showKeyOf(show.show_pattern) === showKeyOf(title)
-  : wordPatternOf(show.show_pattern)?.test(title) ?? false)
+const titleMatchesShow = ({ show, title, sport }) => {
+  if (!isAutoTitleMatch(show)) return wordPatternOf(show.show_pattern)?.test(title) ?? false
+  const sameKey = showKeyOf(show.show_pattern) === showKeyOf(title)
+  return sport ? sameKey : sameKey || isSameShowTitle({ title, show: String(show.show_pattern ?? '').trim() })
+}
 
 const wordPatternOf = (pattern) => {
   const text = String(pattern ?? '').trim()
@@ -119,23 +160,29 @@ export const rebaseFilePaths = async () => {
     { key: 'last_oneoff_root', current: await getOneOffRoot() },
     { key: 'last_movies_root', current: await getMoviesRoot() },
   ].filter((root) => root.current)
+  const currentRoots = roots.map((root) => root.current)
   let moved = 0
   for (const { key, current } of roots) {
     const previous = await getSetting(key)
     if (previous === current) continue
-    if (previous) moved += await rebasePrefix({ from: previous, to: current })
+    if (previous) moved += await rebasePrefix({ from: previous, to: current, keepUnder: currentRoots })
     await setSetting(key, current)
   }
   return moved
 }
 
-export const rebasePrefix = ({ from, to }) => {
-  const oldRoot = from.replace(/\/+$/, '')
-  const newRoot = to.replace(/\/+$/, '')
-  return db('recordings')
-    .where('file_path', 'like', `${oldRoot}/%`)
+export const rebasePrefix = ({ from, to, keepUnder = [] }) => {
+  const oldRoot = withoutTrailingSlash(from)
+  const newRoot = withoutTrailingSlash(to)
+  const nestedRoots = keepUnder.map(withoutTrailingSlash).filter((root) => root.startsWith(`${oldRoot}/`))
+  return nestedRoots
+    .reduce((query, root) => query.whereRaw('substr(file_path, 1, ?) <> ?', [root.length + 1, `${root}/`]), startsWithFolder(db('recordings'), oldRoot))
     .update({ file_path: db.raw('? || substr(file_path, ?)', [newRoot, oldRoot.length + 1]) })
 }
+
+const startsWithFolder = (query, root) => query.whereRaw('substr(file_path, 1, ?) = ?', [root.length + 1, `${root}/`])
+
+const withoutTrailingSlash = (root) => root.replace(/\/+$/, '')
 
 export const resetInterruptedImports = () =>
   db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
@@ -161,12 +208,6 @@ export const closeInterruptedSyncs = async () => {
 
 const parseSummary = (summaryJson) => {
   try { return JSON.parse(summaryJson || '{}') || {} } catch { return {} }
-}
-
-export const getMoviesRoot = async () => {
-  const fromSetting = await getSetting('movies_root')
-  if (fromSetting != null) return fromSetting.trim()
-  return (process.env.MOVIES_ROOT || '').trim()
 }
 
 export { looksLikeFilm }
@@ -210,18 +251,6 @@ const isFiled = (existing) => existing?.status === 'done' || Boolean(existing?.d
 
 const IMPORT_KINDS = { show: 'tv', movie: 'film', oneoff: 'oneOff' }
 
-export const getOneOffRoot = async () => {
-  const fromSetting = await getSetting('oneoff_root')
-  if (fromSetting && fromSetting.trim()) return fromSetting.trim()
-  return process.env.ONEOFF_ROOT || DEFAULT_ONEOFF_ROOT
-}
-
-export const getMediaRoot = async () => {
-  const fromSetting = await getSetting('media_root')
-  if (fromSetting && fromSetting.trim()) return fromSetting.trim()
-  return process.env.MEDIA_ROOT || DEFAULT_MEDIA_ROOT
-}
-
 export const getRecordingsRoot = async () => {
   const fromSetting = await getSetting('recordings_root')
   if (fromSetting && fromSetting.trim()) return fromSetting.trim()
@@ -239,7 +268,21 @@ export const localPathFor = ({ tvhFilename, tvhRecordingsPath, recordingsRoot })
   const localRoot = recordingsRoot.replace(/\/+$/, '')
   if (tvhFilename === remoteRoot) return localRoot
   if (!tvhFilename.startsWith(`${remoteRoot}/`)) return null
-  return path.join(localRoot, tvhFilename.slice(remoteRoot.length + 1))
+  const relative = tvhFilename.slice(remoteRoot.length + 1)
+  if (relative.split('/').includes('..')) return null
+  const result = path.join(localRoot, relative)
+  return isInside({ filePath: result, root: localRoot }) ? result : null
+}
+
+const isInside = ({ filePath, root }) => {
+  const resolvedRoot = path.resolve(root)
+  const relative = path.relative(resolvedRoot, path.resolve(filePath))
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+const isInsideRealRoot = async ({ filePath, root }) => {
+  const [realFile, realRoot] = await Promise.all([fs.realpath(filePath), fs.realpath(root)]).catch(() => [])
+  return Boolean(realFile && realRoot) && isInside({ filePath: realFile, root: realRoot })
 }
 
 export const createValidFilename = (name) =>
@@ -262,8 +305,7 @@ export const episodeFilename = ({ item, show }) => {
     const ee = String(item.episode).padStart(2, '0')
     return `${base} - S${ss}E${ee}${numberedSuffix}.${ext}`
   }
-  const aired = new Date(item.start).toISOString().slice(0, 10)
-  return `${base} - ${aired}${suffix}.${ext}`
+  return `${base} - ${localDate(item.start)}${suffix}.${ext}`
 }
 
 export const oneOffFilename = (item) => {
@@ -301,11 +343,17 @@ const guardWithinRoot = ({ dest, root, label = dest }) => {
   return dest
 }
 
+const localDate = (ms) => {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 const localStamp = (ms) => {
   const d = new Date(ms)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}${pad(d.getMinutes())}`
+  return `${localDate(ms)} ${pad(d.getHours())}${pad(d.getMinutes())}`
 }
+
+const pad = (n) => String(n).padStart(2, '0')
 
 export const classifyImport = ({ expectedSize, actualSize, tolerance = SIZE_TOLERANCE_BYTES }) => {
   const expectedKnown = Number.isFinite(expectedSize) && expectedSize > 0
@@ -340,10 +388,12 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     mediaRoot: await getMediaRoot(),
     oneOffRoot: await getOneOffRoot(),
     moviesRoot: await getMoviesRoot(),
+    recordingsRoot: await getRecordingsRoot(),
   }
-  const recordingsRoot = await getRecordingsRoot()
+  const { recordingsRoot } = roots
   const tvhRecordingsPath = await getTvhRecordingsPath()
   const importUnmatched = (await getSetting('import_unmatched')) !== 'false'
+  const rootProblemOf = createRootCheck()
 
   let shows, finished, conn
   try {
@@ -361,6 +411,8 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     await finishSync(syncId, 'error', summary)
     return
   }
+  await markRemovedByTvheadend({ conn, finished })
+    .catch((err) => console.warn(`[sync] removed recordings check: ${err.message}`))
 
   const classificationOf = await recordingClassifications(finished)
   const context = await importContextOf({ conn })
@@ -401,7 +453,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
       })
       const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames, identityFor }) : null
       const itemStartedAt = Date.now()
-      const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, roots })
+      const { summaryKey, adResult, size, error } = await processItem({ item, show: folder, kind, roots, rootProblemOf })
       summary[summaryKey]++
       if (summaryKey !== 'skipped') {
         noteItem({ summary, item, kind, outcome: summaryKey, size, error, adResult, ms: Date.now() - itemStartedAt })
@@ -423,7 +475,9 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
   }
   summary.steps.imports = Date.now() - importsStartedAt
 
-  if (imported.tv > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
+  const retries = showId == null ? await pendingRemovals({ finished, shows, queued: deletables }) : []
+  deletables.push(...retries)
+  if (imported.tv > 0 || retries.length > 0) summary.plex = await timeStep('plexTv', () => notifyPlexSectionRefresh())
   if (imported.oneOff > 0) summary.plexOneOffs = await timeStep('plexOneOffs', () => refreshSection('plex_oneoff_section_id'))
   if (imported.film > 0) summary.plexMovies = await timeStep('plexMovies', () => refreshSection('plex_movies_section_id'))
   if (deletables.length > 0) {
@@ -485,6 +539,7 @@ const recordingClassifications = async (entries) => {
   const sourceOf = (entry) => ({
     title: entry.name,
     start: entry.startDate,
+    channelName: entry.channelName,
     rating: entry.rating,
     ratingLabel: entry.ratingLabel,
   })
@@ -544,7 +599,7 @@ const saveRecordingDetails = async ({ item, show = null, conn }) => {
 export const captureRecordingArtwork = async ({ recordingId, source, conn }) => {
   if (!source || failedArtworkSources.has(source)) return null
   if (await findArtwork({ kind: 'recording', id: recordingId })) return null
-  const image = await fetchProgrammeImage({ source, conn })
+  const image = await fetchProgrammeImageOrThrow({ source, conn })
   if (!image) {
     failedArtworkSources.add(source)
     return null
@@ -559,8 +614,15 @@ const captureUpcomingArtwork = async (conn) => {
   }
 }
 
+export const forgetFailedArtworkSources = (sources) => sources.forEach((source) => {
+  failedArtworkSources.delete(source)
+  artworkAttempts.delete(source)
+})
+
 const saveRecordingImage = async ({ item, conn }) => {
-  await captureRecordingArtwork({ recordingId: item.id, source: item.image, conn }).catch(() => null)
+  const retryLater = await captureRecordingArtwork({ recordingId: item.id, source: item.image, conn })
+    .then(() => noteArtworkFetched(item.image), () => noteArtworkAttempt(item.image))
+  if (retryLater) return
   const imagePath = (await findArtwork({ kind: 'recording', id: item.id }))
     ? `recordings/${item.id}`
     : null
@@ -570,14 +632,34 @@ const saveRecordingImage = async ({ item, conn }) => {
   })
 }
 
+const noteArtworkFetched = (source) => {
+  artworkAttempts.delete(source)
+  return false
+}
+
+const noteArtworkAttempt = (source) => {
+  const attempts = (artworkAttempts.get(source) ?? 0) + 1
+  if (attempts < ARTWORK_ATTEMPTS) {
+    artworkAttempts.set(source, attempts)
+    return true
+  }
+  artworkAttempts.delete(source)
+  failedArtworkSources.add(source)
+  return false
+}
+
 const holdRecording = async ({ item, existing, reason }) => {
-  if (['done', 'importing'].includes(existing?.status) || existing?.deleted_from_tvh_at) return
-  await db('recordings').where({ recording_id: item.id }).update({
+  if (['done', 'partial', 'importing'].includes(existing?.status) || existing?.deleted_from_tvh_at) return
+  await db('recordings').where({ recording_id: item.id }).where(notChosenForImport).update({
     status: 'not_imported',
     error: reason,
     file_path: null,
+    purged_at: null,
+    log_cleared_at: null,
   })
 }
+
+const notChosenForImport = (query) => query.whereNull('library_choice').orWhereNot('library_choice', 'include')
 
 export const refreshSection = async (key) => {
   const sectionId = await getSetting(key)
@@ -626,47 +708,44 @@ const isFreeFor = async ({ filePath, recordingId, source, ownersOf, statOf }) =>
   if (owners.some((owner) => owner !== String(recordingId))) return false
   if (owners.length) return true
   const existing = await statOf(filePath)
-  return !existing || isSameFile(existing, source)
+  return !existing || isSameFile(existing, source) || isSameSize(existing, source)
 }
 
 const isSameFile = (a, b) => Boolean(b) && a.dev === b.dev && a.ino === b.ino
 
-const recordingIdsAt = (filePath) => db('recordings').where({ file_path: filePath }).pluck('recording_id')
+const isSameSize = (a, b) => Boolean(b) && b.size > 0 && a.size === b.size
+
+const recordingIdsAt = (filePath) => db('recordings')
+  .where({ file_path: filePath })
+  .whereNull('library_deleted_at')
+  .whereNull('purged_at')
+  .pluck('recording_id')
 
 const statOrNull = (filePath) => fs.stat(filePath).catch(() => null)
 
-const processItem = async ({ item, show, kind, roots }) => {
+const processItem = async ({ item, show, kind, roots, rootProblemOf }) => {
   const existing = await db('recordings').where({ recording_id: item.id }).first()
   if (existing?.status === 'done') return { summaryKey: 'skipped' }
   if (existing?.deleted_from_tvh_at) return { summaryKey: 'skipped' }
 
   if (!item.sourcePath) {
-    await upsertRecording({
-      item, show, file_path: null, status: 'skipped',
-      error: `TVHeadend file path is outside the recordings mount (${item.statusText || 'no file'})`,
-    })
-    return { summaryKey: 'skipped' }
+    return skipItem({ item, show, existing, error: `TVHeadend file path is outside the recordings mount (${item.statusText || 'no file'})` })
   }
 
   let sourceStat
   try {
     sourceStat = await fs.stat(item.sourcePath)
   } catch {
-    await upsertRecording({
-      item, show, file_path: null, status: 'skipped',
-      error: `file not found at ${item.sourcePath}; check the recordings mount`,
-    })
-    return { summaryKey: 'skipped' }
+    return skipItem({ item, show, existing, error: `file not found at ${item.sourcePath}; check the recordings mount` })
   }
 
-  const kindRoot = { oneOff: roots.oneOffRoot, film: roots.moviesRoot }[kind]
-  if (kindRoot && !(await isDirectory(kindRoot))) {
-    await upsertRecording({
-      item, show, file_path: null, status: 'skipped',
-      error: `${kind === 'film' ? 'movies' : 'one-off'} folder ${kindRoot} not found; mount it or change it in Settings`,
-    })
-    return { summaryKey: 'skipped' }
+  if (!(await isInsideRealRoot({ filePath: item.sourcePath, root: roots.recordingsRoot }))) {
+    return skipItem({ item, show, existing, error: `${item.sourcePath} is outside the recordings folder ${roots.recordingsRoot}` })
   }
+
+  const kindRoot = { tv: roots.mediaRoot, oneOff: roots.oneOffRoot, film: roots.moviesRoot }[kind]
+  const rootProblem = kindRoot ? await rootProblemOf(kindRoot) : null
+  if (rootProblem) return skipItem({ item, show, existing, error: rootProblemMessage({ kind, root: kindRoot, problem: rootProblem }) })
 
   const { filePath, takenPath } = await destinationFor({ item, show, kind, roots })
   return trackJob(
@@ -675,14 +754,32 @@ const processItem = async ({ item, show, kind, roots }) => {
   )
 }
 
+const skipItem = async ({ item, show, existing, error }) => {
+  if (existing?.status === 'partial') {
+    await db('recordings').where({ recording_id: item.id }).update({ error })
+  } else {
+    await upsertRecording({ item, show, file_path: null, status: 'skipped', error })
+  }
+  return { summaryKey: 'skipped' }
+}
+
+const rootProblemMessage = ({ kind, root, problem }) => (problem === ROOT_EMPTY
+  ? `${ROOT_NAMES[kind]} folder ${root} is empty, but imported recordings point into it; check that it is mounted`
+  : `${ROOT_NAMES[kind]} folder ${root} not found; mount it or change it in Settings`)
+
 const importItem = async ({ item, show, filePath, takenPath, sourceStat, job }) => {
   job.fact('Recording', recordingFactOf(item)).fact('File', filePath).fact('Size', formatBytes(sourceStat.size))
   if (takenPath) noteTakenPath({ takenPath, filePath, job })
   job.step('Copy from TVHeadend')
   await upsertRecording({ item, show, file_path: filePath, status: 'importing', error: null })
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-
-  await importFile({ sourcePath: item.sourcePath, filePath, size: sourceStat.size, recordingId: item.id })
+  try {
+    await db('recordings').where({ file_path: filePath }).whereNot({ recording_id: item.id }).update({ file_path: null })
+    await fs.mkdir(path.dirname(filePath), { recursive: true })
+    await importFile({ sourcePath: item.sourcePath, filePath, size: sourceStat.size, recordingId: item.id })
+  } catch (err) {
+    await upsertRecording({ item, show, file_path: null, status: 'failed', error: err.message })
+    throw err
+  }
 
   let actualSize = null
   try {
@@ -764,8 +861,6 @@ const noteTakenPath = ({ takenPath, filePath, job }) => {
   job.log(note, 'warn')
 }
 
-const isDirectory = async (dir) => (await fs.stat(dir).catch(() => null))?.isDirectory() ?? false
-
 const importFile = async ({ sourcePath, filePath, size, recordingId }) => {
   const existing = await fs.stat(filePath).catch(() => null)
   if (existing && existing.size === size) return
@@ -784,6 +879,9 @@ const importFile = async ({ sourcePath, filePath, size, recordingId }) => {
   }, PROGRESS_TICK_MS)
   try {
     await fs.copyFile(sourcePath, filePath)
+  } catch (err) {
+    await fs.rm(filePath, { force: true })
+    throw err
   } finally {
     clearInterval(ticker)
     progress.stop()
@@ -799,30 +897,89 @@ const accumulateAdSummary = (summary, adResult) => {
   summary.ads.adSeconds += adResult.adSeconds
 }
 
+export const usePlaybackCheck = (isPlaying) => {
+  isRecordingPlaying = isPlaying
+}
+
+let isRecordingPlaying = () => false
+
+const markRemovedByTvheadend = async ({ conn, finished }) => {
+  const removed = new Set(await listRemovedIds(conn))
+  const finishedIds = new Set(finished.map((entry) => entry.uuid))
+  const ids = (await db('recordings').whereNull('deleted_from_tvh_at').pluck('recording_id'))
+    .filter((id) => removed.has(id) && !finishedIds.has(id))
+  const now = new Date().toISOString()
+  for (let at = 0; at < ids.length; at += UPDATE_CHUNK) {
+    await db('recordings').whereIn('recording_id', ids.slice(at, at + UPDATE_CHUNK))
+      .update({ deleted_from_tvh_at: now, tvh_remove_pending_at: null })
+  }
+  return ids.length
+}
+
+const pendingRemovals = async ({ finished, shows, queued }) => {
+  const finishedIds = new Set(finished.map((entry) => entry.uuid))
+  const queuedIds = new Set(queued.map((d) => d.recording_id))
+  const showById = new Map(shows.map((show) => [show.id, show]))
+  const rows = await db('recordings')
+    .whereNotNull('tvh_remove_pending_at')
+    .whereNull('deleted_from_tvh_at')
+    .where({ status: 'done' })
+    .select('recording_id', 'title', 'show_id', 'ad_status')
+  return rows
+    .filter((row) => finishedIds.has(row.recording_id) && !queuedIds.has(row.recording_id))
+    .filter((row) => {
+      const show = showById.get(row.show_id)
+      return Boolean(show?.delete_after_import) && shouldQueueAutoDelete({ show, adResult: { status: row.ad_status } })
+    })
+    .map((row) => ({ recording_id: row.recording_id, title: row.title }))
+}
+
+const markRemovalPending = async (ids) => {
+  if (ids.length === 0) return
+  await db('recordings').whereIn('recording_id', ids).whereNull('tvh_remove_pending_at')
+    .update({ tvh_remove_pending_at: new Date().toISOString() })
+}
+
 const runAutoDelete = async (deletables, plex) => {
   const ids = deletables.map((d) => d.recording_id)
+  const playing = ids.filter((id) => isRecordingPlaying(id))
+  const ready = ids.filter((id) => !playing.includes(id))
 
   const guardSettingRaw = (await getSetting('delete_after_plex_refresh_only')) ?? 'true'
   const guardOn = guardSettingRaw !== 'false'
   const plexAttemptedAndFailed = guardOn && plex && !plex.triggered
   const plexUnconfigured = plex?.skipped && plex?.reason === 'plex not configured'
   if (plexAttemptedAndFailed && !plexUnconfigured) {
+    await markRemovalPending(ids)
     return {
       skipped: true,
       reason: `plex refresh did not succeed (${plex.error || plex.reason || 'unknown'})`,
       candidates: ids.length,
     }
   }
+  await markRemovalPending(playing)
+  if (ready.length === 0) return { skipped: true, reason: 'playing now', candidates: ids.length, playing }
 
   try {
-    const result = await removeTvhRecordings({ recordingIds: ids })
+    const result = await removeTvhRecordings({ recordingIds: ready })
     const now = new Date().toISOString()
-    await db('recordings').whereIn('recording_id', result.removed).update({ deleted_from_tvh_at: now })
-    return { triggered: true, removed: result.removed, unmapped: result.unknown, removed_at: now }
+    await db('recordings').whereIn('recording_id', result.removed)
+      .update({ deleted_from_tvh_at: now, tvh_remove_pending_at: null })
+    await db('recordings').whereIn('recording_id', result.unknown).update({ tvh_remove_pending_at: null })
+    await markRemovalPending(result.failed)
+    return {
+      triggered: true,
+      removed: result.removed,
+      unmapped: result.unknown,
+      ...(result.failed.length ? { failed: result.failed } : {}),
+      ...(playing.length ? { playing } : {}),
+      removed_at: now,
+    }
   } catch (err) {
+    await markRemovalPending(ready)
     const stage = err instanceof TvheadendError ? err.stage : 'unknown'
     const code = err instanceof TvheadendError ? err.code : undefined
-    console.error(`[tvheadend] remove-after-import failed for ${ids.length} recording(s) (stage ${stage}): ${err.message}`)
+    console.error(`[tvheadend] remove-after-import failed for ${ready.length} recording(s) (stage ${stage}): ${err.message}`)
     return { error: err.message, stage, code, candidates: ids.length }
   }
 }
@@ -935,9 +1092,7 @@ const SYNC_STEP_LABELS = {
 }
 
 const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished']
-const DEFAULT_MEDIA_ROOT = '/media/tv'
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
-const DEFAULT_ONEOFF_ROOT = '/media/one-offs'
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',
   recordedOff: 'Recorded with Add to library off',
@@ -948,8 +1103,11 @@ const PROGRESS_TICK_MS = 1000
 const SYNC_ITEMS_CAP = 100
 const RECORDING_TOMBSTONE_TTL_DAYS = 30
 const IMPORTED_STATUSES = ['done', 'partial']
+const ROOT_NAMES = { tv: 'TV', oneOff: 'one-off', film: 'movies' }
+const ARTWORK_ATTEMPTS = 3
 
 let inFlight = null
 const failedArtworkSources = new Set()
+const artworkAttempts = new Map()
 const classificationStore = createClassificationStore()
 const ID_HINT = /\s*\{(?:tvdb|tmdb|imdb)-[^}]*\}/gi

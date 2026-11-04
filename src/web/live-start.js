@@ -17,4 +17,15 @@ export const seekFloorOf = ({ oldest, target }) => {
   return Math.max(oldest, Math.min(floor, target - SEEK_FLOOR_MARGIN_S))
 }
 
+export const LIVE_MAX_REATTACHES = 2
+
+export const liveErrorActionOf = ({ type, eager, reattaches }) => {
+  if (type === MEDIA_ERROR) return 'recover'
+  if (type !== NETWORK_ERROR) return 'end'
+  if (eager) return 'abandon'
+  return reattaches < LIVE_MAX_REATTACHES ? 'reattach' : 'end'
+}
+
+const NETWORK_ERROR = 'networkError'
+const MEDIA_ERROR = 'mediaError'
 const GAP_TOLERANCE_S = 0.5

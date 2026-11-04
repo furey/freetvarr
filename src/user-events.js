@@ -7,8 +7,11 @@ export const FEEDBACK_KINDS = new Set([
   'not_interested',
   'thumb_up',
   'thumb_down',
+  'thumb_clear',
   'programme_opened',
 ])
+
+export const CHOICE_KINDS = new Set(['not_interested', 'thumb_up', 'thumb_down', 'thumb_clear'])
 
 export const VIEWING_HISTORY_KEY = 'viewing_history_enabled'
 export const HISTORY_RETENTION_MS = 730 * 24 * 60 * 60 * 1000

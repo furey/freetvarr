@@ -32,7 +32,7 @@ export const changesExistingInstalls = (releaseBody) => INSTALL_CHANGES_HEADING.
 export const updateStepsOf = (current) => [
   {
     label: '1. Back up',
-    command: `docker compose stop freetvarr && cp -a config/freetvarr config/freetvarr-${current}`,
+    command: `docker compose stop freetvarr && c="$(cat .env 2>/dev/null | sed -n 's/^CONFIG_PATH=//p' | tr -d "\\"'")" && cp -a "\${c:-./config}/freetvarr" "\${c:-./config}/freetvarr-${current}"`,
   },
   { label: '2. Download', command: 'docker compose pull' },
   { label: '3. Restart', command: 'docker compose up -d' },

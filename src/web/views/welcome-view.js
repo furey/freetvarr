@@ -37,9 +37,11 @@ import {
   plexNoTokenProblem,
   plexUnreachableProblem,
   LOCAL_PLEX_URL,
+  detectedPlexTokenState,
 } from '/setup-folders.js'
 import { formatClock } from '/time-format.js'
 import { api, fetchSettings } from '/shared/api.js'
+import { reenterLineOf } from '/save-notice.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { DOCS_BASE } from '/shared/constants.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
@@ -55,6 +57,7 @@ import { tz, browserTimeZone } from '/shared/time.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
 import { SetupRunList, SetupStatusIcon, BOOTSTRAP_REVEAL_POLL_MS } from '/views/welcome-shared.js'
 import { SystemTour } from '/components/system-tour.js'
+import { createBootstrapCheck, leaveTvheadendStep, nextStepAfter } from '/setup-wizard-flow.js'
 
 const syncFrequency = (cron) => {
   const preset = SYNC_SCHEDULE_PRESETS.find((p) => p.cron === syncSchedulePreset(cron))
@@ -794,12 +797,17 @@ export const WelcomeView = {
         ...changedSettings([['plex_prefs_path', plexPrefsPath.value, saved.plexPrefsPath]]),
         ...(plexToken.value ? { plex_token: plexToken.value } : {}),
       }
-      await api('POST', '/api/settings', body)
+      const result = await api('POST', '/api/settings', body)
       Object.assign(saved, {
         plexUrl: plexUrl.value,
         plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
       })
+      if (!result?.cleared?.includes('plex_token')) return true
+      plexTokenSet.value = false
+      plexAdvancedOpen.value = true
+      setPlexTokenStatus(reenterLineOf('plex_token'), 'err', 0)
+      return false
     }
 
     const next = async () => {
@@ -807,22 +815,24 @@ export const WelcomeView = {
       if (step.value === totalSteps) return finish()
       clearSaveStatus()
       saving.value = true
+      const from = step.value
       try {
-        if (step.value === 1) {
+        if (from === 1) {
           await api('POST', '/api/settings', { time_zone: timeZone.value })
           tz.value = timeZone.value
           tzSource.value = 'setting'
-        } else if (step.value === 2) {
-          const connected = await testTvh()
+        } else if (from === 2) {
+          const connected = await leaveTvheadendStep({ settleBootstrap, showsSecure: () => showSecure.value, testTvh })
           if (!connected) return
-        } else if (step.value === 4) {
+        } else if (from === 4) {
           await guideStep.value?.saveLinks()
-        } else if (step.value === 5) {
+        } else if (from === 5) {
           await saveStorage()
-        } else if (step.value === 6) {
-          await savePlex()
+        } else if (from === 6) {
+          const kept = await savePlex()
+          if (kept === false) return
         }
-        step.value++
+        step.value = nextStepAfter({ from, current: step.value })
       } catch (err) {
         setSaveStatus(`Save failed: ${err.message}`, 'err', 5000)
       } finally {
@@ -882,11 +892,16 @@ export const WelcomeView = {
       return { problem: plexNoTokenProblem(url) }
     }
 
+    const applyDetectedPlexToken = (response) => {
+      const state = detectedPlexTokenState(response)
+      plexTokenSet.value = state.plexTokenSet
+      plexToken.value = state.plexToken
+    }
+
     const detectPlexTokenQuietly = async () => {
       const r = await api('POST', '/api/plex-detect-token').catch(() => ({}))
       if (!r.ok) return
-      plexToken.value = r.token || ''
-      plexTokenSet.value = true
+      applyDetectedPlexToken(r)
     }
 
     const discoverPlexServers = () => api('POST', '/api/discover-plex')
@@ -935,7 +950,7 @@ export const WelcomeView = {
         }
         const r = await api('POST', '/api/plex-detect-token')
         if (r.ok) {
-          plexToken.value = r.token || ''
+          applyDetectedPlexToken(r)
           setPlexTokenStatus(`Token detected from ${r.source}.`, 'ok', 5000)
         } else {
           setPlexTokenStatus(`Auto-detect failed: ${r.reason}`, 'err', 8000)
@@ -1010,23 +1025,20 @@ export const WelcomeView = {
     }))
     const secureReady = computed(() => !secureInputProblem.value)
 
-    let bootstrapCheckTimer = null
-    const checkBootstrap = () => {
-      clearTimeout(bootstrapCheckTimer)
-      const url = tvhUrl.value.trim()
-      if (!url || step.value !== 2) return
-      bootstrapCheckTimer = setTimeout(async () => {
-        const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
-        if (url !== tvhUrl.value.trim()) return
-        bootstrap.value = status
-        if (status?.fresh && !securePrefixes.value) {
-          securePrefixes.value = withBrowserNetwork({
-            prefixes: status.suggestedPrefixes,
-            host: window.location.hostname,
-          }).join(', ')
-        }
-      }, BOOTSTRAP_CHECK_DELAY_MS)
+    const readBootstrap = async (url) => {
+      const status = await api('GET', `/api/tvh-bootstrap/status?url=${encodeURIComponent(url)}`).catch(() => null)
+      if (url !== tvhUrl.value.trim()) return
+      bootstrap.value = status
+      if (status?.fresh && !securePrefixes.value) {
+        securePrefixes.value = withBrowserNetwork({
+          prefixes: status.suggestedPrefixes,
+          host: window.location.hostname,
+        }).join(', ')
+      }
     }
+    const bootstrapChecks = createBootstrapCheck({ read: readBootstrap, delayMs: BOOTSTRAP_CHECK_DELAY_MS })
+    const checkBootstrap = () => bootstrapChecks.schedule(step.value === 2 ? tvhUrl.value.trim() : '')
+    const settleBootstrap = () => bootstrapChecks.settle({ url: tvhUrl.value.trim(), known: Boolean(bootstrap.value) })
     watch(tvhUrl, () => {
       bootstrap.value = null
       checkBootstrap()
@@ -1127,6 +1139,7 @@ export const WelcomeView = {
           tvhPasswordSet.value = true
           tvhPassword.value = ''
         }
+        if (r.cleared?.includes('tvh_password')) tvhPasswordSet.value = false
         setTvhText(tvhTestSummary(r), 'ok', 8000)
         tvhConnected.value = true
         return true

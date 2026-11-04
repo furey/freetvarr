@@ -1,4 +1,5 @@
 import { db } from './db.js'
+import { SIMULCAST_START_TOLERANCE_MS } from './web/simulcast.js'
 
 export const listPendingSkips = async ({ nowMs = Date.now() } = {}) => {
   await db('pending_skips').where('end_ms', '<=', nowMs).delete()
@@ -15,27 +16,48 @@ export const removePendingSkip = async (programId) =>
   (await db('pending_skips').where({ program_id: String(programId) }).delete()) > 0
 
 export const matchesPendingSkip = ({ skip, entry }) =>
-  String(skip.channelId) === String(entry.channelId)
-  && Number(skip.startDate) === Number(entry.startDate)
-  && (String(skip.programId) === String(entry.programId) || titleKey(skip.name) === titleKey(entry.name))
-
-export const pendingSkipFor = ({ pendingSkips = [], entry }) =>
-  pendingSkips.find((skip) => matchesPendingSkip({ skip, entry })) || null
+  isSameEvent({ skip, entry }) || isSameAiring({ skip, entry })
 
 export const splitPendingSkips = ({ upcoming = [], pendingSkips = [] }) => {
+  const series = upcoming.filter((entry) => entry.source === 'series')
+  const held = skipsByEntry({ entries: series, pendingSkips })
   const kept = []
   const skipped = []
   for (const entry of upcoming) {
-    if (entry.source === 'series' && pendingSkipFor({ pendingSkips, entry })) skipped.push({ ...entry, skipped: true })
+    if (held.has(entry)) skipped.push({ ...entry, skipped: true })
     else kept.push(entry)
   }
   return { upcoming: kept, skipped }
 }
 
-export const entriesToSkip = ({ entries = [], pendingSkips = [] }) => entries
-  .filter((entry) => entry.enabled !== false && entry.schedStatus === 'scheduled')
-  .map((entry) => ({ entry, skip: pendingSkipFor({ pendingSkips, entry }) }))
-  .filter(({ skip }) => skip)
+export const entriesToSkip = ({ entries = [], pendingSkips = [] }) => {
+  const waiting = entries.filter((entry) => entry.enabled !== false && entry.schedStatus === 'scheduled')
+  const held = skipsByEntry({ entries: waiting, pendingSkips })
+  return waiting.filter((entry) => held.has(entry)).map((entry) => ({ entry, skip: held.get(entry) }))
+}
+
+const skipsByEntry = ({ entries, pendingSkips }) => {
+  const held = new Map()
+  for (const skip of pendingSkips) {
+    const entry = entries.find((e) => isSameEvent({ skip, entry: e })) || nearestAiringOf({ skip, entries })
+    if (entry) held.set(entry, skip)
+  }
+  return held
+}
+
+const nearestAiringOf = ({ skip, entries }) => entries
+  .filter((entry) => isSameAiring({ skip, entry }))
+  .sort((a, b) => startGap({ skip, entry: a }) - startGap({ skip, entry: b }))[0] || null
+
+const isSameEvent = ({ skip, entry }) =>
+  String(skip.channelId) === String(entry.channelId) && String(skip.programId) === String(entry.programId)
+
+const isSameAiring = ({ skip, entry }) =>
+  String(skip.channelId) === String(entry.channelId)
+  && titleKey(skip.name) === titleKey(entry.name)
+  && startGap({ skip, entry }) <= SIMULCAST_START_TOLERANCE_MS
+
+const startGap = ({ skip, entry }) => Math.abs(Number(skip.startDate) - Number(entry.startDate))
 
 const titleKey = (title) => String(title ?? '').trim().toLowerCase()
 

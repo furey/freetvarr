@@ -57,8 +57,41 @@ test('changesExistingInstalls: prose, missing, and empty bodies give false', () 
 
 test('updateStepsOf: backs up into a folder named after the running version, then pulls and restarts', () => {
   assert.deepEqual(updateStepsOf('2.0.11').map((step) => step.command), [
-    'docker compose stop freetvarr && cp -a config/freetvarr config/freetvarr-2.0.11',
+    updateStepsOf('2.0.11')[0].command,
     'docker compose pull',
     'docker compose up -d',
   ])
+})
+
+const backupInto = async ({ envLine, configFolder }) => {
+  const { execFileSync } = await import('node:child_process')
+  const fs = await import('node:fs/promises')
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-backup-'))
+  const bin = path.join(dir, 'bin')
+  await fs.mkdir(bin)
+  await fs.writeFile(path.join(bin, 'docker'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+  await fs.mkdir(path.join(dir, configFolder, 'freetvarr'), { recursive: true })
+  if (envLine !== null) await fs.writeFile(path.join(dir, '.env'), `${envLine}\n`)
+  execFileSync('sh', ['-c', updateStepsOf('2.6.4')[0].command], {
+    cwd: dir,
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+  })
+  const backedUp = await fs.stat(path.join(dir, configFolder, 'freetvarr-2.6.4')).then(() => true, () => false)
+  await fs.rm(dir, { recursive: true, force: true })
+  return backedUp
+}
+
+test('updateStepsOf: the backup command works with no .env file', async () => {
+  assert.equal(await backupInto({ envLine: null, configFolder: 'config' }), true)
+})
+
+test('updateStepsOf: the backup command reads a plain CONFIG_PATH', async () => {
+  assert.equal(await backupInto({ envLine: 'CONFIG_PATH=./nas-config', configFolder: 'nas-config' }), true)
+})
+
+test('updateStepsOf: the backup command strips quotes from CONFIG_PATH', async () => {
+  assert.equal(await backupInto({ envLine: 'CONFIG_PATH="./nas-config"', configFolder: 'nas-config' }), true)
+  assert.equal(await backupInto({ envLine: "CONFIG_PATH='./nas-config'", configFolder: 'nas-config' }), true)
 })

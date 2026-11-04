@@ -1,3 +1,5 @@
+import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
+
 export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params }) => params, widthError = 'w is not a supported width' }) => ({
   path,
   pattern: patternOf(path),
@@ -18,7 +20,10 @@ export const serveImageRoute = ({ route, missingMaxAgeS, imageMaxAgeS }) => asyn
     const { image, pending, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
     if (badWidth) return res.status(400).json({ error: route.widthError })
     if (!image) return pending ? sendPending(res) : sendMissing({ res, maxAgeS: missingMaxAgeS })
-    res.setHeader('Content-Type', image.contentType)
+    const contentType = rasterTypeOf(image.body)
+    if (!contentType) return sendMissing({ res, maxAgeS: missingMaxAgeS })
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
     res.setHeader('Cache-Control', `public, max-age=${imageMaxAgeS}`)
     res.send(image.body)
   } catch {

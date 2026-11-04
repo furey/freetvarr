@@ -6,6 +6,7 @@ import { groupKeyOf, groupTitleOf, isLibraryMember, ruleTitleOf, setRecordingWat
 import { isPlexItemId, ratingKeyOfItemId } from './plex-library.js'
 import { loadLibraryItemRows, markItemWatched } from './plex-library-store.js'
 import { forgetShowArtwork } from './epg.js'
+import { forgetFailedArtworkSources } from './sync.js'
 import { getPlexConnection, getPlexMachineIdentifier, listPlexSectionItems, plexSectionsToSearch } from './plex.js'
 
 export const setShowWatched = async ({
@@ -36,6 +37,7 @@ export const refreshShowArtwork = async ({
   forgetShow = forgetShowArtwork,
   forgetLookups = async () => {},
   loadRuleTitle = ruleTitleOf,
+  forgetFailedSources = forgetFailedArtworkSources,
 }) => {
   const rows = await loadRows(key)
   const titles = rows.length
@@ -44,6 +46,7 @@ export const refreshShowArtwork = async ({
   if (!titles.length) return null
   await Promise.all(rows.map((row) => removeImage({ kind: 'recording', id: row.recording_id }).catch(() => {})))
   if (rows.length) await resetRows(rows.map((row) => row.recording_id))
+  forgetFailedSources(rows.map((row) => row.image_url).filter(Boolean))
   titles.forEach(forgetShow)
   await Promise.all(titles.map((title) => Promise.resolve().then(() => forgetLookups(title)).catch(() => {})))
   return { cleared: rows.length + titles.length }

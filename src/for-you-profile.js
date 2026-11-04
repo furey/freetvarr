@@ -81,6 +81,10 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'recording_deleted' && !meta?.watched) show.unwatchedDeletes.push(ts)
     if (event.kind === 'thumb_up') show.thumbsUp.push(ts)
     if (event.kind === 'thumb_down') show.thumbsDown.push(ts)
+    if (event.kind === 'thumb_clear') {
+      show.thumbsUp = []
+      show.thumbsDown = []
+    }
     if (event.kind === 'not_interested') show.notInterested.push(ts)
     if (event.kind === 'not_interested_undo') show.notInterested = []
     if (event.kind === 'suggestion_dismissed') show.dismissed.push(ts)
@@ -128,9 +132,11 @@ export const engagedShowCountOf = (profile) => [...profile.shows.values()]
 
 export const isHiddenShow = ({ show, nowMs }) => {
   if (!show) return false
-  if (show.thumbsDown.length && Math.max(...show.thumbsDown) > Math.max(0, ...show.thumbsUp)) return true
+  if (isThumbedDown(show)) return true
   return show.notInterested.some((ts) => nowMs - ts < NOT_INTERESTED_DAYS * DAY_MS)
 }
+
+const isThumbedDown = (show) => show.thumbsDown.length > 0 && Math.max(...show.thumbsDown) > Math.max(0, ...show.thumbsUp)
 
 export const channelHabitOf = ({ habits, channelId, hour }) => {
   const exact = habits.channelHours.get(`${channelId}|${hour}`) || 0
@@ -145,8 +151,9 @@ export const hourHabitOf = ({ habits, hour }) => {
 }
 
 export const hiddenShowsOf = ({ profile, nowMs }) => [...profile.shows.values()]
-  .filter((show) => show.notInterested.some((ts) => nowMs - ts < NOT_INTERESTED_DAYS * DAY_MS))
+  .filter((show) => isHiddenShow({ show, nowMs }))
   .map((show) => {
+    if (isThumbedDown(show)) return { seriesKey: show.key, title: show.title || show.key, hiddenAt: Math.max(...show.thumbsDown), until: null }
     const hiddenAt = Math.max(...show.notInterested)
     return { seriesKey: show.key, title: show.title || show.key, hiddenAt, until: hiddenAt + NOT_INTERESTED_DAYS * DAY_MS }
   })

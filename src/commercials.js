@@ -71,8 +71,15 @@ const scanRecordingAds = async ({ filePath, mode, recordingId, tools }) => {
       const outPath = await tools.cut({ filePath: sourcePath, workdir, breaks, recordingId })
       const { backupCreated } = await swapInCut({ filePath, outPath })
       const { size } = await fs.stat(filePath)
-      await db('recordings').where({ recording_id: recordingId })
-        .update(cutPatchOf({ before, backupCreated, size, now: new Date().toISOString() }))
+      const latest = await db('recordings').where({ recording_id: recordingId }).first('playback_position_s')
+      await db('recordings').where({ recording_id: recordingId }).update(cutPatchOf({
+        before: { ...before, playback_position_s: latest?.playback_position_s ?? null },
+        backupCreated,
+        size,
+        now: new Date().toISOString(),
+        breaks,
+        fromBackup: sourcePath !== filePath,
+      }))
       status = 'cut'
     }
   } catch (err) {
@@ -100,11 +107,38 @@ export const isAdJobRunning = (recordingId) => scansInFlight.has(recordingId)
 
 export const backupPathOf = (filePath) => `${filePath}${ORIG_SUFFIX}`
 
-export const cutPatchOf = ({ before, backupCreated, size, now }) => ({
+export const cutPatchOf = ({ before, backupCreated, size, now, breaks = [], fromBackup = false }) => ({
   size,
   ad_cut_at: now,
   ...(backupCreated ? { ad_backup_saved_at: now, ad_backup_uncut: !before?.ad_cut_at } : {}),
+  ...positionPatchOf(before, (seconds) => cutTimeOf({
+    seconds: fromBackup ? originalTimeOf({ seconds, breaks: lastCutBreaksOf(before) }) : seconds,
+    breaks,
+  })),
 })
+
+export const cutTimeOf = ({ seconds, breaks }) => {
+  const removed = mergedBreaksOf(breaks)
+    .filter(({ start }) => start < seconds)
+    .reduce((sum, { start, end }) => sum + Math.min(seconds, end) - start, 0)
+  return Math.max(0, Math.round(seconds - removed))
+}
+
+export const originalTimeOf = ({ seconds, breaks }) => Math.round(mergedBreaksOf(breaks)
+  .reduce((time, { start, end }) => (start <= time ? time + end - start : time), seconds))
+
+const positionPatchOf = (before, mapSeconds) => (before?.playback_position_s > 0
+  ? { playback_position_s: mapSeconds(before.playback_position_s) }
+  : {})
+
+const lastCutBreaksOf = (before) => {
+  if (before?.ad_status !== 'cut' || !before.ad_breaks_json) return []
+  try {
+    return JSON.parse(before.ad_breaks_json)
+  } catch {
+    return []
+  }
+}
 
 export const swapInCut = async ({ filePath, outPath }) => {
   const backupPath = backupPathOf(filePath)
@@ -146,6 +180,7 @@ const putBackupBack = async ({ filePath, recordingId, before }) => {
 
 export const restorePatchOf = ({ before, size }) => ({
   size,
+  ...positionPatchOf(before, (seconds) => originalTimeOf({ seconds, breaks: lastCutBreaksOf(before) })),
   ad_status: null,
   ad_breaks_json: null,
   ad_backup_saved_at: null,
@@ -201,27 +236,37 @@ export const resetInterruptedScans = async () =>
 
 export const recoverInterruptedCuts = async () => {
   const rows = await db('recordings').whereNotNull('file_path')
-    .select('recording_id', 'file_path', 'ad_processed_at', 'ad_cut_at', 'ad_backup_saved_at')
+    .select('recording_id', 'file_path', 'ad_status', 'ad_processed_at', 'ad_cut_at', 'ad_backup_saved_at', 'ad_backup_uncut')
   for (const row of rows) {
     const backupPath = backupPathOf(row.file_path)
     const hasBackup = await pathExists(backupPath)
-    if (hasBackup && !(await pathExists(row.file_path))) {
-      await fs.rename(backupPath, row.file_path).catch((err) => {
-        console.error(`[ads] failed to restore ${backupPath}: ${err.message}`)
-      })
+    const mainExists = await pathExists(row.file_path)
+    if (hasBackup && !mainExists && INTERRUPTED_CUT_STATUSES.includes(row.ad_status)) {
+      await putInterruptedBackupBack({ row, backupPath })
       continue
     }
-    const patch = backupReconcilePatchOf({ row, hasBackup, now: new Date().toISOString() })
+    const patch = backupReconcilePatchOf({ row, hasBackup, mainExists, now: new Date().toISOString() })
     if (patch) await db('recordings').where({ recording_id: row.recording_id }).update(patch)
   }
 }
 
-export const backupReconcilePatchOf = ({ row, hasBackup, now }) => {
+const putInterruptedBackupBack = async ({ row, backupPath }) => {
+  try {
+    await fs.rename(backupPath, row.file_path)
+    await fs.rm(skipMarkerPath(row.file_path), { force: true })
+    const { size } = await fs.stat(row.file_path)
+    await db('recordings').where({ recording_id: row.recording_id }).update(restorePatchOf({ before: row, size }))
+  } catch (err) {
+    console.error(`[ads] failed to restore ${backupPath}: ${err.message}`)
+  }
+}
+
+export const backupReconcilePatchOf = ({ row, hasBackup, mainExists, now }) => {
   if (hasBackup && !row.ad_backup_saved_at) {
     const savedAt = row.ad_processed_at || now
     return { ad_backup_saved_at: savedAt, ad_backup_uncut: true, ad_cut_at: row.ad_cut_at || savedAt }
   }
-  if (!hasBackup && row.ad_backup_saved_at) return { ad_backup_saved_at: null, ad_backup_uncut: null }
+  if (!hasBackup && mainExists && row.ad_backup_saved_at) return { ad_backup_saved_at: null, ad_backup_uncut: null }
   return null
 }
 
@@ -260,17 +305,19 @@ export const syncSkipMarkers = async ({ filePath, status, breaks }) => {
   if (STALE_MARKER_STATUSES.includes(status)) return fs.rm(markerPath, { force: true })
 }
 
+const mergedBreaksOf = (breaks, duration = Infinity) => breaks
+  .map(({ start, end }) => ({ start: Math.max(0, start), end: Math.min(duration, end) }))
+  .filter(({ start, end }) => end > start)
+  .sort((a, b) => a.start - b.start)
+  .reduce((acc, b) => {
+    const last = acc[acc.length - 1]
+    if (last && b.start <= last.end) last.end = Math.max(last.end, b.end)
+    else acc.push({ ...b })
+    return acc
+  }, [])
+
 export const computeKeepSegments = ({ breaks, duration }) => {
-  const merged = breaks
-    .map(({ start, end }) => ({ start: Math.max(0, start), end: Math.min(duration, end) }))
-    .filter(({ start, end }) => end > start)
-    .sort((a, b) => a.start - b.start)
-    .reduce((acc, b) => {
-      const last = acc[acc.length - 1]
-      if (last && b.start <= last.end) last.end = Math.max(last.end, b.end)
-      else acc.push({ ...b })
-      return acc
-    }, [])
+  const merged = mergedBreaksOf(breaks, duration)
   const keep = []
   let cursor = 0
   for (const b of merged) {
@@ -387,7 +434,7 @@ const cutBreaks = async ({ filePath, workdir, breaks, recordingId }) => {
   const outPath = path.join(workdir, 'out.ts')
   await execFileP('ffmpeg', [
     '-hide_banner', '-loglevel', 'error',
-    '-f', 'concat', '-safe', '0', '-i', listPath,
+    '-f', 'concat', '-i', listPath,
     '-map', '0', '-c', 'copy', outPath,
   ], { cwd: workdir, timeout: FFMPEG_TIMEOUT_MS, maxBuffer: SPAWN_MAX_BUFFER })
   setProgress(recordingId, {
@@ -459,6 +506,7 @@ const WORKDIR_NAME = '.freetvarr-adcut'
 const ORIG_SUFFIX = '.orig'
 const EDL_COMMERCIAL_BREAK = 3
 const STALE_MARKER_STATUSES = ['cut', 'no_breaks']
+const INTERRUPTED_CUT_STATUSES = ['scanning', 'cut_failed']
 const DEFAULT_ORIG_RETENTION_DAYS = 7
 const MIN_COMSKIP_TIMEOUT_MS = 60 * 60 * 1000
 const MAX_COMSKIP_TIMEOUT_MS = 6 * 60 * 60 * 1000

@@ -18,12 +18,10 @@ import {
 const WATCHLIST_SWEEP_MS = 15 * 60 * 1000
 const passThrough = (req, res, next) => next()
 
-export const mountWatchlist = ({ app, csrf, limiter = passThrough, onSeriesCreated = async () => {} }) => {
-  const sweeper = createRecordSweeper({ onSeriesCreated })
-
+export const mountWatchlist = ({ app, csrf, limiter = passThrough, onSeriesCreated = async () => {}, sweeper = createRecordSweeper({ onSeriesCreated }) }) => {
   app.get('/api/watchlist', async (req, res) => {
     try {
-      await sweeper.sweep()
+      sweeper.sweep()
       res.json(await listWatchlist({ includeFulfilled: req.query.all === '1' }))
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -104,15 +102,17 @@ const itemByKey = async (key) => {
   return row ? watchlistItemOf({ row, matches: matchesFor({ row, guide: await visibleGuide() }) }) : null
 }
 
-const createRecordSweeper = ({ onSeriesCreated }) => {
+export const createRecordSweeper = ({ onSeriesCreated, guideOf = visibleGuide, record = recordSeries }) => {
   let inflight = null
   const run = async () => {
     const rows = await db('watchlist').where({ mode: 'record' }).whereNull('fulfilled_at')
     if (!rows.length) return
-    const guide = await visibleGuide()
+    const guide = await guideOf()
     for (const row of rows) {
       const target = recordTargetOf({ row, matches: matchesFor({ row, guide }) })
-      if (target) await fulfil({ row, target, onSeriesCreated })
+      if (!target) continue
+      await fulfil({ row, target, onSeriesCreated, record })
+        .catch((err) => console.warn(`[watchlist] could not record "${row.title}": ${err.message}`))
     }
   }
   const sweep = () => {
@@ -124,8 +124,8 @@ const createRecordSweeper = ({ onSeriesCreated }) => {
   return { sweep }
 }
 
-const fulfil = async ({ row, target, onSeriesCreated }) => {
-  const result = await recordSeries({
+const fulfil = async ({ row, target, onSeriesCreated, record }) => {
+  const result = await record({
     seriesLink: target.series_link,
     channelId: target.channelId,
     epgProgramId: target.epg_program_id,

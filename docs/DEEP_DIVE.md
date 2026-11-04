@@ -165,17 +165,18 @@ flowchart TD
     gate["useLookupGate,<br>startCachePruning"]
     bench["liveStreams.load, then measure"]
     web["webAssets"]
+    syncs["closeSyncsLeftByRestart:<br>resetInterruptedImports,<br>closeInterruptedSyncs"]
     listen["app.listen"]
   end
   subgraph callback["Listen callback"]
     loop["loopMonitor.start, activity.useStore,<br>scheduleDoctorChecks"]
-    reconcile["remove LIVE_ROOT, keepOneOffFolder,<br>rebaseFilePaths, resetInterruptedImports,<br>closeInterruptedSyncs"]
+    reconcile["remove LIVE_ROOT, keepOneOffFolder,<br>rebaseFilePaths"]
     sweep["sweepLibraryStates, shrinkStoredArtwork,<br>prepareThumbnailCache, imageFocus.startRefresh"]
     adrec["recoverInterruptedCuts,<br>resetInterruptedScans"]
     warm["keepGuideWarm, watchPendingSkips,<br>homeHero.start, onSyncFinished hooks"]
     start["startUserEvents, startScheduler,<br>startAutoImport"]
   end
-  build --> tz --> csrf --> enc --> gate --> bench --> web --> listen
+  build --> tz --> csrf --> enc --> gate --> bench --> web --> syncs --> listen
   listen --> loop --> reconcile --> sweep --> adrec --> warm --> start
 ```
 
@@ -205,36 +206,36 @@ Freetvarr stores state in SQLite through Knex and [better-sqlite3](https://githu
 
 ### Tables
 
-| Table                       | Migrations                     | Holds                                                                                                                                                                                                                                                                        | Main writer                            |
-| --------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `settings`                  | `0001`                         | Key and text value of every setting                                                                                                                                                                                                                                          | `src/db.js`                            |
-| `shows`                     | `0001`, `0037`, `0038`, `0039` | Series folders: `show_pattern`, `dest_folder`, `season_template`, `enabled`, `delete_after_import`, `ad_removal`; identity ids and `identity_state`; `kept_folder`; `origin` (`user` or `auto`)                                                                              | `src/show-folders.js`, `src/server.js` |
-| `recordings`                | `0001` and later, `0040`       | One row per TVHeadend recording: status, paths, sizes, ad status and backups, episode details, playback position, watched time, library state, classification, `genres_json`, `show_title_override`, `log_cleared_at` (hidden from the Recordings log, still in the library) | `src/sync.js`                          |
-| `syncs`                     | `0001`                         | One row per sync: start, finish, status, `summary_json`                                                                                                                                                                                                                      | `src/sync.js`                          |
-| `guide_programs`            | `0002`                         | Saved guide airings keyed by `channel_id` and `start`, with `program_json`                                                                                                                                                                                                   | `src/guide-history.js`                 |
-| `show_artwork`              | `0005`                         | Cached picture sources per `title_key`                                                                                                                                                                                                                                       | `src/show-artwork.js`                  |
-| `watchlist`                 | `0008`, `0014`                 | Titles to notify or record, with optional channel and padding                                                                                                                                                                                                                | `src/watchlist.js`                     |
-| `user_events`               | `0010`                         | Viewing-history events                                                                                                                                                                                                                                                       | `src/user-events-log.js`               |
-| `text_embeddings`           | `0011`                         | Embedding vectors per `text_hash` and `model_id`                                                                                                                                                                                                                             | `src/for-you-engine.js`                |
-| `title_genres`              | `0011`                         | Cached genres per `title_key`                                                                                                                                                                                                                                                | `src/genre-enrichment.js`              |
-| `show_nicknames`            | `0012`                         | User-added search names per `show_key`                                                                                                                                                                                                                                       | `src/search-aliases.js`                |
-| `title_known_as`            | `0012`                         | Cached alternative titles per `title_key`                                                                                                                                                                                                                                    | `src/known-as.js`                      |
-| `artwork_lookups`           | `0013`                         | Cached Wikipedia and TMDB picture lookups                                                                                                                                                                                                                                    | `src/fallback-artwork.js`              |
-| `programme_ratings`         | `0015`, `0020`                 | Cached rating lookups, with `miss_reason`                                                                                                                                                                                                                                    | `src/programme-ratings.js`             |
-| `programme_classifications` | `0016`                         | Classification label per `title_key` and `start_ms`                                                                                                                                                                                                                          | `src/classification-labels.js`         |
-| `programme_credits`         | `0017`, `0020`                 | Cached cast and crew lookups, with `miss_reason`                                                                                                                                                                                                                             | `src/programme-credits.js`             |
-| `programme_categories`      | `0019`                         | XMLTV category per `title_key` and `start_ms`                                                                                                                                                                                                                                | `src/classification-labels.js`         |
-| `art_pools`                 | `0021`                         | Cached picture pools per `pool_key`                                                                                                                                                                                                                                          | `src/art-pool.js`                      |
-| `show_artwork_choices`      | `0022`                         | The chosen picture per `show_key` and `kind`                                                                                                                                                                                                                                 | `src/artwork-choices.js`               |
-| `image_focus`               | `0024`, `0027`                 | Focus point and face box per picture URL                                                                                                                                                                                                                                     | `src/image-focus-service.js`           |
-| `pending_skips`             | `0025`, `0031`                 | Skipped single airings by `program_id`                                                                                                                                                                                                                                       | `src/pending-skips.js`                 |
-| `programme_kind_overrides`  | `0028`, `0029`                 | User-set kind per `show_key`                                                                                                                                                                                                                                                 | `src/programme-kind.js`                |
-| `job_runs`                  | `0032`                         | Finished job runs as `run_json`                                                                                                                                                                                                                                              | `src/activity-store.js`                |
-| `series_evidence`           | `0033`, `0039`                 | Series facts per `show_key`; `database_ids` and `database_ids_at`                                                                                                                                                                                                            | `src/series-evidence.js`               |
-| `plex_watch_state`          | `0034`                         | Watched snapshot of both sides per `recording_id`                                                                                                                                                                                                                            | `src/plex-watch.js`                    |
-| `library_items`             | `0035`                         | Plex library items keyed by `rating_key` and `part_id`                                                                                                                                                                                                                       | `src/plex-library-store.js`            |
-| `external_ids`              | `0036`                         | TVDB, TMDB, and IMDb ids per `title_key`, `kind`, and `source`                                                                                                                                                                                                               | `src/external-ids-store.js`            |
-| `show_identity_picks`       | `0037`                         | The picked or declined identity per `title_key` and `network_family`                                                                                                                                                                                                         | `src/show-identity-store.js`           |
+| Table                       | Migrations                       | Holds                                                                                                                                                                                                                                                                                                                                      | Main writer                            |
+| --------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| `settings`                  | `0001`                           | Key and text value of every setting                                                                                                                                                                                                                                                                                                        | `src/db.js`                            |
+| `shows`                     | `0001`, `0037`, `0038`, `0039`   | Series folders: `show_pattern`, `dest_folder`, `season_template`, `enabled`, `delete_after_import`, `ad_removal`; identity ids and `identity_state`; `kept_folder`; `origin` (`user` or `auto`)                                                                                                                                            | `src/show-folders.js`, `src/server.js` |
+| `recordings`                | `0001` and later, `0040`, `0042` | One row per TVHeadend recording: status, paths, sizes, ad status and backups, episode details, playback position, watched time, library state, classification, `genres_json`, `show_title_override`, `log_cleared_at` (hidden from the Recordings log, still in the library), `tvh_remove_pending_at` (a Remove after import to try again) | `src/sync.js`                          |
+| `syncs`                     | `0001`                           | One row per sync: start, finish, status, `summary_json`                                                                                                                                                                                                                                                                                    | `src/sync.js`                          |
+| `guide_programs`            | `0002`                           | Saved guide airings keyed by `channel_id` and `start`, with `program_json`                                                                                                                                                                                                                                                                 | `src/guide-history.js`                 |
+| `show_artwork`              | `0005`                           | Cached picture sources per `title_key`                                                                                                                                                                                                                                                                                                     | `src/show-artwork.js`                  |
+| `watchlist`                 | `0008`, `0014`                   | Titles to notify or record, with optional channel and padding                                                                                                                                                                                                                                                                              | `src/watchlist.js`                     |
+| `user_events`               | `0010`                           | Viewing-history events                                                                                                                                                                                                                                                                                                                     | `src/user-events-log.js`               |
+| `text_embeddings`           | `0011`                           | Embedding vectors per `text_hash` and `model_id`                                                                                                                                                                                                                                                                                           | `src/for-you-engine.js`                |
+| `title_genres`              | `0011`                           | Cached genres per `title_key`                                                                                                                                                                                                                                                                                                              | `src/genre-enrichment.js`              |
+| `show_nicknames`            | `0012`                           | User-added search names per `show_key`                                                                                                                                                                                                                                                                                                     | `src/search-aliases.js`                |
+| `title_known_as`            | `0012`                           | Cached alternative titles per `title_key`                                                                                                                                                                                                                                                                                                  | `src/known-as.js`                      |
+| `artwork_lookups`           | `0013`                           | Cached Wikipedia and TMDB picture lookups                                                                                                                                                                                                                                                                                                  | `src/fallback-artwork.js`              |
+| `programme_ratings`         | `0015`, `0020`                   | Cached rating lookups, with `miss_reason`                                                                                                                                                                                                                                                                                                  | `src/programme-ratings.js`             |
+| `programme_classifications` | `0016`, `0041`                   | Classification label per `title_key`, `start_ms`, and `shift_hours`                                                                                                                                                                                                                                                                        | `src/classification-labels.js`         |
+| `programme_credits`         | `0017`, `0020`                   | Cached cast and crew lookups, with `miss_reason`                                                                                                                                                                                                                                                                                           | `src/programme-credits.js`             |
+| `programme_categories`      | `0019`, `0041`                   | XMLTV category per `title_key`, `start_ms`, and `shift_hours`                                                                                                                                                                                                                                                                              | `src/classification-labels.js`         |
+| `art_pools`                 | `0021`                           | Cached picture pools per `pool_key`                                                                                                                                                                                                                                                                                                        | `src/art-pool.js`                      |
+| `show_artwork_choices`      | `0022`                           | The chosen picture per `show_key` and `kind`                                                                                                                                                                                                                                                                                               | `src/artwork-choices.js`               |
+| `image_focus`               | `0024`, `0027`                   | Focus point and face box per picture URL                                                                                                                                                                                                                                                                                                   | `src/image-focus-service.js`           |
+| `pending_skips`             | `0025`, `0031`                   | Skipped single airings by `program_id`                                                                                                                                                                                                                                                                                                     | `src/pending-skips.js`                 |
+| `programme_kind_overrides`  | `0028`, `0029`                   | User-set kind per `show_key`                                                                                                                                                                                                                                                                                                               | `src/programme-kind.js`                |
+| `job_runs`                  | `0032`                           | Finished job runs as `run_json`                                                                                                                                                                                                                                                                                                            | `src/activity-store.js`                |
+| `series_evidence`           | `0033`, `0039`                   | Series facts per `show_key`; `database_ids` and `database_ids_at`                                                                                                                                                                                                                                                                          | `src/series-evidence.js`               |
+| `plex_watch_state`          | `0034`                           | Watched snapshot of both sides per `recording_id`                                                                                                                                                                                                                                                                                          | `src/plex-watch.js`                    |
+| `library_items`             | `0035`                           | Plex library items keyed by `rating_key` and `part_id`                                                                                                                                                                                                                                                                                     | `src/plex-library-store.js`            |
+| `external_ids`              | `0036`                           | TVDB, TMDB, and IMDb ids per `title_key`, `kind`, and `source`                                                                                                                                                                                                                                                                             | `src/external-ids-store.js`            |
+| `show_identity_picks`       | `0037`                           | The picked or declined identity per `title_key` and `network_family`                                                                                                                                                                                                                                                                       | `src/show-identity-store.js`           |
 
 ### Config folder
 
@@ -256,19 +257,19 @@ TVHeadend exposes a JSON API at `<tvh_url>/api/<path>`. `src/tvheadend.js` holds
 
 - `apiGet(path, params, conn)` sends a `GET` with the parameters in the query string. `apiPost(path, form, conn)` sends a form-encoded `POST`; object fields travel as JSON strings in one field (`node` or `conf`).
 - `tvhRead` and `tvhWrite` export `apiGet` and `apiPost`. The setup, guide, bootstrap, and doctor modules build their own paths and call TVHeadend through these two functions.
-- `resolveConnection` reads the settings `tvh_url`, `tvh_username`, and `tvh_password`.
+- `resolveConnection` reads the settings `tvh_url`, `tvh_username`, and `tvh_password`. A caller URL gets the stored password only when it has the origin (scheme, host, and port) of `tvh_url` ([Secret binding](#secret-binding)).
 - `sendAuthenticated` sends every request. With a username set, it sends the cached `Authorization` header. On a `401` it stores the `www-authenticate` challenge, signs the request, and sends it once more.
 - `authorizationFor` in `src/http-auth.js` gives a Basic header, or a Digest response (MD5 or SHA-256, `qop=auth`). The challenge cache keys by `<url>|<username>` and drops an entry idle for `90 s`.
 
-| Request or cache                          | Value                                                      |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons   |
-| Discovery probe                           | `1.5 s` timeout                                            |
-| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, `image/*` only               |
-| Live stream (`openChannelStream`)         | No timeout                                                 |
-| Past airings cache                        | `10` min; `apiPost` clears it before and after every write |
-| Tuner count and service multiplex caches  | `10` min                                                   |
-| Default DVR profile and default languages | Process lifetime                                           |
+| Request or cache                          | Value                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons         |
+| Discovery probe                           | `1.5 s` timeout                                                  |
+| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, JPEG, PNG, WebP, GIF, or SVG bytes |
+| Live stream (`openChannelStream`)         | No timeout                                                       |
+| Past airings cache                        | `10` min; `apiPost` clears it before and after every write       |
+| Tuner count and service multiplex caches  | `10` min                                                         |
+| Default DVR profile and default languages | Process lifetime                                                 |
 
 ### Auto-discovery
 
@@ -313,8 +314,8 @@ With no hit, the route answers `502`.
 | `serverinfo`                                                                      | **Test connection**, discovery probe, `verifyLogin`                                                                    |
 | `channel/grid`                                                                    | Channel lineup, `limit 1000`                                                                                           |
 | `epg/events/grid`, `epg/events/load`                                              | Guide events, `2000` per page; one programme by `eventId`                                                              |
-| `dvr/entry/grid_upcoming`, `dvr/entry/grid_finished`                              | Scheduled and running entries; finished entries (`limit 5000`), the import queue                                       |
-| `dvr/entry/grid_failed`, `dvr/entry/grid_removed`                                 | Past airings for repeat checks, cached `10` min                                                                        |
+| `dvr/entry/grid_upcoming`, `dvr/entry/grid_finished`                              | Scheduled and running entries; finished entries (every page of `5000`), the import queue                               |
+| `dvr/entry/grid_failed`, `dvr/entry/grid_removed`                                 | Past airings for repeat checks, cached `10` min; removed entries that each sync marks not in TVHeadend                 |
 | `dvr/entry/create_by_event`                                                       | **Record** ([Single recordings](#single-recordings))                                                                   |
 | `dvr/entry/cancel`, `dvr/entry/stop`, `dvr/entry/remove`, `dvr/entry/prevrec/set` | Cancel, stop, and remove entries ([Removal from TVHeadend](#removal-from-tvheadend))                                   |
 | `dvr/autorec/grid`, `dvr/autorec/create`                                          | Series rules ([Series recordings](#series-recordings))                                                                 |
@@ -432,7 +433,7 @@ After a successful apply, the server clears the guide cache now and again after 
 
 ### TV app login
 
-`createTvLogin` (`src/tv-login.js`) makes a TVHeadend login for a TV app such as Kodi ([TV apps](/guide/tv-apps)). The access entry has the comment `TV apps login, created by Freetvarr`, streaming rights only, and the prefix list of the connected user. The password is `12` random bytes in base64url. The settings `tv_login_username`, `tv_login_password`, and `tv_login_auth_code` store the result. `deleteTvLogin` deletes only entries with the stored username and that comment.
+`createTvLogin` (`src/tv-login.js`) makes a TVHeadend login for a TV app such as Kodi ([TV apps](/guide/tv-apps)). The access entry has the comment `TV apps login, created by Freetvarr`, streaming rights only, and the prefix list of the connected user. The password is `12` random bytes in base64url. The settings `tv_login_username`, `tv_login_password`, and `tv_login_auth_code` store the result. `deleteTvLogin` deletes only entries with the stored username and that comment. `POST /api/tv-login` returns `409` (`code` `exists`) while a TV login is stored, before any TVHeadend call.
 
 ## Guide
 
@@ -442,11 +443,11 @@ After a successful apply, the server clears the guide cache now and again after 
 
 - `loadGuide` runs `listChannels`, `listEvents`, `loadTitleGenres`, and `loadSeriesEvidence` in parallel. The window runs from local midnight to the end of day `7` (`GUIDE_DAYS`).
 - `listEvents` reads `epg/events/grid` sorted by start, `2000` events a page (`EVENT_PAGE_SIZE`), `4` pages at a time (`EVENT_PAGE_CONCURRENCY`).
-- `GUIDE_TTL_MS` is `60` min; an empty guide expires after `60 s`. An expired guide of the same day serves while a reload runs. A failed reload serves the cached guide with `stale: true`.
+- `GUIDE_TTL_MS` is `60` min; an empty guide expires after `60 s`. An expired guide of the same day serves while a reload runs. A failed reload serves the cached guide with `stale: true`. A failed load for a new day (at midnight) also serves the previous day's guide with `stale: true`, and that day loads again only after `GUIDE_STALE_RETRY_MS`. `getGuideDay` builds its day window from `localMidnightMs()`, not from the guide's `startMs`, so the stale guide still shows today.
 - One load runs at a time. `clearGuideCache` drops the cache. `onGuideLoaded` listeners run after each load.
 - The cron tick (`cron:guide`), `keepGuideWarm`, and guide setup trigger reloads.
 
-`getRecordingState` caches the merged TVHeadend recording state for `45 s`. After a failure it serves the last state with `stale: true` for `60 s`. `invalidateRecordingState` clears it after each write.
+`getRecordingState` caches the merged TVHeadend recording state for `45 s` (`createRecordingStateCache` in `src/recording-state-cache.js`). After a failure it serves the last state with `stale: true` for `60 s`. `invalidateRecordingState` clears it after each write, including a write that failed, and bumps a generation counter. Every read after an invalidate starts a new load; an older load that ends later does not write the cache and does not clear the newer load.
 
 ### Guide history
 
@@ -477,13 +478,14 @@ After a successful apply, the server clears the guide cache now and again after 
 
 ### Skipped episodes
 
-A series-rule airing that TVHeadend has not scheduled yet cannot be cancelled. `cancelProgram` then stores a row in `pending_skips` (`program_id`, `channel_id`, `title`, `start_ms`, `end_ms`). On each recording-state load, `withPendingSkipsApplied` disables a newly scheduled entry that matches a row by channel, start, and event id or title (`idnode/save` with `enabled: false`), then deletes the row. Rows whose `end_ms` passed are deleted. `watchPendingSkips` reloads the recording state every `5` min while a skip waits.
+A series-rule airing that TVHeadend has not scheduled yet cannot be cancelled. `cancelProgram` then stores a row in `pending_skips` (`program_id`, `channel_id`, `title`, `start_ms`, `end_ms`). On each recording-state load, `withPendingSkipsApplied` disables a newly scheduled entry that matches a row (`idnode/save` with `enabled: false`), then deletes the row. An entry matches when it has the same channel and event id, or else the same channel and title with a start at most `SIMULCAST_START_TOLERANCE_MS` (`2` min) away; of several title matches, the nearest start wins. Rows whose `end_ms` passed are deleted. `watchPendingSkips` reloads the recording state every `5` min while a skip waits.
 
 ### Repeats and rules
 
 - `isSameIdentity` (`src/repeat-match.js`) decides whether two airings are the same episode: equal episode URIs; else equal season and episode numbers; else equal titles with equal real subtitles and agreeing descriptions.
-- `earlierAiringOfEntry` finds an earlier airing of the same episode for an upcoming entry. `splitRepeats` marks the entry as a repeat. `withRecordedRepeatsSkipped` disables each enabled repeat whose original is recorded.
-- `autorecMatchesAiring` (`src/autorec-match.js`) tests a guide airing against an autorec rule: channel, title (substring, or a regular expression of up to `200` characters with a cost cap), `serieslink`, weekday, start window, and duration. A rule that sets `tag`, `content_type`, `cat1`–`cat3`, `star_rating`, `btype`, `brand`, or `season` is unsupported and never matches.
+- `earlierAiringOfEntry` finds an earlier airing of the same episode for an upcoming entry. `splitRepeats` marks a rule timer (`autorecId` set) as a repeat; a one-off the user scheduled is never a repeat, except a TVHeadend duplicate (`duplicateOfStart`). `withRecordedRepeatsSkipped` disables each enabled repeat whose original is recorded.
+- `planUpcomingRecordings` projects expected episodes only from enabled autorecs, so a paused series lists none.
+- `autorecMatchesAiring` (`src/autorec-match.js`) tests a guide airing against an autorec rule: channel, title, `serieslink`, weekday, start window, and duration. A title in Freetvarr's whole-title form (`^Title( ?[:(-].*)?$`) matches through `isSameShowTitle`; a plain-text title matches as a substring; any other title is a regular expression of up to `200` characters with a cost cap. A rule that sets `tag`, `content_type`, `cat1`–`cat3`, `star_rating`, `btype`, `brand`, or `season` is unsupported and never matches.
 - `airingIdentityOf` (`src/airing-identity.js`) groups airings of one broadcast on twin channels: the same title in one channel family (an SD and HD pair, or a channel and its `+N` channels) with base starts `60 s` or less apart (`TWIN_START_TOLERANCE_MS`).
 
 ## Recording rules
@@ -492,13 +494,14 @@ Freetvarr writes two kinds of rule to TVHeadend: single DVR entries and autorec 
 
 ### Single recordings
 
-`POST /api/epg/record` takes `channel_id`, `program_id`, `epg_program_id`, and optional `lead_time`, `lag_time`, and `add_to_library`. When the programme has a row in `pending_skips`, `recordProgram` deletes the row and makes no TVHeadend call. Otherwise `scheduleRecording` runs:
+`POST /api/epg/record` takes `channel_id`, `program_id`, and optional `lead_time`, `lag_time`, and `add_to_library`. When the programme has a row in `pending_skips`, `recordProgram` deletes the row and makes no TVHeadend call. Otherwise `scheduleRecording` runs:
 
-1. When a disabled entry for the same programme exists in `dvr/entry/grid_upcoming`, send `idnode/save` with `enabled: true` and the padding, and stop.
-2. Otherwise send `dvr/entry/create_by_event` with `event_id`, `config_uuid` (the default DVR profile), and `comment`.
-3. Send `idnode/save` with `start_extra` and `stop_extra` on the new entry.
+1. When an enabled entry for the same programme exists in `dvr/entry/grid_upcoming`, send `idnode/save` with the padding the request gave (if any), and stop. No second timer is made.
+2. When a disabled entry for the same programme exists, send `idnode/save` with `enabled: true` and only the padding the request gave, and stop. A skipped series episode keeps the padding it copied from its rule.
+3. Otherwise send `dvr/entry/create_by_event` with `event_id`, `config_uuid` (the default DVR profile), and `comment`.
+4. Send `idnode/save` with `start_extra` and `stop_extra` on the new entry. When this save fails, the result is still `ok` with `paddingSaved: false`, and the programme sheet says so.
 
-The `comment` is the library tag: `freetvarr: add to library`, or `freetvarr: not for the library` when `add_to_library` is `false`. `normaliseEntry` reads it back as `libraryChoice` (`include` or `exclude`). The padding defaults are `DEFAULT_LEAD_MINUTES` (`2`) and `DEFAULT_LAG_MINUTES` (`10`). `src/recording-defaults.js` stores the **Add to library** default in the setting `add_to_library_default`.
+The `comment` is the library tag: `freetvarr: add to library`, or `freetvarr: not for the library` when `add_to_library` is `false`. `normaliseEntry` reads it back as `libraryChoice` (`include` or `exclude`). The padding defaults are `DEFAULT_LEAD_MINUTES` (`2`) and `DEFAULT_LAG_MINUTES` (`10`), used only for a new entry. `src/recording-defaults.js` stores the **Add to library** default in the setting `add_to_library_default`.
 
 `POST /api/epg/cancel` calls `cancelRecording`. A running entry stops ([Stop a recording](#stop-a-recording)). A scheduled entry from an autorec is disabled with `idnode/save`. A scheduled single entry gets `dvr/entry/cancel`, then `dvr/entry/remove`.
 
@@ -510,7 +513,7 @@ The `comment` is the library tag: `freetvarr: add to library`, or `freetvarr: no
 {
   enabled: !paused,
   name: title,
-  title: escapeAutorecTitle(title),
+  title: anchorAutorecTitle(title),
   fulltext: false,
   channel: channelId,
   start: 'Any',
@@ -528,14 +531,15 @@ The `comment` is the library tag: `freetvarr: add to library`, or `freetvarr: no
 
 - `channel` is `''` when `any_channel` is `true`. `maxcount` defaults to `0` (keep all).
 - `record: 1` (`DUPLICATE_DETECTION_EPISODE_NUMBER`) turns on TVHeadend duplicate detection by episode number.
-- `comment: 'freetvarr'` (`CREATOR_TAG`) marks the rules that Freetvarr made. `listAutorecs` turns each escaped `title` back into the literal title.
+- `title` is `^${escapeAutorecTitle(title)}( ?[:(-].*)?$`. TVHeadend reads the autorec title as a caseless regular expression that matches anywhere, so the anchors stop `The Chase` from recording `The Chase Australia` or `Beat The Chase`. The tail still matches `The Chase (Ep 5)` and `The Chase: Celebrity Special`. It is valid POSIX ERE and PCRE.
+- `comment: 'freetvarr'` (`CREATOR_TAG`) marks the rules that Freetvarr made. `listAutorecs` turns each escaped title, with or without the anchors, back into the literal title (`literalTitleOf`), so the series key stays `channel|title`.
 - Unless `add_show_rule` is `false`, the route calls `ensureShowFolder` with origin `user` ([Show origin](#show-origin)).
 
 | Route                                | Function               | TVHeadend call                                                             |
 | ------------------------------------ | ---------------------- | -------------------------------------------------------------------------- |
 | `POST /api/epg/pause-series`         | `setSeriesTagsEnabled` | `idnode/save` with `enabled` on each autorec                               |
 | `PATCH /api/library/shows/:key/rule` | `updateSeriesTags`     | `idnode/save` with `maxcount` and padding on every autorec of the show key |
-| `POST /api/epg/cancel-series`        | `disableSeriesTag`     | `idnode/delete` on the autorec ([Stop a recording](#stop-a-recording))     |
+| `POST /api/epg/cancel-series`        | `cancelSeriesRules`    | `idnode/delete` on each autorec ([Stop a recording](#stop-a-recording))    |
 
 `rulePatchFrom` in `src/library.js` limits `episodes_to_keep` to `0–999`, and the padding to `0–240` minutes (`MAX_PADDING_MINUTES`).
 
@@ -543,7 +547,7 @@ The `comment` is the library tag: `freetvarr: add to library`, or `freetvarr: no
 
 `src/watchlist.js` holds the routes (`GET`, `POST`, `PATCH`, and `DELETE /api/watchlist`) and the sweeper. A `watchlist` row has `title`, `title_key` (unique), `mode` (`notify` or `record`), an optional `channel_id`, padding, `seen_through`, `fulfilled_at`, and `series_link_id`. `guideMatchesFor` lists up to `20` future airings on visible channels with the same show key.
 
-The record sweeper runs every `15` minutes, before each `GET /api/watchlist`, and after each write that sets `record` mode. For each unfulfilled `record` row, it takes the first match with a `series_link`, calls `recordSeries` with `anyChannel: true`, and sets `fulfilled_at` and `series_link_id`. It then calls `ensureShowFolder` with origin `user` when `add_to_library_default` reads as `true`.
+The record sweeper runs every `15` minutes, at each `GET /api/watchlist` (which answers without waiting for it), and after each write that sets `record` mode. For each unfulfilled `record` row, it takes the first match with a `series_link`, calls `recordSeries` with `anyChannel: true`, and sets `fulfilled_at` and `series_link_id`. A row that fails logs a warning and stays unfulfilled; the sweep goes on with the next row. It then calls `ensureShowFolder` with origin `user` when `add_to_library_default` reads as `true`.
 
 ## Sync pipeline
 
@@ -573,7 +577,7 @@ The record sweeper runs every `15` minutes, before each `GET /api/watchlist`, an
 
 ### Single flight
 
-`inFlight` in `src/sync.js` holds `{ syncId, promise }` of the running sync. `startSync` returns `{ syncId, alreadyRunning: true }` while `inFlight` is set. Each sync is a `sync` job in [Activity](#activity), titled `Sync #<id>`.
+`inFlight` in `src/sync.js` holds `{ syncId, promise }` of the running sync. `startSync` returns `{ syncId, alreadyRunning: true }` while `inFlight` is set. With `followUp: true` (the Import route sends it), a call during a sync also starts one more sync with that trigger when the running sync ends. `startSync` waits while a folder rename or a library delete runs (`runLibraryChange` in `src/library-busy.js`), for up to `10` min; after that it records a sync with status `error` and does not run; those refuse to start while a sync starts or runs (`isSyncBusy`), and an ad scan refuses while they run. Each sync is a `sync` job in [Activity](#activity), titled `Sync #<id>`.
 
 ### Sync order
 
@@ -612,28 +616,28 @@ flowchart TD
   lib --> fin --> after
 ```
 
-1. `listFinished` reads `dvr/entry/grid_finished` (`limit: 5000`). A failure here, or in the `shows` read, ends the sync with status `error`.
+1. `listFinished` reads every page of `dvr/entry/grid_finished` (`5000` a page, up to `10` pages). A failure here, or in the `shows` read, ends the sync with status `error`. `markRemovedByTvheadend` then reads `dvr/entry/grid_removed` (shared with the `10` min past-airings cache) and sets `deleted_from_tvh_at` on each row whose entry TVHeadend removed itself (`fileremoved` set, for example by **Keep the latest**). A file that is only missing, such as on an unmounted disk, does not count.
 2. `captureUpcomingArtwork` saves the image of each enabled upcoming entry ([Recording artwork](#recording-artwork)).
 3. `importContextOf` loads the kind overrides, the `series_evidence` facts, the `recordings` rows by show key, and the autorec names.
 4. Each finished entry runs through the [Import state machine](#import-state-machine).
 5. Each library kind with an import refreshes its Plex section ([Plex](#plex)).
-6. `runAutoDelete` removes the queued recordings from TVHeadend ([Remove after import](#remove-after-import)).
+6. `runAutoDelete` removes the queued recordings from TVHeadend, with the earlier removals that wait for a retry ([Remove after import](#remove-after-import)).
 7. `sweepLibraryStates` checks that each imported file still exists ([Library delete](#library-delete)).
 8. `finishSync` writes the status and summary, then runs `pruneSyncHistory`, `pruneTombstonedRecordings`, and `pruneCutOriginals`.
 
 The `finally` step clears `inFlight`, then calls each `onSyncFinished` listener with `{ syncId, trigger }`, also after an `error`. The status is `ok`, `partial` when any item failed, or `error`. `summary_json` holds the trigger, the counts `imported`, `skipped`, and `failed`, `errors`, up to `100` items (`SYNC_ITEMS_CAP`), milliseconds per step, the Plex results, the `delete` result, and the `ads` counts.
 
-At startup, `closeInterruptedSyncs` sets each `running` row to `error` with the message `Freetvarr restarted before this sync finished.`, and `resetInterruptedImports` sets each `importing` row back to `pending`.
+Before `app.listen`, `closeSyncsLeftByRestart` (`src/startup-reconcile.js`) runs `resetInterruptedImports`, which sets each `importing` row back to `pending`, and `closeInterruptedSyncs`, which sets each `running` row to `error` with the message `Freetvarr restarted before this sync finished.` Both only read and write the database, so a sync that starts after the server listens stays `running`.
 
 ### Sync history
 
-`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
+`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger` of `manual`, `cron`, or `auto` for `recording-finished`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
 
 ## Import state machine
 
 ### Show matching
 
-`matchShow(shows, title, { sport })` in `src/sync.js` picks the series folder (a `shows` row) for a title. It takes the longest matching `show_pattern`. A pattern matches as whole words anywhere in the title, case-insensitive (`wordBoundedPattern`). For a mostly-sport title, a row with `origin` `auto` matches only when its show key equals the title's show key. So the `auto` row `Rugby League World Cup 2026` does not match `Women's Rugby League World Cup 2026`. Sport means a DVB genre code from `0x40–0x4F`.
+`matchShow(shows, title, { sport })` in `src/sync.js` picks the series folder (a `shows` row) for a title. It takes the longest matching `show_pattern`. A row with `origin` `user` (or none) matches as whole words anywhere in the title, case-insensitive (`wordBoundedPattern`). A row with `origin` `auto` matches when its show key equals the title's show key, or when the title is the pattern followed by a colon, a dash, or a bracket (`isSameShowTitle`, the series rule title form), so the `auto` row `Survivor` does not match `Australian Survivor`. For a mostly-sport title, an `auto` row matches only when its show key equals the title's show key. So the `auto` row `Rugby League World Cup 2026` does not match `Women's Rugby League World Cup 2026`. Sport means a DVB genre code from `0x40–0x4F`.
 
 ### Decision tree
 
@@ -653,10 +657,11 @@ flowchart TD
   pathcheck -->|no| skippath["row: skipped<br>path outside the mount"]
   pathcheck -->|yes| statcheck{"fs.stat of<br>the source file"}
   statcheck -->|fails| skipfile["row: skipped<br>file not found"]
-  statcheck -->|ok| rootcheck{"one-off or movies<br>folder exists?"}
-  rootcheck -->|no| skiproot["row: skipped<br>folder not found"]
-  rootcheck -->|"yes, or tv"| dest["freeDestination"]
+  statcheck -->|ok| rootcheck{"libraryRootProblemOf<br>of the kind's folder"}
+  rootcheck -->|"missing or empty"| skiproot["row: skipped<br>folder not found or empty"]
+  rootcheck -->|ready| dest["freeDestination"]
   dest --> imp["row: importing<br>importFile"]
+  imp -->|throws| failed["row: failed<br>error, no file_path"]
   imp --> classify{"classifyImport"}
   classify -->|"shortfall over 1 MB"| partial["row: partial"]
   classify -->|"else"| done["row: done"]
@@ -670,18 +675,29 @@ flowchart TD
     3. The entry's library tag `exclude` holds (`Recorded with Add to library off`).
     4. A matched folder, the setting `import_unmatched` not `false`, or the library tag `include` imports.
     5. Anything else holds (`No series folder for this title, and Import every recording is off`).
-2. `holdRecording` sets `status` `not_imported`, `error` to the reason, and `file_path` to `null`. It leaves a `done` or `importing` row, or a row with `deleted_from_tvh_at`, unchanged.
+2. `holdRecording` sets `status` `not_imported`, `error` to the reason, and `file_path`, `purged_at`, and `log_cleared_at` to `null`. So a held row cleared from the log comes back at the next sync while TVHeadend still has it. It leaves a `done`, `partial`, or `importing` row, or a row with `deleted_from_tvh_at`, unchanged.
 3. `lookUpDatabaseIds` runs when `needsDatabaseIds` is true ([Sport and database ids](#sport-and-database-ids)).
 4. `libraryKind` gives `tv`, `oneOff`, or `film` from `seriesKindOf` ([Library kinds](#library-kinds)). A film with no movies folder gives `oneOff`.
 5. For `tv` with no matched folder, `folderForSeries` calls `ensureShowFolder`. An entry from a series recording uses the autorec name and origin `user`; any other entry uses its title and origin `auto`.
-6. `processItem` writes `skipped` with the reason in `error` when the path does not map, the source file is missing, or the one-off or movies folder is missing.
-7. `importItem` imports the file and classifies it. It runs [Ad removal](#ad-removal) only for a `done` item with a series folder.
+6. `processItem` writes `skipped` with the reason in `error` when the path does not map, the source file is missing, or the library folder for the kind is not ready ([Library folder check](#library-folder-check)). A `partial` row keeps its `status` and `file_path`; only `error` changes.
+7. `importItem` imports the file and classifies it. When the folder or the copy throws, the row becomes `failed` with the error and no `file_path`, and the next sync tries again. A copy that throws deletes its part-copied file. It runs [Ad removal](#ad-removal) only for a `done` item with a series folder.
 
 Each import is an `import` job in [Activity](#activity), titled `Import · <title>`.
 
+### Library folder check
+
+`libraryRootProblemOf(root)` in `src/library-roots.js` gives `missing` when `readdir` of the folder fails, and `empty` when the folder has no entry other than names that start with `.`, `@`, or `#` while `recordings` rows with `status` `done` or `partial`, no `purged_at`, no `library_state`, and no `library_deleted_at` have a `file_path` under it. Anything else is ready. An empty folder on a new install is ready, because no row points into it. A sync checks each folder once (`createRootCheck`).
+
+- The TV, one-off, and movies imports skip with `<kind> folder <root> not found; mount it or change it in Settings` or `<kind> folder <root> is empty, but imported recordings point into it; check that it is mounted`. No folder is created, so nothing is written to the mount point of an unmounted share, and nothing is removed from TVHeadend.
+- `refreshLibraryStates` keeps the stored `library_state` of a row whose file is missing when the row's folder is not ready, so the Library keeps its shows while the share is gone.
+- **Import again** (`POST /api/recordings/:id/library` with `include`) answers `409` when the row's `file_path` is under a folder that is not ready.
+- The [Library folders](/guide/doctor#paths-mounted) health check warns for each empty folder.
+
+In Docker, a share mounted on the host after the container started does not reach the container, so a restart is needed.
+
 ### Path translation
 
-`localPathFor({ tvhFilename, tvhRecordingsPath, recordingsRoot })` replaces the `tvh_recordings_path` prefix of the TVHeadend filename with `recordings_root` ([Full environment reference](#full-environment-reference)). A filename outside that prefix gives `null` and the error `TVHeadend file path is outside the recordings mount`.
+`localPathFor({ tvhFilename, tvhRecordingsPath, recordingsRoot })` replaces the `tvh_recordings_path` prefix of the TVHeadend filename with `recordings_root` ([Full environment reference](#full-environment-reference)). A filename outside that prefix, or with a `..` segment, gives `null` and the error `TVHeadend file path is outside the recordings mount`. Before the import, `processItem` resolves the real path of the source and of `recordings_root`; a source outside the folder is skipped with the error `<path> is outside the recordings folder <root>`.
 
 ### Destination paths
 
@@ -692,7 +708,7 @@ Each import is an `import` job in [Activity](#activity), titled `Import · <titl
 | `film`   | `buildFilmPath`   | `<movies_root>/<name>/<name>.<ext>`; `<name>` is `Title (Year)`, or `Title`   |
 
 - The season folder comes from `shows.season_template`, default `Season {season}`. `{season}` and `{season_padded}` pad to two digits; `{season_unpadded}` does not. No season gives `00`.
-- `episodeFilename` gives `<folder> - SxxEyy[ - <episode title>].<ext>`, or `<folder> - <YYYY-MM-DD>[ - <episode title>].<ext>` without episode numbers. `<folder>` is `dest_folder` without a `{tvdb-…}`, `{tmdb-…}`, or `{imdb-…}` id hint.
+- `episodeFilename` gives `<folder> - SxxEyy[ - <episode title>].<ext>`, or `<folder> - <YYYY-MM-DD>[ - <episode title>].<ext>` without episode numbers. The date is the local air day in the server time zone. `<folder>` is `dest_folder` without a `{tvdb-…}`, `{tmdb-…}`, or `{imdb-…}` id hint.
 - `<ext>` is the extension of the TVHeadend file, or `ts`. `createValidFilename` removes `\ / : * ? " < > |`.
 - `guardWithinRoot` throws `destination escapes media root` when a path resolves outside its root.
 
@@ -705,7 +721,7 @@ Each import is an `import` job in [Activity](#activity), titled `Import · <titl
 
 ### Free destination
 
-`freeDestination` in `src/sync.js` tries the planned path, then `- copy 2`, `- copy 3`, and so on before the extension (`(2)` for a film). A candidate is free when this row already holds its `file_path`, or when no row holds it and the file is missing or is the same inode as the source.
+`freeDestination` in `src/sync.js` tries the planned path, then `- copy 2`, `- copy 3`, and so on before the extension (`(2)` for a film). Only rows with no `library_deleted_at` and no `purged_at` hold a path. A candidate is free when this row already holds its `file_path`, or when no row holds it and the file is missing, is the same inode as the source, or has the source size (a copy left by a Reset). `importItem` sets `file_path` to `null` on any deleted or purged row that still names the path it takes.
 
 ### Hardlink or copy
 
@@ -719,7 +735,7 @@ A hardlink fails across filesystems and across two bind mounts (`EXDEV`). The ex
 
 ### Recording artwork
 
-`src/artwork.js` stores recording pictures as `recordings/<uuid>.<ext>` in the artwork folder ([Config folder](#config-folder)). `saveArtwork` shrinks a picture over `150 KB` to `960 px` wide. `POST /api/epg/record`, `captureUpcomingArtwork`, and `saveRecordingDetails` save pictures. `pruneTombstonedRecordings` deletes `recordings` rows whose `deleted_from_tvh_at` is more than `30` days old (`RECORDING_TOMBSTONE_TTL_DAYS`), only when the row is out of the library (`purged_at` set, or `status` not `done` or `partial`) and `ad_backup_saved_at` is empty. `pruneRecordingArtwork` then deletes pictures with no row that are at least `14` days old.
+`src/artwork.js` stores recording pictures as `recordings/<uuid>.<ext>` in the artwork folder ([Config folder](#config-folder)). `saveArtwork` shrinks a picture over `150 KB` to `960 px` wide. `POST /api/epg/record`, `captureUpcomingArtwork`, and `saveRecordingDetails` save pictures. `saveRecordingDetails` fetches a picture while the row's `image_checked_at` is empty. A source that answers with an error or a non-image is not tried again until a restart. A timeout or network error leaves `image_checked_at` empty, so the next sync tries again, up to `3` tries (`ARTWORK_ATTEMPTS`). **Refresh artwork** clears both lists for the show's sources. Clearing a row that TVHeadend still has from the log deletes its picture and sets `image_path` and `image_checked_at` to `null`, so the picture comes back with the row. `pruneTombstonedRecordings` deletes `recordings` rows whose `deleted_from_tvh_at` is more than `30` days old (`RECORDING_TOMBSTONE_TTL_DAYS`), only when the row is out of the library (`purged_at` set, or `status` not `done` or `partial`) and `ad_backup_saved_at` is empty. `pruneRecordingArtwork` then deletes pictures with no row that are at least `14` days old.
 
 ## Library kinds
 
@@ -740,7 +756,7 @@ A hardlink fails across filesystems and across two bind mounts (`EXDEV`). The ex
 
 ### Show origin
 
-`shows.origin` is `user` or `auto`. **Add title** (`POST /api/shows`), a saved edit (`PATCH /api/shows/:id`), a picked identity, **Record series** with a show rule, the watchlist sweeper, and an import from a series recording set `user`. An import of a title with no series recording, and a folder move to Shows, create `auto` rows.
+`shows.origin` is `user` or `auto`. **Add title** (`POST /api/shows`), a saved edit (`PATCH /api/shows/:id`), a picked identity, **Record series** with a show rule, the watchlist sweeper, and an import from a series recording set `user`. An import of a title with no series recording, and a folder move to Shows, create `auto` rows. **Record series** reuses an `auto` row only when it matches under the `auto` rule ([Show matching](#show-matching)), so **Record series** on `Australian Survivor` makes its own row and leaves the `auto` row `Survivor` as it is.
 
 ### Sport and database ids
 
@@ -773,7 +789,7 @@ A single show wins. Otherwise the top show needs at least `10` points and a lead
 - A `show` group: each file in the one-off folder moves to `buildDestPath` under the matched or a new folder.
 - A `oneoff` group: each file in the TV folder moves to `buildOneOffPath`.
 
-`applyMove` skips a move while ad removal runs, when `file_path` changed since the plan, when the file is missing, or when the target exists. `moveFile` calls `fs.rename`, or copies and deletes on `EXDEV`. The `.orig` backup and the `.edl` file move with the video. After moves, the Plex TV and one-off sections refresh. `planRetiredTitleMatches` disables each `auto` folder whose title is now a one-off and that keeps no file.
+`applyMove` skips a move while ad removal runs, when `file_path` changed since the plan, when the file is missing, or when the target exists. `moveFile` calls `fs.rename`. On `EXDEV` it copies to `<target>.part`, checks the size, renames the copy into place, and deletes the source; a failed copy deletes the `.part` file. The `.orig` backup and the `.edl` file move with the video. After moves, the Plex TV and one-off sections refresh. `planRetiredTitleMatches` disables each `auto` folder whose title is now a one-off and that keeps no file.
 
 The pass runs `3` min after startup when the setting `library_reclassify_v1` is unset (`runReclassificationOnce`), after every sync, and after `PUT` or `DELETE /api/programme-kind/:showKey`. When TVHeadend's series rules cannot be read, the pass changes nothing. `node scripts/reclassify-library.mjs --db <copy of state.db> --dry-run` prints the planned moves.
 
@@ -842,13 +858,13 @@ flowchart TD
 3. `ffmpeg -f concat -safe 0 -i list.txt -map 0 -c copy` writes `out.ts`.
 4. `verifyCut` fails when `out.ts` is empty, or its duration differs from the summed keep length by more than `max(5, 2 × boundaries)` seconds (`boundaries` is twice the break count).
 5. `swapInCut` renames the file to `<file>.orig`, then renames `out.ts` to the file path. If the second rename fails, it renames the `.orig` back.
-6. The row gets `size`, `ad_cut_at`, and the backup columns.
+6. The row gets `size`, `ad_cut_at`, and the backup columns. A saved `playback_position_s` moves back by the break seconds before it (`cutTimeOf`); a cut from the `.orig` first maps it to the original time through the breaks of the last cut (`originalTimeOf`). Putting the `.orig` back maps it to the original time.
 
 The workdir is removed on every exit path. A cut that starts when a `.orig` exists runs on the `.orig` and leaves it in place. A failure at any step leaves the original file, logs `[ads] <file>: <message>`, and stores `cut_failed` or `detect_failed`.
 
 ### Ad recovery
 
-At startup, `recoverInterruptedCuts` renames `<file>.orig` back when the file is missing, and otherwise reconciles the backup columns with the disk. `resetInterruptedScans` then sets every `ad_status = 'scanning'` to `null`.
+At startup, `recoverInterruptedCuts` renames `<file>.orig` back when the file is missing and `ad_status` is `scanning` or `cut_failed`, then clears the cut columns (`restorePatchOf`). Otherwise it reconciles the backup columns with the disk: a `.orig` the row does not track is adopted, and a tracked one that is gone is forgotten only while the episode file exists. `resetInterruptedScans` then sets every `ad_status = 'scanning'` to `null`.
 
 ### Original backups
 
@@ -867,12 +883,14 @@ A `.orig` backup stays for `ad_original_retention_days` days after `ad_backup_sa
 
 ## Removal from TVHeadend
 
-`removeRecordings({ recordingIds })` in `src/tvheadend.js` removes finished recordings. An id not in `dvr/entry/grid_finished` goes to `unknown`; when no id is removed, it throws `not-found`. For each known id, `removeKeepingHistory` makes these calls in order:
+`removeRecordings({ recordingIds })` in `src/tvheadend.js` removes finished recordings. It reads every page of `dvr/entry/grid_finished`. An id not in that list goes to `unknown`. Each known id is removed on its own: a failed id goes to `failed` and the next id still runs. When no id is removed, it throws the first failure, or `not-found` when every id was unknown. For each known id, `removeKeepingHistory` makes these calls in order:
 
 1. `idnode/delete` on each upcoming entry whose `parent` is this recording.
 2. `idnode/save` with `retention: 2147483647` (`RETAIN_FOREVER`).
 3. `dvr/entry/prevrec/set`, so duplicate detection keeps the episode as recorded.
 4. `dvr/entry/remove`, which deletes the file and keeps a removed entry.
+
+`POST /api/recordings/:recording_id/delete-from-tvh` (`src/recording-tvh-routes.js`) answers `409` unless the row is `done` and not yet marked removed. A `not-found` from TVHeadend counts as removed. The Import route (`POST /api/recordings/:recording_id/library` with `include`) answers `409` for a row with `deleted_from_tvh_at`.
 
 The user guide covers the switches ([Remove from TVHeadend](/guide/remove-from-tvheadend)).
 
@@ -880,11 +898,25 @@ The user guide covers the switches ([Remove from TVHeadend](/guide/remove-from-t
 
 An item goes on the removal list of a sync when it imported `done` in this sync, its series folder has `delete_after_import`, and `shouldQueueAutoDelete` passes. With `ad_removal_enabled` off, a `cut` folder keeps the TVHeadend copy. `runAutoDelete` skips the removal when the setting `delete_after_plex_refresh_only` is on (the default) and the TV section refresh did not return `triggered`, unless Plex is not set up. It sets `deleted_from_tvh_at` on each removed row.
 
+A recording that has a playback session (`usePlaybackCheck`, wired to the playback sessions in `src/server.js`) is not removed. Each row that is skipped (the Plex guard or a playback session) or that TVHeadend refused gets `tvh_remove_pending_at` (migration `0042`). Each later sync that is not limited to one show adds the rows with `tvh_remove_pending_at` that are `done`, still in the finished list, and whose folder still has `delete_after_import` (in `cut` mode only with a stored `ad_status` of `cut` or `no_breaks`), and refreshes the Plex TV section before it removes them. A removal clears the marker. Rows imported before the switch was on never get the marker, so turning the switch on removes no older episodes.
+
 ### Stop a recording
 
 `STOP_RECORDING_KEEP_MIN_MS` (`src/web/stop-recording.js`) is `5` min. `recordedMsOf` counts from the later of `start_real` and the entry's `create` time. `stopRecordingEntry` sends `dvr/entry/stop`. Under `5` min of recording, it also removes the entry: steps 2–4 of `removeRecordings` for a series recording, `dvr/entry/remove` for a single entry. Otherwise the next sync imports the stopped entry.
 
-**Cancel series** sends `POST /api/epg/cancel-series` with `series_link_id` or `series_link_ids`. With `stop_recording_now: true`, `disableSeriesTag` lists the rule's recording entries, deletes the autorec, then stops each listed entry. With `title_match_id`, the route also deletes that `shows` row.
+**Cancel series** sends `POST /api/epg/cancel-series` with `series_link_id` or `series_link_ids`. `cancelSeriesRules` calls `disableSeriesTag` for each id. With `stop_recording_now: true`, `disableSeriesTag` lists the rule's recording entries, deletes the autorec, then stops each listed entry; a stop that fails goes to `stopFailed` instead of failing the cancel. An id with no autorec any more (`not-found`) counts as cancelled, so a retry works. With `title_match_id`, the route also deletes that `shows` row.
+
+Under `5` min, the stop dialog of a series episode says that its repeats do not record, because `dvr/entry/prevrec/set` keeps the episode as recorded.
+
+### Series rule title change
+
+`runAutorecAnchorOnce` (`src/autorec-anchor.js`) changes the title of each autorec that Freetvarr made before the whole-title form to that form. It runs at startup and after each sync (`anchorSeriesRulesQuietly`) until the setting `autorec_titles_anchored_at` is set.
+
+1. Read `dvr/autorec/grid` and `dvr/entry/grid_upcoming`.
+2. `anchorPlanOf` picks the rules with `comment` `freetvarr`, `fulltext` and `mergetext` off, a title that is not already anchored, and a title that is `name` itself (a rule from before titles were escaped) or reads back as `name` through `literalTitleOf`. The new title is the escaped and anchored `name`. User-made and hand-edited rules are left alone, with a log line each.
+3. For each rule, log the old and new title, and log each of its timers whose `disp_title` stops matching (`[rules] timer ... stops matching`).
+4. Send `idnode/save` with `uuid` and `title` only. TVHeadend then cancels every scheduled timer of the rule and makes the ones that still match again (`dvr_autorec_changed`), so a per-episode padding change goes back to the rule's padding. No rule is deleted. After the saves, one more `dvr/autorec/grid` read checks each title; a title TVHeadend did not apply counts as failed.
+5. A failed save logs the TVHeadend error and keeps the old title. The failed rules go into the setting `autorec_anchor_failed`, the `tvh.rules` Health check warns and names them, and the flag stays unset so the next run tries them again. An unreachable TVHeadend changes nothing.
 
 ### Library delete
 
@@ -897,11 +929,11 @@ The delete answers `409` while a sync runs, while a target is `importing` or `sc
 3. It deletes the library file, its `.edl`, and its `.orig`, then up to `2` empty parent folders inside the root.
 4. It removes the TVHeadend copy with `removeRecordings`, unless `deleted_from_tvh_at` is set.
 
-Each target must be an absolute path inside the TV, one-off, or movies folder, its parent's `realpath` must stay in the root's `realpath`, and `lstat` must show a regular file. `deletionPatch` sets `library_deleted_at`, `library_choice` `exclude`, and, after a TVHeadend removal, `deleted_from_tvh_at` and `purged_at`. `bytesFreed` counts a file once per inode, only when the request removed all of its hardlinks. Each kind with a change refreshes its Plex section. The status is `200`, or `207` when any result is not `ok`.
+Each target must be an absolute path inside the TV, one-off, or movies folder, its parent's `realpath` must stay in the root's `realpath`, and `lstat` must show a regular file. `deletionPatch` sets `library_deleted_at`, `library_choice` `exclude`, and, after a TVHeadend removal, `deleted_from_tvh_at` and `purged_at`. When the TVHeadend removal fails, it sets `library_state` `not_in_library` instead, so the show leaves Home and the Library at once. **Import again** clears `library_deleted_at` and `library_state`. `bytesFreed` counts a file once per inode, only when the request removed all of its hardlinks. Each kind with a change refreshes its Plex section. The status is `200`, or `207` when any result is not `ok`.
 
 `sweepLibraryStates` (`src/library-files.js`) runs in each sync. For each `done` or `partial` row with a missing file, `library_state` becomes `replaced` (another video with the same `SxxEyy` in the same or a sibling `Season N` folder, stored in `library_replacement`) or `not_in_library`. `POST /api/recordings/:recording_id/library` with `choice: 'include'` resets a `not_in_library` row to `pending` and starts a `manual:import` sync.
 
-`POST /api/reset` returns `409` while a sync runs. Otherwise it deletes all rows of `recordings`, `syncs`, `shows`, and `settings`, and restarts the scheduler.
+`POST /api/reset` needs the body `{ "confirm": "reset" }` (else `400`) and uses `syncLimiter`. It returns `409` while a sync runs. Otherwise `resetFreetvarrData` (`src/reset.js`) deletes all rows of `recordings`, `syncs`, and `shows`, and every setting except `tv_login_username`, `tv_login_password`, `tv_login_auth_code`, and `tvh_open_entry_backup`, because the TV login and the closed open-access entry stay in TVHeadend. The scheduler then restarts.
 
 ## Live TV
 
@@ -922,7 +954,7 @@ flowchart LR
     api["status/inputs,<br>status/subscriptions,<br>service/streams"]
     stream["/stream/channel/&lt;id&gt;"]
   end
-  player -->|"POST, preflight, hold,<br>attention, DELETE"| routes
+  player -->|"POST, preflight, hold, unhold,<br>attention, DELETE"| routes
   player -->|"playlists and segments"| routes
   routes -->|"preflight and plan"| api
   routes --> reg
@@ -935,12 +967,13 @@ flowchart LR
 
 ### Live start
 
-`POST /api/live` takes `channel_id` and an optional `picture_rank`, and calls `startLiveChannel` (`liveLimiter`, CSRF):
+`POST /api/live` takes `channel_id`, an optional `picture_rank`, and an optional `client_token`, and calls `startLiveChannel` (`liveLimiter`, CSRF):
 
-1. When a session on the channel exists (`forChannel`), the viewer joins it and nothing else runs.
-2. `preflightChannel` checks the tuners. A refusal throws a `LiveTvError` with status `409`.
-3. `planForChannel` reads the first service of the channel from `service/streams` and the default languages from `config/load`, then calls `pickStreams`.
-4. `sessions.start` applies the [Stream limit](#stream-limit), spawns `ffmpeg`, and opens the TVHeadend stream.
+1. `releaseHeld` ends each held session on another channel that this `client_token` started, with the reason `replaced`. It skips a session that any other viewer ever joined, and a session that a viewer still attends (for example in Picture in Picture). The client keeps the token in `localStorage` (`freetvarr.deviceToken`), so it stays the same when a Home Screen app opens again.
+2. When a session on the channel exists (`forChannel`), the viewer joins it and nothing else runs.
+3. `preflightChannel` checks the tuners. A refusal throws a `LiveTvError` with status `409`.
+4. `planForChannel` reads the first service of the channel from `service/streams` and the default languages from `config/load`, then calls `pickStreams`.
+5. `sessions.start` applies the [Stream limit](#stream-limit), spawns `ffmpeg`, and opens the TVHeadend stream.
 
 | Code                     | Status | Cause                                                                                 |
 | ------------------------ | ------ | ------------------------------------------------------------------------------------- |
@@ -982,7 +1015,7 @@ flowchart LR
 
 `GET /api/live/:session/:file` serves these names only (`LIVE_FILE_PATTERN`), with `Cache-Control: no-store`. A playlist request waits up to `15 s` for the session to go live. The server rewrites files before it sends them: caption labels in `index.m3u8`, the first segment out of the copy-mode playlists, program date-times into `live_vtt.m3u8`, and two-row roll-up cues into each `live<N>.vtt` (`servedCaptionSegment`).
 
-When `ffmpeg` exits while the session is still `tuning`, the session restarts it once per fallback: first with the full probe (for missing codec parameters), then without teletext (for teletext errors).
+When `ffmpeg` exits while the session is still `tuning`, the session restarts it once per fallback: first with the full probe (for missing codec parameters), then without teletext (for teletext errors). A stop during a restart ends it before the new `ffmpeg` starts.
 
 ### TVHeadend stream request
 
@@ -993,8 +1026,11 @@ When `ffmpeg` exits while the session is still `tuning`, the session restarts it
 `createLiveSessions` keeps one session per channel, shared by every viewer. A session has a `16`-hex-character id, the plan, the weight, a viewer count, `lastSeenAt`, `lastByteAt`, and `heldUntil`. Playlist, segment, and preflight requests refresh `lastSeenAt`.
 
 - `DELETE /api/live/:session` takes one viewer off; the last viewer ends the session.
-- `POST /api/live/:session/hold` keeps the session for `LIVE_TV_BUFFER_MINUTES`; with a buffer of `0` it acts as a `DELETE`.
-- `POST /api/live/:session/attention` takes `{ attending }` for [Watch tracking](#watch-tracking).
+- `POST /api/live/:session/hold` keeps the session for `LIVE_TV_BUFFER_MINUTES`; with a buffer of `0` it does nothing, and the `20 s` idle rule ends a session that nobody fetches.
+- `POST /api/live/:session/unhold` ends the hold, so the idle rule applies again. A preflight or a file request does not end the hold.
+- `POST /api/live/:session/attention` takes `{ attending, viewer }` for [Watch tracking](#watch-tracking). `viewer` is a token for each page load; a shared session is attended while any viewer attends.
+
+A session that is ending stays in the registry until its teardown is done, but it no longer counts against the [Stream limit](#stream-limit).
 
 The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and has no request for `20 s` ends with `idle`. No bytes for `10 s`, or the end of the TVHeadend response, is a stall. A stall reads `status/subscriptions`: a newer DVR subscription gives `preempted` with the recording title, the session's own subscription gives `no-input`, and neither gives `gone`. Teardown aborts the request, sends `SIGTERM` to `ffmpeg` (then `SIGKILL` after `3 s`), and deletes the session folder. Startup deletes `LIVE_ROOT`.
 
@@ -1009,7 +1045,8 @@ The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and h
 - The client uses native HLS only when `MediaSource` is absent and the browser can play `application/vnd.apple.mpegurl`. Otherwise it imports [hls.js](https://github.com/video-dev/hls.js) from `/vendor/hls.mjs` when a stream starts.
 - The hls.js config is `liveSyncDuration: 4`, `liveMaxLatencyDuration: Infinity`, and `backBufferLength: 30`. Video starts when `2 s` are buffered, or `4 s` after metadata loads.
 - The player draws its own controls. A scrubber appears when the buffer allows at least `4 s` of rewind. Double taps on the left or right third skip `10 s` (`src/web/double-tap.js`).
-- A hidden page sends `POST .../hold` with `keepalive`. A `pagehide` that does not persist sends `DELETE`.
+- A hidden page sends `POST .../hold` with `keepalive`, and a page that is visible again sends `POST .../unhold`. A `pagehide` that does not persist sends `DELETE`.
+- A fatal hls.js network error detaches the video and lets the preflight poll attach it again while the session lives, at most `2` times in a row (`liveErrorActionOf`). The count resets when the video starts.
 
 ### Stream limit
 
@@ -1038,14 +1075,14 @@ Multiview plays up to three companion live sessions beside the main player's ses
 
 The player plays a recording, or a Plex library item, as HLS from a per-file `ffmpeg` session. The server code is `src/playback.js` and its routes in `src/server.js`; the client code is `src/web/shared/playback-session.js`. Playback sessions count against the [Stream limit](#stream-limit). The guide page is [Playback](/guide/recordings#playback).
 
-| Route                               | Purpose                                                                          |
-| ----------------------------------- | -------------------------------------------------------------------------------- |
-| `POST /api/recordings/:id/play`     | Start a session; body `offset`, `replace`, `player`, `part_id` (`playLimiter`)   |
-| `GET /api/play/:session/:file`      | Serve `index.m3u8`, `play.m3u8`, `play_vtt.m3u8`, `seg<N>.ts`, and `play<N>.vtt` |
-| `POST /api/play/:session/heartbeat` | Refresh the session; `404` with `code: 'gone'` after it ends                     |
-| `POST /api/play/:session/attention` | Set `attending` for watch tracking                                               |
-| `DELETE /api/play/:session`         | Stop the session                                                                 |
-| `POST /api/recordings/:id/position` | Save the position (`0–86400` seconds)                                            |
+| Route                               | Purpose                                                                                        |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `POST /api/recordings/:id/play`     | Start a session; body `offset`, `replace`, `player`, `part_id`, `client_token` (`playLimiter`) |
+| `GET /api/play/:session/:file`      | Serve `index.m3u8`, `play.m3u8`, `play_vtt.m3u8`, `seg<N>.ts`, and `play<N>.vtt`               |
+| `POST /api/play/:session/heartbeat` | Refresh the session; `404` with `code: 'gone'` after it ends                                   |
+| `POST /api/play/:session/attention` | Set `attending` for watch tracking                                                             |
+| `DELETE /api/play/:session`         | Stop the session                                                                               |
+| `POST /api/recordings/:id/position` | Save the position (`0–86400` seconds)                                                          |
 
 ### Playback start
 
@@ -1055,13 +1092,13 @@ The player plays a recording, or a Plex library item, as HLS from a per-file `ff
 4. With no `offset`, `resumeStartFor` resumes from `playback_position_s` unless it is within `30 s` of the end (`RESUME_END_MARGIN_S`).
 5. `planForFile` maps the probe onto `pickStreams`, so the plan rules match [Live stream plan](#live-stream-plan).
 
-`playbackArgsFor` puts `-ss <offset>` before `-i <file>`, maps streams by index, and writes `6 s` segments (`PLAY_SEGMENT_SECONDS`) as an `event` playlist into `LIVE_ROOT/play/<session>`. The served playlist gains `#EXT-X-ENDLIST` once `ffmpeg` finishes. Before the first segment, a failed `ffmpeg` restarts with the full probe, then without teletext, then with the software plan for `vaapi`.
+`playbackArgsFor` puts `-ss <offset>` before `-i <file>`, maps streams by index, and writes `6 s` segments (`PLAY_SEGMENT_SECONDS`) as an `event` playlist into `LIVE_ROOT/play/<session>`. The served playlist gains `#EXT-X-ENDLIST` once `ffmpeg` finishes: it exits with code `0` and no signal, or the offset plus the produced seconds reaches `30 s` before the file length. Any other exit after the first segment ends the session with `ffmpeg`, so the client heartbeat gets `404` and the client starts again at its position. Before the first segment, a failed `ffmpeg` restarts with the full probe, then without teletext, then with the software plan for `vaapi`.
 
 The client sends a heartbeat every `15 s` and saves the position on each heartbeat while it plays. The reaper ends a session after `60 s` with no request. `seekPlan` (`src/web/playback.js`) seeks inside the produced part, or starts a new session at the target offset with `replace` set.
 
 ### Playback positions
 
-The position route writes `playback_position_s`, `played_at`, and `watched_at`. For a Plex item it calls `saveItemPosition`. A DVR entry that is still recording has no row yet; `rememberInProgressPosition` keeps its position in the setting `in_progress_positions` for `3` days, and `applyInProgressPositions` copies it onto the new row after each sync.
+The position route writes `playback_position_s`, `played_at`, and `watched_at`. `watched_at` is set when the position is within `30 s` of the shorter of `duration_s` and the file length of the active playback session (`playedDurationOf`), so a file with cut ads can still count as watched. At the end of a recording, the client posts the offset plus the played time, not the file length. For a Plex item it calls `saveItemPosition`. A DVR entry that is still recording has no row yet; `rememberInProgressPosition` keeps its position in the setting `in_progress_positions` for `3` days, and `applyInProgressPositions` copies it onto the new row after each sync.
 
 ### Watch tracking
 
@@ -1076,12 +1113,14 @@ The position route writes `playback_position_s`, `played_at`, and `watched_at`. 
 
 **From the start** plays a programme that TVHeadend is still recording. The server code is `src/in-progress-playback.js`; the client calls `watchFromStart` and plays in the live player. The guide page is [Start over](/guide/player#start-over).
 
-`POST /api/play/in-progress` takes `dvrUuid`, `player`, and `replace`:
+`POST /api/play/in-progress` takes `dvrUuid`, `player`, `replace`, and `client_token`. Like the recording play route, it first calls `releaseHeld` for the `client_token` ([Live start](#live-start)):
 
 1. Find the entry in `listActiveRecordings`; none gives `404` with `code: 'not-recording'`.
 2. `growingSourceFor` uses the local file when `localPathFor` maps the path, else `GET /dvrfile/<uuid>` with a `Range` header.
 3. Probe the source. An HTTP source copies its first `2 MB` to a temporary `head.ts` for `ffprobe`.
 4. Start a playback session with a feed: `ffmpeg` reads `pipe:0` and writes `2 s` segments.
+
+The client saves the position with `keepalive` when the page hides. When a heartbeat gets `404`, the client starts **From the start** again and seeks to the played time, at most `2` times in a row (`fromStartGoneAction`). **Try again** in the player starts **From the start** again at the saved position (`retryActionOf`).
 
 `feedGrowing` copies new bytes into `ffmpeg` every `1 s` (`IN_PROGRESS_POLL_MS`). When a read copies nothing, it checks whether the entry still records, at most every `5 s` (`RECORDING_CHECK_MS`). After two empty reads with the entry no longer recording, the feed ends the input. The session view adds `growing`, `recordingStartedAt`, `scheduledEndAt`, and `liveEdgeSeconds`.
 
@@ -1101,6 +1140,8 @@ Pictures and programme info come from the guide, Plex, TVmaze, [Wikidata](https:
 
 ### Picture sources
 
+A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE_MAX_REDIRECTS`). A redirect to another host, or from `https` to `http`, gives no image and no request to that host.
+
 `findProgrammeThumbnail` in `src/epg.js` serves the event route. It tries guide images (the event's image, then other airings of the title) within `1.5 s` (`GUIDE_IMAGE_BUDGET_MS`), then the show chain within `3 s` (`SHOW_IMAGE_BUDGET_MS`). The show route starts at the show chain: `findShowThumbnail` for landscape, `findShowPoster` for posters.
 
 ```mermaid
@@ -1118,14 +1159,14 @@ flowchart TD
   kind -- film --> onlineFilm
 ```
 
-| Source             | Code                                                 | Rule                                                                                |
-| ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                        |
-| Plex               | `plexSourcesOf` in `src/show-artwork.js`             | `art` and `thumb` of the item with the same title key in the TV and movies sections |
-| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                     |
-| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                     |
+| Source             | Code                                                 | Rule                                                                                                                                                               |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                                                                                                       |
+| Plex               | `plexShowSources` in `src/show-artwork.js`           | `art` and `thumb` of the item with the same title key in the TV and movies sections; a movies item is skipped for a title whose guide airings have episode details |
+| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                                                                                                    |
+| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                    |
 
-The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
+`plexShowSources` lists each section with a `15 s` timeout. A section that fails keeps its entries from the last good list, and a refresh where every section fails keeps the whole list for another `10` min. The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
 
 ### Online lookup
 
@@ -1135,22 +1176,22 @@ The setting `show_artwork_lookup` (default on) switches off the TVmaze and onlin
 2. Otherwise it searches Wikidata (`wbsearchentities`), then Wikipedia, for each title variant, and keeps items with the same title key.
 3. One [SPARQL](https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/queries) query keeps films (`Q11424`) and television programmes (`Q15416`), with the year, the English article, and the TMDB and [IMDb](https://www.imdb.com/) ids.
 4. `rankEntities` scores the items by year fit, database ids, and search order; `matchEvidenceOf` must accept the article text.
-5. With a key, the TMDB id gives the pictures; else the Wikipedia article image is the result.
+5. With a key, the TMDB id gives the pictures; else the Wikipedia article image is the result. When the TMDB call fails, the Wikipedia image is stored for `6 h` only, so TMDB is asked again.
 6. With a key and no Wikidata match, a TMDB search (`/search/movie`, `/search/tv`, or `/search/multi`) runs for each title variant.
 
 `matchEvidenceOf` compares the hints with a candidate's text. It rejects a candidate on a year mismatch or on cast names that do not appear. It accepts a candidate on a cast name, a year within one, or shared proper nouns and distinctive words; else the result is `no-evidence`. TMDB gives up to `8` pictures per kind (`MAX_TMDB_PICTURES`): backdrops at `original` and posters at `w780`, English first.
 
 ### Lookup caches
 
-| Store                       | Table                                    | Hit    | Miss                                  |
-| --------------------------- | ---------------------------------------- | ------ | ------------------------------------- |
-| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d`                                 |
-| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without |
-| **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                 |
-| Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`                                 |
+| Store                       | Table                                    | Hit    | Miss                                                               |
+| --------------------------- | ---------------------------------------- | ------ | ------------------------------------------------------------------ |
+| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d`                                                              |
+| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without                              |
+| **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                                              |
+| Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`; `6 h` for a film with no guide details (`no-guide-details`) |
 
 - Keys start with `wide-v1:` and hold the mode (`tmdb` with a key, `open` without), the kind, and the title key; stored external ids end the key.
-- An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old.
+- An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old. A refresh with no guide hints, no year, and no stored external ids that finds nothing counts as a failure, so it never replaces a hit.
 - A failed lookup is not stored; the key waits `10` min in memory.
 - Routes wait for a lookup within a budget, then answer pending: `1.5 s` for guide images and for ratings, `3 s` for a show picture, `6 s` for the **Change picture** list.
 
@@ -1206,9 +1247,9 @@ Picture focus stores a face box or a focus point for each picture URL, so the cl
 | Circuit breaker | `5` failures in a row open the breaker for `60 s`, doubling per trip up to `30` min                                                   |
 | User-Agent      | `Freetvarr (https://github.com/furey/freetvarr)` ([Wikimedia policy](https://foundation.wikimedia.org/wiki/Policy:User-Agent_policy)) |
 
-Errors name the host and the status, never the address, so a TMDB key never reaches a log. `src/genre-enrichment.js`, `src/known-as.js`, `src/show-artwork.js`, and `fetchProgrammeImage` call [axios](https://axios-http.com/docs/intro) directly.
+Errors name the host and the status, never the address, so a TMDB key never reaches a log. Every TVmaze API call goes through `artworkClient`, including genre searches and AKA lookups (as background requests) and image lists. Wikidata calls in `src/genre-enrichment.js` and `src/known-as.js`, the Plex section lists in `src/show-artwork.js`, and `fetchProgrammeImage` call [axios](https://axios-http.com/docs/intro) directly.
 
-`src/lookup-gate.js` limits lookups for titles that Freetvarr does not know. A title is known when it is in the guide, `guide_programs`, `recordings`, or `watchlist`. Unknown titles may start `60` lookups an hour (`UNKNOWN_TITLE_BUDGET`); a refused lookup answers `none`.
+`src/lookup-gate.js` limits lookups for titles that Freetvarr does not know. A title is known when it is in the guide, `guide_programs`, `recordings`, `watchlist`, or `library_items` (`show_title`, and `title` for items that are not episodes). Unknown titles may start `60` lookups an hour (`UNKNOWN_TITLE_BUDGET`); a refused lookup answers `none`.
 
 `src/cache-prune.js` runs `10` min after start, then daily. It deletes rows of the lookup tables whose `expires_at` is more than `90 d` past, then keeps the newest `20000` rows per table. `src/link-health.js` checks each link host at most every `5` min; links to a host that is down become `null`.
 
@@ -1240,7 +1281,7 @@ Errors name the host and the status, never the address, so a TMDB key never reac
 A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+` (`CLASSIFICATIONS` in `src/classification-labels.js`).
 
 - `serveShiftedFeed` records the `<rating>` and `<category>` of each XMLTV programme while TVHeadend reads `/guide/xmltv.xml`. It prefers an Australian rating system.
-- The labels go in `programme_classifications` and `programme_categories` (`title_key`, `start_ms`). Rows older than `3 d` are deleted after each feed load.
+- The labels go in `programme_classifications` and `programme_categories` (`title_key`, `start_ms`, `shift_hours`). A +1 copy stores its label with `shift_hours` `1`, so it never replaces the base channel's label at the same time. Readers, including the sync and upcoming timers, take `shift_hours` from the channel name (`timeshiftHours`). Rows older than `3 d` are deleted after each feed load.
 - `fallbackClassification` uses the TVHeadend rating label, else maps the TVHeadend age `15` to `MA15+` and `18` to `R18+`.
 - The sync stores the label in `recordings.classification` and keeps the first label. Each prune copies labels into recordings with a `null` label.
 - Guide cells, live now and next, upcoming recordings, For you items, library rows, and episode rows carry `classification`. Scores and reviews are not part of list payloads.
@@ -1252,12 +1293,13 @@ A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`
 | Route                                                         | Does                                                                                                                                            |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /api/discover-plex`                                     | GDM discovery: a UDP broadcast to port `32414`, replies collected for `2 s` ([Plex GDM](https://developer.plex.tv/pms/)); needs host networking |
-| `POST /api/plex-detect-token`                                 | Reads `PlexOnlineToken` from `Preferences.xml` and saves it as `plex_token`                                                                     |
+| `POST /api/plex-detect-token`                                 | Reads `PlexOnlineToken` from `Preferences.xml`, saves it as `plex_token` with `plex_token_scope = 'this-machine'`, and returns `plex_token_set` |
 | `POST /api/plex-sections`                                     | Lists the sections (`key`, `title`, `type`, `locations`)                                                                                        |
 | `POST /api/plex-libraries`, `POST /api/plex-libraries/create` | Plans and creates one library each for the TV (`TV Shows`), one-off (`One-offs`), and movies (`Movies`) roots, and saves the section ids        |
 | `POST /api/plex-refresh`                                      | Starts a section refresh                                                                                                                        |
 
-- The path of `Preferences.xml` is the setting `plex_prefs_path`, else `PLEX_PREFS_PATH`, else `/plex/Library/Application Support/Plex Media Server/Preferences.xml`.
+- The path of `Preferences.xml` is the setting `plex_prefs_path`, else `PLEX_PREFS_PATH`, else `/plex/Library/Application Support/Plex Media Server/Preferences.xml`. The file name must be `Preferences.xml` or end in `-preferences.xml`.
+- `storedPlexTokenFor(url)` gives the stored token to a URL only under the rules in [Secret binding](#secret-binding); otherwise the route answers `Paste the Plex token for this server.`
 - Requests to Plex use axios with a `5 s` timeout; a section item list uses `15 s`.
 - After a sync, each kind with an import refreshes its section with `GET /library/sections/<id>/refresh`: TV through `notifyPlexSectionRefresh`, one-offs and films through `refreshSection`. With no URL, token, or section, the result is `{ skipped: true, reason: 'plex not configured' }`.
 
@@ -1268,7 +1310,7 @@ A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`
 - Rows that take part: imported `done` or `partial` recordings that are not deleted, and items in the three Plex sections.
 - `matchPlexItem` in `src/library-actions.js` scores a Plex item by the shared trailing path segments with the recording file. An ambiguous match takes no part.
 - Triggers: the end of a sync, a watched or position change (after `10 s`), the Library opening (at most every `2` min), a settings change, and **Sync watched now** (`POST /api/plex/watch-sync/run`). One run executes at a time; requests during a run join one queued run.
-- A full pass reads every section item, `500` per page. It runs for a manual trigger, on the first run, when the last full pass is `24 h` old, or after `1 h` when rows lack a snapshot. A quick pass reads items viewed since the last run less `2` min.
+- A full pass reads every section item, `500` per page, up to `400` pages (`MAX_PAGES`). It runs for a manual trigger, on the first run, when the last full pass is `24 h` old, or after `1 h` when rows lack a snapshot. A quick pass reads items viewed since the last run less `2` min.
 
 `plex_watch_state` stores one snapshot per recording: `rating_key`, `plex_watched`, `plex_offset_s`, `ft_watched`, `ft_position_s`, and `synced_at`. The plan for a row:
 
@@ -1280,16 +1322,19 @@ A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`
 | End margin              | A Plex resume point within `30 s` of the end marks the recording watched                                                          |
 | Toggles                 | `plex_watch_from_plex` and `plex_watch_to_plex` (both on) block writes to one side                                                |
 
+A copy from Plex updates a recording only when its `watched_at` and `playback_position_s` still match what the run read; otherwise that row waits for the next run. When `/library/metadata` answers `404` for a batch, the client asks for each key alone and drops the keys that answer `404`. The run finishes, and `fullPassDue` in the status makes the next run a full pass.
+
 Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a time. When Plex does not answer, automatic runs wait `5` min doubling up to `2 h`. A `401` stops automatic runs until the token changes. The status is in the setting `plex_watch_status`; `GET` and `PUT /api/plex/watch-sync` read it and set the toggles.
 
 ### Whole library
 
 `createLibraryScan` in `src/plex-library-scan.js` runs at the end of each watched sync when the setting `plex_whole_library` is not `false`. The sections are in `plex_library_sections` (default: the TV and movies sections; never the one-off section).
 
-- Each Plex file part becomes a `library_items` row (`rating_key`, `part_id`). A full pass deletes rows that it did not see. `recording_id` is set when the file is a Freetvarr recording.
-- `localPathOf` in `src/plex-library.js` maps a Plex path to a local path by the root folder names.
+- Each Plex file part becomes a `library_items` row (`rating_key`, `part_id`). A full pass deletes rows that it did not see, except in a section that stopped at `MAX_PAGES`; that section keeps its unseen rows, and the run log warns. `recording_id` is set when the file is a Freetvarr recording.
+- `localPathOf` in `src/plex-library.js` maps a Plex path to a local path by the root folder names. A recording also links to a Plex file whose path ends with the recording's path below its library root (at least `2` segments).
+- Files deleted through Freetvarr stay out of `library_items` for `30` min, in memory, so a scan before Plex notices the delete does not save them again.
 - The scan links each row with no `recording_id` to its Sonarr or Radarr manager, and writes Plex and Sonarr GUIDs to `external_ids`.
-- `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Any other item becomes a row with the id `plex-<ratingKey>`.
+- `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Only a recording with a playable file (`done` or `partial`, no `library_state`) takes the Plex episode; a `failed` or `skipped` recording of that episode is dropped and the Plex episode stays. Any other item becomes a row with the id `plex-<ratingKey>`.
 - A watched mark or resume point on a `plex-` row sets `pending_push` (`scrobble`, `unscrobble`, or `progress`); the next scan sends it.
 
 `GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`.
@@ -1298,9 +1343,9 @@ Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a t
 
 Sonarr and Radarr link to Freetvarr in three places: the settings routes, the library scan, and the delete flow. The user guide covers the setup ([Sonarr and Radarr](/guide/sonarr-radarr)).
 
-`src/arr-client.js` calls the v3 API of each app with the header `X-Api-Key`. Reads time out after `8 s` with `1` retry; writes time out after `15 s` with no retry. A `401` gives an `ArrError` of kind `key`, `404` gives `missing`, and `409` gives `conflict`. `arrClientFor` in `src/arr-store.js` caches one client and one circuit breaker per `<url>|<apiKey>`.
+`src/arr-client.js` calls the v3 API of each app with the header `X-Api-Key`. Reads time out after `8 s` with `1` retry and a `20 MB` limit; the full series and movie lists get `60 s` and `200 MB`. Writes time out after `15 s` with no retry. A `401` gives an `ArrError` of kind `key`, `404` gives `missing`, and `409` gives `conflict`. `arrClientFor` in `src/arr-store.js` caches one client and one circuit breaker per `<url>|<apiKey>`.
 
-The settings are `sonarr_url`, `radarr_url`, `sonarr_api_key`, `radarr_api_key`, and `arr_unmonitor_on_delete` (**Stop downloading it again**, default on). Without a saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `SONARR_CONFIG_PATH` or `RADARR_CONFIG_PATH`.
+The settings are `sonarr_url`, `radarr_url`, `sonarr_api_key`, `radarr_api_key`, and `arr_unmonitor_on_delete` (**Stop downloading it again**, default on). Without a saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `SONARR_CONFIG_PATH` or `RADARR_CONFIG_PATH`. The `config.xml` key goes only to a URL on this machine (loopback, `host.docker.internal`, the app's container name, or a local interface address) at the `config.xml` port. A saved URL with a new origin and no key in the same request empties the saved key.
 
 | Route                     | Does                                                                                                                                                                            |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1333,13 +1378,14 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 | Similarity | `src/for-you-similarity.js`, `src/for-you-engine.js` | Compares programme texts by [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) or by embedding vectors |
 | Upkeep     | `src/for-you-service.js`                             | Runs the embeddings and genre lookups once a day                                                     |
 
-- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `thumb_up`, `thumb_down`, and `programme_opened`.
-- The setting `viewing_history_enabled` stops all writes when `false`. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
+- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `not_interested_undo`, `thumb_up`, `thumb_down`, `thumb_clear`, and `programme_opened`.
+- `thumb_clear` empties both thumbs of a show; the client sends it when a thumb turns off, and **Show again** writes it with `not_interested_undo` when the newest thumb is down. **Hidden shows** lists `not_interested` shows of the last `90` days and shows whose newest thumb is down.
+- The setting `viewing_history_enabled` stops writes when `false`, except the choices in `CHOICE_KINDS` (`not_interested`, `thumb_up`, `thumb_down`, `thumb_clear`). A feedback post with a choice flushes the events, forgets the cached For you result, and rebuilds the Home hero. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
 - `profileOf` decays each event with a half-life of `60` days. A show with `3` or more starts, under `15%` finished, and no thumbs up is abandoned and keeps `0.3` of its affinity.
 - Fewer than `5` engaged shows (`COLD_START_SHOWS`) give a cold start: sections `premieres`, `top-rated`, and `movies`. A warm response adds `coming-up`, `new-seasons`, and `might-like`.
 - `src/top-rated.js` weights a film score as `(votes / (votes + 1000)) * score + (1000 / (votes + 1000)) * 6.5`, and keeps at most `10` films.
 - `scoreAiring` adds weighted features (`affinity`, `interest`, `new-season`, `back`, `premiere`, `habit`, `hour`, `genre`, `similar`, `pinned`, `prime`, `image`) and applies a penalty for dismissals and thumbs down.
-- `src/genre-enrichment.js` stores TVmaze and Wikidata genres in `title_genres` when the setting `for_you_genre_lookup` is on.
+- `src/genre-enrichment.js` stores TVmaze and Wikidata genres in `title_genres` when the setting `for_you_genre_lookup` is on. `lookupOrderOf` merges the entries of one title, so a title that airs as a film is looked up on Wikidata even when it is also a recording or an event. A film miss stores a miss and never falls back to a TVmaze series. A run stops after `5` failed lookups in a row.
 
 `similar` uses one of three levels:
 
@@ -1349,7 +1395,7 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 | `standard` | Embeddings through [`@huggingface/transformers`](https://huggingface.co/docs/transformers.js) in a child process (`src/for-you-embed-worker.js`) | [`Xenova/all-MiniLM-L6-v2`](https://huggingface.co/Xenova/all-MiniLM-L6-v2), `q8`, `384` dimensions   |
 | `plus`     | Embeddings from Ollama when it lists an embedding model, else the local model                                                                    | [`Xenova/bge-small-en-v1.5`](https://huggingface.co/Xenova/bge-small-en-v1.5), `q8`, `384` dimensions |
 
-`src/for-you-capability.js` picks the level: `plus` when Ollama lists an embedding model; `basic` when the ONNX runtime does not load, free memory is under `400 MB`, or the daily texts take over `300 s`; `plus` when the `standard` time times `2.5` is under `120 s`; else `standard`. The setting `for_you_tier_override` forces a level. The embeddings are cached in `text_embeddings`; the model files download into `models/` on first use.
+`src/for-you-capability.js` picks the level: `plus` when Ollama lists an embedding model; `basic` when the ONNX runtime does not load, free memory is under `400 MB`, or the daily texts take over `300 s`; `plus` when the `standard` time times `2.5` is under `120 s`; else `standard`. The setting `for_you_tier_override` forces a level. The embeddings are cached in `text_embeddings`; the model files download into `models/` on first use. When the level changes during an embed run, another run starts with the new model as soon as the first ends (`createLatestRun`, up to `3` runs).
 
 `runForYouUpkeep` runs on each cron tick. It starts upkeep when none has run, the last run is over `36 h` old, or the local hour is `2–5` and the last run was on another day. The service builds the For you result `3 s` after startup and after each guide load.
 
@@ -1430,20 +1476,21 @@ The recent list keeps finished jobs for `24 h` and failed jobs for `7` days, in 
 
 `runDoctor` runs `tvh.reach`, then `tvh.auth`, then the other checks in parallel. A check that needs TVHeadend gets `skip` unless both first checks pass or warn. Each check returns `status` (`pass`, `warn`, `fail`, or `skip`), `detail`, `fix`, and an optional `action`, with an `8 s` timeout (`DEFAULT_TIMEOUT_MS`).
 
-| Id                                                                 | Checks                                                                                                                           |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `tvh.reach`, `tvh.auth`, `tvh.rights`, `tvh.open`                  | TVHeadend answers (`warn` below API version `19`); the login works; the rights probes answer without `403`; no open admin entry  |
-| `tvh.tuners`, `tvh.channels`                                       | At least one tuner turned on; at least one channel                                                                               |
-| `guide.depth`, `guide.logos`                                       | `fail` when the guide ends within `12 h`, `warn` within `48 h`; share of channels with an icon                                   |
-| `paths.recordings`, `paths.match`, `paths.media`, `paths.hardlink` | Readable recordings folder; DVR profile path equals `tvh_recordings_path`; writable media folder; imports hardlink               |
-| `disk.free`                                                        | `fail` under `10 GB` free; `warn` under `20 GB` or `10%`                                                                         |
-| `plex.reach`, `plex.oneoffs`                                       | The TV section exists and reads the media folder; `warn` when the Plex one-off library has items and the one-off folder has none |
-| `sync.health`                                                      | The cron schedule runs; the last sync is not `error` or `partial`                                                                |
-| `live.encoder`, `live.streams`                                     | `ffmpeg` on the `PATH`; the stream limit is not above the benchmark                                                              |
-| `ads.comskip`                                                      | `comskip`, `ffmpeg`, and `ffprobe` on the `PATH` when ad removal is on                                                           |
-| `host.env`                                                         | A known time zone and a LAN address                                                                                              |
+| Id                                                                                  | Checks                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tvh.reach`, `tvh.auth`, `tvh.rights`, `tvh.open`                                   | TVHeadend answers (`warn` below API version `19`); the login works; the rights probes answer without `403`; no open admin entry                                               |
+| `tvh.tuners`, `tvh.channels`                                                        | At least one tuner turned on; at least one channel                                                                                                                            |
+| `tvh.rules`                                                                         | `warn` when the [series rule title change](#series-rule-title-change) failed for a rule (read from the setting `autorec_anchor_failed`, no TVHeadend call)                    |
+| `guide.depth`, `guide.logos`                                                        | `fail` when the guide ends within `12 h`, `warn` within `48 h`; share of channels with an icon                                                                                |
+| `paths.recordings`, `paths.match`, `paths.media`, `paths.mounted`, `paths.hardlink` | Readable recordings folder; DVR profile path equals `tvh_recordings_path`; writable media folder; no library folder empty while imported rows point into it; imports hardlink |
+| `disk.free`                                                                         | `fail` under `10 GB` free; `warn` under `20 GB` or `10%`                                                                                                                      |
+| `plex.reach`, `plex.oneoffs`                                                        | The TV section exists and reads the media folder; `warn` when the Plex one-off library has items and the one-off folder has none                                              |
+| `sync.health`                                                                       | The cron schedule runs; the last sync is not `error` or `partial`                                                                                                             |
+| `live.encoder`, `live.streams`                                                      | `ffmpeg` on the `PATH`; the stream limit is not above the benchmark                                                                                                           |
+| `ads.comskip`                                                                       | `comskip`, `ffmpeg`, and `ffprobe` on the `PATH` when ad removal is on                                                                                                        |
+| `host.env`                                                                          | A known time zone and a LAN address                                                                                                                                           |
 
-Each id links to its guide section, for example [`/guide/doctor#tvh-reach`](/guide/doctor#tvh-reach). `getDoctorReport` caches the report for `15 s`. `scheduleDoctorChecks` runs a fresh report `2` min after startup and every `3 h`. `GET /api/doctor` returns the report (`?fresh=1` skips the cache), and `npm run doctor` (`scripts/doctor.mjs`) prints it and exits `1` when a check fails.
+Each id links to its guide section, for example [`/guide/doctor#tvh-reach`](/guide/doctor#tvh-reach). `getDoctorReport` caches the report for `15 s`. `scheduleDoctorChecks` runs a fresh report `2` min after startup and every `3 h`, with the same live encoder and stream readings as `GET /api/doctor`. `guide.depth` also warns when the enabled XMLTV URL grabber reads a Freetvarr feed address with another host or port than Freetvarr now has, and names both. `GET /api/doctor` returns the report (`?fresh=1` skips the cache), and `npm run doctor` (`scripts/doctor.mjs`) prints it and exits `1` when a check fails.
 
 `getHealthSummary` (`src/health-summary.js`) builds one level (`ok`, `warn`, or `fail`) from the TVHeadend connection, failed recordings in the last day, the last sync, and the doctor checks of the last `6 h`. It is cached for `10 s` and served at `GET /api/health-summary`. `src/web-assets.js` inlines it into `index.html` as `<meta name="freetvarr-health">`; the client then polls every `60 s`.
 
@@ -1513,12 +1560,14 @@ The secret comes from `CSRF_SECRET` when set; a value under `32` characters logs
 
 ### Rate limits
 
-[`express-rate-limit`](https://express-rate-limit.mintlify.app/overview) runs each limiter per client address with a window of `60 s`.
+[`express-rate-limit`](https://express-rate-limit.mintlify.app/overview) runs each limiter per client address with a window of `60 s`. `createRateLimiter` in `src/rate-limits.js` builds every limiter; a refused request gets `429` with the JSON body `{ error, code: 'rate-limited' }`. In the web client, `src/web/shared/request-errors.js` turns a `429` with no JSON into the same plain message, and a request that cannot reach the server into an error with `status` `0` and `code` `offline`.
 
 | Limiter                                      | Limit      | Routes                                                                                                                                                                      |
 | -------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `syncLimiter`                                | `5`        | `POST /api/sync`, recording library and TVHeadend-delete routes, ad-scan and restore, TVHeadend test, detect, and path check, Plex discovery and library create             |
-| `epgLimiter`                                 | `20`       | Record and cancel routes, library rule and delete routes, Plex, Sonarr, and Radarr settings, watchlist, artwork-choice writes, TMDB key, nicknames, programme kind, For you |
+| `syncLimiter`                                | `5`        | `POST /api/sync`, `POST /api/reset`                                                                                                                                         |
+| `rowActionLimiter`                           | `30`       | Recording library (import) and TVHeadend-delete routes, ad-scan and restore                                                                                                 |
+| `setupCheckLimiter`                          | `20`       | TVHeadend test, detect, shows list, and path check, Plex discovery and library create                                                                                       |
+| `epgLimiter`                                 | `60`       | Record and cancel routes, library rule and delete routes, Plex, Sonarr, and Radarr settings, watchlist, artwork-choice writes, TMDB key, nicknames, programme kind, For you |
 | `liveLimiter`                                | `20`       | `POST /api/live`, the stream limit routes, `POST /api/live/benchmark`                                                                                                       |
 | `playLimiter`                                | `30`       | Playback start and From the start                                                                                                                                           |
 | `playPingLimiter`                            | `120`      | Position, heartbeat, attention, watched marks, viewing history                                                                                                              |
@@ -1532,13 +1581,27 @@ The secret comes from `CSRF_SECRET` when set; a value under `32` characters logs
 
 - The terminal error handler responds with `err.statusCode`, `err.status`, or `500` and `{ "error": <message> }`. It never sends a stack trace.
 - A `process.on('unhandledRejection')` handler logs the reason and does not exit.
-- `POST /api/shows` and `PATCH /api/shows/:id` reject `dest_folder` and `season_template` values that start with `/` or `\` or contain `..`. Import paths go through `guardWithinRoot`.
+- `POST /api/shows` and `PATCH /api/shows/:id` reject `dest_folder` and `season_template` values that start with `/` or `\` or contain `..`, and an empty, blank, or `.` `show_pattern` or `dest_folder` (`showFieldErrorOf` in `src/show-fields.js`). Import paths go through `guardWithinRoot`.
 - Live and playback file routes accept only a `16`-hex session id and the HLS file names.
 - Library delete checks each target against the library roots with `realpath` and `lstat` ([Library delete](#library-delete)).
+- `POST /api/settings` checks each root it changes (`rootSettingsProblem` in `src/path-check.js`). `media_root`, `oneoff_root`, `movies_root`, and `recordings_root` must be absolute, existing folders, and not `/`, `/etc`, `/proc`, `/sys`, `/dev`, `/app`, the config folder, a folder inside it, or a parent of it. `tvh_recordings_path` must be absolute and not `/`. A failure gives `400` with `{ field, error }` and saves nothing.
+- Image routes send only JPEG, PNG, WebP, or GIF, with the type read from the image bytes, never from the upstream header, and add `Content-Security-Policy: default-src 'none'; sandbox`. Anything else answers `404`. TVHeadend images and channel logos may be SVG (up to `1 MB`); `createThumbnailStore` renders an SVG with `sharp` to WebP at the requested width, with the density capped between `1` and `2400` dpi, so only raster pixels leave Freetvarr. An SVG with a filter (a `<filter>` element, or a `filter` attribute or style) is refused unrendered. SVG renders run one at a time (`createRenderQueue`), with up to `20` waiting; a request past that answers `404` and is not marked as failed. Any other body that holds an `<svg>` tag never reaches `sharp`. A thumbnail that cannot be resized gives no image, and the store skips that thumbnail for `10` min.
 
 ### Credential storage
 
-The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sonarr and Radarr keys, and the TMDB key are plain text in the `settings` table. The read routes return booleans (`tvh_password_set`, `plex_token_set`, `hasKey`, `key_set`), never the values.
+The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sonarr and Radarr keys, and the TMDB key are plain text in the `settings` table. The read routes return booleans (`tvh_password_set`, `plex_token_set`, `hasKey`, `key_set`), never the values. At startup the server sets mode `0600` on `state.db`, `state.db-wal`, and `state.db-shm`.
+
+### Secret binding
+
+`src/url-binding.js` holds `sameOrigin(a, b)` (scheme, lowercase host, and port; the path and a trailing slash do not count) and `isThisMachineHost(host)` (loopback, `host.docker.internal`, or an address from `os.networkInterfaces()`). Each stored secret goes only to the URL it was saved with:
+
+| Secret                             | Sent to                                                                                                                    | Address change with no secret in the request                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tvh_password`                     | A URL with the origin of `tvh_url`                                                                                         | `POST /api/settings` and a passing `POST /api/tvh-test` delete it and return `cleared: ['tvh_password']`                                        |
+| `plex_token`                       | No `plex_token_scope`: a URL with the origin of `plex_url`. Scope `this-machine` (a detected token): a URL on this machine | `POST /api/settings` keeps it when the new URL passes the rule and then clears the scope; else deletes it and returns `cleared: ['plex_token']` |
+| `sonarr_api_key`, `radarr_api_key` | The saved URL; the `config.xml` key only to a URL on this machine at the `config.xml` port                                 | `PUT /api/arr` empties the saved key and returns `cleared: ['sonarr_api_key']` or `['radarr_api_key']`                                          |
+
+A secret typed in the same request is always used as sent. A move between two addresses that are both on this machine keeps an unscoped Plex token and a saved Sonarr or Radarr key (`keepsSecretBinding`). `GET /api/settings` reports `plex_token_set` from the bound token (`storedPlexToken`), so a detected token that no saved URL can use shows as not set. After a save that returns `cleared`, Settings shows `Saved. Enter the <secret> again for the new address.` in a toast that stays until the user closes it (`clearedSecretToastOf` in `src/web/save-notice.js`), and the wizard Plex step stays open with that line under the token field. A refused root folder marks its field in Settings with the error (`rootFieldErrorOf`).
 
 ### Supply chain
 
@@ -1548,6 +1611,8 @@ The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sona
 | Install       | `npm ci` from the committed `package-lock.json`                                                                              |
 | Native builds | `npm run rebuild:natives` rebuilds only `better-sqlite3` with `--ignore-scripts=false`                                       |
 | Signatures    | `npm run setup` ends with `npm audit signatures`                                                                             |
+| Actions       | Every `uses:` names a full commit SHA with the tag in a comment; `test/workflow-pins.test.js` fails on a tag-only line       |
+| Updates       | `.github/dependabot.yml` opens weekly pull requests for the `github-actions` ecosystem                                       |
 
 ## Full environment reference
 
@@ -1555,27 +1620,27 @@ The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sona
 
 Process code reads these variables. For path variables, a stored setting wins, then the variable, then the default.
 
-| Variable                                   | Default                                                               | Meaning                                                                            |
-| ------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `PORT`                                     | `3733`                                                                | HTTP port                                                                          |
-| `DB_PATH`                                  | `<repo>/config/state.db`                                              | SQLite file; its folder is the config folder ([Config folder](#config-folder))     |
-| `ARTWORK_PATH`                             | `<config folder>/artwork`                                             | Folder for saved artwork                                                           |
-| `TZ`                                       | Unset                                                                 | Time zone fallback ([Time zone](#time-zone))                                       |
-| `CSRF_SECRET`                              | Unset                                                                 | Replaces the generated secret file ([CSRF](#csrf))                                 |
-| `TVH_URL`                                  | Unset                                                                 | `detectServers` returns this address and probes nothing                            |
-| `MEDIA_ROOT`                               | `/media/tv`                                                           | Default for the setting `media_root` (TV library)                                  |
-| `ONEOFF_ROOT`                              | `/media/one-offs`                                                     | Default for the setting `oneoff_root`                                              |
-| `MOVIES_ROOT`                              | Empty                                                                 | Default for the setting `movies_root`; empty sends films to the one-off folder     |
-| `RECORDINGS_ROOT`                          | `/recordings`                                                         | Default for the setting `recordings_root` (TVHeadend files as Freetvarr sees them) |
-| `TVH_RECORDINGS_PATH`                      | `/recordings`                                                         | Default for the setting `tvh_recordings_path` (the prefix TVHeadend reports)       |
-| `PLEX_PREFS_PATH`                          | `/plex/Library/Application Support/Plex Media Server/Preferences.xml` | Plex `Preferences.xml` for token detection                                         |
-| `SONARR_CONFIG_PATH`, `RADARR_CONFIG_PATH` | `/sonarr-config.xml`, `/radarr-config.xml`                            | The app `config.xml` for the API key, port, and URL base                           |
-| `LIVE_TV_BUFFER_MINUTES`                   | `30`                                                                  | Minutes of live TV kept for pause and rewind; clamped to `0–120`                   |
-| `LIVE_TV_TRANSCODE`                        | `auto`                                                                | `auto`, `hardware`, `software`, or `copy`                                          |
-| `LIVE_TV_VAAPI_DEVICE`                     | `/dev/dri/renderD128`                                                 | VAAPI render device                                                                |
-| `LIVE_TV_MAX_SESSIONS`                     | Unset                                                                 | Cap on live streams and recording playbacks ([Stream limit](#stream-limit))        |
-| `IMAGE_CACHE_MAX_MB`                       | `100`                                                                 | Megabytes of resized images in `image-cache/`                                      |
-| `PATH`                                     | System                                                                | The health checks search it for `comskip`, `ffmpeg`, and `ffprobe`                 |
+| Variable                                   | Default                                                               | Meaning                                                                                                                                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                     | `3733`                                                                | HTTP port                                                                                                                                                                                                                                                     |
+| `DB_PATH`                                  | `<repo>/config/state.db`                                              | SQLite file; its folder is the config folder ([Config folder](#config-folder))                                                                                                                                                                                |
+| `ARTWORK_PATH`                             | `<config folder>/artwork`                                             | Folder for saved artwork                                                                                                                                                                                                                                      |
+| `TZ`                                       | Unset                                                                 | Time zone fallback ([Time zone](#time-zone))                                                                                                                                                                                                                  |
+| `CSRF_SECRET`                              | Unset                                                                 | Replaces the generated secret file ([CSRF](#csrf))                                                                                                                                                                                                            |
+| `TVH_URL`                                  | Unset                                                                 | `detectServers` returns this address and probes nothing                                                                                                                                                                                                       |
+| `MEDIA_ROOT`                               | `/media/tv`                                                           | Default for the setting `media_root` (TV library)                                                                                                                                                                                                             |
+| `ONEOFF_ROOT`                              | `/media/one-offs`                                                     | Default for the setting `oneoff_root`                                                                                                                                                                                                                         |
+| `MOVIES_ROOT`                              | Empty                                                                 | Default for the setting `movies_root`; empty sends films to the one-off folder. Saving an empty `movies_root` deletes the setting and sets `last_movies_root` to this value (or deletes it when this is empty), so `rebaseFilePaths` leaves filed films alone |
+| `RECORDINGS_ROOT`                          | `/recordings`                                                         | Default for the setting `recordings_root` (TVHeadend files as Freetvarr sees them)                                                                                                                                                                            |
+| `TVH_RECORDINGS_PATH`                      | `/recordings`                                                         | Default for the setting `tvh_recordings_path` (the prefix TVHeadend reports)                                                                                                                                                                                  |
+| `PLEX_PREFS_PATH`                          | `/plex/Library/Application Support/Plex Media Server/Preferences.xml` | Plex `Preferences.xml` for token detection                                                                                                                                                                                                                    |
+| `SONARR_CONFIG_PATH`, `RADARR_CONFIG_PATH` | `/sonarr-config.xml`, `/radarr-config.xml`                            | The app `config.xml` for the API key, port, and URL base                                                                                                                                                                                                      |
+| `LIVE_TV_BUFFER_MINUTES`                   | `30`                                                                  | Minutes of live TV kept for pause and rewind; clamped to `0–120`                                                                                                                                                                                              |
+| `LIVE_TV_TRANSCODE`                        | `auto`                                                                | `auto`, `hardware`, `software`, or `copy`                                                                                                                                                                                                                     |
+| `LIVE_TV_VAAPI_DEVICE`                     | `/dev/dri/renderD128`                                                 | VAAPI render device                                                                                                                                                                                                                                           |
+| `LIVE_TV_MAX_SESSIONS`                     | Unset                                                                 | Cap on live streams and recording playbacks ([Stream limit](#stream-limit))                                                                                                                                                                                   |
+| `IMAGE_CACHE_MAX_MB`                       | `100`                                                                 | Megabytes of resized images in `image-cache/`                                                                                                                                                                                                                 |
+| `PATH`                                     | System                                                                | The health checks search it for `comskip`, `ffmpeg`, and `ffprobe`                                                                                                                                                                                            |
 
 `NODE_ENV` is `production` in the image and in compose; Express reads it, `src/` does not.
 

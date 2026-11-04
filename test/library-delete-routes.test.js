@@ -11,10 +11,11 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db } = await import('../src/db.js')
 const { mountLibraryDeleteRoutes } = await import('../src/library-delete-routes.js')
+const { startSync, getActiveSyncId } = await import('../src/sync.js')
 
 const MEDIA_ROOT = path.join(tmpDir, 'media')
 const RECORDINGS_ROOT = path.join(tmpDir, 'recordings')
-const fake = { finished: [], active: [], posts: [], arr: [], sonarrFiles: [], sonarrDeleteStatus: 200 }
+const fake = { finished: [], active: [], posts: [], arr: [], sonarrFiles: [], sonarrDeleteStatus: 200, holdRemove: null }
 
 let fakeServer
 let fakeUrl
@@ -45,8 +46,9 @@ const SONARR_KEY = 'a'.repeat(32)
 const connectSonarr = (url) => db('settings').insert([{ key: 'sonarr_url', value: url }, { key: 'sonarr_api_key', value: SONARR_KEY }])
 
 before(async () => {
-  fakeServer = http.createServer((req, res) => {
+  fakeServer = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x')
+    if (url.pathname === '/api/dvr/entry/remove' && fake.holdRemove) await fake.holdRemove
     if (url.pathname.startsWith('/sonarr/')) return answerSonarr({ req, res, url })
     if (req.method === 'POST' || url.pathname.endsWith('/refresh')) fake.posts.push(url.pathname)
     const bodies = {
@@ -90,6 +92,7 @@ beforeEach(async () => {
   fake.arr = []
   fake.sonarrFiles = []
   fake.sonarrDeleteStatus = 200
+  fake.holdRemove = null
   await db('settings').whereIn('key', ['sonarr_url', 'sonarr_api_key']).delete()
   await db('recordings').delete()
   await db('library_items').delete()
@@ -216,6 +219,54 @@ test('delete: removes library files and TVHeadend recordings, purges the rows an
     assert.equal(r.library_choice, 'exclude')
   }
 })
+
+test('delete: a sync started during a delete waits until the delete finishes', { timeout: 10_000 }, async () => {
+  await importedEpisode({ id: 'a1', episode: 1 })
+  let release
+  fake.holdRemove = new Promise((resolve) => { release = resolve })
+  const order = []
+  const deletion = post('/api/library/delete', { show_key: 'the-block', scope: 'all', expected_count: 1 }).then((reply) => {
+    order.push('deleted')
+    return reply
+  })
+  await waitUntil(() => fake.posts.includes('/api/idnode/save'))
+  const sync = startSync({ trigger: 'cron' }).then((started) => {
+    order.push('sync')
+    return started
+  })
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  assert.deepEqual(order, [])
+  release()
+  const [{ status }, started] = await Promise.all([deletion, sync])
+  assert.equal(status, 200)
+  assert.ok(started.syncId)
+  assert.ok((await db('recordings').where({ recording_id: 'a1' }).first()).purged_at)
+  await waitUntil(() => getActiveSyncId() !== started.syncId)
+})
+
+test('delete: a sync that waits too long behind a delete gives up with a sync error', { timeout: 10_000 }, async () => {
+  await importedEpisode({ id: 'a2', episode: 2 })
+  let release
+  fake.holdRemove = new Promise((resolve) => { release = resolve })
+  const deletion = post('/api/library/delete', { show_key: 'the-block', scope: 'all', expected_count: 1 })
+  await waitUntil(() => fake.posts.includes('/api/idnode/save'))
+  const started = await startSync({ trigger: 'cron', libraryWaitMs: 50 })
+  assert.equal(started.alreadyRunning, false)
+  assert.equal(started.gaveUp, true)
+  const row = await db('syncs').where({ id: started.syncId }).first()
+  assert.equal(row.status, 'error')
+  assert.match(JSON.parse(row.summary_json).errors[0], /library delete or folder rename was still running/)
+  release()
+  assert.equal((await deletion).status, 200)
+})
+
+const waitUntil = async (ready, { timeoutMs = 5000 } = {}) => {
+  const deadline = Date.now() + timeoutMs
+  while (!ready()) {
+    if (Date.now() > deadline) throw new Error('timed out waiting')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+}
 
 test('delete: a changed episode count is a conflict and deletes nothing', async () => {
   const { filePath } = await importedEpisode({ id: 'c1', episode: 1 })

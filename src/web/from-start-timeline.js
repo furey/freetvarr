@@ -32,6 +32,13 @@ export const clampFromStartSeek = ({ value, edgeSeconds }) =>
 export const fromStartEndMsOf = ({ startedAtMs, scaleSeconds }) =>
   (Number.isFinite(startedAtMs) && Number.isFinite(scaleSeconds) ? startedAtMs + scaleSeconds * 1000 : null)
 
+export const FROM_START_MAX_RESTARTS = 2
+
+export const fromStartGoneAction = ({ restarts }) => (restarts < FROM_START_MAX_RESTARTS ? 'restart' : 'end')
+
+export const fromStartResumeSecondsOf = ({ currentTime, savedSeconds, resumeAt }) =>
+  Math.floor(finiteAtLeastZero(currentTime) || finiteAtLeastZero(savedSeconds) || finiteAtLeastZero(resumeAt))
+
 const percentOf = (value, scale) => Math.round((value / scale) * 100_000) / 1000
 
 const finiteAtLeastZero = (value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0)

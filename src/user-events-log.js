@@ -5,6 +5,7 @@ import { listAutorecs, resolveConnection } from './tvheadend.js'
 import { createEventWriter } from './user-event-writer.js'
 import { createWatchTracker } from './watch-tracker.js'
 import {
+  CHOICE_KINDS,
   VIEWING_HISTORY_KEY,
   backfillEventsOf,
   eventRowOf,
@@ -23,7 +24,7 @@ const passThrough = (req, res, next) => next()
 export const BACKFILL_KEY = 'user_events_backfilled_at'
 export const SERIES_BACKFILL_KEY = 'user_events_series_backfilled_at'
 
-export const mountUserEvents = ({ app, csrf, limiter = passThrough }) => {
+export const mountUserEvents = ({ app, csrf, limiter = passThrough, onChoice = () => {} }) => {
   app.get('/api/events/settings', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     const [enabled, summary] = await Promise.all([isViewingHistoryEnabled(), historySummary()])
@@ -39,11 +40,15 @@ export const mountUserEvents = ({ app, csrf, limiter = passThrough }) => {
     res.json({ ok: true, viewing_history_enabled: enabled })
   })
 
-  app.post('/api/events/feedback', limiter, csrf, (req, res) => {
+  app.post('/api/events/feedback', limiter, csrf, async (req, res) => {
     const { events, error } = feedbackEventsFrom(req.body)
     if (error) return res.status(400).json({ error })
-    const logged = events.filter((event) => writer.log(event)).length
-    res.status(202).json({ ok: true, logged })
+    const logged = events.filter((event) => writer.log(event))
+    if (logged.some((event) => CHOICE_KINDS.has(event.kind))) {
+      await writer.flush()
+      onChoice()
+    }
+    res.status(202).json({ ok: true, logged: logged.length })
   })
 
   app.delete('/api/events', limiter, csrf, async (req, res) => {

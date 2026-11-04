@@ -38,6 +38,8 @@ const healthyRoutes = ({ now }) => ({
   '/api/dvr/config/grid': () => fixture('dvr-config-grid'),
   '/api/hardware/tree': (url) => fixture(url.searchParams.get('uuid') === 'root' ? 'hardware-tree-root' : 'hardware-tree-device'),
   '/api/access/entry/grid': () => fixture('access-entry-grid'),
+  '/api/epggrab/module/list': () => ({ entries: [] }),
+  '/api/idnode/load': () => ({ entries: [] }),
 })
 
 const ALLOWED_PATHS = new Set(Object.keys(healthyRoutes({ now: 0 })))
@@ -110,6 +112,8 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     interfaces: () => ({ eth0: [{ family: 'IPv4', address: '192.0.2.5', internal: false }] }),
     dockerVm: () => null,
     uid: () => 1000,
+    libraryRootProblem: async () => null,
+    anchorFailures: async () => [],
     ...overrides,
   }
 }
@@ -124,13 +128,22 @@ const runAgainst = async ({ routes, now = Date.now(), timeoutMs, ...overrides })
 
 const byId = (report) => Object.fromEntries(report.checks.map((c) => [c.id, c]))
 
+test('runDoctor: warns when TVHeadend did not save the whole-title change for a series recording', async () => {
+  const now = Date.now()
+  const anchorFailures = async () => [{ uuid: 'r1', name: 'Chefs Ahoy' }]
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, anchorFailures }))['tvh.rules']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /Chefs Ahoy, so that series recording can still record longer titles/)
+  assert.match(check.fix, /tries again after the next sync/)
+})
+
 const TVH_DEPENDENT = ['tvh.rights', 'tvh.open', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'paths.match']
 
 test('runDoctor: a healthy setup passes every check it can run, reading TVHeadend with GETs only', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 17, warn: 0, fail: 0, skip: 3 })
+  assert.deepEqual(report.summary, { pass: 19, warn: 0, fail: 0, skip: 3 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -287,6 +300,55 @@ test('runDoctor: a guide ending in 6 h fails and one ending in 30 h warns', asyn
   assert.equal(thirty.status, 'warn')
 })
 
+const grabberRoutes = ({ now, args }) => ({
+  ...healthyRoutes({ now }),
+  '/api/epggrab/module/list': () => ({ entries: [{ uuid: 'g1', title: 'XMLTV: XMLTV URL grabber' }] }),
+  '/api/idnode/load': () => ({ entries: [{ params: [{ id: 'enabled', value: true }, { id: 'args', value: args }] }] }),
+})
+
+test('runDoctor: a guide grabber on another Freetvarr address warns and names both addresses', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: grabberRoutes({ now, args: 'http://192.168.1.20:3733/guide/xmltv.xml' }),
+    now,
+    currentGuideFeedUrl: async () => 'http://192.168.1.30:3733/guide/xmltv.xml',
+  })
+  const depth = byId(report)['guide.depth']
+  assert.equal(depth.status, 'warn')
+  assert.match(depth.detail, /192\.168\.1\.20:3733.*192\.168\.1\.30:3733/)
+  assert.match(depth.fix, /guide/i)
+})
+
+test('runDoctor: a failing guide with a stale grabber stays a fail and names both addresses', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...grabberRoutes({ now, args: 'http://192.168.1.20:3733/guide/xmltv.xml' }), '/api/epg/events/grid': () => eventsEndingIn({ now, hours: 6 }) },
+    now,
+    currentGuideFeedUrl: async () => 'http://192.168.1.30:3733/guide/xmltv.xml',
+  })
+  const depth = byId(report)['guide.depth']
+  assert.equal(depth.status, 'fail')
+  assert.match(depth.detail, /192\.168\.1\.20:3733.*192\.168\.1\.30:3733/)
+  assert.match(depth.detail, /runs 6 hrs ahead/)
+  assert.match(depth.fix, /Settings → SYSTEM → Setup and press Guide/)
+})
+
+test('runDoctor: a TVHeadend error while reading the grabber leaves the guide depth result alone', async () => {
+  const now = Date.now()
+  const report = await runAgainst({
+    routes: { ...healthyRoutes({ now }), '/api/epggrab/module/list': refuse(500) },
+    now,
+  })
+  assert.equal(byId(report)['guide.depth'].status, 'pass')
+})
+
+test('runDoctor: a guide grabber on the current Freetvarr address stays a pass', async () => {
+  const now = Date.now()
+  const url = 'http://192.168.1.30:3733/guide/xmltv.xml'
+  const report = await runAgainst({ routes: grabberRoutes({ now, args: url }), now, currentGuideFeedUrl: async () => url })
+  assert.equal(byId(report)['guide.depth'].status, 'pass')
+})
+
 test('runDoctor: a route that never answers fails within the time budget', async () => {
   const now = Date.now()
   const started = Date.now()
@@ -317,6 +379,16 @@ test('runDoctor: imports that copy across separate mounts on one disk warn and n
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /copy each file/)
   assert.match(check.fix, /separate mounts/)
+})
+
+test('runDoctor: an empty library folder that imported recordings point into warns', async () => {
+  const now = Date.now()
+  const libraryRootProblem = async () => 'empty'
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, libraryRootProblem }))['paths.mounted']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /media is empty, but imported recordings point into it\. Syncs skip imports into it\.$/)
+  assert.match(check.fix, /mounted/)
+  assert.match(check.fix, /emptied the folder yourself, or moved the media root, delete those recordings/)
 })
 
 test('runDoctor: a real link between the test folders passes the hardlink check', async () => {

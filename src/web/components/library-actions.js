@@ -1,4 +1,4 @@
-import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, watch } from '/vendor/vue.esm-browser.prod.js'
 import {
   allEpisodesOf,
   deletableEpisodesOf,
@@ -18,7 +18,7 @@ import {
   watchedChangeTargets,
 } from '/library-menus.js'
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
-import { adConfirmOf, adStartedToastOf, restoreConfirmOf, restoredToastOf } from '/ad-confirm.js'
+import { adConfirmOf, adStartedToastOf, freshEpisodeOf, restoreConfirmOf, restoredToastOf } from '/ad-confirm.js'
 import { openPlexLink } from '/components/library-menus.js'
 import { loadNicknames } from '/components/also-known-as.js'
 import { holdAtLeast } from '/pending.js'
@@ -69,6 +69,10 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   }).catch(() => {})
 
   const keyPath = () => `/api/library/shows/${encodeURIComponent(show.value.key)}`
+
+  watch(episodes, (list) => {
+    if (menuEpisode.value) menuEpisode.value = freshEpisodeOf({ episode: menuEpisode.value, episodes: list })
+  })
 
   const openShowMenu = () => { showMenuOpen.value = true }
   const openEpisodeMenu = (episode) => { menuEpisode.value = episode }

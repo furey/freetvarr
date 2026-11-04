@@ -6,11 +6,12 @@ import path from 'path'
 import { db, getSetting } from './db.js'
 import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
-import { countPlexSectionItems, listPlexSections } from './plex.js'
+import { countPlexSectionItems, listPlexSections, storedPlexToken } from './plex.js'
 import { hasOneOffPlaceholder, hasRecordingFiles } from './one-off-placeholder.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
+import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { getGuideSnapshot } from './epg.js'
 import { formatDiskSize } from './web/size-format.js'
@@ -20,6 +21,8 @@ import { describeSyncSchedule } from './web/sync-schedule.js'
 import { detectDockerVm } from './docker-host.js'
 import { measureJob } from './event-loop-lag.js'
 import { activity, trackJob } from './activity.js'
+import { guideFeedUrl, isGuideFeedUrl, localAddressToward, serverPort } from './guide-feed.js'
+import { readAnchorFailures } from './autorec-anchor.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -271,6 +274,21 @@ const LATER_CHECKS = [
     },
   },
   {
+    id: 'tvh.rules',
+    group: 'tvheadend',
+    title: 'Series recordings',
+    doc: 'guide/series#how-a-series-recording-works',
+    run: async (ctx) => {
+      const failed = await ctx.deps.anchorFailures()
+      if (!failed.length) return { status: 'pass', detail: 'Each series recording Freetvarr made matches its whole show title.' }
+      return {
+        status: 'warn',
+        detail: `TVHeadend did not save the whole-title change for ${joinAnd(failed.map((rule) => rule.name))}, so ${failed.length === 1 ? 'that series recording' : 'those series recordings'} can still record longer titles that contain the show title.`,
+        fix: 'Freetvarr tries again after the next sync. If this stays, check the Freetvarr log for the TVHeadend error.',
+      }
+    },
+  },
+  {
     id: 'guide.depth',
     group: 'guide',
     title: 'Guide depth',
@@ -293,6 +311,14 @@ const LATER_CHECKS = [
         guideReach({ lastStopMs, now: ctx.now }),
         ...(coverage?.channels ? [guideListings(coverage)] : []),
       ].join(' ')
+      const staleFeed = await staleGuideFeedOf(ctx)
+      if (staleFeed) {
+        return {
+          status: status === 'pass' ? 'warn' : status,
+          detail: `${staleFeed.detail} ${detail}`,
+          fix: staleFeed.fix,
+        }
+      }
       if (status === 'pass') return { status, detail }
       const shortGuide = !lastStopMs || lastStopMs - ctx.now < GUIDE_WARN_MS
       return {
@@ -392,6 +418,23 @@ const LATER_CHECKS = [
         detail: withFullStop(result.error),
         fix: mediaFolderFix({ result, mediaRoot: ctx.settings.mediaRoot, uid: ctx.deps.uid() }),
         action: SETTINGS_STORAGE,
+      }
+    },
+  },
+  {
+    id: 'paths.mounted',
+    group: 'storage',
+    title: 'Library folders',
+    doc: 'guide/troubleshooting#empty-library-folder',
+    run: async (ctx) => {
+      const roots = [...new Set([ctx.settings.mediaRoot, ctx.settings.oneOffRoot, ctx.settings.moviesRoot].filter(Boolean))]
+      const problems = await Promise.all(roots.map(async (root) => ({ root, problem: await ctx.deps.libraryRootProblem(root) })))
+      const empty = problems.filter(({ problem }) => problem === ROOT_EMPTY).map(({ root }) => root)
+      if (!empty.length) return { status: 'pass', detail: 'No library folder is empty while imported recordings point into it.' }
+      return {
+        status: 'warn',
+        detail: `${joinAnd(empty)} ${empty.length === 1 ? 'is' : 'are'} empty, but imported recordings point into ${empty.length === 1 ? 'it' : 'them'}. Syncs skip imports into ${empty.length === 1 ? 'it' : 'them'}.`,
+        fix: 'Check that the media share is mounted on the host, then restart the Freetvarr container. If you emptied the folder yourself, or moved the media root, delete those recordings in Freetvarr so that syncs import into it again.',
       }
     },
   },
@@ -824,7 +867,7 @@ const readSettings = async () => {
       getRecordingsRoot(),
       getTvhRecordingsPath(),
       getSetting('plex_url'),
-      getSetting('plex_token'),
+      storedPlexToken(),
       getSetting('plex_tv_section_id'),
       getSetting('plex_oneoff_section_id'),
       getSetting('sync_cron'),
@@ -872,12 +915,15 @@ const defaultDeps = () => ({
   oneOffFolder: readOneOffFolder,
   checkRecordingsFolder,
   checkMediaRoot,
+  libraryRootProblem: (root) => libraryRootProblemOf(root),
   probeHardlink,
   statfs: (folder) => fs.statfs(folder),
   latestSync: readLatestSync,
+  anchorFailures: readAnchorFailures,
   schedulerExpression: getSchedulerExpression,
   liveEncoder: async () => null,
   liveStreams: async () => null,
+  currentGuideFeedUrl,
   which: findOnPath,
   envTimeZone: timeZoneFromEnv,
   systemTimeZone: currentTimeZone,
@@ -885,6 +931,40 @@ const defaultDeps = () => ({
   dockerVm: () => detectDockerVm(),
   uid: () => process.getuid?.() ?? null,
 })
+
+const URL_GRABBER_TITLE = /XMLTV URL grabber/i
+
+const staleGuideFeedOf = async (ctx) => {
+  try {
+    return await readStaleGuideFeed(ctx)
+  } catch {
+    return null
+  }
+}
+
+const readStaleGuideFeed = async (ctx) => {
+  const list = await ctx.read('epggrab/module/list')
+  const entry = (list?.entries || []).find((m) => URL_GRABBER_TITLE.test(m.title || ''))
+  if (!entry) return null
+  const node = (await ctx.read('idnode/load', { uuid: entry.uuid }))?.entries?.[0]
+  const value = (id) => (node?.params || []).find((p) => p.id === id)?.value
+  const grabberUrl = value('args') || ''
+  if (value('enabled') !== true || !isGuideFeedUrl(grabberUrl)) return null
+  const currentUrl = await ctx.deps.currentGuideFeedUrl(ctx.conn)
+  if (!currentUrl || new URL(currentUrl).host === new URL(grabberUrl).host) return null
+  return {
+    detail: `The TVHeadend guide grabber reads ${grabberUrl}, but the Freetvarr guide feed is now at ${currentUrl}.`,
+    fix: 'Open Settings → SYSTEM → Setup and press Guide to point the grabber at the new address.',
+  }
+}
+
+const currentGuideFeedUrl = async (conn) => {
+  try {
+    return guideFeedUrl({ address: await localAddressToward(conn.url), port: serverPort() })
+  } catch {
+    return null
+  }
+}
 
 const memoiseReads = ({ read, conn }) => {
   const seen = new Map()

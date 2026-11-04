@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   OVERRUN_STEP_S, scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf,
+  fromStartGoneAction, fromStartResumeSecondsOf,
 } from '../src/web/from-start-timeline.js'
 
 const START = Date.UTC(2026, 9, 23, 9, 0)
@@ -53,4 +54,20 @@ test('a seek past the recorded edge stops at the edge', () => {
 test('the end label time is the recording start plus the scale', () => {
   assert.equal(fromStartEndMsOf({ startedAtMs: START, scaleSeconds: 7200 }), START + 7200_000)
   assert.equal(fromStartEndMsOf({ startedAtMs: null, scaleSeconds: 7200 }), null)
+})
+
+test('fromStartGoneAction: an ended From the start session restarts, up to a cap', () => {
+  assert.equal(fromStartGoneAction({ restarts: 0 }), 'restart')
+  assert.equal(fromStartGoneAction({ restarts: 1 }), 'restart')
+  assert.equal(fromStartGoneAction({ restarts: 2 }), 'end')
+})
+
+test('fromStartResumeSecondsOf: a restart picks up at the played time, or the last saved one', () => {
+  assert.equal(fromStartResumeSecondsOf({ currentTime: 1234.7, savedSeconds: 1200 }), 1234)
+  assert.equal(fromStartResumeSecondsOf({ currentTime: 0, savedSeconds: 1200 }), 1200)
+  assert.equal(fromStartResumeSecondsOf({ currentTime: Number.NaN, savedSeconds: undefined }), 0)
+})
+
+test('fromStartResumeSecondsOf: a restart before any save keeps the position it restarted at', () => {
+  assert.equal(fromStartResumeSecondsOf({ currentTime: 0, savedSeconds: undefined, resumeAt: 1200 }), 1200)
 })

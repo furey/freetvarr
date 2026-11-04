@@ -15,7 +15,9 @@ import {
   looksLikeFilm,
   buildFilmPath,
   libraryKind,
+  syncErrorLogOf,
 } from '../src/sync.js'
+import { AxiosError } from 'axios'
 
 test('matchShow: case-insensitive substring match', () => {
   const shows = [
@@ -203,6 +205,15 @@ test('localPathFor: returns null when the file lives outside the mount', () => {
   )
 })
 
+test('localPathFor: keeps every TVHeadend file name inside the recordings root', () => {
+  const mapped = (tvhFilename) => localPathFor({ tvhFilename, tvhRecordingsPath: '/recordings', recordingsRoot: '/tvh' })
+  assert.equal(mapped('/recordings/a/../../etc/x'), null)
+  assert.equal(mapped('/recordings/../etc/x'), null)
+  assert.equal(mapped('/recordings/Show/..'), null)
+  assert.equal(mapped('/recordings/Show/ep..ts'), '/tvh/Show/ep..ts')
+  assert.equal(mapped('/recordings/Show/ep.ts'), '/tvh/Show/ep.ts')
+})
+
 test('classifyImport: matching size → done / imported', () => {
   const o = classifyImport({ expectedSize: 1000, actualSize: 1000 })
   assert.equal(o.dbStatus, 'done')
@@ -248,11 +259,22 @@ test('matchShow: for sport, an automatic title match matches the whole title onl
   assert.equal(matchShow(userRule, 'Women\'s Rugby League World Cup 2026', { sport: true }).id, 13)
 })
 
-test('matchShow: outside sport, an automatic title match still finds its words inside a longer title', () => {
+test('matchShow: outside sport, an automatic title match still matches the title with a subtitle', () => {
   const shows = [{ id: 5, show_pattern: 'Chefs Ahoy', origin: 'auto' }]
   assert.equal(matchShow(shows, 'Chefs Ahoy: Christmas').id, 5)
   assert.equal(matchShow(shows, 'Chefs Ahoy').id, 5)
   assert.equal(matchShow(shows, 'Chefs Ahoyhoy'), undefined)
+  assert.equal(matchShow([{ id: 6, show_pattern: 'Bluey', origin: 'auto' }], 'Bluey (2018)').id, 6)
+})
+
+test('matchShow: an automatic title match does not match a longer title of another show', () => {
+  const auto = (pattern) => [{ id: 7, show_pattern: pattern, origin: 'auto' }]
+  assert.equal(matchShow(auto('Survivor'), 'Australian Survivor'), undefined)
+  assert.equal(matchShow(auto('Hard Quiz'), 'Hard Quiz Kids'), undefined)
+  assert.equal(matchShow(auto('MasterChef Australia'), 'Junior MasterChef Australia'), undefined)
+  assert.equal(matchShow(auto('The Chase'), 'The Chase Australia'), undefined)
+  assert.equal(matchShow(auto('The Chase'), 'Beat The Chase'), undefined)
+  assert.equal(matchShow([{ id: 8, show_pattern: 'Survivor', origin: 'user' }], 'Australian Survivor').id, 8)
 })
 
 test('libraryKind: an automatic title match does not hold a sport title with no database id in TV', () => {
@@ -262,4 +284,29 @@ test('libraryKind: an automatic title match does not hold a sport title with no 
   assert.equal(libraryKind({ show: { id: 1, origin: 'user' }, item: game, moviesRoot: '/m', evidence }), 'tv')
   assert.equal(libraryKind({ show: null, item: { ...game, autorecId: 'a1' }, moviesRoot: '/m', evidence }), 'tv')
   assert.equal(libraryKind({ show: { id: 1, origin: 'auto' }, item: game, moviesRoot: '/m' }), 'tv')
+})
+
+test('syncErrorLogOf: logs the message and stack of a failed request without its token', () => {
+  const err = new AxiosError('Request failed with status code 500', 'ERR_BAD_RESPONSE', {
+    url: 'http://plex:32400/library/sections/1/refresh',
+    params: { 'X-Plex-Token': 'secret-token' },
+    headers: { 'X-Api-Key': 'secret-key' },
+  })
+  const line = syncErrorLogOf(err)
+  assert.match(line, /Request failed with status code 500/)
+  assert.ok(!line.includes('secret-token'))
+  assert.ok(!line.includes('secret-key'))
+})
+
+test('episodeFilename: dates an unnumbered airing by the local day', () => {
+  const zone = process.env.TZ
+  process.env.TZ = 'Australia/Sydney'
+  try {
+    const start = Date.parse('2026-11-04T19:00:00Z')
+    const name = episodeFilename({ item: { title: 'Sunrise', start, ext: 'ts' }, show: { dest_folder: 'Sunrise' } })
+    assert.equal(name, 'Sunrise - 2026-11-05.ts')
+  } finally {
+    if (zone === undefined) delete process.env.TZ
+    else process.env.TZ = zone
+  }
 })

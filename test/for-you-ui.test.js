@@ -28,6 +28,7 @@ import {
   sheetFocusOf,
   shownBatchesOf,
   tapActionOf,
+  thumbToggleOf,
   tierReasonOf,
   tierSummaryOf,
   undoneMovieKindToastOf,
@@ -318,8 +319,8 @@ test('settings copy: level summary, hardware reason, clear-history line, and hid
   assert.equal(tierReasonOf({ tierReason: 'About 64 s a day for 510 new texts', probe: {} }), 'About 64 s a day for 510 new texts')
   assert.equal(tierReasonOf({ probe: { cores: 2, memory: { totalMb: 6144 }, arch: 'x64' } }), '2 cores, 6 GB memory, x64')
   assert.match(tierReasonOf({}), /not checked/)
-  assert.equal(historyClearCopyOf(214), 'Removes 214 history entries, including your thumbs up and down. Suggestions start again from new.')
-  assert.match(historyClearCopyOf(0), /^Removes your viewing history/)
+  assert.equal(historyClearCopyOf(214), 'Removes 214 history entries, including your thumbs up and down and your hidden shows. Suggestions start again from new.')
+  assert.equal(historyClearCopyOf(0), 'Removes your viewing history, your thumbs up and down, and your hidden shows. Suggestions start again from new.')
   assert.equal(hiddenToastOf('Grand Designs Australia'), 'Grand Designs Australia is hidden from For you')
 })
 
@@ -365,4 +366,11 @@ test('undoneMovieKindToastOf: says where the show stands after Undo', () => {
 test('programOf: carries the movie choice so the programme sheet can offer it', () => {
   assert.equal(programOf({ title: 'King Kong', movieChoice: 'not-movie' }).movieChoice, 'not-movie')
   assert.equal(programOf({ title: 'Heron' }).movieChoice, null)
+})
+
+test('turning a thumb off sends a clear, and switching sides sends the new thumb', () => {
+  assert.deepEqual(thumbToggleOf({ current: null, direction: 'down' }), { next: 'down', kind: 'thumb_down' })
+  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'thumb_clear' })
+  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'up' }), { next: 'up', kind: 'thumb_up' })
+  assert.deepEqual(thumbToggleOf({ current: 'up', direction: 'up' }), { next: null, kind: 'thumb_clear' })
 })

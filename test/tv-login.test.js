@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createTvLogin, deleteTvLogin, deleteTvLoginRoute, validTvLoginName } from '../src/tv-login.js'
+import { createTvLogin, createTvLoginRoute, deleteTvLogin, deleteTvLoginRoute, validTvLoginName } from '../src/tv-login.js'
 
 const CONN = { url: 'http://tvh.test:9981', username: 'freetvarr', password: 'secret' }
 
@@ -170,4 +170,42 @@ test('DELETE /api/tv-login: keeps the stored login when TVHeadend fails', async 
   assert.equal(res.statusCode, 502)
   assert.match(res.body.error, /did not delete/)
   assert.equal(calls.cleared, 0)
+})
+
+const createRouteWith = ({ http, stored }) => {
+  const saved = []
+  const handler = createTvLoginRoute({
+    http,
+    resolveConnection: async () => CONN,
+    readLogin: async () => stored,
+    saveLogin: async (login) => { saved.push(login) },
+    fallbackPrefix: () => '192.168.0.0/16',
+  })
+  const send = async (body) => {
+    const res = fakeResponse()
+    await handler({ body }, res)
+    return res
+  }
+  return { send, saved }
+}
+
+test('POST /api/tv-login: refuses a second TV login and makes no TVHeadend call', async () => {
+  const calls = []
+  const http = { get: async (path) => { calls.push(path); return { entries: [] } }, post: async (path) => { calls.push(path); return {} } }
+  const { send, saved } = createRouteWith({ http, stored: { username: 'tv', password: 'pw', authCode: 'P.code' } })
+  const res = await send({ username: 'kitchen' })
+  assert.equal(res.statusCode, 409)
+  assert.equal(res.body.code, 'exists')
+  assert.match(res.body.error, /already made the TV login tv/)
+  assert.deepEqual(calls, [])
+  assert.deepEqual(saved, [])
+})
+
+test('POST /api/tv-login: makes and saves the login when none is stored', async () => {
+  const { http } = fakeTvheadend()
+  const { send, saved } = createRouteWith({ http, stored: {} })
+  const res = await send({ username: 'tv' })
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.body.username, 'tv')
+  assert.equal(saved.length, 1)
 })

@@ -14,7 +14,7 @@ import { firstSyncError, groupSyncsByDay } from '/sync-row.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
-import { routeSection } from '/shared/router.js'
+import { replaceSectionInPlace, routeSection } from '/shared/router.js'
 import { browserStorage } from '/shared/storage.js'
 import { syncMsOf, syncTookText } from '/shared/sync-format.js'
 import { syncStatus, loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
@@ -43,6 +43,7 @@ const TRIGGER_OPTIONS = [
   { key: 'any', label: 'Any' },
   { key: 'cron', label: 'Schedule' },
   { key: 'manual', label: 'Manual' },
+  { key: 'auto', label: 'After a recording' },
 ]
 const DEFAULT_SYNC_FILTER = { outcomes: ['imports', 'fails', 'removals'], trigger: 'any' }
 const SYNC_FILTER_KEY = 'freetvarr.syncFilter'
@@ -84,7 +85,7 @@ export const SyncsView = {
         <info-button title="Activity" doc="guide/syncs">
           <p>Every sync Freetvarr has run, newest first: when it started, and what it imported, failed, or removed.</p>
           <p>Syncs run on the schedule in <strong>Settings</strong>, or when you press <strong>Sync now</strong>. Only one runs at a time.</p>
-          <p><strong>Show</strong> picks which syncs to list: those that imported, failed, or removed something, and empty ones that found nothing new. Empty syncs are hidden at first. <strong>From</strong> picks syncs started on the schedule or by hand.</p>
+          <p><strong>Show</strong> picks which syncs to list: those that imported, failed, or removed something, and empty ones that found nothing new. Empty syncs are hidden at first. <strong>From</strong> picks syncs started on the schedule, by hand, or after a recording finished.</p>
           <p>Press a sync to see each recording it imported, failed, or removed, and how long each step took. Its details also hold <strong>Delete sync</strong>, which removes that sync from the history.</p>
           <p>The list shows 50 syncs per page. Freetvarr keeps the latest 500 syncs, and only the latest 100 empty ones.</p>
         </info-button>
@@ -234,8 +235,7 @@ export const SyncsView = {
 
     const clearLinkedSync = () => {
       if (!linkedSyncId.value) return
-      history.replaceState(null, '', '#/settings/system/activity/syncs')
-      routeSection.value = 'syncs'
+      replaceSectionInPlace({ hash: '#/settings/system/activity/syncs', section: 'syncs' })
     }
 
     const visibleElementFor = (id) => [...document.querySelectorAll(`[data-sync-id="${id}"]`)]

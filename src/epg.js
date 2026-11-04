@@ -22,7 +22,7 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
-import { createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
+import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
@@ -45,6 +45,7 @@ import { artworkUploads } from './artwork-uploads.js'
 import { getPlexConnection } from './plex.js'
 import { showKeyOf } from './web/show-key.js'
 import { createGuideCache } from './guide-cache.js'
+import { createRecordingStateCache } from './recording-state-cache.js'
 import { orderChannels } from './channel-order.js'
 import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
@@ -64,7 +65,7 @@ import { loadExternalIds } from './external-ids-store.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
-  const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: guide.startMs, day })
+  const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: localMidnightMs(nowMs), day })
   const endedByChannel = await loadEndedProgramsByChannel({ fromMs: dayStart, toMs: spillEnd, nowMs })
     .catch(logHistoryError('load'))
   const merged = guide.channels.map((channel) => {
@@ -270,7 +271,7 @@ export const planUpcomingRecordings = ({
     const tagByLink = new Map()
     for (const t of seriesTags) {
       const link = t?.seriesLinkId ?? t?.id
-      if (link != null) tagByLink.set(String(link), t)
+      if (link != null && t.enabled !== false) tagByLink.set(String(link), t)
     }
     const firstAiringByEpisode = timerEpisodeAirings({ guide, timers })
     const candidates = []
@@ -375,9 +376,11 @@ export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now()
 
 export const withClassification = async ({ sheet, store }) => {
   if (!sheet.programme) return sheet
+  const channelName = sheet.channel?.name ?? null
+  const shiftHours = channelShiftHours(channelName)
   const [classification, category] = await Promise.all([
-    programmeClassification({ programme: sheet.programme, store }),
-    store.categoryAt?.({ title: sheet.programme.title, startMs: sheet.programme.start }).catch(() => null) ?? null,
+    programmeClassification({ programme: { ...sheet.programme, channelName }, store }),
+    store.categoryAt?.({ title: sheet.programme.title, startMs: sheet.programme.start, shiftHours }).catch(() => null) ?? null,
   ])
   const ratingsLikely = isRatingsLikely({ kind: sheet.programme.kind, category })
   return { ...sheet, programme: { ...sheet.programme, classification, ratingsLikely } }
@@ -385,9 +388,10 @@ export const withClassification = async ({ sheet, store }) => {
 
 const classificationStore = createClassificationStore()
 
-const classificationLookupFor = (programmes) => createClassificationLookup({
+const classificationLookupFor = async (programmes) => createClassificationLookup({
   programmes: programmes.filter(Boolean),
   store: classificationStore,
+  channels: (await Promise.resolve().then(getCachedGuide).catch(() => null))?.channels || [],
 })
 
 export const savedWithKinds = ({ guide, saved = [] }) => (guide?.kindOf
@@ -474,32 +478,7 @@ const guideIdentities = new WeakMap()
 // cooldown during which no new attempt starts, and the last good state is
 // served with stale:true instead of an error. Mutations clear the cooldown
 // (via invalidateRecordingState) so a successful command retries immediately.
-export const getRecordingState = async ({ fresh = false } = {}) => {
-  const now = Date.now()
-  if (!fresh && stateCache && stateCache.expiresAt > now) return stateCache.value
-  if (!fresh && now < stateFailedUntil) {
-    if (stateCache) return { ...stateCache.value, stale: true }
-    throw stateLastError
-  }
-  if (!fresh && stateCache) {
-    reloadRecordingState(now).catch(() => {})
-    return stateCache.value
-  }
-  return reloadRecordingState(now)
-}
-
-const reloadRecordingState = (now) => {
-  if (stateInflight) return stateInflight
-  stateInflight = measureJob('recording-state', () => loadRecordingState(now))
-    .catch((err) => {
-      stateFailedUntil = Date.now() + STATE_RETRY_MS
-      stateLastError = err
-      if (stateCache) return { ...stateCache.value, stale: true }
-      throw err
-    })
-    .finally(() => { stateInflight = null })
-  return stateInflight
-}
+export const getRecordingState = (options) => recordingStateCache.get(options)
 
 const loadRecordingState = async (now) => {
   const [loadedState, guide, storageInfo, loadedSkips] = await Promise.all([
@@ -543,12 +522,10 @@ const loadRecordingState = async (now) => {
     activeRecordingIds: state.activeRecordingIds,
     fetchedAt: now,
   }
-  stateCache = { value, expiresAt: now + STATE_TTL_MS }
-  stateFailedUntil = 0
   return value
 }
 
-const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
+export const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
   const timerById = new Map(futureRecordings.map((recording) => [String(recording.programId), recording]))
   const sources = upcoming.map((recording) => {
     const timer = timerById.get(String(recording.programId))
@@ -556,6 +533,7 @@ const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], gu
     return {
       title: recording.name,
       start: recording.startDate,
+      channelName: recording.channelName ?? null,
       rating: timer?.rating ?? listed?.rating ?? null,
       ratingLabel: timer?.ratingLabel ?? null,
     }
@@ -580,30 +558,33 @@ export const withSeriesImages = ({ seriesTags = [], guide, nowMs = Date.now() })
 }
 
 export const invalidateRecordingState = () => {
-  stateCache = null
-  stateFailedUntil = 0
+  recordingStateCache.invalidate()
   invalidateRecordingNow()
 }
 
 export const recordProgram = async (args) => {
-  const result = (await removePendingSkip(args.programId))
-    ? { ok: true, programId: args.programId, pendingSkipRemoved: true }
-    : await scheduleRecording(args)
-  invalidateRecordingState()
-  return result
+  try {
+    return (await removePendingSkip(args.programId))
+      ? { ok: true, programId: args.programId, pendingSkipRemoved: true }
+      : await scheduleRecording(args)
+  } finally {
+    invalidateRecordingState()
+  }
 }
 
 export const cancelProgram = async (args) => {
-  const result = await cancelRecording(args).catch((err) => skipExpectedEpisode({ err, programId: args.programId }))
-  invalidateRecordingState()
-  return result
+  try {
+    return await cancelRecording(args).catch((err) => skipExpectedEpisode({ err, programId: args.programId }))
+  } finally {
+    invalidateRecordingState()
+  }
 }
 
 export const enforcePendingSkips = async () => {
   if (await hasPendingSkips() || hasRepeatsAwaitingOriginal()) await getRecordingState({ fresh: true })
 }
 
-const hasRepeatsAwaitingOriginal = () => (stateCache?.value?.repeatRecordings || []).some(isRepeatAwaitingOriginal)
+const hasRepeatsAwaitingOriginal = () => (recordingStateCache.peek()?.repeatRecordings || []).some(isRepeatAwaitingOriginal)
 
 export const watchPendingSkips = () => {
   const enforce = () => enforcePendingSkips().catch((err) => console.warn(`[epg] saved skips: ${err.message}`))
@@ -693,9 +674,28 @@ export const seriesAiringOf = ({ program, channelName = null }) => ({
 })
 
 export const cancelSeries = async (args) => {
-  const result = await disableSeriesTag(args)
-  invalidateRecordingState()
-  return result
+  try {
+    return await disableSeriesTag(args)
+  } finally {
+    invalidateRecordingState()
+  }
+}
+
+export const cancelSeriesRules = async ({ seriesLinkIds, stopRecordingNow = false, cancel = cancelSeries }) => {
+  const cancelled = []
+  for (const seriesLinkId of seriesLinkIds) {
+    cancelled.push(await cancel({ seriesLinkId, stopRecordingNow }).catch((err) => alreadyCancelled({ err, seriesLinkId })))
+  }
+  return {
+    cancelled,
+    stopped: cancelled.flatMap((c) => c.stopped),
+    stopFailed: cancelled.flatMap((c) => c.stopFailed ?? []),
+  }
+}
+
+const alreadyCancelled = ({ err, seriesLinkId }) => {
+  if (!(err instanceof TvheadendError) || err.code !== 'not-found') throw err
+  return { ok: true, seriesLinkId, alreadyCancelled: true, stopped: [], stopFailed: [] }
 }
 
 export const pauseSeries = async ({ seriesLinkIds, paused }) => {
@@ -1058,10 +1058,6 @@ const recordingsStorageInfo = async () => {
 
 export const clearGuideCache = () => guideCache.clear()
 
-let stateCache = null
-let stateInflight = null
-let stateFailedUntil = 0
-let stateLastError = null
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
   fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
@@ -1108,6 +1104,12 @@ const STATE_RETRY_MS = 60 * 1000
 const IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 const IMAGE_MISS_TTL_MS = 10 * 60 * 1000
 const guideListeners = new Set()
+const recordingStateCache = createRecordingStateCache({
+  load: (now) => measureJob('recording-state', () => loadRecordingState(now)),
+  ttlMs: STATE_TTL_MS,
+  retryMs: STATE_RETRY_MS,
+})
+
 const guideCache = createGuideCache({
   load: (startMs) => measureJob('guide-load', () => loadGuide(startMs), { kind: 'guide' }).then(announceGuideLoaded),
   staleRetryMs: GUIDE_STALE_RETRY_MS,
