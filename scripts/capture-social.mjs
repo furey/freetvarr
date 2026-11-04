@@ -207,8 +207,8 @@ ${baseCss(card)}
 .wordmark { font-size: ${l.wordmarkSize}px; margin-bottom: ${Math.round(l.wordmarkSize * 0.4)}px; }
 h1 {
   font-size: ${l.headlineSize}px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: 400;
+  line-height: 1.3;
   letter-spacing: -0.015em;
   text-wrap: balance;
 }
@@ -295,8 +295,8 @@ h1 em { font-style: normal; color: #3ba4ff; }
   margin-top: 28px;
   color: #a9b4be;
   font-size: 30px;
-  font-weight: 500;
-  line-height: 1.35;
+  font-weight: 400;
+  line-height: 1.45;
 }
 .footer {
   position: absolute;
