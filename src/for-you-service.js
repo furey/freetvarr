@@ -215,8 +215,10 @@ export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
 export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   await flushUserEvents().catch(() => {})
   const latest = await db('user_events').whereIn('kind', HIDING_CHOICES).where({ series_key: seriesKey }).orderBy('ts', 'desc').first()
+  const latestThumb = await db('user_events').whereIn('kind', THUMB_KINDS).where({ series_key: seriesKey }).orderBy('ts', 'desc').orderBy('id', 'desc').first()
+  const kinds = latestThumb?.kind === 'thumb_down' ? ['not_interested_undo', 'thumb_clear'] : ['not_interested_undo']
   const ts = Math.max(nowMs, (latest?.ts ?? 0) + 1)
-  await db('user_events').insert(['not_interested_undo', 'thumb_clear'].map((kind) => eventRowOf({
+  await db('user_events').insert(kinds.map((kind) => eventRowOf({
     event: { kind, series_key: seriesKey, title: latest?.title ?? null, source: 'for-you', ts },
     nowMs,
   })))
@@ -536,6 +538,7 @@ const RECORDING_STAMP_COLUMNS = [
 ]
 const HIDING_KINDS = ['not_interested', 'not_interested_undo', 'thumb_up', 'thumb_down', 'thumb_clear']
 const HIDING_CHOICES = ['not_interested', 'thumb_down']
+const THUMB_KINDS = ['thumb_up', 'thumb_down', 'thumb_clear']
 const BUCKET_MS = 5 * 60 * 1000
 const STARTUP_DELAY_MS = 20 * 1000
 const WARM_DELAY_MS = 3 * 1000

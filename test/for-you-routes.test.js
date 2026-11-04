@@ -139,3 +139,13 @@ test('a thumbs-down show is listed under hidden shows and Show again clears the 
   assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
   assert.deepEqual((await db('user_events').where({ series_key: 'mkr' }).orderBy('id')).map((row) => row.kind), ['thumb_up', 'thumb_down', 'not_interested_undo', 'thumb_clear'])
 })
+
+test('Show again on a Not interested show keeps an earlier More like this', async () => {
+  await db('user_events').delete()
+  await db('user_events').insert([
+    { ts: Date.now() - 2000, kind: 'thumb_up', series_key: 'rake', title: 'Rake' },
+    { ts: Date.now() - 1000, kind: 'not_interested', series_key: 'rake', title: 'Rake' },
+  ])
+  await call('DELETE', '/api/for-you/hidden/rake')
+  assert.deepEqual((await db('user_events').where({ series_key: 'rake' }).orderBy('id')).map((row) => row.kind), ['thumb_up', 'not_interested', 'not_interested_undo'])
+})
