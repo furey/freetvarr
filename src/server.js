@@ -209,6 +209,7 @@ import { mountPlexLibraryRoutes } from './plex-library-routes.js'
 import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { mountRecordingTvhRoutes } from './recording-tvh-routes.js'
+import { showFieldErrorOf } from './show-fields.js'
 import { clearableRows, mountRecordingLogRoutes, whereInLog } from './recording-log-routes.js'
 import { recordOptionsFrom } from './recording-padding.js'
 import { recordRequestError, seriesRequestError } from './record-requests.js'
@@ -1418,12 +1419,11 @@ app.post('/api/shows', doubleCsrfProtection, async (req, res) => {
   if (ad_removal !== undefined && !AD_REMOVAL_MODES.includes(ad_removal)) {
     return res.status(400).json({ error: `ad_removal must be one of ${AD_REMOVAL_MODES.join(', ')}` })
   }
-  for (const key of ['dest_folder', 'season_template']) {
-    const value = key === 'dest_folder' ? dest_folder : season_template
-    if (value !== undefined && escapesMediaRoot(String(value))) {
-      return res.status(400).json({ error: `${key} must stay within the media root (no '..' or leading '/')` })
-    }
-  }
+  const fieldError = [['show_pattern', show_pattern], ['dest_folder', dest_folder], ['season_template', season_template]]
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => showFieldErrorOf({ key, value }))
+    .find(Boolean)
+  if (fieldError) return res.status(400).json({ error: fieldError })
   const inserted = await db('shows').insert({
     show_pattern: String(show_pattern).trim(),
     dest_folder: String(dest_folder).trim(),
@@ -1444,9 +1444,8 @@ app.patch('/api/shows/:id', doubleCsrfProtection, async (req, res) => {
   for (const key of ['show_pattern', 'dest_folder', 'season_template']) {
     if (req.body?.[key] === undefined) continue
     const value = String(req.body[key]).trim()
-    if (key !== 'show_pattern' && escapesMediaRoot(value)) {
-      return res.status(400).json({ error: `${key} must stay within the media root (no '..' or leading '/')` })
-    }
+    const fieldError = showFieldErrorOf({ key, value })
+    if (fieldError) return res.status(400).json({ error: fieldError })
     patch[key] = value
   }
   if (req.body?.enabled !== undefined) patch.enabled = Boolean(req.body.enabled)
@@ -2396,11 +2395,6 @@ const safeJson = (s) => {
 const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWRITABLE
   ? `Freetvarr cannot write to ${oneOffRoot}. Freetvarr runs as uid ${process.getuid?.() ?? 'unknown'}; set PUID and PGID in .env to the user and group that own the folder, then recreate the Freetvarr container.`
   : `${oneOffRoot} is not there. Check the one-off folder in Settings.`)
-
-const escapesMediaRoot = (value) =>
-  value.startsWith('/')
-  || value.startsWith('\\')
-  || value.split(/[/\\]+/).includes('..')
 
 const closeSyncsLeftByRestart = async () => {
   try {
