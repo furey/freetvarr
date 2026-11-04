@@ -7,7 +7,7 @@ description: >-
 
 # TVHeadend
 
-TVHeadend is the recorder. It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and [setup](/guide/getting-started#_2-run-setup) set one up for you.
+[TVHeadend](https://tvheadend.org/) is the recorder (its [documentation](https://docs.tvheadend.org/) covers every setting). It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and [setup](/guide/getting-started#_2-run-setup) set one up for you.
 
 This page lists each TVHeadend setting in the order TVHeadend needs it. Each step depends on the one before it. Any TVHeadend-compatible tuner works here. The steps change only where they name a device or a country.
 
@@ -15,7 +15,7 @@ This page lists each TVHeadend setting in the order TVHeadend needs it. Each ste
 > Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup](/guide/getting-started#_2-run-setup) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, to connect an existing TVHeadend, or to see what setup changed.
 
 > [!NOTE]<br>
-> The HDHomeRun tuner, the `au-Sydney` mux list (the broadcast frequencies TVHeadend scans), and the Sydney XMLTV feed (a TV guide file TVHeadend downloads) on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
+> The [HDHomeRun](https://www.silicondust.com/hdhomerun/) tuner, the `au-Sydney` mux list (the broadcast frequencies TVHeadend scans), and the Sydney [XMLTV](https://xmltv.org/) feed (a TV guide file TVHeadend downloads) on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.
 
 ```mermaid
 flowchart TD
@@ -30,7 +30,7 @@ flowchart TD
 
 ## 1. Run the container
 
-The Docker compose file that the install script downloads (`docker-compose.yml`) already defines TVHeadend next to Freetvarr. [Step 1 of Getting started](/guide/getting-started#_1-install) starts it, so you do not start it here. The TVHeadend service in that file looks like this:
+The [Docker](https://www.docker.com/) compose file that the install script downloads (`docker-compose.yml`) already defines TVHeadend next to Freetvarr. [Step 1 of Getting started](/guide/getting-started#_1-install) starts it, so you do not start it here. The TVHeadend service in that file looks like this (the file also holds the `init` service that makes the folders):
 
 ```yaml
 services:
@@ -39,20 +39,23 @@ services:
     container_name: tvheadend
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      init:
+        condition: service_completed_successfully
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
       - TZ
     volumes:
-      - ${CONFIG_PATH}/tvheadend:/config
-      - ${DATA_PATH}/recordings:/recordings
+      - ${CONFIG_PATH:-./config}/tvheadend:/config
+      - ${DATA_PATH:-./data}/recordings:/recordings
       - /etc/localtime:/etc/localtime:ro
 ```
 
 `CONFIG_PATH` and `DATA_PATH` are host folders that the `.env` file sets ([Compose environment](/guide/configuration#compose-environment)). The image documents four environment variables: `PUID`, `PGID`, `TZ`, and an optional `RUN_OPTS` for extra launch arguments. The read-only `/etc/localtime` mount gives the TVHeadend Docker container the host's time zone, so TVHeadend needs no `TZ`. The bare `TZ` line passes `TZ` through only when your `.env` sets it, to override the host zone. Freetvarr does not use this mount. Freetvarr asks for its time zone in its setup wizard instead. `/config` holds TVHeadend's own configuration. `/recordings` is where TVHeadend writes its recordings. Remember that path: step 7 sets it as TVHeadend's recording path. Freetvarr mounts the same host folder through `${DATA_PATH}`, at `/data/recordings`.
 
 > [!IMPORTANT]<br>
-> Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server (those broadcasts don't cross Docker's private bridge network). A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping. TVHeadend binds `9981` (web interface and API) and `9982` (its own streaming protocol) straight onto the host.
+> Use `network_mode: host` for a tuner TVHeadend finds by network broadcast, such as an HDHomeRun or a SAT>IP server (a satellite tuner that sends its signal over your network; those broadcasts don't cross Docker's private bridge network). A USB stick or a PCIe card needs no discovery, so you can drop host networking, map `9981` and `9982` as ports, and pass the `/dev/dvb` devices in instead. Under host networking there is no `ports:` mapping. TVHeadend binds `9981` (web interface and API) and `9982` (HTSP, TVHeadend's own streaming protocol) straight onto the host.
 
 If the TVHeadend Docker container is not running, run this in a terminal in the `freetvarr` folder (the folder the install script created, which holds `docker-compose.yml`):
 
@@ -60,18 +63,18 @@ If the TVHeadend Docker container is not running, run this in a terminal in the 
 docker compose up -d tvheadend
 ```
 
-Open `http://<host-ip>:9981` in a browser to reach TVHeadend's web interface, where `<host-ip>` is the address of the machine that runs Docker.
+Open `http://<host-ip>:9981` in a browser to reach TVHeadend's web interface, where `<host-ip>` is the address of the machine that runs Docker. A fresh install asks for no login.
 
 > [!NOTE]<br>
-> Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports each recording into your media library by hardlink where it can, and it deletes the TVHeadend copy afterwards. Both need the same owner on the recordings folder.
+> Give TVHeadend and Freetvarr the same `PUID`/`PGID`. Freetvarr imports each recording into your media library by hardlink where it can. If you turn on **Remove from TVHeadend after import** for a series, it also deletes the TVHeadend copy afterwards. Both need the same owner on the recordings folder.
 
 ## 2. Secure TVHeadend
 
-A fresh linuxserver TVHeadend has no logins. It starts with a default access entry (a TVHeadend rule that gives a username rights from given networks), username `*`, that gives anyone on any network full admin rights. Freetvarr's setup replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open setup ([step 2](/guide/getting-started#_2-run-setup)).
+A fresh [linuxserver](https://docs.linuxserver.io/images/docker-tvheadend/) TVHeadend has no logins. It starts with a default access entry (a TVHeadend rule that gives a username rights from given networks), username `*`, that gives anyone on any network full admin rights. Freetvarr's setup replaces that entry with real logins, so run it now: install Freetvarr ([Getting started](/guide/getting-started#_1-install)) and open setup ([step 2](/guide/getting-started#_2-run-setup)).
 
 When setup finds a TVHeadend with only the default entry, it asks for three things:
 
-- **An admin username and password.** You sign in to TVHeadend's web interface with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
+- **An admin username and password.** The password needs at least `8` characters. You sign in to TVHeadend's web interface with these. Freetvarr sends them to TVHeadend once and does not store them. The password has one field with a show and hide button, so check it for typos before you continue.
 - **The allowed networks.** Both logins work only from these address ranges. Setup fills in one `/24` range for each address of the Freetvarr host and for the network of your browser, plus `127.0.0.0/8` (a host at `192.168.86.254` gives `192.168.86.0/24`). Add any other network you sign in from.
 - **Confirmation.** Press **Secure and connect** to create the admin login and a `freetvarr` login with a random password, which Freetvarr keeps.
 
@@ -151,7 +154,7 @@ The channels appear in **Configuration → Channel/EPG → Channels**. Fix the n
 
 ## 6. Load the XMLTV guide
 
-The **Guide** step of Freetvarr setup does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Follow this step by hand to choose each setting yourself.
+The **Guide** step of Freetvarr setup does this step in Australia and New Zealand, and for any XMLTV address you enter. It links each channel by channel number, then by name, and lists the channels it could not link. A +1 channel gets the listings of its main channel, one hour later ([+1 channels](#_1-channels)). Setup also sets the two save options in [Saving the guide](#saving-the-guide) when they are still at their defaults. Follow this step by hand to choose each setting yourself.
 
 Broadcast guide data (EIT, the guide data the channels send with their signal) in Australia runs about a day ahead and carries thin metadata. An XMLTV feed gives seven days with episode numbers, which is what makes [series recording](/guide/series) and episode naming work. The Australian feed below is the example. [Outside Australia](#outside-australia) lists the source to use in other countries.
 
@@ -235,11 +238,11 @@ Freetvarr also sets these two on each recording it schedules, unless you change 
 - **Pre-recording padding**: `2` minutes.
 - **Post-recording padding**: `10` minutes, because free-to-air broadcasts often run late.
 
-Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off). With the default of `10`, a few seconds of bad reception makes TVHeadend record the episode a second time. Freetvarr shows a recording with errors as Recorded with a warning, not as failed.
+Set **Re-record if errors** (`rerecord-errors`) on the same profile to `0` (off). With the default of `10`, a few seconds of bad reception makes TVHeadend record the episode a second time. Freetvarr shows the **Recorded** step of a recording with errors with a warning, not as failed.
 
 ## 8. Make a user for Freetvarr
 
-Freetvarr signs in as an ordinary TVHeadend user with its own login. If Freetvarr setup secured TVHeadend in [step 2](#_2-secure-tvheadend), Freetvarr already created this user, `freetvarr`, with the rights in the table below. Skip to the table.
+Freetvarr signs in as an ordinary TVHeadend user with its own login. If Freetvarr setup secured TVHeadend in [step 2](#_2-secure-tvheadend), Freetvarr already created this user, `freetvarr`, with the rights in the table below. Setup also ticks **Web interface**, and the `HTSP` and `Only failed` options of **Video recorder**; the table is the minimum. Skip to the table.
 
 If you already set up TVHeadend users, create one for Freetvarr by hand in TVHeadend's web interface. TVHeadend keeps a user in two places: the access entry holds the rights, and a separate password entry holds the password. Create both, with the same username.
 
