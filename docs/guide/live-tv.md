@@ -9,22 +9,22 @@ description: >-
 
 <Illustration name="live-tv" />
 
-A network tuner streams live channels to any device on your home network, and TVHeadend streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
+A network tuner streams live channels to any device on your home network, and [TVHeadend](https://tvheadend.org) streams from any tuner it controls. None of it costs anything. Freetvarr has its own player for a quick look in a browser. The apps below suit an evening on the couch and need no Freetvarr at all.
 
-To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses from Freetvarr's Settings → WATCHING → Watch on TV ([TV apps](/guide/tv-apps) has the steps).
+To watch with the TV guide in [Jellyfin](https://jellyfin.org) or [Kodi](https://kodi.tv/download) on your TV, copy the addresses from Freetvarr's Settings → WATCHING → Watch on TV ([TV apps](/guide/tv-apps) has the steps).
 
 ## The options
 
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="R3PEi4rLf7k" title="Watch recordings and live TV on your TV with Freetvarr" duration="2:20" />
 
-| App                                 | Platforms                                | Points at              | Note                                                                                      |
-| ----------------------------------- | ---------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
-| Freetvarr                           | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. Captions. [Multiview](/guide/player#multiview) |
-| The tuner's own app, e.g. HDHomeRun | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                                          |
-| Plex live TV                        | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend               |
-| Jellyfin live TV                    | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up                      |
-| Kodi + TVHeadend PVR add-on         | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up                 |
+| App                                                                               | Platforms                                                                      | Points at              | Note                                                                                      |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------- | ----------------------------------------------------------------------------------------- |
+| Freetvarr                                                                         | Any modern browser, phones included                                            | TVHeadend              | No install. Pause and rewind `30` minutes. Captions. [Multiview](/guide/player#multiview) |
+| The tuner's own app, e.g. [HDHomeRun](https://www.silicondust.com/hdhomerun.html) | [Apple TV](https://www.apple.com/apple-tv-4k/), iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                                          |
+| [Plex](https://www.plex.tv) live TV                                               | Every Plex client                                                              | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend               |
+| Jellyfin live TV                                                                  | Apple TV, iOS, Android, web                                                    | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up                      |
+| Kodi + TVHeadend PVR add-on                                                       | Apple TV, Android, Shield                                                      | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up                 |
 
 ## In Freetvarr
 
@@ -34,15 +34,15 @@ To watch with the TV guide in Jellyfin or Kodi on your TV, copy the addresses fr
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a [programme sheet](/guide/tv-guide#recording-a-programme). A channel with no guide listing plays too. The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Miniplayer** to keep watching while you use the rest of Freetvarr.
+Open **Live TV** and press a channel to watch it. You can also press a card under **On now** on [Home](/guide/home), or press **Watch live** in a [programme sheet](/guide/tv-guide#recording-a-programme). A channel with no guide listing plays too. Until you connect TVHeadend, the page says `Connect TVHeadend in Settings to watch live TV.` The [player](/guide/player) fills the screen. Press the back button at the top left to close the player and free the tuner, or press **Miniplayer** to keep watching while you use the rest of Freetvarr.
 
-The page has these controls:
+The header shows a clock and a recording chip (a banner on a narrow screen) while a recording runs. The page has these controls:
 
 - **Favourites** shows only your favourite channels. Press it again to show every channel. The channels under **FAVOURITES** always come first, then **OTHER CHANNELS**.
 - The **Filter channels or shows** field narrows the list by channel name or programme title. Type `film`, `movie`, `series`, or `one-off` to see only channels with that kind of programme on now or next; the list under the field also offers to match the word in names and titles instead. A movie has a `Movie` tag beside its title.
 - **Images** shows a picture of what is on. **Zoom** has three levels, **S**, **M**, and **L**. Each browser remembers both.
 - The **Channels** button (sliders) at the top right, next to search, opens the same settings as the TV guide: favourites, sort order, hidden channels, and listings. See [Favourites](/guide/tv-guide#favourites).
-- The star adds a channel to the favourites, or removes it.
+- The star adds a channel to the favourites, or removes it. With no favourites, the page says `No favourites yet. Tap the star next to a channel to add it.`
 
 To reorder the favourites:
 
@@ -51,7 +51,7 @@ To reorder the favourites:
 
 Each drop saves the new order. To go back, drag the channel to its old place.
 
-Each row shows the channel number and logo, the programme on now with a progress bar and the time left, and **Next** with the programme after it. A `REC` badge marks a channel that records now. An `HD` or `SD` tag on the logo shows the channel's picture quality while **Hide SD simulcasts** and **Hide SD channels** are both off; see [Favourites](/guide/tv-guide#favourites). Press **Next**, or the info button at the end of a row, to open that programme's [sheet](/guide/tv-guide#recording-a-programme) over the list.
+Each row shows the channel number and logo, the programme on now with a progress bar and the time left (`12 min left`, or the end time such as `until 9:30pm` when more than an hour remains), and **Next** with the programme after it. A channel with no guide listing shows `No guide data`. The `Movie` tag shows beside the next programme title too. The list refreshes every `30` seconds. A `REC` badge marks a channel that records now. An `HD` or `SD` tag on the logo shows the channel's picture quality while **Hide SD simulcasts** and **Hide SD channels** are both off; see [Favourites](/guide/tv-guide#favourites). Press **Next**, or the info button at the end of a row, to open that programme's [sheet](/guide/tv-guide#recording-a-programme) over the list.
 
 A dimmed channel marked `Off air` is not broadcasting right now, so a press shows a message instead of starting a stream. The mark clears by itself once TVHeadend sees the channel again, after a channel scan.
 
@@ -83,13 +83,13 @@ Press **Info** again, or click the picture above the panel, to close it. That cl
 
 Open **⋯** in the player, then press **Captions** to turn captions on or off. On a keyboard, press `c`. Captions are off until you turn them on, and each browser remembers your choice for the next channel. While the programme info panel is open, captions hide. Closing the panel brings them back if they were on.
 
-Captions come from the broadcast's Teletext subtitles. **Captions** shows only for a channel that carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
+Captions come from the broadcast's [Teletext](https://en.wikipedia.org/wiki/Teletext) subtitles (text data that broadcasters send with the picture). **Captions** shows only for a channel that carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
 
 ## Record from the player
 
 Press **Record** in the top bar to record the programme on now, or **Series** to record every episode. Both buttons open the [programme sheet](/guide/tv-guide#recording-a-programme) over the player, with **Record** for this airing, **Record series** where the programme belongs to a series, the folder it saves to, and the option to keep it out of your library. A recording starts from the moment you confirm, so the part that already aired is not included. On a narrow screen, **Series** is **Record series** in the **⋯** menu.
 
-If the guide has no listing for what is on now, both buttons are dimmed. **Series** turns on while a series recording records the programme; press it to change or cancel the series.
+If the guide has no listing for what is on now, both buttons are dimmed. **Series** is hidden for a movie or a programme that is not part of a series. **Series** turns on while a series recording records the programme; press it to change or cancel the series.
 
 While the programme on now records, the record button reads **Recording**. Press it to open the sheet, then press **Stop recording**. A dialog asks you to confirm, and says what happens to the part already recorded:
 
@@ -108,7 +108,7 @@ Freetvarr keeps the last `30` minutes of the channel you watch in a rewind buffe
 - **Start over** offers **From the start**, when TVHeadend is recording the programme, and **Back to when you tuned in**. See [Start over](/guide/player#start-over).
 - **Go live** returns to now. At live, the button is replaced by the `LIVE` mark.
 
-Drag the position bar at the bottom of the picture to rewind. While you are behind live, the text under **Go live** says how far behind you are, such as `2 min behind`. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` ([Configuration](/guide/configuration)) to keep more or fewer minutes, or `0` to turn it off.
+Drag the position bar at the bottom of the picture to rewind. While you are behind live, the text under **Go live** says how far behind you are, such as `2 min behind`. Set `LIVE_TV_BUFFER_MINUTES` in the `.env` ([Configuration](/guide/configuration)) to keep more or fewer minutes (up to `120`), or `0` to turn it off.
 
 To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. On a computer, the left and right arrow keys skip `10` seconds too. Skipping stops at the start of the buffer and at live.
 
@@ -116,7 +116,7 @@ If you lock the phone or switch to another app, Freetvarr keeps the channel and 
 
 The buffer starts when you open the channel, so you can rewind only as far back as that. To watch a programme from its start, record it; **From the start** then plays the recording while it records. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 
-Freetvarr keeps the buffer on disk, in the Freetvarr Docker container's temporary folder. At typical broadcast quality, `30` minutes takes about `1–2GB` for each channel that is playing.
+Freetvarr keeps the buffer on disk, in the temporary folder of the Freetvarr [Docker](https://docs.docker.com/compose/) container. At typical broadcast quality, `30` minutes takes about `1–2GB` for each channel that is playing.
 
 ## Keyboard shortcuts
 
@@ -126,28 +126,28 @@ The player's keys are the same for live TV and recordings. See [Keyboard shortcu
 
 If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If a stream stops, the player says why (for example, a recording took the tuner), and **Try again** tunes the channel again.
 
-Freetvarr gets the channel from TVHeadend and converts it with ffmpeg into a stream that any browser can play:
+Freetvarr gets the channel from TVHeadend and converts it with [ffmpeg](https://ffmpeg.org) (a free video conversion program) into a stream that any browser can play:
 
-- **H.264 video** is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
-- **MPEG-2, HEVC, or VC-1 video** is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are re-encoded in software and stay at `576` lines. With [hardware transcoding](/guide/hardware-requirements#hardware-transcoding), HD video in those formats is decoded and re-encoded on the GPU at up to `720` lines, and 4K video drops to `1080` lines. Without it, HD and 4K video is re-encoded in software at `540` lines to keep the CPU load down. If the GPU cannot decode a recording or a Plex file, Freetvarr starts its playback again in software.
+- **H.264 video** (the format most browsers play) is deinterlaced and re-encoded to progressive H.264. See [Video handling](#video-handling).
+- **MPEG-2, HEVC, or VC-1 video** (other video formats that TV broadcasts and files use) is re-encoded to H.264, because browsers cannot play MPEG-2. Standard-definition channels are re-encoded in software and stay at `576` lines. With [hardware transcoding](/guide/hardware-requirements#hardware-transcoding), HD video in those formats is decoded and re-encoded on the GPU at up to `720` lines, and 4K video drops to `1080` lines. Without it, HD and 4K video is re-encoded in software at `540` lines to keep the CPU load down. If the GPU cannot decode a recording or a Plex file, Freetvarr starts its playback again in software.
 - **Audio** becomes stereo, in TVHeadend's default language, without the audio-description track.
 
 Each channel needs a tuner, unless a tuner already carries its multiplex (the group of channels that one broadcast frequency carries), in which case the two share it. If every tuner is busy, the player says what is using each one. If a recording in the next hour needs the tuner, the player warns you. When the recording starts, the recording takes the tuner and the live stream stops.
 
 Stream limits:
 
-- **One to four channels at once**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → WATCHING → Playback. Freetvarr measures your computer when it starts and picks the default. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
+- **One to four channels at once, and never more than your tuner count**, set by [Live streams at once](/guide/player#live-streams-at-once) in Settings → WATCHING → Playback. Freetvarr measures your computer when it starts and picks the default. `LIVE_TV_MAX_SESSIONS` in the `.env` caps it. Recordings that play in Freetvarr count against the same limit, and viewers of the same channel share one stream.
 - **The stream stops 20 seconds** after the last viewer closes the player or the tab. A locked phone or a hidden tab keeps it for the buffer length instead ([Pause and rewind](#pause-and-rewind)).
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 
 > [!NOTE]<br>
-> The Freetvarr user in TVHeadend needs the streaming right, which the [TVHeadend guide](/guide/tvheadend#_8-make-a-user-for-freetvarr) already grants. TVHeadend gives Freetvarr's stream a low priority (`weight` `50`), so a recording always takes the tuner first.
+> The Freetvarr user in TVHeadend needs the streaming right, which the [TVHeadend guide](/guide/tvheadend#_8-make-a-user-for-freetvarr) already grants. TVHeadend gives Freetvarr's stream a low priority (`weight` `50`; extra Multiview pictures use `40`, `30`, and `20`), so a recording always takes the tuner first.
 
 ## Video handling
 
-Many broadcasters send HD as interlaced H.264 (Australian 1080i, for example). Chrome cannot play interlaced H.264; Safari can. So Freetvarr deinterlaces H.264 and re-encodes it to progressive H.264.
+Many broadcasters send HD as interlaced H.264 (Australian 1080i, for example: `1080` lines, each frame sent as two alternating halves). [Chrome](https://www.google.com/chrome/) cannot play interlaced H.264; [Safari](https://www.apple.com/safari/) can. So Freetvarr deinterlaces H.264 and re-encodes it to progressive H.264.
 
-The hardware method uses VAAPI (the Linux interface to the graphics chip's video engine) on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` in the `.env` to use another. NVIDIA (NVENC) is not supported, so an NVIDIA host uses software.
+The hardware method uses [VAAPI](https://github.com/intel/libva) (the Linux interface to the graphics chip's video engine) on Intel Quick Sync or AMD, set up as in [Hardware transcoding](/guide/hardware-requirements#hardware-transcoding). The result is capped at `720` lines. The device defaults to `/dev/dri/renderD128`; set `LIVE_TV_VAAPI_DEVICE` in the `.env` to use another. NVIDIA ([NVENC](https://developer.nvidia.com/video-codec-sdk)) is not supported, so an NVIDIA host uses software.
 
 At startup Freetvarr reads `LIVE_TV_TRANSCODE` and picks one method:
 
@@ -183,8 +183,8 @@ Plex discovers an HDHomeRun the same way its own DVR feature does, and plays liv
 
 Captions arrive either as Teletext or as DVB subtitles, and your broadcaster decides which. Australian broadcasters send Teletext, and not every app shows it:
 
-- **The native HDHomeRun app is unproven.** SiliconDust documents DVB subtitle support but says nothing about Teletext, and the author has not tested it on an Australian channel.
-- **Kodi, VLC, and the Channels app do render them.** If captions are a requirement, watch through one of those.
+- **The native HDHomeRun app is unproven.** [SiliconDust](https://www.silicondust.com) documents DVB subtitle support but says nothing about Teletext, and the author has not tested it on an Australian channel.
+- **Kodi, [VLC](https://www.videolan.org/vlc/), and the [Channels](https://getchannels.com) app do render them.** If captions are a requirement, watch through one of those.
 
 > [!NOTE]<br>
 > The same applies to recordings. A `.ts` from TVHeadend carries the Teletext stream, so a player that decodes Teletext shows captions and one that doesn't shows nothing.
