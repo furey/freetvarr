@@ -577,7 +577,7 @@ The record sweeper runs every `15` minutes, at each `GET /api/watchlist` (which 
 
 ### Single flight
 
-`inFlight` in `src/sync.js` holds `{ syncId, promise }` of the running sync. `startSync` returns `{ syncId, alreadyRunning: true }` while `inFlight` is set. With `followUp: true` (the Import route sends it), a call during a sync also starts one more sync with that trigger when the running sync ends. `startSync` waits while a folder rename or a library delete runs (`runLibraryChange` in `src/library-busy.js`); those refuse to start while a sync starts or runs (`isSyncBusy`), and an ad scan refuses while they run. Each sync is a `sync` job in [Activity](#activity), titled `Sync #<id>`.
+`inFlight` in `src/sync.js` holds `{ syncId, promise }` of the running sync. `startSync` returns `{ syncId, alreadyRunning: true }` while `inFlight` is set. With `followUp: true` (the Import route sends it), a call during a sync also starts one more sync with that trigger when the running sync ends. `startSync` waits while a folder rename or a library delete runs (`runLibraryChange` in `src/library-busy.js`), for up to `10` min; after that it records a sync with status `error` and does not run; those refuse to start while a sync starts or runs (`isSyncBusy`), and an ad scan refuses while they run. Each sync is a `sync` job in [Activity](#activity), titled `Sync #<id>`.
 
 ### Sync order
 
@@ -616,7 +616,7 @@ flowchart TD
   lib --> fin --> after
 ```
 
-1. `listFinished` reads every page of `dvr/entry/grid_finished` (`5000` a page, up to `10` pages). A failure here, or in the `shows` read, ends the sync with status `error`. `markRemovedByTvheadend` then reads `dvr/entry/grid_removed` and sets `deleted_from_tvh_at` on each row whose entry TVHeadend removed itself (`fileremoved` set, for example by **Keep the latest**). A file that is only missing, such as on an unmounted disk, does not count.
+1. `listFinished` reads every page of `dvr/entry/grid_finished` (`5000` a page, up to `10` pages). A failure here, or in the `shows` read, ends the sync with status `error`. `markRemovedByTvheadend` then reads `dvr/entry/grid_removed` (shared with the `10` min past-airings cache) and sets `deleted_from_tvh_at` on each row whose entry TVHeadend removed itself (`fileremoved` set, for example by **Keep the latest**). A file that is only missing, such as on an unmounted disk, does not count.
 2. `captureUpcomingArtwork` saves the image of each enabled upcoming entry ([Recording artwork](#recording-artwork)).
 3. `importContextOf` loads the kind overrides, the `series_evidence` facts, the `recordings` rows by show key, and the autorec names.
 4. Each finished entry runs through the [Import state machine](#import-state-machine).
@@ -913,9 +913,9 @@ Under `5` min, the stop dialog of a series episode says that its repeats do not 
 `runAutorecAnchorOnce` (`src/autorec-anchor.js`) changes the title of each autorec that Freetvarr made before the whole-title form to that form. It runs at startup and after each sync (`anchorSeriesRulesQuietly`) until the setting `autorec_titles_anchored_at` is set.
 
 1. Read `dvr/autorec/grid` and `dvr/entry/grid_upcoming`.
-2. `anchorPlanOf` picks the rules with `comment` `freetvarr`, `fulltext` off, a plain-text title (`literalTitleOf` reads it, and it is not already anchored), and a title equal to `name`. User-made and hand-edited rules are left alone.
+2. `anchorPlanOf` picks the rules with `comment` `freetvarr`, `fulltext` and `mergetext` off, a title that is not already anchored, and a title that is `name` itself (a rule from before titles were escaped) or reads back as `name` through `literalTitleOf`. The new title is the escaped and anchored `name`. User-made and hand-edited rules are left alone, with a log line each.
 3. For each rule, log the old and new title, and log each of its timers whose `disp_title` stops matching (`[rules] timer ... stops matching`).
-4. Send `idnode/save` with `uuid` and `title` only. TVHeadend then drops the timers that no longer match. No rule is deleted.
+4. Send `idnode/save` with `uuid` and `title` only. TVHeadend then cancels every scheduled timer of the rule and makes the ones that still match again (`dvr_autorec_changed`), so a per-episode padding change goes back to the rule's padding. No rule is deleted. After the saves, one more `dvr/autorec/grid` read checks each title; a title TVHeadend did not apply counts as failed.
 5. A failed save logs the TVHeadend error and keeps the old title. The failed rules go into the setting `autorec_anchor_failed`, the `tvh.rules` Health check warns and names them, and the flag stays unset so the next run tries them again. An unreachable TVHeadend changes nothing.
 
 ### Library delete
