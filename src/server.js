@@ -2294,6 +2294,7 @@ app.post('/api/reset', syncLimiter, doubleCsrfProtection, async (req, res) => {
   if (getActiveSyncId()) {
     return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }
+  await seenHosts.forget()
   await resetFreetvarrData(db)
   await loadHostCheck()
   try {

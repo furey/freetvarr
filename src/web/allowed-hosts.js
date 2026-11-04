@@ -3,4 +3,4 @@ export const allowedHostRowsOf = (state) => [
   ...(state?.env_hosts || []).filter((name) => !(state?.hosts || []).includes(name)).map((name) => ({ name, fromEnv: true })),
 ]
 
-export const draftHostOf = (state) => (state?.current && !state.current.allowed ? state.current.name : '')
+export const isListLockedFor = (state) => Boolean(state?.current && !state.current.allowed)

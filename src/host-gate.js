@@ -11,7 +11,7 @@ export const createHostGate = ({ allowedHosts, seenHosts, exempt = isExemptReque
   (req, res, next) => {
     if (exempt(req)) return next()
     const hostname = normaliseHostname(req.hostname)
-    if (!isAllowedHost({ hostname, extra: allowedHosts.current(), machineNames })) seenHosts.note({ hostname, from: req.ip })
+    if (!isAllowedHost({ hostname, extra: allowedHosts.current(), machineNames })) seenHosts.note({ hostname, from: req.ip, pageLoad: isUserPageLoad(req) })
     next()
   }
 
@@ -32,6 +32,10 @@ export const normaliseHostname = (raw) => {
   const name = text.replace(/:\d*$/, '')
   return name.endsWith('.') ? name.slice(0, -1) : name
 }
+
+export const isUserPageLoad = (req) => req.get('sec-fetch-mode') === 'navigate'
+  && req.get('sec-fetch-dest') === 'document'
+  && req.get('sec-fetch-site') === 'none'
 
 export const isExemptRequest = (req) => (req.method === 'GET' || req.method === 'HEAD') && EXEMPT_PATHS.includes(req.path)
 
@@ -81,39 +85,57 @@ export const createAllowedHosts = ({ readSetting, writeSetting, envText = proces
   }
 }
 
-export const createSeenHosts = ({ max = MAX_SEEN_HOSTS, now = Date.now, log = console.log, readSetting, writeSetting, saveDelayMs = SEEN_SAVE_DELAY_MS }) => {
+export const createSeenHosts = ({ max = MAX_SEEN_HOSTS, now = Date.now, log = console.log, readSetting, writeSetting }) => {
   const seen = new Map()
+  const logBudget = createLogBudget({ now, log })
   let saveTimer = null
+  let saveDueAt = Infinity
+  let lastSaveAt = -Infinity
   let saving = Promise.resolve()
 
   const flush = () => {
     clearTimeout(saveTimer)
     saveTimer = null
+    saveDueAt = Infinity
+    lastSaveAt = now()
+    const entries = JSON.stringify([...seen.values()])
     saving = saving
-      .then(() => writeSetting(SEEN_HOSTS_KEY, JSON.stringify([...seen.values()])))
+      .then(() => writeSetting(SEEN_HOSTS_KEY, entries))
       .catch((err) => console.warn(`[host-check] could not save the names seen: ${err.message}`))
     return saving
   }
 
-  const scheduleSave = () => {
-    if (saveTimer) return
-    saveTimer = setTimeout(flush, saveDelayMs)
+  const saveWithin = (delayMs) => {
+    const dueAt = now() + delayMs
+    if (dueAt >= saveDueAt) return
+    clearTimeout(saveTimer)
+    saveDueAt = dueAt
+    saveTimer = setTimeout(flush, Math.max(0, delayMs))
     saveTimer.unref?.()
   }
 
-  const note = ({ hostname, from }) => {
+  const note = ({ hostname, from, pageLoad = false }) => {
     const name = hostname.slice(0, MAX_NAME_LENGTH)
     const at = now()
     const before = seen.get(name)
-    const entry = { name, count: (before?.count || 0) + 1, first_seen: before?.first_seen ?? at, last_seen: at, from: String(from || '').replace(/^::ffff:/, ''), logged_at: before?.logged_at ?? null }
-    if (entry.logged_at == null || at - entry.logged_at >= DAY_MS) {
+    const entry = {
+      name,
+      count: (before?.count || 0) + 1,
+      first_seen: before?.first_seen ?? at,
+      last_seen: at,
+      from: String(from || '').replace(/^::ffff:/, ''),
+      page_load: Boolean(before?.page_load || pageLoad),
+      logged_at: before?.logged_at ?? null,
+    }
+    if ((entry.logged_at == null || at - entry.logged_at >= DAY_MS) && logBudget.spend(`[host-check] opened as ${name} from ${entry.from}; add it to Allowed hostnames if you use it (3.0.0 refuses names it does not know)`)) {
       entry.logged_at = at
-      log(`[host-check] opened as ${name} from ${entry.from}; add it to Allowed hostnames if you use it (3.0.0 refuses names it does not know)`)
     }
     seen.delete(name)
     seen.set(name, entry)
     while (seen.size > max) seen.delete(seen.keys().next().value)
-    scheduleSave()
+    const isNews = !before || (pageLoad && !before.page_load)
+    saveWithin(isNews ? lastSaveAt + NEW_NAME_SAVE_GAP_MS - at : KNOWN_NAME_SAVE_DELAY_MS)
+    if (isNews && at - lastSaveAt >= NEW_NAME_SAVE_GAP_MS) flush()
   }
 
   const load = async () => {
@@ -121,9 +143,17 @@ export const createSeenHosts = ({ max = MAX_SEEN_HOSTS, now = Date.now, log = co
     for (const entry of seenEntriesFrom(await readSetting(SEEN_HOSTS_KEY)).slice(-max)) seen.set(entry.name, entry)
   }
 
+  const forget = async () => {
+    clearTimeout(saveTimer)
+    saveTimer = null
+    saveDueAt = Infinity
+    await saving
+    seen.clear()
+  }
+
   const list = () => [...seen.values()].reverse()
 
-  return { note, load, list, flush }
+  return { note, load, list, flush, forget }
 }
 
 export const hostCheckReport = ({ allowedHosts, seenHosts, machineNames = machineNamesOf(), now = Date.now(), windowMs = SEEN_WINDOW_MS }) => {
@@ -133,7 +163,8 @@ export const hostCheckReport = ({ allowedHosts, seenHosts, machineNames = machin
     added: extra.length,
     seen: seenHosts.list()
       .filter((entry) => now - entry.last_seen <= windowMs)
-      .filter((entry) => !isAllowedHost({ hostname: entry.name, extra, machineNames })),
+      .filter((entry) => !isAllowedHost({ hostname: entry.name, extra, machineNames }))
+      .map((entry) => ({ ...entry, page_load: Boolean(entry.page_load), allowable: isSaveableHost(entry.name) })),
   }
 }
 
@@ -154,7 +185,13 @@ export const mountAllowedHosts = ({ app, csrf, limiter, allowedHosts, seenHosts,
     res.json(stateFor(req))
   })
 
-  app.put('/api/allowed-hosts', limiter, csrf, async (req, res) => {
+  const fromAllowedHost = (req, res, next) => {
+    const hostname = normaliseHostname(req.hostname)
+    if (isAllowedHost({ hostname, extra: allowedHosts.current(), machineNames })) return next()
+    res.status(403).json({ error: LOCKED_LIST_MESSAGE, code: 'host-not-allowed' })
+  }
+
+  app.put('/api/allowed-hosts', limiter, fromAllowedHost, csrf, async (req, res) => {
     const { hosts, invalid } = parseAllowedHosts(req.body?.hosts)
     if (invalid.length) return res.status(400).json({ error: allowedHostsErrorOf(invalid) })
     if (hosts.length > MAX_ALLOWED_HOSTS) return res.status(400).json({ error: `Add up to ${MAX_ALLOWED_HOSTS} names.` })
@@ -162,7 +199,7 @@ export const mountAllowedHosts = ({ app, csrf, limiter, allowedHosts, seenHosts,
     res.json(stateFor(req))
   })
 
-  app.post('/api/allowed-hosts/allow/:name', limiter, csrf, async (req, res) => {
+  app.post('/api/allowed-hosts/allow/:name', limiter, fromAllowedHost, csrf, async (req, res) => {
     const { hosts: [host] = [], invalid } = parseAllowedHosts([req.params.name])
     if (!host || invalid.length || host.includes(ANY_HOST)) return res.status(400).json({ error: allowedHostsErrorOf([req.params.name]) })
     const saved = allowedHosts.saved()
@@ -174,8 +211,35 @@ export const mountAllowedHosts = ({ app, csrf, limiter, allowedHosts, seenHosts,
 const allowedHostOf = (entry) => {
   if (entry === ANY_HOST) return ANY_HOST
   const host = entry.toLowerCase().replace(/\.$/, '')
-  if (host.length > MAX_NAME_LENGTH) return null
-  return HOST_ENTRY.test(host) ? host : null
+  if (host.length > MAX_NAME_LENGTH || !HOST_ENTRY.test(host)) return null
+  if (host.startsWith('*.') && host.split('.').length < 3) return null
+  return host
+}
+
+const isSaveableHost = (name) => {
+  const host = allowedHostOf(name)
+  return Boolean(host) && host !== ANY_HOST && !host.startsWith('*.')
+}
+
+const createLogBudget = ({ now, log }) => {
+  let hourStartedAt = -Infinity
+  let lines = 0
+  return {
+    spend: (line) => {
+      const at = now()
+      if (at - hourStartedAt >= HOUR_MS) {
+        hourStartedAt = at
+        lines = 0
+      }
+      lines += 1
+      if (lines <= LOG_LINES_PER_HOUR) {
+        log(line)
+        return true
+      }
+      if (lines === LOG_LINES_PER_HOUR + 1) log(LOG_BUDGET_SPENT)
+      return false
+    },
+  }
 }
 
 const matchesEntry = ({ hostname, entry }) => {
@@ -201,6 +265,11 @@ const EXEMPT_PATHS = ['/healthz', GUIDE_FEED_PATH]
 const MAX_NAME_LENGTH = 253
 const MAX_SEEN_HOSTS = 50
 const MAX_ALLOWED_HOSTS = 100
-const DAY_MS = 24 * 60 * 60 * 1000
+const HOUR_MS = 60 * 60 * 1000
+const DAY_MS = 24 * HOUR_MS
 const SEEN_WINDOW_MS = 14 * DAY_MS
-const SEEN_SAVE_DELAY_MS = 60_000
+const NEW_NAME_SAVE_GAP_MS = 60_000
+const KNOWN_NAME_SAVE_DELAY_MS = HOUR_MS
+const LOG_LINES_PER_HOUR = 10
+const LOG_BUDGET_SPENT = '[host-check] more unknown names this hour; see Health'
+const LOCKED_LIST_MESSAGE = 'Open Freetvarr by its IP address to change Allowed hostnames.'

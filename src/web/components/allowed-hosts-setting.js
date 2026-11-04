@@ -1,22 +1,23 @@
 import { computed, onMounted, ref } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
-import { allowedHostRowsOf, draftHostOf } from '/allowed-hosts.js'
+import { allowedHostRowsOf, isListLockedFor } from '/allowed-hosts.js'
 
 export const AllowedHostsSetting = {
   emits: ['change'],
   template: `
     <div class="allowed-hosts">
-      <p class="setup-hint">IP addresses, localhost, one-word names, and names that end in .local, .lan, .home.arpa, or .internal always work. Add any other name you open Freetvarr by, such as a reverse proxy or a Tailscale name. From 3.0.0, Freetvarr refuses names that are not on this list.</p>
+      <p class="setup-hint">A hostname is the name in the address bar, before the :3733. IP addresses, localhost, one-word names, and names that end in .local, .lan, .home.arpa, or .internal always work. Add any other name you open Freetvarr by, such as a reverse proxy or a Tailscale name. From 3.0.0, Freetvarr refuses names that are not on this list.</p>
       <ul v-if="rows.length" class="ui-chip-row aka-list" aria-label="Allowed hostnames">
         <li v-for="row in rows" :key="row.name" class="ui-chip is-small aka-chip">
           <span class="setup-mono">{{ row.name }}</span>
           <span v-if="row.fromEnv" class="allowed-hosts-source">from the .env file</span>
-          <button v-else type="button" class="aka-remove" :aria-label="'Remove ' + row.name" :disabled="busy"
+          <button v-else type="button" class="aka-remove" :aria-label="'Remove ' + row.name" :disabled="busy || locked"
             @click="remove(row.name)"><close-glyph /></button>
         </li>
       </ul>
       <p v-if="state?.any_host" class="setup-hint is-error">* turns the check off: Freetvarr answers to any name, so any website can reach it through a browser on your network.</p>
-      <form class="aka-add" @submit.prevent="add">
+      <p v-if="locked" class="setup-hint is-error">You opened Freetvarr as {{ state.current.name }}, which is not on this list. Open Freetvarr by its IP address to change the list.</p>
+      <form v-else class="aka-add" @submit.prevent="add">
         <label class="ui-visually-hidden" for="allowed-host-input">Add a hostname</label>
         <input v-no-autofill id="allowed-host-input" v-model="draft" class="options-input setup-mono-input" type="text" maxlength="253"
           placeholder="freetvarr.example.com" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
@@ -33,6 +34,7 @@ export const AllowedHostsSetting = {
     const errorText = ref('')
     const statusText = ref('')
     const rows = computed(() => allowedHostRowsOf(state.value))
+    const locked = computed(() => isListLockedFor(state.value))
 
     const show = (next) => {
       state.value = next
@@ -65,11 +67,9 @@ export const AllowedHostsSetting = {
 
     onMounted(async () => {
       const loaded = await api('GET', '/api/allowed-hosts').catch(() => null)
-      if (!loaded) return
-      show(loaded)
-      draft.value = draftHostOf(loaded)
+      if (loaded) show(loaded)
     })
 
-    return { state, rows, draft, busy, errorText, statusText, add, remove }
+    return { state, rows, locked, draft, busy, errorText, statusText, add, remove }
   },
 }

@@ -681,7 +681,7 @@ const LATER_CHECKS = [
   {
     id: 'host.names',
     group: 'host',
-    title: 'Addresses Freetvarr answers to',
+    title: 'Allowed hostnames',
     doc: 'guide/troubleshooting#allowed-hostnames',
     run: async (ctx) => hostNamesCheck(await ctx.deps.hostNames()),
   },
@@ -701,20 +701,32 @@ export const hostNamesCheck = (report) => {
   const shown = report.seen.slice(0, SHOWN_HOST_NAMES)
   const more = report.seen.length - shown.length
   const names = [...shown.map(seenHostLine), ...(more ? [plural(more, 'more name')] : [])]
-  const mostUsed = report.seen.reduce((a, b) => (b.count > a.count ? b : a))
+  const target = mostUsedOf(report.seen.filter((entry) => entry.page_load && entry.allowable))
+  const one = report.seen.length === 1
   return {
     status: 'warn',
     detail: `Freetvarr was opened as ${joinAnd(names)}. From 3.0.0 Freetvarr refuses names it does not know.`,
-    fix: report.seen.length === 1
-      ? `If you open Freetvarr by this name, press Allow ${mostUsed.name}. ${unknownNameNote('the name')}`
-      : `If you open Freetvarr by these names, allow each one in Allowed hostnames. ${unknownNameNote('a name')}`,
-    action: {
-      label: `Allow ${mostUsed.name}`,
-      post: `/api/allowed-hosts/allow/${encodeURIComponent(mostUsed.name)}`,
-      done: `Added ${mostUsed.name} to Allowed hostnames.`,
-    },
+    fix: `${addLineOf({ one, target })} ${unknownNameNote(one ? 'the name' : 'a name')}`,
+    action: target ? allowActionOf(target.name) : SETTINGS_HOSTNAMES,
   }
 }
+
+const mostUsedOf = (entries) => (entries.length ? entries.reduce((a, b) => (b.count > a.count ? b : a)) : null)
+
+const addLineOf = ({ one, target }) => {
+  if (!one) return 'If you open Freetvarr by these names, allow each one in Allowed hostnames.'
+  return target
+    ? `If you open Freetvarr by this name, press ${allowLabelOf(target.name)}.`
+    : 'If you open Freetvarr by this name, add it in Allowed hostnames.'
+}
+
+const allowActionOf = (name) => ({
+  label: allowLabelOf(name),
+  post: `/api/allowed-hosts/allow/${encodeURIComponent(name)}`,
+  done: `Added ${name} to Allowed hostnames.`,
+})
+
+const allowLabelOf = (name) => `Allow ${name.length > ALLOW_LABEL_NAME_LENGTH ? `${name.slice(0, ALLOW_LABEL_NAME_LENGTH - 1)}…` : name}`
 
 const answersToLine = (added) => (added
   ? `Freetvarr answers to IP addresses, local names, and ${plural(added, 'name')} you added.`
@@ -1126,4 +1138,5 @@ const CREATE_ONE_OFF_PLACEHOLDER = { label: 'Create placeholder file', post: '/a
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }
 const SETTINGS_HOSTNAMES = { label: 'Open setup', href: '#/settings/system/setup/hostnames' }
 const SHOWN_HOST_NAMES = 3
+const ALLOW_LABEL_NAME_LENGTH = 40
 const unknownNameNote = (which) => `If you do not know ${which}, leave it out: a website may have tried to reach Freetvarr through a browser on your network.`

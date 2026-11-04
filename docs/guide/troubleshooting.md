@@ -376,7 +376,7 @@ Freetvarr's own captions show inside the picture. Open **⋯** in the player and
 
 ## Allowed hostnames
 
-Freetvarr checks the name in the address bar of each browser request. This blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
+A hostname is the name in the address bar, before the `:3733`: in `http://freetvarr.lan:3733`, the hostname is `freetvarr.lan`. Freetvarr checks the hostname of each browser request. In `2.8.0` it notes each name it does not know. From `3.0.0` the check blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
 
 These names always work, with no setup:
 
@@ -388,18 +388,18 @@ These names always work, with no setup:
 Any other name needs to be on the list, for example a reverse proxy name such as `freetvarr.example.com`, a full Tailscale name such as `nas.tail1234.ts.net`, or a router name such as `nas.fritz.box`.
 
 > [!IMPORTANT]<br>
-> Until `3.0.0`, Freetvarr only reports a name that is not on the list: the [Health](/guide/doctor#host-names) check **Addresses Freetvarr answers to** warns and names it. From `3.0.0`, Freetvarr refuses those names. The IP address always works.
+> Until `3.0.0`, Freetvarr only reports a name that is not on the list: the [Health](/guide/doctor#host-names) check **Allowed hostnames** warns and names it. From `3.0.0`, Freetvarr refuses those names. The IP address always works.
 
 To add a name:
 
-1. Open Freetvarr by its IP address, or by the name you want to add.
+1. Open Freetvarr by its IP address, or by a name that already works. Freetvarr does not change the list for a page opened by a name that is not on it.
 2. Open Settings → SYSTEM → Setup → **Allowed hostnames**.
-3. Type the name, or check the name already in the field.
+3. Type the name.
 4. Press **Add**.
 
-On Health, **Allow `<name>`** adds the name in one step. Add only names you use yourself. A name you do not know can be a website that tried to reach Freetvarr through a browser on your network.
+On Health, **Allow `<name>`** adds the name in one step. Health offers it only for a name you opened from the address bar, a bookmark, or the Home Screen; for other names it offers **Open setup**. Add only names you use yourself. A name you do not know can be a website that tried to reach Freetvarr through a browser on your network.
 
-`*.example.com` allows every name under `example.com`, but not `example.com` itself. Enter names only, with no `http://`, port, or path.
+`*.example.com` allows every name under `example.com`, but not `example.com` itself. A wildcard needs at least two parts after `*.`, so `*.com` is refused. Enter names only, with no `http://`, port, or path.
 
 If you cannot open Settings, add the names to `FREETVARR_ALLOWED_HOSTS` in your `.env`, separated by commas, then recreate the Freetvarr container:
 

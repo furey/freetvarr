@@ -111,6 +111,12 @@ test('parseAllowedHosts: one * entry is kept, and a list also takes an array', (
   assert.deepEqual(parseAllowedHosts('').hosts, [])
 })
 
+test('parseAllowedHosts: a wildcard needs at least two labels after *.', () => {
+  const { hosts, invalid } = parseAllowedHosts('*.com *.io *.example.com *.co.uk')
+  assert.deepEqual(hosts, ['*.example.com', '*.co.uk'])
+  assert.deepEqual(invalid, ['*.com', '*.io'])
+})
+
 const memorySettings = (initial = {}) => {
   const values = { ...initial }
   return {
@@ -161,9 +167,80 @@ test('createSeenHosts: keeps the newest 50 names with counts, and logs each name
   assert.equal(names[0], 'junk59.example')
 })
 
+test('createSeenHosts: at most 10 log lines an hour across all names, then one line pointing to Health', () => {
+  let clock = Date.parse('2026-11-20T08:00:00Z')
+  const lines = []
+  const seenHosts = createSeenHosts({ now: () => clock, log: (line) => lines.push(line), readSetting: async () => null, writeSetting: async () => {} })
+  for (let i = 0; i < 200; i += 1) seenHosts.note({ hostname: `r${i}.attacker.example`, from: '192.168.1.66' })
+  assert.equal(lines.length, 11)
+  assert.equal(lines[10], '[host-check] more unknown names this hour; see Health')
+  clock += 30 * 60 * 1000
+  seenHosts.note({ hostname: 'late.attacker.example', from: '192.168.1.66' })
+  assert.equal(lines.length, 11)
+  clock += 31 * 60 * 1000
+  seenHosts.note({ hostname: 'next-hour.example', from: '192.168.1.66' })
+  assert.equal(lines.length, 12)
+  assert.match(lines[11], /opened as next-hour\.example/)
+})
+
+test('createSeenHosts: a page load marks the name, and a later fetch does not clear the mark', () => {
+  const seenHosts = createSeenHosts({ log: () => {}, readSetting: async () => null, writeSetting: async () => {} })
+  seenHosts.note({ hostname: 'fetch.example.com', from: '192.168.1.23', pageLoad: false })
+  seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23', pageLoad: true })
+  seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23', pageLoad: false })
+  const byName = Object.fromEntries(seenHosts.list().map((entry) => [entry.name, entry.page_load]))
+  assert.deepEqual(byName, { 'tv.example.com': true, 'fetch.example.com': false })
+})
+
+const tick = () => new Promise((resolve) => setImmediate(resolve))
+
+test('createSeenHosts: a new name is saved at once; more requests for a known name wait for the hourly save', async () => {
+  const writes = []
+  const seenHosts = createSeenHosts({ log: () => {}, readSetting: async () => null, writeSetting: async (key, value) => { writes.push(value) } })
+  seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23' })
+  await tick()
+  assert.equal(writes.length, 1)
+  for (let i = 0; i < 20; i += 1) seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23' })
+  await tick()
+  assert.equal(writes.length, 1)
+  await seenHosts.flush()
+  assert.equal(JSON.parse(writes.at(-1))[0].count, 21)
+})
+
+test('createSeenHosts: a flood of new names saves at most once a minute', async () => {
+  let clock = 1_000_000
+  const writes = []
+  const seenHosts = createSeenHosts({ now: () => clock, log: () => {}, readSetting: async () => null, writeSetting: async (key, value) => { writes.push(value) } })
+  for (let i = 0; i < 30; i += 1) seenHosts.note({ hostname: `r${i}.attacker.example`, from: '192.168.1.66' })
+  await tick()
+  assert.equal(writes.length, 1)
+  clock += 61_000
+  seenHosts.note({ hostname: 'another.attacker.example', from: '192.168.1.66' })
+  await tick()
+  assert.equal(writes.length, 2)
+  await seenHosts.forget()
+})
+
+test('createSeenHosts: forget waits for a save in flight, then empties the list, so Reset cannot bring old names back', async () => {
+  const writes = []
+  let release
+  const seenHosts = createSeenHosts({
+    log: () => {},
+    readSetting: async () => null,
+    writeSetting: (key, value) => new Promise((resolve) => { release = () => { writes.push(value); resolve() } }),
+  })
+  seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23' })
+  await tick()
+  const forgotten = seenHosts.forget()
+  release()
+  await forgotten
+  assert.deepEqual(seenHosts.list(), [])
+  assert.equal(writes.length, 1)
+})
+
 test('createSeenHosts: the list is saved and read back, so Health keeps it after a restart', async () => {
   const settings = memorySettings()
-  const first = createSeenHosts({ now: () => 1000, log: () => {}, readSetting: settings.read, writeSetting: settings.write, saveDelayMs: 0 })
+  const first = createSeenHosts({ now: () => 1000, log: () => {}, readSetting: settings.read, writeSetting: settings.write })
   first.note({ hostname: 'tv.example.com', from: '192.168.1.23' })
   await first.flush()
   assert.ok(settings.values[SEEN_HOSTS_KEY])
@@ -270,6 +347,30 @@ test('createHostGate: X-Forwarded-Host from a loopback proxy is checked; from an
   }
 })
 
+test('createHostGate: only a page the user opened from the address bar, a bookmark, or the Home Screen counts as a page load', async () => {
+  const { server, seenHosts } = await gateApp()
+  const visit = (hostname, headers) => send({ server, path: '/', headers: { Host: hostname, ...headers } })
+  try {
+    await visit('typed.example.com', { 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Site': 'none' })
+    await visit('link.example.com', { 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Site': 'cross-site' })
+    await visit('fetch.example.com', { 'Sec-Fetch-Mode': 'cors', 'Sec-Fetch-Dest': 'empty', 'Sec-Fetch-Site': 'same-origin' })
+    await visit('self.example.com', { 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Site': 'same-origin' })
+    await visit('frame.example.com', { 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Site': 'none' })
+    await visit('old-browser.example.com', {})
+    const byName = Object.fromEntries(seenHosts.list().map((entry) => [entry.name, entry.page_load]))
+    assert.deepEqual(byName, {
+      'typed.example.com': true,
+      'link.example.com': false,
+      'fetch.example.com': false,
+      'self.example.com': false,
+      'frame.example.com': false,
+      'old-browser.example.com': false,
+    })
+  } finally {
+    server.close()
+  }
+})
+
 test('server: the host gate runs after X-Robots-Tag and before cookies, CSRF, and every route', () => {
   const source = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   const at = (needle) => {
@@ -300,6 +401,10 @@ test('hostCheckReport: lists recent names the 3.0.0 check would refuse, newest f
   assert.equal(report.anyHost, false)
   assert.equal(report.added, 2)
   assert.deepEqual(report.seen.map((seen) => seen.name), ['tv.example.com'])
+  assert.equal(report.seen[0].allowable, true)
+  seenHosts.note({ hostname: 'user@attacker.example', from: '192.168.1.23' })
+  const odd = hostCheckReport({ allowedHosts, seenHosts, machineNames: [], now })
+  assert.equal(odd.seen.find((seen) => seen.name === 'user@attacker.example').allowable, false)
 })
 
 const routeApp = async () => {
@@ -372,6 +477,23 @@ test('POST /api/allowed-hosts/allow/:name: the Health action adds one name and k
     assert.deepEqual(again.body.hosts, ['saved.example.com', 'tv.example.com'])
     assert.equal((await sendJson({ server, method: 'POST', path: '/api/allowed-hosts/allow/*' })).status, 400)
     assert.equal((await sendJson({ server, method: 'POST', path: '/api/allowed-hosts/allow/x%3A8080' })).status, 400)
+  } finally {
+    server.close()
+  }
+})
+
+test('PUT /api/allowed-hosts and the allow route refuse a request opened by a name that is not allowed', async () => {
+  const { server, allowedHosts } = await routeApp()
+  try {
+    const put = await sendJson({ server, method: 'PUT', path: '/api/allowed-hosts', body: { hosts: ['rebind.attacker.example'] }, host: 'rebind.attacker.example:3733' })
+    assert.equal(put.status, 403)
+    assert.equal(put.body.code, 'host-not-allowed')
+    assert.doesNotMatch(put.body.error, /csrf/i)
+    const allow = await sendJson({ server, method: 'POST', path: '/api/allowed-hosts/allow/rebind.attacker.example', host: 'rebind.attacker.example:3733' })
+    assert.equal(allow.status, 403)
+    assert.deepEqual(allowedHosts.saved(), ['saved.example.com'])
+    assert.equal((await sendJson({ server, method: 'POST', path: '/api/allowed-hosts/allow/tv.example.com', host: 'saved.example.com' })).status, 200)
+    assert.equal((await sendJson({ server, method: 'POST', path: '/api/allowed-hosts/allow/nas.example.com', host: 'freetvarr.lan:3733' })).status, 200)
   } finally {
     server.close()
   }
