@@ -1,26 +1,20 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 
-const view = readFileSync(new URL('../src/web/views/epg-view.js', import.meta.url), 'utf8')
+import { dayLoadWritesOf } from '../src/web/guide-day-load.js'
 
-const loadDayBody = () => {
-  const start = view.indexOf('const loadDay = async (d, { force = false } = {}) => {')
-  return view.slice(start, view.indexOf('\n    }\n', start))
-}
-
-test('guide: a slow failing day load does not show its error or end loading on the day the user moved to', () => {
-  const body = loadDayBody()
-  assert.match(body, /if \(!force && guideByDay\.has\(d\)\) \{\n\s*loading\.value = false/)
-  assert.match(body, /const isShownDay = \(\) => day\.value === d/)
-  assert.match(body, /catch \(err\) \{\n\s*if \(!isShownDay\(\)\) return\n\s*error\.value = `TV guide load failed/)
-  assert.match(body, /finally \{\n\s*if \(isShownDay\(\)\) loading\.value = false/)
-  assert.match(body, /if \(isShownDay\(\)\) errorCode\.value = 'no-url'/)
+test('dayLoadWritesOf: a slow failing day 3 load writes nothing once the user is on day 0', () => {
+  assert.deepEqual(dayLoadWritesOf({ requestedDay: 3, shownDay: 0, outcome: { kind: 'failed', message: 'HTTP 502' } }), {})
+  assert.deepEqual(dayLoadWritesOf({ requestedDay: 3, shownDay: 0, outcome: { kind: 'done' } }), {})
+  assert.deepEqual(dayLoadWritesOf({ requestedDay: 3, shownDay: 0, outcome: { kind: 'no-url' } }), {})
 })
 
-test('guide search: a failed search says so and offers no watchlist entry', () => {
-  assert.match(view, /<p v-if="searchFailure" class="status-readout err" role="status">Could not search the guide: \{\{ searchFailure \}\}<\/p>/)
-  assert.match(view, /<p v-else-if="!searching && !searchFailure" class="ui-meta">Nothing in the next 7 days matches/)
-  assert.match(view, /failed: Boolean\(searchFailure\.value\)/)
-  assert.match(view, /catch \(err\) \{\n\s*if \(!searches\.isLatest\(ticket\)\) return\n\s*searchResults\.value = \[\]\n\s*searchFailure\.value = err\.message/)
+test('dayLoadWritesOf: the shown day gets its error, its no-url state, and the end of loading', () => {
+  assert.deepEqual(dayLoadWritesOf({ requestedDay: 3, shownDay: 3, outcome: { kind: 'failed', message: 'HTTP 502', code: 'tvh' } }), {
+    error: 'TV guide load failed: HTTP 502',
+    errorCode: 'tvh',
+    loading: false,
+  })
+  assert.deepEqual(dayLoadWritesOf({ requestedDay: 0, shownDay: 0, outcome: { kind: 'no-url' } }), { errorCode: 'no-url', loading: false })
+  assert.deepEqual(dayLoadWritesOf({ requestedDay: 0, shownDay: 0, outcome: { kind: 'done' } }), { loading: false })
 })

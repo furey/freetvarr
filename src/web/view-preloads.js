@@ -31,6 +31,7 @@ export const VIEW_PRELOADS = {
     '/components/kind-filter-menu.js',
     '/components/sort-parts.js',
     '/favourite-queue.js',
+    '/guide-day-load.js',
     '/guide-rail.js',
     '/guide-skeleton.js',
     '/guide-window.js',

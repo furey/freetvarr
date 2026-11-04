@@ -23,6 +23,8 @@ import { seasonEpisodeOf } from '/live-info.js'
 import { formatDate } from '/time-format.js'
 import { cellMarksOf, clockWithoutPeriod } from '/programme-sheet.js'
 import { watchForOfferOf } from '/watch-for.js'
+import { guideSearchOutcomeOf } from '/search-results.js'
+import { dayLoadWritesOf } from '/guide-day-load.js'
 import { channelGroupLabel } from '/components/channel-identity.js'
 import { openWatchFor } from '/components/watch-for-sheet.js'
 import { api } from '/shared/api.js'
@@ -154,7 +156,7 @@ export const EpgView = {
       </div>
 
       <section v-if="searchActive" class="guide-results" aria-label="Search results">
-        <p v-if="searchFailure" class="status-readout err" role="status">Could not search the guide: {{ searchFailure }}</p>
+        <p v-if="searchFailure" class="status-readout err" role="status">{{ searchFailure }}</p>
         <p v-else class="ui-meta" role="status">{{ searching ? 'Searching…' : resultsLabel }}</p>
         <div v-if="searchResults.length" class="ui-group">
           <button v-for="p in searchResults" :key="p.program_id + '-' + p.start" type="button" class="ui-group-row is-tall guide-result"
@@ -799,26 +801,26 @@ export const EpgView = {
         return
       }
       loading.value = true
-      const isShownDay = () => day.value === d
+      const finishDay = (outcome) => applyDayWrites(dayLoadWritesOf({ requestedDay: d, shownDay: day.value, outcome }))
       try {
         const ticket = favourites.ticket()
         const g = await api('GET', `/api/epg/guide?day=${d}`)
-        if (g.configured === false) {
-          if (isShownDay()) errorCode.value = 'no-url'
-          return
-        }
+        if (g.configured === false) return finishDay({ kind: 'no-url' })
         favourites.adopt(() => {
           rememberDay(d, g)
           if (day.value === d) guide.value = g
         }, ticket)
         dayFreshAt = Date.now()
+        finishDay({ kind: 'done' })
       } catch (err) {
-        if (!isShownDay()) return
-        error.value = `TV guide load failed: ${err.message}`
-        errorCode.value = err.code || ''
-      } finally {
-        if (isShownDay()) loading.value = false
+        finishDay({ kind: 'failed', message: err.message, code: err.code })
       }
+    }
+
+    const applyDayWrites = (writes) => {
+      if ('error' in writes) error.value = writes.error
+      if ('errorCode' in writes) errorCode.value = writes.errorCode
+      if ('loading' in writes) loading.value = writes.loading
     }
 
     const loadState = loadEpgState
@@ -1367,16 +1369,11 @@ export const EpgView = {
       }
       searching.value = true
       searchTimer = setTimeout(async () => {
-        try {
-          const r = await api('GET', `/api/epg/search?q=${encodeURIComponent(searchQ.value.trim())}`)
-          if (searches.isLatest(ticket)) searchResults.value = r.results || []
-        } catch (err) {
-          if (!searches.isLatest(ticket)) return
-          searchResults.value = []
-          searchFailure.value = err.message
-        } finally {
-          if (searches.isLatest(ticket)) searching.value = false
-        }
+        const outcome = await guideSearchOutcomeOf(() => api('GET', `/api/epg/search?q=${encodeURIComponent(searchQ.value.trim())}`))
+        if (!searches.isLatest(ticket)) return
+        searchResults.value = outcome.results
+        searchFailure.value = outcome.failure
+        searching.value = false
       }, EPG_SEARCH_DEBOUNCE_MS)
     })
 

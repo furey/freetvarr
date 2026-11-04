@@ -1,12 +1,12 @@
 import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
-import { buildShowSearch, guideRowsOf, searchShowsOf } from '/search-results.js'
+import { buildShowSearch, guideRowsOf, guideSearchOutcomeOf, searchShowsOf } from '/search-results.js'
 import { showHrefOf, showKeyOf } from '/show-key.js'
 import { watchForOfferOf } from '/watch-for.js'
 import { api } from '/shared/api.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { openWatchFor } from '/components/watch-for-sheet.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
-import { overlayStack } from '/overlay-stack.js'
+import { createOverlayLayer, overlayStack } from '/overlay-stack.js'
 import { fmtClockTz, fmtRelativeDay } from '/shared/time.js'
 
 export const searchOpen = ref(false)
@@ -57,7 +57,7 @@ export const SearchOverlay = {
                     </button>
                   </div>
                 </section>
-                <p v-if="guideFailure" class="ui-search-hint">Could not search the guide: {{ guideFailure }}</p>
+                <p v-if="guideFailure" class="ui-search-hint">{{ guideFailure }}</p>
                 <p v-else-if="searching && !shows.length && !programmes.length" class="ui-search-hint">Searching…</p>
                 <p v-else-if="!searching && !shows.length && !programmes.length" class="ui-search-hint">Nothing matches “{{ query.trim() }}”.</p>
                 <section v-if="watchForOffer">
@@ -109,9 +109,7 @@ export const SearchOverlay = {
     const searchGuide = async (text) => {
       const thisRequest = ++requestId
       searching.value = true
-      const outcome = await api('GET', `/api/epg/search?q=${encodeURIComponent(text)}`)
-        .then(({ results = [] }) => ({ results, failure: '' }))
-        .catch((err) => ({ results: [], failure: err.message }))
+      const outcome = await guideSearchOutcomeOf(() => api('GET', `/api/epg/search?q=${encodeURIComponent(text)}`))
       if (thisRequest !== requestId) return
       guideResults.value = outcome.results.slice(0, MAX_GUIDE_RESULTS)
       guideFailure.value = outcome.failure
@@ -146,28 +144,22 @@ export const SearchOverlay = {
     const setBodyLock = (isOpen) => {
       try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
     }
-    let layer = null
-    const releaseLayer = () => {
-      if (layer) overlayStack.remove(layer.id)
-      layer = null
-    }
+    const layer = createOverlayLayer({ stack: overlayStack, onClose: () => close() })
     const stopListening = () => {
       window.removeEventListener('keydown', onKeydown, true)
-      window.removeEventListener('hashchange', close)
     }
     let returnFocus = null
     watch(searchOpen, async (isOpen) => {
       setBodyLock(isOpen)
       stopListening()
       if (!isOpen) {
-        releaseLayer()
+        layer.release()
         returnFocus?.focus?.()
         return
       }
       returnFocus = document.activeElement
-      layer = overlayStack.push({ onBack: close })
+      layer.open()
       window.addEventListener('keydown', onKeydown, true)
-      window.addEventListener('hashchange', close)
       loadLibrary()
       await nextTick()
       input.value?.focus()
@@ -189,7 +181,7 @@ export const SearchOverlay = {
     onUnmounted(() => {
       setBodyLock(false)
       stopListening()
-      releaseLayer()
+      layer.release()
     })
     return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, guideFailure, close, openResult, watchForOffer, watchFor }
   },

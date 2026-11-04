@@ -1,3 +1,4 @@
+import { failureText } from './shared/request-errors.js'
 import { episodeMetaParts } from './scheduled-groups.js'
 import { buildSearchIndex, searchIndex } from './search-index.js'
 import { normaliseSearchText } from './search-text.js'
@@ -66,3 +67,12 @@ const showMetaOf = ({ recordingCount, hasRule }) => [
 const ALIAS_REASONS = new Set(['alias', 'yours', 'known-as'])
 
 const MAX_SHOW_RESULTS = 8
+
+export const guideSearchOutcomeOf = async (request) => {
+  try {
+    const body = await request()
+    return { results: body?.results || [], failure: '' }
+  } catch (err) {
+    return { results: [], failure: failureText({ action: 'Could not search the guide', err }) }
+  }
+}
