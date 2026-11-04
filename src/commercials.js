@@ -387,7 +387,7 @@ const cutBreaks = async ({ filePath, workdir, breaks, recordingId }) => {
   const outPath = path.join(workdir, 'out.ts')
   await execFileP('ffmpeg', [
     '-hide_banner', '-loglevel', 'error',
-    '-f', 'concat', '-safe', '0', '-i', listPath,
+    '-f', 'concat', '-i', listPath,
     '-map', '0', '-c', 'copy', outPath,
   ], { cwd: workdir, timeout: FFMPEG_TIMEOUT_MS, maxBuffer: SPAWN_MAX_BUFFER })
   setProgress(recordingId, {
