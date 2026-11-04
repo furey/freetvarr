@@ -112,7 +112,9 @@ These releases change something on your install when you update to them. Read ea
 
 ### 2.7.0
 
-- **Database**: the first start adds one database change (database change `0041`). It adds a column that keeps the rating and category labels of a +1 channel apart from those of its main channel. A version that is older than `0041` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+- **Database**: the first start adds two database changes (database changes `0041` and `0042`). `0041` adds a column that keeps the rating and category labels of a +1 channel apart from those of its main channel. `0042` adds a column that marks a [Remove after import](/guide/remove-from-tvheadend) that Freetvarr must try again. A version that is older than `0041` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+- **Series recordings match the whole title**: on the first start that reaches TVHeadend, Freetvarr changes the title of each series recording it made to the [whole-title form](/guide/series#how-a-series-recording-works). It changes only rules whose comment is `freetvarr` and whose title is plain text, and it deletes no rule. TVHeadend then drops the scheduled timers whose title is longer than the show title; the Freetvarr log names each one (`[rules] timer ... stops matching`). If TVHeadend refuses a change, the rule keeps its old title, Health shows a warning under **Series recordings**, and Freetvarr tries again after the next sync. Going back to an older version keeps the new titles in TVHeadend.
+- **Recordings TVHeadend removed itself**: the first sync marks each recording that TVHeadend removed on its own (for example with **Keep the latest**) as not in TVHeadend. Rows that were never imported then leave the Recordings log 30 days later.
 
 ### 2.6.4
 
@@ -185,8 +187,8 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
-   - To go back from `2.7.0` to `2.6.4`, undo `0041`.
-   - To go back from `2.7.0` to `2.6.3` or older, undo `0041`, then `0040`.
+   - To go back from `2.7.0` to `2.6.4`, undo `0042`, then `0041`.
+   - To go back from `2.7.0` to `2.6.3` or older, undo `0042`, `0041`, then `0040`.
    - To go back from `2.6.4` to `2.6.3` or older, undo `0040`.
 2. Stop Freetvarr:
 

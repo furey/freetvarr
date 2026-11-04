@@ -102,7 +102,11 @@ To change the setting on an existing series, open its show page, press **Recordi
 
 ## How a series recording works
 
-A series recording is one TVHeadend autorec entry (an automatic recording rule in TVHeadend). It matches on **title plus channel** (or on title alone, with [any channel](#record-on-any-channel)), across all days and all start times. It skips an episode whose episode number it has already recorded. The **Keep the latest** option in [Recording options](/guide/recordings#recording-options) (**Keep** in the programme sheet) maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
+A series recording is one TVHeadend autorec entry (an automatic recording rule in TVHeadend). It matches on **title plus channel** (or on title alone, with [any channel](#record-on-any-channel)), across all days and all start times. It skips an episode whose episode number it has already recorded.
+
+The title must be the whole show title. A title followed by a colon, a dash, or a bracket also matches, so a series recording of `The Chase` records `The Chase`, `The Chase (Ep 5)`, and `The Chase: Celebrity Special`, but not `The Chase Australia` or `Beat The Chase`. Freetvarr sends the title to TVHeadend as `^The Chase( ?[:(-].*)?$`, because TVHeadend reads the title as a regular expression that can match anywhere in a longer title. A series recording you made or changed in TVHeadend yourself keeps your title. Version `2.7.0` changes the titles of the series recordings Freetvarr made before it, once ([version note](/guide/updating#_2-7-0)).
+
+The same show under a longer name does not match: a series recording of `House of Games` does not record `Richard Osman's House Of Games`. Record that title as its own series. The **Keep the latest** option in [Recording options](/guide/recordings#recording-options) (**Keep** in the programme sheet) maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
 
 - **One channel**: an SD channel and its HD simulcast are separate channels, so a series recording on the HD channel does not cover SD airings. Series rules shows both as one series.
 - **Episode numbers**: duplicate detection needs them. [XMLTV](https://wiki.xmltv.org/) feeds (TV guide data files) carry them inconsistently, so your TV guide source decides what you get. Where they are missing, TVHeadend records every airing.
@@ -124,7 +128,7 @@ Press a row to open the series under it. Press the row again, or press `Esc`, to
 - **Series recording**: whether TVHeadend records new episodes, with **Pause** and **Cancel series**.
 - A series with a series folder shows the [edit form](#edit-a-series-folder).
 - A series with no series folder shows where its episodes go and **Assign folder**, which lets you choose the folder in your media library before the next import. See [Assign a folder](#assign-a-folder).
-- **Pause** stops TVHeadend recording new episodes of this series. Episodes already recorded still import. **Resume** starts it again. On an SD and HD pair, both series recordings pause and resume together.
+- **Pause** stops TVHeadend recording new episodes of this series. Episodes already recorded still import, and Scheduled lists no expected episodes for it. **Resume** starts it again. On an SD and HD pair, both series recordings pause and resume together.
 - **Cancel series** removes the series recording from TVHeadend. See [Cancel a series recording](#cancel-a-series-recording).
 
 ## Sort and filter
@@ -212,7 +216,7 @@ The other file stays as it is. This happens, for example, when Sonarr already do
 
 ## Title matches
 
-A recording whose title contains this text as whole words saves to its folder, even without a series recording. `NRL` matches `NRL Friday Night Football`, but not `NRLW`. For a sport recording, a title match that Freetvarr made by itself at an import matches only that exact title, so `Rugby League World Cup 2026` does not catch `Women's Rugby League World Cup 2026`. Settings → RECORDING → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
+A recording whose title contains this text as whole words saves to its folder, even without a series recording. `NRL` matches `NRL Friday Night Football`, but not `NRLW`. A title match that Freetvarr made by itself at an import matches only the same show title, or that title followed by a colon, a dash, or a bracket, as a [series recording](#how-a-series-recording-works) does: `Survivor` catches `Survivor: Heroes`, but not `Australian Survivor`. For a sport recording, it matches only that exact title, so `Rugby League World Cup 2026` does not catch `Women's Rugby League World Cup 2026`. Settings → RECORDING → **Title matches** lists each title with no series recording: a title you added by hand, such as `NRL`, or a series you cancelled with **Keep title match** on. Each title has a **Saves to** path and **Sync**, like a series row. Press the row to open the edit form under it. In the edit form, **Remove title match** removes the title after you confirm (recordings already imported stay where they are).
 
 To add a title:
 

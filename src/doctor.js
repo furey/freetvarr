@@ -277,7 +277,7 @@ const LATER_CHECKS = [
     id: 'tvh.rules',
     group: 'tvheadend',
     title: 'Series recordings',
-    doc: 'guide/series',
+    doc: 'guide/series#how-a-series-recording-works',
     run: async (ctx) => {
       const failed = await ctx.deps.anchorFailures()
       if (!failed.length) return { status: 'pass', detail: 'Each series recording Freetvarr made matches its whole show title.' }
