@@ -432,7 +432,7 @@ After a successful apply, the server clears the guide cache now and again after 
 
 ### TV app login
 
-`createTvLogin` (`src/tv-login.js`) makes a TVHeadend login for a TV app such as Kodi ([TV apps](/guide/tv-apps)). The access entry has the comment `TV apps login, created by Freetvarr`, streaming rights only, and the prefix list of the connected user. The password is `12` random bytes in base64url. The settings `tv_login_username`, `tv_login_password`, and `tv_login_auth_code` store the result. `deleteTvLogin` deletes only entries with the stored username and that comment.
+`createTvLogin` (`src/tv-login.js`) makes a TVHeadend login for a TV app such as Kodi ([TV apps](/guide/tv-apps)). The access entry has the comment `TV apps login, created by Freetvarr`, streaming rights only, and the prefix list of the connected user. The password is `12` random bytes in base64url. The settings `tv_login_username`, `tv_login_password`, and `tv_login_auth_code` store the result. `deleteTvLogin` deletes only entries with the stored username and that comment. `POST /api/tv-login` returns `409` (`code` `exists`) while a TV login is stored, before any TVHeadend call.
 
 ## Guide
 
@@ -492,7 +492,7 @@ Freetvarr writes two kinds of rule to TVHeadend: single DVR entries and autorec 
 
 ### Single recordings
 
-`POST /api/epg/record` takes `channel_id`, `program_id`, `epg_program_id`, and optional `lead_time`, `lag_time`, and `add_to_library`. When the programme has a row in `pending_skips`, `recordProgram` deletes the row and makes no TVHeadend call. Otherwise `scheduleRecording` runs:
+`POST /api/epg/record` takes `channel_id`, `program_id`, and optional `lead_time`, `lag_time`, and `add_to_library`. When the programme has a row in `pending_skips`, `recordProgram` deletes the row and makes no TVHeadend call. Otherwise `scheduleRecording` runs:
 
 1. When a disabled entry for the same programme exists in `dvr/entry/grid_upcoming`, send `idnode/save` with `enabled: true` and the padding, and stop.
 2. Otherwise send `dvr/entry/create_by_event` with `event_id`, `config_uuid` (the default DVR profile), and `comment`.
@@ -901,7 +901,7 @@ Each target must be an absolute path inside the TV, one-off, or movies folder, i
 
 `sweepLibraryStates` (`src/library-files.js`) runs in each sync. For each `done` or `partial` row with a missing file, `library_state` becomes `replaced` (another video with the same `SxxEyy` in the same or a sibling `Season N` folder, stored in `library_replacement`) or `not_in_library`. `POST /api/recordings/:recording_id/library` with `choice: 'include'` resets a `not_in_library` row to `pending` and starts a `manual:import` sync.
 
-`POST /api/reset` returns `409` while a sync runs. Otherwise it deletes all rows of `recordings`, `syncs`, `shows`, and `settings`, and restarts the scheduler.
+`POST /api/reset` returns `409` while a sync runs. Otherwise `resetFreetvarrData` (`src/reset.js`) deletes all rows of `recordings`, `syncs`, and `shows`, and every setting except `tv_login_username`, `tv_login_password`, `tv_login_auth_code`, and `tvh_open_entry_backup`, because the TV login and the closed open-access entry stay in TVHeadend. The scheduler then restarts.
 
 ## Live TV
 
@@ -1513,12 +1513,14 @@ The secret comes from `CSRF_SECRET` when set; a value under `32` characters logs
 
 ### Rate limits
 
-[`express-rate-limit`](https://express-rate-limit.mintlify.app/overview) runs each limiter per client address with a window of `60 s`.
+[`express-rate-limit`](https://express-rate-limit.mintlify.app/overview) runs each limiter per client address with a window of `60 s`. `createRateLimiter` in `src/rate-limits.js` builds every limiter; a refused request gets `429` with the JSON body `{ error, code: 'rate-limited' }`. In the web client, `src/web/shared/request-errors.js` turns a `429` with no JSON into the same plain message, and a request that cannot reach the server into an error with `status` `0` and `code` `offline`.
 
 | Limiter                                      | Limit      | Routes                                                                                                                                                                      |
 | -------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `syncLimiter`                                | `5`        | `POST /api/sync`, recording library and TVHeadend-delete routes, ad-scan and restore, TVHeadend test, detect, and path check, Plex discovery and library create             |
-| `epgLimiter`                                 | `20`       | Record and cancel routes, library rule and delete routes, Plex, Sonarr, and Radarr settings, watchlist, artwork-choice writes, TMDB key, nicknames, programme kind, For you |
+| `syncLimiter`                                | `5`        | `POST /api/sync`                                                                                                                                                            |
+| `rowActionLimiter`                           | `30`       | Recording library (import) and TVHeadend-delete routes, ad-scan and restore                                                                                                 |
+| `setupCheckLimiter`                          | `20`       | TVHeadend test, detect, shows list, and path check, Plex discovery and library create                                                                                       |
+| `epgLimiter`                                 | `60`       | Record and cancel routes, library rule and delete routes, Plex, Sonarr, and Radarr settings, watchlist, artwork-choice writes, TMDB key, nicknames, programme kind, For you |
 | `liveLimiter`                                | `20`       | `POST /api/live`, the stream limit routes, `POST /api/live/benchmark`                                                                                                       |
 | `playLimiter`                                | `30`       | Playback start and From the start                                                                                                                                           |
 | `playPingLimiter`                            | `120`      | Position, heartbeat, attention, watched marks, viewing history                                                                                                              |
