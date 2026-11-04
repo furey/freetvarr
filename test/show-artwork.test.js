@@ -5,7 +5,7 @@ import sharp from 'sharp'
 
 import { readFileSync } from 'node:fs'
 
-import { createShowArtwork, plexSourcesOf, seriesCacheKeyOf, showTitleKey, tvmazeSourcesOf } from '../src/show-artwork.js'
+import { createShowArtwork, plexShowSources, plexSourcesOf, seriesCacheKeyOf, showTitleKey, tvmazeSourcesOf } from '../src/show-artwork.js'
 import { landscapeOf } from '../src/image-thumbnails.js'
 import { programmeHintsByTitle, sizedKeyOf } from '../src/artwork-match.js'
 
@@ -140,7 +140,7 @@ test('plexSourcesOf: keys each library item by title, background art first, toke
 test('sourcesFor: a Plex match wins and TVmaze is never asked', async () => {
   let searches = 0
   const artwork = artworkWith({
-    loadPlexShows: async () => new Map([['chefs ahoy', ['http://plex/thumb']]]),
+    loadPlexShows: async () => new Map([['chefs ahoy', { sources: ['http://plex/thumb'], section: 'show' }]]),
     searchTvmaze: async () => { searches += 1; return [] },
   })
   assert.deepEqual(await artwork.sourcesFor('Chefs Ahoy'), ['http://plex/thumb'])
@@ -239,7 +239,7 @@ test('artworkFor: a Plex match and a remembered miss are final answers', async (
   await cache.write({ key: sizedKeyOf(seriesCacheKeyOf('1 euro house')), sources: [], expiresAt: Infinity })
   const artwork = artworkWith({
     cache,
-    loadPlexShows: async () => new Map([['chefs ahoy', ['http://plex/thumb']]]),
+    loadPlexShows: async () => new Map([['chefs ahoy', { sources: ['http://plex/thumb'], section: 'show' }]]),
   })
   assert.deepEqual(await artwork.artworkFor('Chefs Ahoy'), { sources: ['http://plex/thumb'], pending: false })
   assert.deepEqual(await artwork.artworkFor('1 Euro House'), { sources: [], pending: false })
@@ -415,4 +415,40 @@ test('sourcesFor: a refresh with no guide details does not wipe a cached picture
   assert.equal(writes.length, 1)
   assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
   assert.equal(searches, 2)
+})
+
+test('sourcesFor: a Plex film poster is not used for a series of the same name', async () => {
+  const plexShows = async () => new Map([['dune', { sources: ['http://plex/film'], section: 'movie' }]])
+  const series = artworkWith({ loadPlexShows: plexShows, hintsFor: async () => ({ isEpisode: true }) })
+  assert.deepEqual(await series.sourcesFor('Dune'), [])
+  const outOfGuide = artworkWith({ loadPlexShows: plexShows })
+  assert.deepEqual(await outOfGuide.sourcesFor('Dune'), ['http://plex/film'])
+})
+
+test('plexShowSources: one Plex section failing keeps the other section, each entry tagged with its section', async () => {
+  const entries = await plexShowSources({
+    loadSettings: async () => ({ url: 'http://plex', token: 't', sections: [{ id: '1', kind: 'show' }, { id: '2', kind: 'movie' }] }),
+    listSection: async ({ id }) => {
+      if (id === '1') throw new Error('Plex timed out')
+      return [{ title: 'Dune', thumb: '/thumb' }]
+    },
+  })
+  assert.deepEqual([...entries], [['dune', { sources: ['http://plex/thumb?X-Plex-Token=t'], section: 'movie' }]])
+})
+
+test('sourcesFor: a failed Plex refresh keeps the last good list', async () => {
+  let clock = 1_000
+  let down = false
+  const artwork = artworkWith({
+    now: () => clock,
+    plexTtlMs: 10,
+    loadPlexShows: async () => {
+      if (down) throw new Error('Plex timed out')
+      return new Map([['chefs ahoy', { sources: ['http://plex/thumb'], section: 'show' }]])
+    },
+  })
+  assert.deepEqual(await artwork.sourcesFor('Chefs Ahoy'), ['http://plex/thumb'])
+  down = true
+  clock += 11
+  assert.deepEqual(await artwork.sourcesFor('Chefs Ahoy'), ['http://plex/thumb'])
 })

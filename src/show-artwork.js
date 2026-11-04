@@ -21,7 +21,7 @@ export const showTitleKey = (title) => String(title || '')
   .replace(/^the\s+/, '')
 
 export const createShowArtwork = ({
-  loadPlexShows = plexShowSources,
+  loadPlexShows = () => plexShowSources(),
   searchTvmaze = null,
   findSeriesShow = null,
   hintsFor = guideHintsFor,
@@ -46,7 +46,14 @@ export const createShowArtwork = ({
   const failedUntil = new Map()
   const findShow = findSeriesShow || seriesShowFinder({ searchTvmaze, countryCode })
 
-  const plexSourcesFor = async (key) => (await plexShows.get()).get(key) || []
+  const plexSourcesFor = async ({ key, title }) => {
+    const entry = (await plexShows.get()).get(key)
+    if (!entry) return []
+    if (entry.section === PLEX_MOVIES && await hasEpisodeDetails(title)) return []
+    return entry.sources
+  }
+
+  const hasEpisodeDetails = async (title) => Boolean((await Promise.resolve().then(() => hintsFor(title)).catch(() => null))?.isEpisode)
 
   const recentlyFailed = (key) => (failedUntil.get(key) || 0) > now()
 
@@ -106,7 +113,7 @@ export const createShowArtwork = ({
   const sourcesFor = async (title) => {
     const key = showTitleKey(title)
     if (!key) return []
-    const fromPlex = await plexSourcesFor(key).catch(() => [])
+    const fromPlex = await plexSourcesFor({ key, title }).catch(() => [])
     if (fromPlex.length) return fromPlex
     return tvmazeSourcesFor({ key, title })
   }
@@ -114,7 +121,7 @@ export const createShowArtwork = ({
   const artworkFor = async (title) => {
     const key = showTitleKey(title)
     if (!key) return NO_ARTWORK
-    const fromPlex = await withinMs(plexSourcesFor(key).catch(() => []), plexWaitMs)
+    const fromPlex = await withinMs(plexSourcesFor({ key, title }).catch(() => []), plexWaitMs)
     if (fromPlex === TIMED_OUT) return PENDING_ARTWORK
     if (fromPlex.length) return { sources: fromPlex, pending: false }
     if (!(await isTvmazeEnabled())) return NO_ARTWORK
@@ -186,21 +193,35 @@ export const plexSourcesOf = ({ items = [], url, token }) => {
   return byTitle
 }
 
-const plexShowSources = async () => {
-  const url = ((await getSetting('plex_url')) || '').replace(/\/$/, '')
-  const token = await getSetting('plex_token')
-  const sectionIds = [await getSetting('plex_tv_section_id'), await getSetting('plex_movies_section_id')]
-    .filter(Boolean)
-  if (!url || !token || !sectionIds.length) return new Map()
-  const sections = await Promise.all(sectionIds.map((id) => plexSectionItems({ url, token, id })))
-  return plexSourcesOf({ items: sections.flat(), url, token })
+export const plexShowSources = async ({ loadSettings = plexSettings, listSection = plexSectionItems } = {}) => {
+  const { url, token, sections } = await loadSettings()
+  if (!url || !token || !sections.length) return new Map()
+  const listed = await Promise.allSettled(sections.map(({ id }) => listSection({ url, token, id })))
+  if (listed.every((result) => result.status === 'rejected')) throw listed[0].reason
+  const entries = new Map()
+  sections.forEach((section, at) => {
+    const items = listed[at].status === 'fulfilled' ? listed[at].value : []
+    for (const [key, sources] of plexSourcesOf({ items, url, token })) {
+      if (!entries.has(key)) entries.set(key, { sources, section: section.kind })
+    }
+  })
+  return entries
 }
+
+const plexSettings = async () => ({
+  url: ((await getSetting('plex_url')) || '').replace(/\/$/, ''),
+  token: await getSetting('plex_token'),
+  sections: [
+    { id: await getSetting('plex_tv_section_id'), kind: PLEX_SHOWS },
+    { id: await getSetting('plex_movies_section_id'), kind: PLEX_MOVIES },
+  ].filter((section) => section.id),
+})
 
 const plexSectionItems = async ({ url, token, id }) => {
   const res = await axios.get(`${url}/library/sections/${encodeURIComponent(id)}/all`, {
     params: { 'X-Plex-Token': token },
     headers: { Accept: 'application/json' },
-    timeout: REQUEST_TIMEOUT_MS,
+    timeout: PLEX_TIMEOUT_MS,
     validateStatus: () => true,
   })
   if (res.status >= 400) throw new Error(`Plex HTTP ${res.status}`)
@@ -239,7 +260,7 @@ const createExpiringValue = ({ load, ttlMs, fallback, now }) => {
     pending ??= Promise.resolve()
       .then(load)
       .then((loaded) => { value = loaded })
-      .catch(() => { value = fallback })
+      .catch(() => {})
       .finally(() => {
         expiresAt = now() + ttlMs
         pending = null
@@ -276,7 +297,9 @@ const PENDING_ARTWORK = { sources: [], pending: true }
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const TVMAZE_API = 'https://api.tvmaze.com'
-const REQUEST_TIMEOUT_MS = 5000
+const PLEX_TIMEOUT_MS = 15000
+const PLEX_SHOWS = 'show'
+const PLEX_MOVIES = 'movie'
 const PLEX_TTL_MS = 10 * 60 * 1000
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
