@@ -1,4 +1,5 @@
 import { airingWhenOf, durationText } from './home-hero.js'
+import { failureText } from './shared/request-errors.js'
 import { localDayNumber } from './guide-time.js'
 import { showKeyOf } from './show-key.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
@@ -227,6 +228,10 @@ export const feedbackOf = ({ kind, item, source }) => ({
   source,
 })
 
+export const thumbToggleOf = ({ current, direction }) => (current === direction
+  ? { next: null, kind: 'thumb_clear' }
+  : { next: direction, kind: direction === 'up' ? 'thumb_up' : 'thumb_down' })
+
 export const programmeOpenedOf = ({ programme, channelId }) => feedbackOf({
   kind: 'programme_opened',
   item: { title: programme.title, start: programme.start, channelId },
@@ -365,9 +370,9 @@ export const tierReasonOf = (settings) => {
 }
 
 export const historyClearCopyOf = (count) => {
-  if (!count) return 'Removes your viewing history and your thumbs up and down. Suggestions start again from new.'
+  if (!count) return 'Removes your viewing history, your thumbs up and down, and your hidden shows. Suggestions start again from new.'
   const entries = count === 1 ? '1 history entry' : `${count.toLocaleString('en-AU')} history entries`
-  return `Removes ${entries}, including your thumbs up and down. Suggestions start again from new.`
+  return `Removes ${entries}, including your thumbs up and down and your hidden shows. Suggestions start again from new.`
 }
 
 export const whyRowsOf = (why) => {
@@ -393,6 +398,15 @@ export const whyIconOf = (text) => {
 export const pickableOf = (payload) => (Array.isArray(payload) ? payload : payload?.items ?? [])
 
 export const hiddenShowsOf = (payload) => (Array.isArray(payload) ? payload : payload?.items ?? payload?.shows ?? [])
+
+export const forYouLoadFailureOf = ({ hasPayload }) => (hasPayload
+  ? { missing: false, refreshFailed: true }
+  : { missing: true, refreshFailed: false })
+
+export const picksErrorOf = (err) => ({
+  text: failureText({ action: 'Could not save your picks', err }),
+  needsSettings: err?.status === 409,
+})
 
 const orderedSections = (sections = []) => [...sections].sort((a, b) => rankOf(a.key) - rankOf(b.key))
 

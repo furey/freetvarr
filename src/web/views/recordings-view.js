@@ -18,6 +18,8 @@ import {
 import { RECORDING_SORTS, recordingSortFor, headerSortKey } from '/recording-sort.js'
 import { LOG_STATUSES, logFiltersFromHash } from '/recording-log-filters.js'
 import { sentenceCase } from '/sentence-case.js'
+import { latestOnly } from '/response-order.js'
+import { createPoll } from '/poll.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 import { SHOW_PAGE_MENU, adActionLabelOf, adConfirmOf, adStartedToastOf, adsOfRecording, episodeOfRecording } from '/ad-confirm.js'
 import { ActionConfirm } from '/components/library-menus.js'
@@ -57,7 +59,7 @@ export const RecordingsView = {
           <p><strong>Replaced</strong> means another app, such as Sonarr, put a different file for the episode in place of Freetvarr's. <strong>Not in library</strong> means the file is gone; press <strong>Import again</strong> to import the TVHeadend copy again.</p>
           <p>Series episodes go into their series folder. A single recording goes to the one-off folder, and a film to the movies folder. Press <strong>Import</strong> on a <strong>Not imported</strong> recording to add it to the library.</p>
           <p><strong>Not in TVHeadend</strong> means TVHeadend has deleted its copy. The episode is still in your library, so you can play it, scan it for ads, or cut it again.</p>
-          <p><strong>Clear not in TVHeadend</strong> removes rows for recordings TVHeadend has deleted. The files stay. Rows also leave by themselves after 30 days.</p>
+          <p><strong>Clear not in TVHeadend</strong> removes rows for recordings TVHeadend has deleted. The files stay. Without a clear, imported rows stay. Other rows leave 30 days after TVHeadend removed them.</p>
           <p>A copy, an ad scan, or a cut shows a progress bar while it runs.</p>
           <p><strong>Sort</strong> orders the list by air date, title, series, import time, or size. The browser remembers your choice.</p>
           <p>Press a row to see the recording's details: its channel, length, size, file, ads, and the full error if it has one. The buttons there play, import, scan for ads, or remove it.</p>
@@ -240,6 +242,7 @@ export const RecordingsView = {
       || deletedFilter.value !== 'all',
     )
 
+    const latestRefresh = latestOnly()
     const refresh = async () => {
       const params = new URLSearchParams({
         page: String(page.value),
@@ -251,7 +254,8 @@ export const RecordingsView = {
       if (showFilter.value !== 'all') params.set('show_id', String(showFilter.value))
       if (sinceFilter.value !== 'all') params.set('since', sinceFilter.value)
       if (deletedFilter.value !== 'all') params.set('deleted', deletedFilter.value)
-      const r = await api('GET', `/api/recordings?${params}`)
+      const { latest, result: r } = await latestRefresh(() => api('GET', `/api/recordings?${params}`))
+      if (!latest) return
       recordings.value = r.recordings
       total.value = r.total
       loaded.value = true
@@ -512,28 +516,23 @@ export const RecordingsView = {
       }
     }
 
-    let pollTimer = null
     const hasActiveProgress = () => recordings.value.some((r) => r.progress)
-    const scheduleNextPoll = () => {
-      const delay = hasActiveProgress() ? RECORDINGS_ACTIVE_POLL_MS : RECORDINGS_POLL_MS
-      pollTimer = setTimeout(pollTick, delay)
-    }
-    const pollTick = async () => {
-      await refresh().catch(() => {})
-      scheduleNextPoll()
-    }
+    const poll = createPoll({
+      run: () => refresh(),
+      delayOf: () => (hasActiveProgress() ? RECORDINGS_ACTIVE_POLL_MS : RECORDINGS_POLL_MS),
+    })
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refresh().catch(() => {})
     }
     onMounted(() => {
       loadShows()
       loadAdRemovalSetting()
-      refresh().catch(() => {}).finally(scheduleNextPoll)
+      refresh().catch(() => {}).finally(poll.book)
       document.addEventListener('visibilitychange', refreshWhenVisible)
     })
     window.addEventListener('hashchange', applyLinkedFilters)
     onUnmounted(() => {
-      if (pollTimer) clearTimeout(pollTimer)
+      poll.stop()
       window.removeEventListener('hashchange', applyLinkedFilters)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     })

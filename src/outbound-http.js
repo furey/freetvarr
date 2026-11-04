@@ -36,7 +36,7 @@ export const createOutboundClient = ({
     return breakers.get(host)
   }
 
-  const send = async ({ url, params, headers = {}, timeoutMs, maxBytes, retries, method = 'get' }) => {
+  const send = async ({ url, params, headers = {}, timeoutMs, maxBytes, retries, method = 'get', isBackground = false }) => {
     const target = allowedUrlOf({ url, isAllowedHost })
     const host = target.hostname
     const breaker = breakerFor(host)
@@ -51,7 +51,7 @@ export const createOutboundClient = ({
           timeoutMs,
           maxBytes,
           isAllowedHost,
-        }))
+        }), { isBackground })
         .then((response) => ({ response }), (error) => ({ error }))
       if (outcome.error?.code === 'queue-full') throw new OutboundError(`${host} queue is full`, { code: 'queue-full', host })
       const verdict = responseVerdictOf({ status: outcome.response?.status, error: outcome.error })
@@ -84,8 +84,8 @@ export const createOutboundClient = ({
     }
   }
 
-  const getJson = async ({ url, params, headers = {}, timeoutMs = JSON_TIMEOUT_MS, maxBytes = JSON_MAX_BYTES, retries = JSON_RETRIES }) => {
-    const response = await send({ url, params, headers: { Accept: 'application/json', ...headers }, timeoutMs, maxBytes, retries })
+  const getJson = async ({ url, params, headers = {}, timeoutMs = JSON_TIMEOUT_MS, maxBytes = JSON_MAX_BYTES, retries = JSON_RETRIES, isBackground = false }) => {
+    const response = await send({ url, params, headers: { Accept: 'application/json', ...headers }, timeoutMs, maxBytes, retries, isBackground })
     if (!response) return null
     if (!isJsonContentType(contentTypeOf(response.headers))) {
       throw new OutboundError(`${hostOf(url)} sent ${contentTypeOf(response.headers) || 'no content type'}`, { code: 'bad-content', host: hostOf(url) })

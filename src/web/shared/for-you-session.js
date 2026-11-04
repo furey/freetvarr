@@ -15,6 +15,7 @@ import {
   liveChannelOfItem,
   shownBatchesOf,
   tapActionOf,
+  thumbToggleOf,
 } from '/for-you.js'
 
 export const forYouHidden = ref(new Set())
@@ -173,9 +174,9 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
 
   const toggleThumb = (item, direction) => {
     const key = identityOf(item)
-    const turningOn = thumbs.value[key] !== direction
-    thumbs.value = { ...thumbs.value, [key]: turningOn ? direction : null }
-    if (turningOn) sendFeedback(feedbackOf({ kind: direction === 'up' ? 'thumb_up' : 'thumb_down', item, source }))
+    const { next, kind } = thumbToggleOf({ current: thumbs.value[key] ?? null, direction })
+    thumbs.value = { ...thumbs.value, [key]: next }
+    sendFeedback(feedbackOf({ kind, item, source }))
   }
 
   const hide = (item) => {

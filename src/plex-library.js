@@ -12,7 +12,11 @@ export const ratingKeyOfItemId = (id) => (isPlexItemId(id) ? id.slice(PLEX_ITEM_
 export const isPlexRow = (row) => row?.source === 'plex'
 
 export const libraryItemRowsOf = ({ items = [], section, recordingFiles = [], roots = [], seenAt }) => {
-  const recordingIndex = createPathIndex(recordingFiles.map(({ recordingId, filePath }) => ({ recordingId, path: filePath })))
+  const recordingIndex = createPathIndex(recordingFiles.map(({ recordingId, filePath }) => ({
+    recordingId,
+    path: filePath,
+    underRoot: underRootSegmentsOf({ filePath, roots }),
+  })))
   return items
     .flatMap((item) => partsOf(item).map(({ media, part }) => itemRowOf({ item, media, part, section, recordingIndex, roots, seenAt })))
     .filter((row) => row.file_path)
@@ -59,6 +63,7 @@ export const findInPathIndex = ({ index, filePath }) => {
   if (!filePath) return null
   return index.exact.get(filePath)
     ?? (index.byName.get(lastSegmentOf(filePath)) || []).find((entry) => isSameFileByTail(entry.path, filePath))
+    ?? (index.byName.get(lastSegmentOf(filePath)) || []).find((entry) => endsWithSegments({ filePath, tail: entry.underRoot }))
     ?? null
 }
 
@@ -101,23 +106,28 @@ export const mergeWithRecordings = ({ rows = [], itemRows = [], keyOf, nowMs = D
   const withVersions = rows.map((row) => (versionsByRecordingId.has(row.recording_id)
     ? { ...row, other_versions: [...(row.other_versions || []), ...versionsByRecordingId.get(row.recording_id)] }
     : row))
-  const bySlot = new Map(withVersions
-    .filter((row) => row.season != null && row.episode != null)
-    .map((row) => [slotKeyOf({ key: keyOf(row), season: row.season, episode: row.episode }), row.recording_id]))
+  const slotOf = (row) => (row.season != null && row.episode != null
+    ? slotKeyOf({ key: keyOf(row), season: row.season, episode: row.episode })
+    : null)
+  const bySlot = new Map()
+  const slotted = withVersions.filter((row) => slotOf(row) && !isUnfinishedAttempt(row))
+  for (const row of [...slotted.filter(hasPlayableFile), ...slotted.filter((row) => !hasPlayableFile(row))]) {
+    if (!bySlot.has(slotOf(row))) bySlot.set(slotOf(row), row.recording_id)
+  }
   const extraVersions = new Map()
   const kept = []
+  const plexSlots = new Set()
   for (const plexRow of plexRows) {
-    const slot = plexRow.season != null && plexRow.episode != null
-      ? slotKeyOf({ key: keyOf(plexRow), season: plexRow.season, episode: plexRow.episode })
-      : null
+    const slot = slotOf(plexRow)
     const twin = slot ? bySlot.get(slot) : null
     if (twin) {
       extraVersions.set(twin, [...(extraVersions.get(twin) || []), ...plexRow.versions.map((version) => ({ ...version, itemId: plexRow.recording_id }))])
       continue
     }
+    if (slot) plexSlots.add(slot)
     kept.push(plexRow)
   }
-  const merged = withVersions.map((row) => (extraVersions.has(row.recording_id)
+  const merged = withVersions.filter((row) => !(isUnfinishedAttempt(row) && plexSlots.has(slotOf(row)))).map((row) => (extraVersions.has(row.recording_id)
     ? { ...row, other_versions: [...(row.other_versions || []), ...extraVersions.get(row.recording_id)] }
     : row))
   return [...merged, ...kept]
@@ -240,6 +250,26 @@ const partsOf = (item) => (Array.isArray(item?.Media) ? item.Media : [])
 
 const slotKeyOf = ({ key, season, episode }) => `${key}|${season}|${episode}`
 
+const hasPlayableFile = (row) => Boolean(row.file_path) && ['done', 'partial'].includes(row.status) && !row.library_state
+
+const isUnfinishedAttempt = (row) => ['failed', 'skipped'].includes(row.status)
+
+const underRootSegmentsOf = ({ filePath, roots }) => {
+  if (!filePath) return null
+  const resolved = path.resolve(filePath)
+  const root = roots.filter(Boolean).map((entry) => path.resolve(entry)).find((entry) => isInside(resolved, entry))
+  if (!root) return null
+  const segments = segmentsOf(path.relative(root, resolved))
+  return segments.length >= MIN_ROOT_TAIL_SEGMENTS ? segments : null
+}
+
+const endsWithSegments = ({ filePath, tail }) => {
+  if (!tail) return false
+  const segments = segmentsOf(filePath)
+  if (segments.length < tail.length) return false
+  return tail.every((segment, i) => segments[segments.length - tail.length + i] === segment)
+}
+
 const lastSegmentOf = (filePath) => segmentsOf(filePath).at(-1) ?? ''
 
 const segmentsOf = (filePath) => path.normalize(String(filePath)).split(/[\\/]+/).filter(Boolean)
@@ -278,6 +308,7 @@ const numberOrNull = (value) => {
 }
 
 const MATCH_SEGMENTS = 3
+const MIN_ROOT_TAIL_SEGMENTS = 2
 const TRAILING_TAGS = /(\s*\((?:\d{4}|[A-Za-z]{2,3})\))+\s*$/
 const PLEX_ONLY = '1970-01-01T00:00:00.000Z'
 const CARD_IMAGE_WIDTH = 384

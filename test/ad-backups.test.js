@@ -77,6 +77,50 @@ test('first cut keeps the true original as .orig and starts the keep period', as
   assert.equal(Number(saved.size), Buffer.byteLength('intro|part one|part two'))
 })
 
+const setPosition = (seconds) => db('recordings').where({ recording_id: RECORDING_ID }).update({ playback_position_s: seconds })
+
+test('cutting ads shifts a saved position by the breaks before it', async () => {
+  await setPosition(30)
+  await cut(fakeTools())
+  assert.equal((await row()).playback_position_s, 20)
+})
+
+test('cutting ads moves a saved position inside a break to the break start, and keeps one before it', async () => {
+  await setPosition(15)
+  await cut(fakeTools())
+  assert.equal((await row()).playback_position_s, 10)
+  await db('recordings').update({ playback_position_s: 5, ad_status: null, ad_cut_at: null, ad_breaks_json: null })
+  await fs.rm(`${filePath}.orig`)
+  await fs.writeFile(filePath, ORIGINAL)
+  await cut(fakeTools())
+  assert.equal((await row()).playback_position_s, 5)
+})
+
+test('restoring the original maps a saved position back to the uncut time', async () => {
+  await cut(fakeTools())
+  await setPosition(20)
+  await restoreOriginal({ recordingId: RECORDING_ID, filePath })
+  assert.equal((await row()).playback_position_s, 30)
+})
+
+test('a position saved while the cut runs is the one the cut maps', async () => {
+  await setPosition(5)
+  const tools = fakeTools()
+  const slowCut = async (args) => {
+    await setPosition(40)
+    return tools.cut(args)
+  }
+  await cut({ ...tools, cut: slowCut })
+  assert.equal((await row()).playback_position_s, 30)
+})
+
+test('a re-cut from the original keeps a saved position on the same moment', async () => {
+  await setPosition(30)
+  await cut(fakeTools())
+  await cut(fakeTools())
+  assert.equal((await row()).playback_position_s, 20)
+})
+
 test('re-cut within the keep period starts from the original, keeps it byte-equal, and keeps its date', async () => {
   await cut(fakeTools({ adsToRemove: 1 }))
   assert.equal(await read(filePath), 'intro|part one|AD|part two')

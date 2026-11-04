@@ -7,6 +7,8 @@ import path from 'node:path'
 import {
   parseEdl,
   computeKeepSegments,
+  cutTimeOf,
+  originalTimeOf,
   cutVerificationTolerance,
   comskipScanTimeout,
   resolveComskipIni,
@@ -285,3 +287,9 @@ test('syncSkipMarkers: a failed scan keeps the existing .edl', () => withEpisode
     assert.equal(await fs.readFile(markerPath, 'utf8'), 'earlier')
   }
 }))
+
+test('cutTimeOf and originalTimeOf: map a position across two breaks and back', () => {
+  const breaks = [{ start: 600, end: 780 }, { start: 100, end: 160 }]
+  assert.deepEqual([50, 130, 400, 700, 1000].map((seconds) => cutTimeOf({ seconds, breaks })), [50, 100, 340, 540, 760])
+  assert.deepEqual([50, 340, 760].map((seconds) => originalTimeOf({ seconds, breaks })), [50, 400, 1000])
+})

@@ -22,7 +22,7 @@ import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
-import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT } from '/start-over.js'
+import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT, retryActionOf } from '/start-over.js'
 import {
   behindPillText,
   liveEdgeOf,
@@ -33,13 +33,14 @@ import {
   joinedParts,
 } from '/player-labels.js'
 import { canRewind } from '/live-edge.js'
-import { scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf } from '/from-start-timeline.js'
+import { scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf, fromStartResumeSecondsOf } from '/from-start-timeline.js'
 import { fromStartAiringOf, recordedProgrammeAtMsOf } from '/from-start-programme.js'
 import { api } from '/shared/api.js'
 import {
   liveVideo,
   liveHls,
   watchLive,
+  watchRecordingFromStart,
   stopLive,
   applyLiveCaptions,
   syncCaptionPreferenceFromTracks,
@@ -375,7 +376,12 @@ export const LivePlayer = {
       getVideo: () => liveVideo,
     })
 
-    const retryLive = () => watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+    const retryLive = () => {
+      if (retryActionOf({ fromStart: live.fromStart }) === 'live') return watchLive({ channel: live.channel, nowTitle: live.nowTitle })
+      const { recording, savedSeconds, resumeAt } = live.fromStart
+      const at = fromStartResumeSecondsOf({ currentTime: 0, savedSeconds, resumeAt })
+      watchRecordingFromStart({ channel: live.channel, recording, nowTitle: live.nowTitle, resumeAt: at })
+    }
 
     const onTextTrackAdded = (e) => {
       e.track?.addEventListener?.('cuechange', placeLiveCaptions)

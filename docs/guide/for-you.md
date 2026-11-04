@@ -46,7 +46,7 @@ Press a card to act on it. What happens depends on the suggestion:
 Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
 - **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
-- **More like this** and **Fewer like this**: tell Freetvarr what you think of the show.
+- **More like this** and **Fewer like this**: tell Freetvarr what you think of the show. **Fewer like this** also hides the show from For you, until you press it again on the same card or press **Show again** in **Hidden shows**.
 - **Not interested in** the show: hides it from For you for 90 days.
 - **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
@@ -90,10 +90,10 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 | **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                            |
 | **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                         |
 | **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English. |
-| **Hidden shows**             | Lists the shows you marked **Not interested**. Press **Show again** to get suggestions for a show again.                                               |
+| **Hidden shows**             | Lists the shows you marked **Not interested** or **Fewer like this**. Press **Show again** to get suggestions for a show again.                        |
 | **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                             |
-| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off.                                                                                          |
-| **Clear viewing history**    | Deletes your viewing history, including **More like this** and **Fewer like this**. Suggestions start again from new.                                  |
+| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Not interested** still count.             |
+| **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.              |
 
 **Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 
@@ -111,6 +111,6 @@ The first time it uses Standard or Plus, Freetvarr downloads the language model 
 
 ## Viewing history
 
-Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → WATCHING → **For you** control it. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
+Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → WATCHING → **For you** control it. **Pause history** still keeps your **More like this**, **Fewer like this**, and **Not interested** choices. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
 
 Your viewing history never leaves that computer: the genre lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.

@@ -214,11 +214,14 @@ export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
 
 export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   await flushUserEvents().catch(() => {})
-  const latest = await db('user_events').where({ kind: 'not_interested', series_key: seriesKey }).orderBy('ts', 'desc').first()
-  await db('user_events').insert(eventRowOf({
-    event: { kind: 'not_interested_undo', series_key: seriesKey, title: latest?.title ?? null, source: 'for-you', ts: Math.max(nowMs, (latest?.ts ?? 0) + 1) },
+  const latest = await db('user_events').whereIn('kind', HIDING_CHOICES).where({ series_key: seriesKey }).orderBy('ts', 'desc').first()
+  const latestThumb = await db('user_events').whereIn('kind', THUMB_KINDS).where({ series_key: seriesKey }).orderBy('ts', 'desc').orderBy('id', 'desc').first()
+  const kinds = latestThumb?.kind === 'thumb_down' ? ['not_interested_undo', 'thumb_clear'] : ['not_interested_undo']
+  const ts = Math.max(nowMs, (latest?.ts ?? 0) + 1)
+  await db('user_events').insert(kinds.map((kind) => eventRowOf({
+    event: { kind, series_key: seriesKey, title: latest?.title ?? null, source: 'for-you', ts },
     nowMs,
-  }))
+  })))
   forgetForYouCache()
   return { ok: true, wasHidden: Boolean(latest) }
 }
@@ -362,7 +365,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
   const built = await forYouWorker.build({ guide, vectorsByHash, request })
     .catch((err) => (err.code === WORKER_TIMED_OUT ? Promise.reject(err) : forYouWorker.build({ guide, vectorsByHash, request })))
   job?.step('Add classifications')
-  const result = await withClassifications({ result: built.result, programmes: guide.programmes })
+  const result = await withClassifications({ result: built.result, programmes: guide.programmes, channels: guide.channels })
   result.computeMs = Date.now() - started
   return withLazyExplanations({ result, explanationsJson: built.explanationsJson })
 }
@@ -469,14 +472,14 @@ const hashOf = (text) => crypto.createHash('sha1').update(text).digest('hex')
 
 const logRefreshError = (err) => console.warn(`[for-you] refresh failed: ${err.message}`)
 
-export const withClassifications = async ({ result, programmes, store = classificationStore }) => {
+export const withClassifications = async ({ result, programmes, channels = [], store = classificationStore }) => {
   const items = [result.topPick, ...result.sections.flatMap((section) => section.items)].filter(Boolean)
   const wanted = new Set(items.map((item) => item.programmeKey))
   const ratingByKey = new Map(programmes
     .map((programme) => [`${programme.channel_id}:${programme.start}`, programme.rating])
     .filter(([key]) => wanted.has(key)))
-  const sourceOf = (item) => ({ title: item.title, start: item.start, rating: ratingByKey.get(item.programmeKey) })
-  const classificationOf = await createClassificationLookup({ programmes: items.map(sourceOf), store })
+  const sourceOf = (item) => ({ title: item.title, start: item.start, channelId: item.channelId, rating: ratingByKey.get(item.programmeKey) })
+  const classificationOf = await createClassificationLookup({ programmes: items.map(sourceOf), store, channels })
   const classified = (item) => item && { ...item, classification: classificationOf(sourceOf(item)) }
   return {
     ...result,
@@ -533,7 +536,9 @@ const RECORDING_STAMP_COLUMNS = [
   'max(watched_at) as watchedAt',
   'max(aired_at) as aired',
 ]
-const HIDING_KINDS = ['not_interested', 'not_interested_undo']
+const HIDING_KINDS = ['not_interested', 'not_interested_undo', 'thumb_up', 'thumb_down', 'thumb_clear']
+const HIDING_CHOICES = ['not_interested', 'thumb_down']
+const THUMB_KINDS = ['thumb_up', 'thumb_down', 'thumb_clear']
 const BUCKET_MS = 5 * 60 * 1000
 const STARTUP_DELAY_MS = 20 * 1000
 const WARM_DELAY_MS = 3 * 1000

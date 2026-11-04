@@ -112,7 +112,7 @@ Drag the position bar at the bottom of the picture to rewind. While you are behi
 
 To skip, double-tap (phone or tablet) or double-click (computer) the left third of the picture to go back `10` seconds, or the right third to go forward `10` seconds. On a computer, the left and right arrow keys skip `10` seconds too. Skipping stops at the start of the buffer and at live.
 
-If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (close the player to free it at once).
+If you lock the phone or switch to another app, Freetvarr keeps the channel and its buffer for as long as the buffer lasts (`30` minutes by default), so you can come back to it. The tuner stays in use for that time (close the player to free it at once). When you open another channel, a recording, or **From the start** on the same phone or in the same browser, Freetvarr ends the kept channel first, so it does not take a stream from the new one. A kept channel that someone else also watches stays on.
 
 The buffer starts when you open the channel, so you can rewind only as far back as that. To watch a programme from its start, record it; **From the start** then plays the recording while it records. A paused channel keeps its tuner. Changing channel or closing the player deletes the buffer.
 
@@ -124,7 +124,7 @@ The player's keys are the same for live TV and recordings. See [Keyboard shortcu
 
 ## Stream handling
 
-If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If a stream stops, the player says why (for example, a recording took the tuner), and **Try again** tunes the channel again.
+If a channel takes longer than about `15` seconds to start, the player says it is still waiting for a signal. If the network drops for a few seconds, the player connects to the stream again. If a stream stops, the player says why (for example, a recording took the tuner), and **Try again** tunes the channel again. After **From the start** stops, **Try again** plays the recording again from where you were.
 
 Freetvarr gets the channel from TVHeadend and converts it with [FFmpeg](https://ffmpeg.org/) (a free video conversion program) into a stream that any browser can play:
 

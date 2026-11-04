@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { ArrError, arrConfigOf, createArrClient, pingArr, recycleBinOf } from '../src/arr-client.js'
+import { ArrError, LIST_MAX_BYTES, LIST_TIMEOUT_MS, MAX_BYTES, READ_TIMEOUT_MS, arrConfigOf, createArrClient, pingArr, recycleBinOf } from '../src/arr-client.js'
 import { arrSettingOf, buildManagerIndex, discoveryHostsOf, findArr } from '../src/arr-store.js'
 import { arrBodyOf, arrPatchFrom } from '../src/arr-routes.js'
 import { createCircuitBreaker } from '../src/outbound-http.js'
@@ -33,6 +33,20 @@ test('arr client: sends the key, times out, limits size, and never follows the k
   assert.equal(call.headers['X-Api-Key'], KEY)
   assert.equal(call.params, undefined)
   assert.ok(call.timeoutMs > 0 && call.maxBytes > 0)
+})
+
+test('arr client: the full series and movie lists get the larger list limits', async () => {
+  const { fake, arr } = client([{ status: 200, data: [] }, { status: 200, data: [] }, { status: 200, data: {} }])
+  await arr.series()
+  await arr.movies()
+  await arr.status()
+  for (const call of fake.calls.slice(0, 2)) {
+    assert.equal(call.timeoutMs, LIST_TIMEOUT_MS)
+    assert.equal(call.maxBytes, LIST_MAX_BYTES)
+  }
+  assert.ok(LIST_TIMEOUT_MS > READ_TIMEOUT_MS && LIST_MAX_BYTES > MAX_BYTES)
+  assert.equal(fake.calls[2].timeoutMs, READ_TIMEOUT_MS)
+  assert.equal(fake.calls[2].maxBytes, MAX_BYTES)
 })
 
 test('arr client: a rejected key, a missing item, and a 409 are plain errors with no retry', async () => {

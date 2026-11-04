@@ -106,7 +106,7 @@ Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, t
 Two filters choose which syncs Activity lists:
 
 - **Show**: **Imports**, **Fails**, **Removals**, and **Empty**. Turn on as many as you like. **Empty** is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** (or **Show it**) on that line to turn **Empty** on.
-- **From**: **Any**, **Schedule** (syncs the sync schedule started), or **Manual** (syncs you started).
+- **From**: **Any**, **Schedule** (syncs the sync schedule started), **Manual** (syncs you started), or **After a recording** (syncs that started when a recording finished).
 
 The browser remembers your choice. A running sync always shows.
 

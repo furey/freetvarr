@@ -7,13 +7,14 @@ import express from 'express'
 import helmet from 'helmet'
 import compression from 'compression'
 import cookieParser from 'cookie-parser'
-import rateLimit from 'express-rate-limit'
 import { doubleCsrf } from 'csrf-csrf'
 
 import { db, getSetting, setSetting } from './db.js'
+import { EPG_LIMIT, ROW_ACTION_LIMIT, SETUP_CHECK_LIMIT, createRateLimiter } from './rate-limits.js'
+import { retentionDaysOf, saveMoviesRoot, settingsSaveRefusalOf, tvhTestRequestOf } from './settings-requests.js'
 import { isWelcomeDismissed, setWelcomeDismissed } from './welcome.js'
 import { resolveCsrfSecret } from './csrf-secret.js'
-import { applyStoredTimeZone, currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
+import { applyStoredTimeZone, currentTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { USER_ORIGIN } from './show-origin.js'
@@ -170,6 +171,7 @@ import {
   resumeStartFor,
   startOffsetFor,
   positionFrom,
+  playedDurationOf,
   view as playbackView,
 } from './playback.js'
 import { BUILD_HEADER, readBuildId } from './build-id.js'
@@ -206,6 +208,7 @@ import { mountArrRoutes } from './arr-routes.js'
 import { mountAdOriginalRoutes } from './ad-original-routes.js'
 import { clearableRows, mountRecordingLogRoutes, whereInLog } from './recording-log-routes.js'
 import { recordOptionsFrom } from './recording-padding.js'
+import { recordRequestError, seriesRequestError } from './record-requests.js'
 import { POSTER_SHAPE, showImageShapeFrom } from './show-poster.js'
 import { artworkKindOf, MISSES_RETRIED_AFTER_MS } from './artwork-match.js'
 import { listWatchlist, mountWatchlist } from './watchlist.js'
@@ -215,7 +218,7 @@ import { recordingTitlesOf } from './recording-now-library.js'
 import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
-import { classificationKeyOf, createClassificationStore, isRatingsLikely } from './classification-labels.js'
+import { classificationKeyOf, createClassificationStore, isRatingsLikely, shiftHoursByChannelOf } from './classification-labels.js'
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
@@ -223,13 +226,15 @@ import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
 import { listSyncs, syncPageParams } from './sync-history.js'
-import { createTvLogin, deleteTvLoginRoute, TvLoginError } from './tv-login.js'
+import { TV_LOGIN_KEYS, createTvLoginRoute, deleteTvLoginRoute } from './tv-login.js'
+import { OPEN_ENTRY_BACKUP_KEY, resetFreetvarrData } from './reset.js'
+import { claimRun } from './setup-runs.js'
 import { transmitterLabel } from './web/transmitter-label.js'
 import { limitFrom, mountForYou, publicResultOf } from './for-you-routes.js'
 import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
 import { imageFocus } from './image-focus-service.js'
 import { canonicalFocusKeysOf } from './web/image-focus.js'
-import { createKnownTitles, createLookupGate, useLookupGate } from './lookup-gate.js'
+import { createKnownTitles, createLookupGate, libraryLookupTitles, useLookupGate } from './lookup-gate.js'
 import { startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import { activity } from './activity.js'
@@ -381,12 +386,11 @@ const { doubleCsrfProtection, generateToken } = doubleCsrf({
   size: 32,
 })
 
-const syncLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 5,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const syncLimiter = createRateLimiter({ limit: 5 })
+
+const rowActionLimiter = createRateLimiter({ limit: ROW_ACTION_LIMIT })
+
+const setupCheckLimiter = createRateLimiter({ limit: SETUP_CHECK_LIMIT })
 
 app.get('/healthz', (req, res) => res.json({ ok: true }))
 
@@ -477,7 +481,7 @@ app.delete('/api/syncs/:id', doubleCsrfProtection, async (req, res) => {
 
 app.post(
   '/api/recordings/:recording_id/delete-from-tvh',
-  syncLimiter,
+  rowActionLimiter,
   doubleCsrfProtection,
   async (req, res) => {
     const recordingId = req.params.recording_id
@@ -502,11 +506,11 @@ app.post(
   },
 )
 
-mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: syncLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
+mountAdOriginalRoutes({ app, csrf: doubleCsrfProtection, limiter: rowActionLimiter, isFilePresent: (filePath) => isLibraryFilePresent(filePath) })
 
 mountRecordingLogRoutes({ app, csrf: doubleCsrfProtection })
 
-app.post('/api/recordings/:recording_id/library', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/recordings/:recording_id/library', rowActionLimiter, doubleCsrfProtection, async (req, res) => {
   const recordingId = req.params.recording_id
   const choice = req.body?.choice
   if (!LIBRARY_CHOICES.includes(choice)) {
@@ -621,12 +625,7 @@ app.get('/api/recordings', async (req, res) => {
   })
 })
 
-const epgLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 20,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const epgLimiter = createRateLimiter({ limit: EPG_LIMIT })
 
 const epgError = (res, err, context) => {
   const stage = err instanceof TvheadendError ? err.stage : 'unknown'
@@ -717,26 +716,23 @@ const showImageRoute = imageRouteFor({
   }),
 })
 
-const showImageLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 1200,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const showImageLimiter = createRateLimiter({ limit: 1200 })
 
 app.get(showImageRoute.path, showImageLimiter)
 for (const route of [channelLogoRoute, programmeImageRoute, personImageRoute, showImageRoute]) app.get(route.path, serveImage(route))
 
 const knownLookupTitles = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
-  const [history, recorded, watched] = await Promise.all([
+  const [history, recorded, watched, library] = await Promise.all([
     db('guide_programs').distinct(db.raw("json_extract(program_json, '$.title') as title")).catch(() => []),
     db('recordings').distinct('title').catch(() => []),
     db('watchlist').select('title').catch(() => []),
+    libraryLookupTitles({ database: db }).catch(() => []),
   ])
   return [
     ...[...(guide?.programByEventId?.values() || [])].map((programme) => programme.title),
     ...[...history, ...recorded, ...watched].map((row) => row.title),
+    ...library,
   ].filter(Boolean)
 }
 useLookupGate(createLookupGate({ isKnownTitle: createKnownTitles({ loadTitles: knownLookupTitles }) }))
@@ -761,7 +757,8 @@ const warmUpcomingRatings = async () => {
   const guide = await Promise.resolve().then(getGuideSnapshot).catch(() => null)
   const upcoming = upcomingProgrammesOf({ guide, nowMs: Date.now(), windowMs: RATINGS_WARM_WINDOW_MS })
   const categories = await programmeCategories.categoriesAt(upcoming.map((programme) => programme.start)).catch(() => new Map())
-  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start }))
+  const shiftHoursOf = shiftHoursByChannelOf(guide?.channels)
+  const categoryOf = (programme) => categories.get(classificationKeyOf({ title: programme.title, startMs: programme.start, shiftHours: shiftHoursOf(programme) }))
   programmeRatings.warm(upcoming.filter((programme) => isRatingsLikely({ kind: programme.kind, category: categoryOf(programme) })))
 }
 const warmWeekFilmRatings = async () => {
@@ -773,12 +770,7 @@ setTimeout(warmUpcomingRatingsTagged, RATINGS_WARM_DELAY_MS).unref?.()
 setInterval(warmUpcomingRatingsTagged, RATINGS_WARM_WINDOW_MS / 24).unref?.()
 activity.planEvery({ kind: 'ratings', every: 'every hour', firstDelayMs: RATINGS_WARM_DELAY_MS, everyMs: RATINGS_WARM_WINDOW_MS / 24 })
 
-const ratingsLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 240,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const ratingsLimiter = createRateLimiter({ limit: 240 })
 
 app.get('/api/epg/programme-ratings', ratingsLimiter, async (req, res) => {
   const title = String(req.query.title || '').trim().slice(0, MAX_SHOW_TITLE_LENGTH)
@@ -803,17 +795,15 @@ app.get('/api/epg/programme-credits', ratingsLimiter, async (req, res) => {
 })
 
 app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) => {
-  const { channel_id, program_id, epg_program_id, lead_time, lag_time, add_to_library } = req.body || {}
-  if (channel_id == null || program_id == null || epg_program_id == null) {
-    return res.status(400).json({ error: 'channel_id, program_id and epg_program_id are required' })
-  }
+  const missing = recordRequestError(req.body)
+  if (missing) return res.status(400).json({ error: missing })
+  const { channel_id, program_id, lead_time, lag_time, add_to_library } = req.body
   const { error, options } = recordOptionsFrom({ lead_time, lag_time })
   if (error) return res.status(400).json({ error })
   try {
     const result = await recordProgram({
       channelId: channel_id,
       programId: program_id,
-      epgProgramId: epg_program_id,
       ...options,
       addToLibrary: add_to_library !== false,
     })
@@ -835,22 +825,18 @@ app.post('/api/epg/cancel', epgLimiter, doubleCsrfProtection, async (req, res) =
 })
 
 app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req, res) => {
+  const missing = seriesRequestError(req.body)
+  if (missing) return res.status(400).json({ error: missing })
   const {
-    series_link, channel_id, epg_program_id, program_id,
+    series_link, channel_id, program_id,
     lead_time, lag_time, episodes_to_keep, add_show_rule, any_channel, paused,
-  } = req.body || {}
-  if (series_link == null || channel_id == null || program_id == null || epg_program_id == null) {
-    return res.status(400).json({
-      error: 'series_link, channel_id, program_id and epg_program_id are required',
-    })
-  }
+  } = req.body
   const { error, options } = recordOptionsFrom({ lead_time, lag_time, episodes_to_keep })
   if (error) return res.status(400).json({ error })
   try {
     const result = await recordSeries({
       seriesLink: series_link,
       channelId: channel_id,
-      epgProgramId: epg_program_id,
       programId: program_id,
       anyChannel: any_channel === true,
       paused: paused === true,
@@ -1007,12 +993,9 @@ liveStreams.load()
   .then((outcome) => outcome.benchmark && console.log(`[live] ${describeBenchmark(outcome.benchmark)}`))
   .catch((err) => console.warn(`[live] stream capacity check failed: ${err.message}`))
 
-const liveLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 20,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const liveLimiter = createRateLimiter({ limit: 20 })
+
+const clientTokenOf = (value) => (typeof value === 'string' && value ? value.slice(0, 64) : null)
 
 const liveError = (res, err, context) => {
   if (err instanceof LiveTvError) {
@@ -1026,7 +1009,8 @@ app.post('/api/live', liveLimiter, doubleCsrfProtection, async (req, res) => {
   if (!channelId) return res.status(400).json({ error: 'channel_id is required' })
   try {
     const pictureRank = Number(req.body?.picture_rank) || 0
-    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank, client: req.get('user-agent') || null })) })
+    const clientToken = clientTokenOf(req.body?.client_token)
+    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank, client: req.get('user-agent') || null, clientToken })) })
   } catch (err) {
     liveError(res, err, 'live start')
   }
@@ -1096,10 +1080,15 @@ app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, held })
 })
 
+app.post('/api/live/:session/unhold', doubleCsrfProtection, (req, res) => {
+  res.json({ ok: true, unheld: liveSessions.unhold(String(req.params.session)) })
+})
+
 app.post('/api/live/:session/attention', doubleCsrfProtection, (req, res) => {
   const attending = req.body?.attending
   if (typeof attending !== 'boolean') return res.status(400).json({ error: 'attending must be true or false' })
-  res.json({ ok: true, changed: liveSessions.setAttending(String(req.params.session), attending) })
+  const viewer = clientTokenOf(req.body?.viewer)
+  res.json({ ok: true, changed: liveSessions.setAttending(String(req.params.session), attending, viewer) })
 })
 
 app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
@@ -1107,19 +1096,9 @@ app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, left })
 })
 
-const playLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 30,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const playLimiter = createRateLimiter({ limit: 30 })
 
-const playPingLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 120,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const playPingLimiter = createRateLimiter({ limit: 120 })
 
 const isLibraryFilePresent = async (filePath) => {
   if (!filePath) return false
@@ -1188,6 +1167,7 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     const plan = planForFile({ probe, encoder: await liveEncoderReady })
     const replace = typeof req.body?.replace === 'string' ? req.body.replace : null
     const player = typeof req.body?.player === 'string' ? req.body.player.slice(0, 64) : null
+    await liveSessions.releaseHeld({ clientToken: clientTokenOf(req.body?.client_token) })
     const session = await playbackSessions.start({
       recordingId: row.recording_id,
       label: recordingLabel(row),
@@ -1227,9 +1207,10 @@ app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfPr
     plexWatchSync.noteWatchChange()
     return res.json({ ok: true, seconds })
   }
+  const playedDurationS = playedDurationOf({ sessions: playbackSessions.list(), recordingId: req.params.recording_id })
   const n = await db('recordings')
     .where({ recording_id: req.params.recording_id })
-    .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds }) })
+    .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds, playedDurationS }) })
   if (n > 0) {
     plexWatchSync.noteWatchChange()
     return res.json({ ok: true, seconds })
@@ -1274,12 +1255,7 @@ app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, stopped })
 })
 
-const doctorLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const doctorLimiter = createRateLimiter({ limit: 10 })
 
 app.get('/api/doctor', doctorLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
@@ -1352,7 +1328,15 @@ const refreshAfterKindChange = () => {
   rebuildForYou().catch(() => {})
 }
 mountProgrammeKindRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange: refreshAfterKindChange, titlesFor: titlesForKeys })
-mountUserEvents({ app, csrf: doubleCsrfProtection, limiter: playPingLimiter })
+mountUserEvents({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: playPingLimiter,
+  onChoice: () => {
+    forgetForYouCache()
+    homeHero.invalidate()
+  },
+})
 const warmedForYou = new WeakSet()
 const warmForYou = (result) => {
   if (warmedForYou.has(result)) return
@@ -1443,7 +1427,16 @@ mountActivityRoutes({
 })
 
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
-mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
+mountInProgressPlayback({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: playLimiter,
+  sessions: playbackSessions,
+  encoderReady: liveEncoderReady,
+  folders: inProgressFolders,
+  onError: liveError,
+  releaseHeld: liveSessions.releaseHeld,
+})
 
 app.get('/api/health-summary', healthSummaryRoute)
 
@@ -1611,7 +1604,7 @@ app.post('/api/recordings-root-test', doubleCsrfProtection, async (req, res) => 
   res.json(result)
 })
 
-app.post('/api/tvh-recordings-path-check', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-recordings-path-check', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
     const tvhStorage = await getRecordingStorage()
     res.json({ ok: true, ...compareRecordingPaths({ configured: req.body?.path, tvhStorage }) })
@@ -1621,7 +1614,7 @@ app.post('/api/tvh-recordings-path-check', syncLimiter, doubleCsrfProtection, as
   }
 })
 
-app.post('/api/tvh-shows', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-shows', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
     const conn = await resolveConnection()
     const finished = await listFinished(conn)
@@ -1740,10 +1733,9 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   const body = req.body || {}
+  const refusal = settingsSaveRefusalOf(body)
+  if (refusal) return res.status(400).json({ error: refusal })
   const timeZone = body.time_zone === undefined ? undefined : String(body.time_zone).trim()
-  if (timeZone !== undefined && !isKnownTimeZone(timeZone)) {
-    return res.status(400).json({ error: `Unknown time zone "${timeZone}"` })
-  }
   const rootProblem = await rootSettingsProblem({ body, current: await currentRootSettings(), configDir: CONFIG_DIR })
   if (rootProblem) return res.status(400).json(rootProblem)
   const writeString = async (key, value, { trim = false } = {}) => {
@@ -1759,7 +1751,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   await writeString('media_root', body.media_root, { trim: true })
   await writeString('oneoff_root', body.oneoff_root, { trim: true })
   await writeString('plex_oneoff_section_id', body.plex_oneoff_section_id, { trim: true })
-  await writeString('movies_root', body.movies_root, { trim: true })
+  await saveMoviesRoot(body.movies_root)
   await writeString('plex_movies_section_id', body.plex_movies_section_id, { trim: true })
   if (body.show_artwork_lookup !== undefined) {
     await setSetting('show_artwork_lookup', body.show_artwork_lookup ? 'true' : 'false')
@@ -1790,11 +1782,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     await setSetting('ad_removal_enabled', body.ad_removal_enabled ? 'true' : 'false')
   }
   if (body.ad_original_retention_days !== undefined) {
-    const days = Number(body.ad_original_retention_days)
-    if (!Number.isInteger(days) || days <= 0) {
-      return res.status(400).json({ error: 'ad_original_retention_days must be a positive integer' })
-    }
-    await setSetting('ad_original_retention_days', String(days))
+    await setSetting('ad_original_retention_days', String(retentionDaysOf(body.ad_original_retention_days)))
   }
   if (timeZone !== undefined) {
     await setSetting('time_zone', timeZone)
@@ -1815,15 +1803,9 @@ const currentRootSettings = async () => ({
   tvh_recordings_path: await getTvhRecordingsPath(),
 })
 
-app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) => {
-  const { tvh_url, tvh_username, tvh_password } = req.body || {}
+app.post('/api/tvh-test', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
-    const result = await testTvheadendConnection({
-      url: tvh_url !== undefined ? String(tvh_url).trim() : undefined,
-      username: tvh_username !== undefined ? String(tvh_username).trim() : undefined,
-      password: tvh_password ? String(tvh_password) : undefined,
-      persist: true,
-    })
+    const result = await testTvheadendConnection(tvhTestRequestOf(req.body))
     res.json(result)
   } catch (err) {
     const stage = err instanceof TvheadendError ? err.stage : 'unknown'
@@ -1832,22 +1814,16 @@ app.post('/api/tvh-test', syncLimiter, doubleCsrfProtection, async (req, res) =>
   }
 })
 
-app.post('/api/tvh-detect', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/tvh-detect', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   const result = await detectTvheadendServers({
     hintAddresses: [req.hostname, req.socket.localAddress],
   })
   res.status(result.ok ? 200 : 502).json(result)
 })
 
-const bootstrapLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const bootstrapLimiter = createRateLimiter({ limit: 10 })
 
 const bootstrapHttp = { get: tvhRead, post: tvhWrite, verifyLogin: verifyTvheadendLogin }
-const OPEN_ENTRY_BACKUP_KEY = 'tvh_open_entry_backup'
 let bootstrapRun = null
 
 const bootstrapUrlFrom = async (raw) => {
@@ -1874,12 +1850,7 @@ const readOpenEntryBackup = async () => {
   }
 }
 
-const bootstrapStatusLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 30,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const bootstrapStatusLimiter = createRateLimiter({ limit: 30 })
 
 app.get('/api/tvh-bootstrap/status', bootstrapStatusLimiter, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
@@ -1959,22 +1930,13 @@ app.get('/api/tv-login', async (req, res) => {
   res.json(await readTvLogin())
 })
 
-app.post('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
-  try {
-    const login = await createTvLogin({
-      http: bootstrapHttp,
-      conn: await resolveConnection(),
-      username: req.body?.username,
-      fallbackPrefix: suggestLanPrefixes().join(','),
-    })
-    await Promise.all(Object.entries(TV_LOGIN_KEYS).map(([field, key]) => setSetting(key, login[field])))
-    console.log(`[tv-login] made the watch-only TVHeadend login ${login.username}`)
-    res.json({ ok: true, ...login })
-  } catch (err) {
-    if (err instanceof TvLoginError) return res.status(err.code === 'taken' ? 409 : 400).json({ ok: false, error: err.message, code: err.code })
-    res.status(502).json({ ok: false, error: `TVHeadend did not make the TV login: ${err.message}` })
-  }
-})
+app.post('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, createTvLoginRoute({
+  http: bootstrapHttp,
+  resolveConnection: () => resolveConnection(),
+  readLogin: () => readTvLogin(),
+  saveLogin: (login) => Promise.all(Object.entries(TV_LOGIN_KEYS).map(([field, key]) => setSetting(key, login[field]))),
+  fallbackPrefix: () => suggestLanPrefixes().join(','),
+}))
 
 app.delete('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, deleteTvLoginRoute({
   http: bootstrapHttp,
@@ -1982,8 +1944,6 @@ app.delete('/api/tv-login', bootstrapLimiter, doubleCsrfProtection, deleteTvLogi
   readLogin: () => readTvLogin(),
   clearLogin: () => db('settings').whereIn('key', Object.values(TV_LOGIN_KEYS)).delete(),
 }))
-
-const TV_LOGIN_KEYS = { username: 'tv_login_username', password: 'tv_login_password', authCode: 'tv_login_auth_code' }
 
 const readTvLogin = async () => {
   const entries = await Promise.all(Object.entries(TV_LOGIN_KEYS).map(async ([field, key]) => [field, (await getSetting(key)) || '']))
@@ -2099,16 +2059,14 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
   const tunerIds = Array.isArray(body.tuner_ids) ? body.tuner_ids.map(String) : []
   const networkId = body.network_id ? String(body.network_id) : null
   if (!tunerIds.length) return res.status(400).json({ ok: false, error: 'Choose at least one tuner.' })
-  let setup
-  try {
-    setup = await readChannelSetup()
-  } catch (err) {
-    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
-  }
-  const transmitter = setup.transmitters.find((t) => t.key === body.transmitter_key) || null
-  if (!networkId && !transmitter) return res.status(400).json({ ok: false, error: 'Choose a transmitter.' })
-  const steps = planChannelSetup({ networkId }).steps.map((step) => ({ ...step, status: 'pending', detail: null }))
-  setupRun = { running: true, steps, result: null }
+  const claim = await claimRun({
+    getRun: () => setupRun,
+    setRun: (run) => { setupRun = run },
+    prepare: () => prepareChannelSetup({ transmitterKey: body.transmitter_key, networkId }),
+  })
+  if (!claim.claimed) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up channels.' })
+  if (claim.refusal) return res.status(claim.refusal.status).json(claim.refusal.body)
+  const { setup, transmitter, steps } = claim
   res.status(202).json({ ok: true, steps })
   const result = await applyChannelSetup({
     http: setupHttp,
@@ -2125,6 +2083,19 @@ app.post('/api/tvh-setup/apply', bootstrapLimiter, doubleCsrfProtection, async (
   else console.warn(`[tvh-setup] stopped at ${result.failedStep}: ${result.error}`)
   setupRun = { running: false, steps: result.steps, result: outcome }
 })
+
+const prepareChannelSetup = async ({ transmitterKey, networkId }) => {
+  let setup
+  try {
+    setup = await readChannelSetup()
+  } catch (err) {
+    return { refusal: { status: 502, body: { ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` } } }
+  }
+  const transmitter = setup.transmitters.find((t) => t.key === transmitterKey) || null
+  if (!networkId && !transmitter) return { refusal: { status: 400, body: { ok: false, error: 'Choose a transmitter.' } } }
+  const steps = planChannelSetup({ networkId }).steps.map((step) => ({ ...step, status: 'pending', detail: null }))
+  return { setup, transmitter, steps }
+}
 
 const defaultFavouritesAfterScan = async (conn) => {
   try {
@@ -2202,12 +2173,7 @@ const refreshGuideWhenListingsArrive = async ({ conn, channelIds }) => {
 
 const guideFeedRequests = createRequestWatch()
 
-const guideFeedLimiter = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
+const guideFeedLimiter = createRateLimiter({ limit: 10 })
 
 app.get(GUIDE_FEED_PATH, guideFeedLimiter, async (req, res) => {
   guideFeedRequests.note()
@@ -2228,6 +2194,15 @@ const timeshiftsForFeed = async (feedChannels) => {
   } catch (err) {
     console.warn(`[guide-feed] serving the guide without +1 channels: ${err.message}`)
     return []
+  }
+}
+
+const prepareGuideSetup = async () => {
+  try {
+    const conn = await resolveConnection()
+    return { conn, steps: planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null })) }
+  } catch (err) {
+    return { refusal: { status: 502, body: { ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` } } }
   }
 }
 
@@ -2271,14 +2246,14 @@ app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (
   if (!/^https?:\/\/[^\s]+$/i.test(url)) {
     return res.status(400).json({ ok: false, error: 'Enter a guide address that starts with http:// or https://.' })
   }
-  let conn
-  try {
-    conn = await resolveConnection()
-  } catch (err) {
-    return res.status(502).json({ ok: false, error: `Freetvarr could not read TVHeadend (${err.message}).` })
-  }
-  const steps = planGuideSetup().steps.map((step) => ({ ...step, status: 'pending', detail: null }))
-  guideRun = { running: true, steps, result: null }
+  const claim = await claimRun({
+    getRun: () => guideRun,
+    setRun: (run) => { guideRun = run },
+    prepare: prepareGuideSetup,
+  })
+  if (!claim.claimed) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up the guide.' })
+  if (claim.refusal) return res.status(claim.refusal.status).json(claim.refusal.body)
+  const { conn, steps } = claim
   res.status(202).json({ ok: true, steps })
   const result = await applyGuideSetup({
     http: setupHttp,
@@ -2352,12 +2327,7 @@ app.post('/api/reset', syncLimiter, doubleCsrfProtection, async (req, res) => {
   if (getActiveSyncId()) {
     return res.status(409).json({ error: 'Freetvarr cannot reset while a sync is running.' })
   }
-  await db.transaction(async (trx) => {
-    await trx('recordings').delete()
-    await trx('syncs').delete()
-    await trx('shows').delete()
-    await trx('settings').delete()
-  })
+  await resetFreetvarrData(db)
   try {
     await startScheduler()
   } catch (err) {
@@ -2366,7 +2336,7 @@ app.post('/api/reset', syncLimiter, doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true })
 })
 
-app.post('/api/discover-plex', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/discover-plex', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   try {
     const servers = await discoverLocalPlexServers()
     res.json({ servers })
@@ -2403,7 +2373,7 @@ app.post('/api/plex-libraries', doubleCsrfProtection, async (req, res) => {
   }
 })
 
-app.post('/api/plex-libraries/create', syncLimiter, doubleCsrfProtection, async (req, res) => {
+app.post('/api/plex-libraries/create', setupCheckLimiter, doubleCsrfProtection, async (req, res) => {
   const libraries = Array.isArray(req.body?.libraries) ? req.body.libraries : []
   if (!libraries.length) return res.status(400).json({ error: 'libraries is required' })
   try {

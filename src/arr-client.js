@@ -8,6 +8,8 @@ export const ARR_NAMES = { sonarr: 'Sonarr', radarr: 'Radarr' }
 export const READ_TIMEOUT_MS = 8000
 export const WRITE_TIMEOUT_MS = 15_000
 export const MAX_BYTES = 20 * 1024 * 1024
+export const LIST_TIMEOUT_MS = 60_000
+export const LIST_MAX_BYTES = 200 * 1024 * 1024
 export const READ_RETRIES = 1
 
 export class ArrError extends Error {
@@ -24,7 +26,7 @@ export const createArrClient = ({ app, url, apiKey, request = axiosRequest, brea
   const base = String(url || '').replace(/\/+$/, '')
   const name = ARR_NAMES[app] || app
 
-  const send = async ({ method, path, params, data, timeoutMs, retries }) => {
+  const send = async ({ method, path, params, data, timeoutMs, retries, maxBytes = MAX_BYTES }) => {
     for (let attempt = 0; ; attempt += 1) {
       if (!breaker.allows()) throw new ArrError(`${name} is not answering, so Freetvarr is waiting before it tries again`, { app, kind: 'backing-off' })
       const outcome = await request({
@@ -34,7 +36,7 @@ export const createArrClient = ({ app, url, apiKey, request = axiosRequest, brea
         data,
         headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
         timeoutMs,
-        maxBytes: MAX_BYTES,
+        maxBytes,
       }).then((response) => ({ response }), (error) => ({ error }))
       const status = outcome.response?.status
       if (status === 401) {
@@ -66,6 +68,7 @@ export const createArrClient = ({ app, url, apiKey, request = axiosRequest, brea
   }
 
   const get = (path, params) => send({ method: 'get', path, params, timeoutMs: READ_TIMEOUT_MS, retries: READ_RETRIES })
+  const list = (path) => send({ method: 'get', path, timeoutMs: LIST_TIMEOUT_MS, retries: READ_RETRIES, maxBytes: LIST_MAX_BYTES })
   const put = (path, data) => send({ method: 'put', path, data, timeoutMs: WRITE_TIMEOUT_MS, retries: 0 })
   const del = (path, params) => send({ method: 'delete', path, params, timeoutMs: WRITE_TIMEOUT_MS, retries: 0 })
 
@@ -73,11 +76,11 @@ export const createArrClient = ({ app, url, apiKey, request = axiosRequest, brea
     app,
     status: () => get('/api/v3/system/status'),
     mediaManagement: () => get('/api/v3/config/mediamanagement'),
-    series: () => get('/api/v3/series'),
+    series: () => list('/api/v3/series'),
     seriesById: (id) => get(`/api/v3/series/${encodeURIComponent(id)}`),
     episodeFiles: (seriesId) => get('/api/v3/episodefile', { seriesId }),
     episodesOfFile: (episodeFileId) => get('/api/v3/episode', { episodeFileId }),
-    movies: () => get('/api/v3/movie'),
+    movies: () => list('/api/v3/movie'),
     unmonitorEpisodes: (episodeIds) => put('/api/v3/episode/monitor', { episodeIds, monitored: false }),
     monitorEpisodes: (episodeIds) => put('/api/v3/episode/monitor', { episodeIds, monitored: true }),
     unmonitorMovies: (movieIds) => put('/api/v3/movie/editor', { movieIds, monitored: false }),

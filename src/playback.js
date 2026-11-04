@@ -112,6 +112,9 @@ export const startOffsetFor = ({ seconds, duration }) => {
   return Math.min(wanted, last)
 }
 
+export const playedDurationOf = ({ sessions = [], recordingId }) =>
+  sessions.find((s) => s.recordingId === recordingId && s.duration > 0)?.duration ?? null
+
 export const producedSecondsOf = (playlist) =>
   [...String(playlist || '').matchAll(/^#EXTINF:([\d.]+)/gm)]
     .reduce((sum, [, seconds]) => sum + Number(seconds), 0)
@@ -287,7 +290,9 @@ export const createPlaybackSessions = ({
       session.feeder?.abort()
       if (session.ending) return
       const playlist = await readPlaylist(session)
+      if (session.ending) return
       if (hasSegments(playlist)) {
+        if (!encodedToTheEnd({ session, code, signal, playlist })) return end(session, exitReasonOf({ session, code, signal }))
         session.finished = true
         session.status = 'ready'
         return
@@ -296,10 +301,7 @@ export const createPlaybackSessions = ({
       if (session.plan?.teletext) return respawnWith(session, { plan: { ...session.plan, teletext: null } })
       const softwarePlan = softwarePlanOf(session.plan)
       if (softwarePlan) return respawnWith(session, { plan: softwarePlan })
-      end(session, {
-        code: 'ffmpeg',
-        detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
-      })
+      end(session, exitReasonOf({ session, code, signal }))
     })
   }
 
@@ -401,7 +403,7 @@ export const createPlaybackSessions = ({
     return path.join(session.dir, name)
   }
 
-  const labels = () => [...sessions.values()].map((s) => s.label)
+  const labels = () => [...sessions.values()].filter((s) => !s.ending).map((s) => s.label)
 
   const list = () => [...sessions.values()].map((s) => ({
     id: s.id,
@@ -444,6 +446,17 @@ const inProgressView = (session) => ({
   recordingStartedAt: session.inProgress.recordingStartedAt ?? null,
   scheduledEndAt: session.inProgress.scheduledEndAt ?? null,
   liveEdgeSeconds: session.producedSeconds ?? 0,
+})
+
+const encodedToTheEnd = ({ session, code, signal, playlist }) => {
+  if (code === 0 && !signal) return true
+  if (!session.duration) return false
+  return session.offset + producedSecondsOf(playlist) >= session.duration - RESUME_END_MARGIN_S
+}
+
+const exitReasonOf = ({ session, code, signal }) => ({
+  code: 'ffmpeg',
+  detail: session.errorLines[0] || `ffmpeg exited (${signal || code}).`,
 })
 
 const audioTypeOf = (stream) => (stream.disposition?.visual_impaired ? 3 : 0)

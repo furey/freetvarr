@@ -70,6 +70,7 @@ test('programmeClassificationEntry keys a label by the plain title and start tim
   assert.deepEqual(programmeClassificationEntry({ programmeXml: programme, parseTime: parseXmltvTime }), {
     titleKey: 'law & order',
     startMs: NOW,
+    shiftHours: 0,
     label: 'MA15+',
     category: null,
   })
@@ -243,4 +244,66 @@ test('withClassifications labels every For you item and the top pick', async () 
   assert.ok(result.explanations instanceof Map)
   const empty = await withClassifications({ result: { topPick: null, sections: [] }, programmes: [], store })
   assert.equal(empty.topPick, null)
+})
+
+const GOGGLEBOX_FEED = [
+  ['20261021093000 +0000', 'M'],
+  ['20261021103000 +0000', 'MA15+'],
+].map(([start, label]) => `<programme start="${start}" channel="ten">
+    <title lang="en">Gogglebox</title>
+    <rating system="AU"><value>${label}</value></rating>
+  </programme>`).join('\n  ')
+
+const GOGGLEBOX_CHANNELS = [{ id: 'c10', epgId: 'u10', name: '10 HD' }, { id: 'c10p', epgId: 'u10p', name: '10 HD +1' }]
+
+test('a +1 copy and the base channel at the same time keep their own labels', async () => {
+  const { programmeClassifications } = await import('../src/guide-feed.js')
+  const store = createClassificationStore()
+  await store.record(programmeClassifications({ xml: GOGGLEBOX_FEED, shifts: [{ id: 'ten.plus1', baseId: 'ten', hours: 1 }] }))
+  const at = Date.UTC(2026, 9, 21, 10, 30)
+  const base = { title: 'Gogglebox', start: at, channel_id: 'u10' }
+  const plusOne = { title: 'Gogglebox', start: at, channel_id: 'u10p' }
+  const classificationOf = await createClassificationLookup({ programmes: [base, plusOne], store, channels: GOGGLEBOX_CHANNELS })
+  assert.equal(classificationOf(base), 'MA15+')
+  assert.equal(classificationOf(plusOne), 'M')
+  assert.equal(await programmeClassification({ programme: plusOne, store, channels: GOGGLEBOX_CHANNELS }), 'M')
+  assert.equal(await programmeClassification({ programme: base, store, channels: GOGGLEBOX_CHANNELS }), 'MA15+')
+})
+
+test('a recording from a +1 channel takes the +1 label when labels are copied to recordings', async () => {
+  const { programmeClassifications } = await import('../src/guide-feed.js')
+  const store = createClassificationStore()
+  await store.record(programmeClassifications({ xml: GOGGLEBOX_FEED, shifts: [{ id: 'ten.plus1', baseId: 'ten', hours: 1 }] }))
+  const at = Date.UTC(2026, 9, 21, 10, 30)
+  await db('recordings').insert([
+    recording({ recording_id: 'base', title: 'Gogglebox', aired_at: at, channel_name: '10 HD' }),
+    recording({ recording_id: 'plus', title: 'Gogglebox', aired_at: at, channel_name: '10 HD +1' }),
+  ])
+  await store.copyToRecordings()
+  const labels = Object.fromEntries((await db('recordings').select('recording_id', 'classification'))
+    .map((row) => [row.recording_id, row.classification]))
+  assert.deepEqual(labels, { base: 'MA15+', plus: 'M' })
+})
+
+test('an upcoming timer on a +1 channel takes the +1 label', async () => {
+  const { programmeClassifications } = await import('../src/guide-feed.js')
+  const { withUpcomingClassifications } = await import('../src/epg.js')
+  await createClassificationStore().record(programmeClassifications({ xml: GOGGLEBOX_FEED, shifts: [{ id: 'ten.plus1', baseId: 'ten', hours: 1 }] }))
+  const at = Date.UTC(2026, 9, 21, 10, 30)
+  const upcoming = [
+    { programId: '1', name: 'Gogglebox', startDate: at, channelName: '10 HD' },
+    { programId: '2', name: 'Gogglebox', startDate: at, channelName: '10 HD +1' },
+  ]
+  const labelled = await withUpcomingClassifications({ upcoming, guide: null })
+  assert.deepEqual(labelled.map((recording) => recording.classification), ['MA15+', 'M'])
+})
+
+test('a lookup without channels still reads the +1 label from a programme channel name', async () => {
+  const { programmeClassifications } = await import('../src/guide-feed.js')
+  const store = createClassificationStore()
+  await store.record(programmeClassifications({ xml: GOGGLEBOX_FEED, shifts: [{ id: 'ten.plus1', baseId: 'ten', hours: 1 }] }))
+  const at = Date.UTC(2026, 9, 21, 10, 30)
+  const plusOne = { title: 'Gogglebox', start: at, channelName: '10 HD +1' }
+  const classificationOf = await createClassificationLookup({ programmes: [plusOne], store })
+  assert.equal(classificationOf(plusOne), 'M')
 })

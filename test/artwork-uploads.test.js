@@ -214,3 +214,16 @@ test('parallel saves never pass the per-kind limit', async () => {
   assert.ok(results.filter((result) => result.status === 'rejected').every((result) => result.reason instanceof UploadRejected))
   assert.equal((await store.list({ key: 'muster-dogs', kind: 'poster' })).length, 2)
 })
+
+test('POST an upload removes the saved file when picking it fails', async () => {
+  const choose = choices.choose
+  choices.choose = async () => { throw new Error('database is locked') }
+  try {
+    const before = (await uploads.list({ key: 'the-block', kind: 'poster' })).length
+    const { status } = await post('/api/library/shows/the-block/artwork/poster/uploads', await photoOf({ width: 1200, height: 1800 }))
+    assert.equal(status, 500)
+    assert.equal((await uploads.list({ key: 'the-block', kind: 'poster' })).length, before)
+  } finally {
+    choices.choose = choose
+  }
+})
