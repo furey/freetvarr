@@ -1,4 +1,5 @@
 import fs from 'fs/promises'
+import { basename } from 'path'
 import dgram from 'node:dgram'
 
 import axios from 'axios'
@@ -50,6 +51,9 @@ export const notifyPlexSectionRefresh = async (overrides = {}) => {
 
 export const detectPlexTokenFromPreferences = async () => {
   const path = await resolvePlexPrefsPath()
+  if (!PLEX_PREFS_NAME.test(basename(path))) {
+    return { ok: false, path, reason: `${path} is not a Plex Preferences.xml file. Point the path at Preferences.xml.` }
+  }
   let raw
   try {
     raw = await fs.readFile(path, 'utf8')
@@ -324,6 +328,8 @@ const resolveConnection = async ({ url, token } = {}) => {
 }
 
 const PASTE_TOKEN_MESSAGE = 'Paste the Plex token for this server.'
+
+const PLEX_PREFS_NAME = /(^|-)preferences\.xml$/i
 
 const resolvePlexPrefsPath = async () => {
   const fromSetting = await getSetting('plex_prefs_path')

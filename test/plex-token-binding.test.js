@@ -98,6 +98,16 @@ test('detectPlexTokenFromPreferences: reports that a token is set without return
   assert.equal(await getSetting('plex_token_scope'), 'this-machine')
 })
 
+test('detectPlexTokenFromPreferences: reads only a file named Preferences.xml', async () => {
+  await setSetting('plex_prefs_path', '/etc/hosts')
+  const refused = await detectPlexTokenFromPreferences()
+  assert.equal(refused.ok, false)
+  assert.match(refused.reason, /is not a Plex Preferences\.xml file/)
+  assert.equal(await getSetting('plex_token'), TOKEN)
+  await setSetting('plex_prefs_path', path.join(tmpDir, 'missing', 'plex-preferences.xml'))
+  assert.match((await detectPlexTokenFromPreferences()).reason, /^Preferences\.xml not found at /)
+})
+
 test('detectedPlexTokenState: marks the token as stored and leaves the token field empty', () => {
   assert.deepEqual(detectedPlexTokenState({ ok: true, source: 'preferences.xml', plex_token_set: true }), {
     plexTokenSet: true,
