@@ -36,8 +36,8 @@ export const FROM_START_MAX_RESTARTS = 2
 
 export const fromStartGoneAction = ({ restarts }) => (restarts < FROM_START_MAX_RESTARTS ? 'restart' : 'end')
 
-export const fromStartResumeSecondsOf = ({ currentTime, savedSeconds }) =>
-  Math.floor(finiteAtLeastZero(currentTime) || finiteAtLeastZero(savedSeconds))
+export const fromStartResumeSecondsOf = ({ currentTime, savedSeconds, resumeAt }) =>
+  Math.floor(finiteAtLeastZero(currentTime) || finiteAtLeastZero(savedSeconds) || finiteAtLeastZero(resumeAt))
 
 const percentOf = (value, scale) => Math.round((value / scale) * 100_000) / 1000
 

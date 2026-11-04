@@ -33,7 +33,7 @@ import {
   joinedParts,
 } from '/player-labels.js'
 import { canRewind } from '/live-edge.js'
-import { scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf } from '/from-start-timeline.js'
+import { scheduledSecondsOf, fromStartScaleOf, fromStartTimelineOf, clampFromStartSeek, fromStartEndMsOf, fromStartResumeSecondsOf } from '/from-start-timeline.js'
 import { fromStartAiringOf, recordedProgrammeAtMsOf } from '/from-start-programme.js'
 import { api } from '/shared/api.js'
 import {
@@ -378,8 +378,9 @@ export const LivePlayer = {
 
     const retryLive = () => {
       if (retryActionOf({ fromStart: live.fromStart }) === 'live') return watchLive({ channel: live.channel, nowTitle: live.nowTitle })
-      const { recording, savedSeconds } = live.fromStart
-      watchRecordingFromStart({ channel: live.channel, recording, nowTitle: live.nowTitle, resumeAt: savedSeconds || 0 })
+      const { recording, savedSeconds, resumeAt } = live.fromStart
+      const at = fromStartResumeSecondsOf({ currentTime: 0, savedSeconds, resumeAt })
+      watchRecordingFromStart({ channel: live.channel, recording, nowTitle: live.nowTitle, resumeAt: at })
     }
 
     const onTextTrackAdded = (e) => {

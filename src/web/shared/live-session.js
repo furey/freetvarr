@@ -166,7 +166,7 @@ export const watchFromStart = async (recording, { resumeAt = 0 } = {}) => {
   })
   try {
     const r = await api('POST', '/api/play/in-progress', {
-      dvrUuid: recording.dvrUuid, player: FROM_START_PLAYER, ...(replace ? { replace } : {}),
+      dvrUuid: recording.dvrUuid, player: FROM_START_PLAYER, client_token: DEVICE_TOKEN, ...(replace ? { replace } : {}),
     })
     if (run !== liveRun) {
       api('DELETE', `/api/play/${r.session.id}`).catch(() => {})
@@ -239,8 +239,8 @@ const onFromStartGone = (run) => {
 }
 
 const restartFromStart = () => {
-  const { recording, savedSeconds } = live.fromStart
-  watchFromStart(recording, { resumeAt: fromStartResumeSecondsOf({ currentTime: liveVideo?.currentTime, savedSeconds }) })
+  const { recording, savedSeconds, resumeAt } = live.fromStart
+  watchFromStart(recording, { resumeAt: fromStartResumeSecondsOf({ currentTime: liveVideo?.currentTime, savedSeconds, resumeAt }) })
 }
 
 const fromStartErrorText = (err) => {
@@ -372,7 +372,9 @@ const reattachLive = (run) => {
 }
 
 const reattachFromStart = (run) => {
-  const resumeAt = fromStartResumeSecondsOf({ currentTime: liveVideo?.currentTime, savedSeconds: live.fromStart.savedSeconds })
+  const resumeAt = fromStartResumeSecondsOf({
+    currentTime: liveVideo?.currentTime, savedSeconds: live.fromStart.savedSeconds, resumeAt: live.fromStart.resumeAt,
+  })
   detachLiveVideo()
   live.fromStart.resumeAt = resumeAt
   setTimeout(() => {

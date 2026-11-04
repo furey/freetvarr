@@ -67,3 +67,7 @@ test('fromStartResumeSecondsOf: a restart picks up at the played time, or the la
   assert.equal(fromStartResumeSecondsOf({ currentTime: 0, savedSeconds: 1200 }), 1200)
   assert.equal(fromStartResumeSecondsOf({ currentTime: Number.NaN, savedSeconds: undefined }), 0)
 })
+
+test('fromStartResumeSecondsOf: a restart before any save keeps the position it restarted at', () => {
+  assert.equal(fromStartResumeSecondsOf({ currentTime: 0, savedSeconds: undefined, resumeAt: 1200 }), 1200)
+})
