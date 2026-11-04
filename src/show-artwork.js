@@ -7,6 +7,7 @@ import { externalIdsOf, idKeyedCacheKeyOf } from './external-ids.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
+import { artworkClient } from './fallback-artwork.js'
 
 export const showTitleKey = (title) => String(title || '')
   .normalize('NFKD')
@@ -201,24 +202,14 @@ const plexSectionItems = async ({ url, token, id }) => {
   return res.data?.MediaContainer?.Metadata || []
 }
 
-export const tvmazeSearch = async (title) => {
-  const res = await axios.get(`${TVMAZE_API}/search/shows`, {
-    params: { q: title },
-    timeout: REQUEST_TIMEOUT_MS,
-    validateStatus: () => true,
-  })
-  if (res.status !== 200) throw new Error(`TVmaze HTTP ${res.status}`)
-  return Array.isArray(res.data) ? res.data : []
+export const tvmazeSearch = async (title, { client = artworkClient } = {}) => {
+  const results = await client.getJson({ url: `${TVMAZE_API}/search/shows`, params: { q: title } })
+  return Array.isArray(results) ? results : []
 }
 
-export const tvmazeImages = async (showId) => {
-  const res = await axios.get(`${TVMAZE_API}/shows/${encodeURIComponent(showId)}/images`, {
-    timeout: REQUEST_TIMEOUT_MS,
-    validateStatus: () => true,
-  })
-  if (res.status === 404) return []
-  if (res.status !== 200) throw new Error(`TVmaze images HTTP ${res.status}`)
-  return Array.isArray(res.data) ? res.data : []
+export const tvmazeImages = async (showId, { client = artworkClient } = {}) => {
+  const images = await client.getJson({ url: `${TVMAZE_API}/shows/${encodeURIComponent(showId)}/images` })
+  return Array.isArray(images) ? images : []
 }
 
 export const tvmazeLookupEnabled = async () => (await getSetting('show_artwork_lookup')) !== 'false'

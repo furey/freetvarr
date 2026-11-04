@@ -371,3 +371,18 @@ test('show artwork finds a TVmaze show by its agent ids and keys the cache by th
   assert.deepEqual(asked, [{ title: 'Dark', ids: { tmdb: null, tvdb: '334824', imdb: null } }])
   assert.ok(cache.rows.has(sizedKeyOf(`${seriesCacheKeyOf('dark')}@tvdb-334824`)))
 })
+
+test('TVmaze image lookups go through the shared client', async () => {
+  const { createOutboundClient } = await import('../src/outbound-http.js')
+  const { tvmazeImages } = await import('../src/show-artwork.js')
+  const requests = []
+  const client = createOutboundClient({
+    hosts: { 'api.tvmaze.com': { concurrency: 1 } },
+    request: async (options) => {
+      requests.push(options.url)
+      return { status: 200, headers: { 'content-type': 'application/json' }, body: Buffer.from(JSON.stringify([{ type: 'poster' }])) }
+    },
+  })
+  assert.deepEqual(await tvmazeImages(42, { client }), [{ type: 'poster' }])
+  assert.deepEqual(requests, ['https://api.tvmaze.com/shows/42/images'])
+})
