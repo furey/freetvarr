@@ -24,6 +24,7 @@ import { routeSection, scrollToRouteSection } from '/shared/router.js'
 import { isLandingPending } from '/shared/setting-landing.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { unsavedSettings } from '/shared/store.js'
+import { createClearTimer } from '/status-timer.js'
 import { tz, browserTimeZone } from '/shared/time.js'
 
 const LICENCES = [
@@ -697,22 +698,25 @@ export const SettingsView = {
     const mediaRootStatus = ref('')
     const mediaRootStatusKind = ref('ok')
 
+    const clearStatusLater = createClearTimer({ clear: () => (status.value = '') })
     const flash = ({ msg, kind = 'ok', ms = FLASH_DEFAULT_MS }) => {
       status.value = msg
       statusKind.value = kind
-      if (ms > 0) setTimeout(() => (status.value = ''), ms)
+      clearStatusLater(ms)
     }
 
+    const clearPlexStatusLater = createClearTimer({ clear: () => (plexStatus.value = '') })
     const setPlexStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexStatus.value = msg
       plexStatusKind.value = kind
-      if (ms > 0) setTimeout(() => (plexStatus.value = ''), ms)
+      clearPlexStatusLater(ms)
     }
 
+    const clearPlexTokenStatusLater = createClearTimer({ clear: () => (plexTokenStatus.value = '') })
     const setPlexTokenStatus = (msg, kind = 'ok', ms = FLASH_DEFAULT_MS) => {
       plexTokenStatus.value = msg
       plexTokenStatusKind.value = kind
-      if (ms > 0) setTimeout(() => (plexTokenStatus.value = ''), ms)
+      clearPlexTokenStatusLater(ms)
     }
 
     const dataCredits = ref(dataCreditsOf())

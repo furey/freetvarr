@@ -1,16 +1,21 @@
 import { ref, reactive } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
+import { createClearTimer } from '/status-timer.js'
 
 export const makeStatus = () => {
   const text = ref('')
   const kind = ref('ok')
+  const clearLater = createClearTimer({ clear: () => (text.value = '') })
   const set = (msg, k = 'ok', ms = FLASH_DEFAULT_MS) => {
     text.value = msg
     kind.value = k
-    if (ms > 0) setTimeout(() => (text.value = ''), ms)
+    clearLater(ms)
   }
-  const clear = () => (text.value = '')
+  const clear = () => {
+    clearLater(0)
+    text.value = ''
+  }
   return [text, kind, set, clear]
 }
 
