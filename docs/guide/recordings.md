@@ -206,7 +206,7 @@ When the TV guide gives some episodes of a show a different title, those episode
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-The message that confirms the merge has **Undo**, which puts the episodes back. Only recorded episodes can merge; episodes from your Plex library stay with the show Plex gives them.
+The message that confirms the merge has **Undo**, which puts the episodes back. Only recorded episodes can merge; episodes from your Plex library stay with the show Plex gives them. Merge moves the episodes recorded so far. A new episode recorded under the other title shows under that title until you merge it too, and its files stay where Freetvarr saves them.
 
 ### Select mode
 

@@ -128,6 +128,8 @@ export const localAddressToward = (url, { timeoutMs = CONNECT_TIMEOUT_MS } = {})
   socket.once('error', reject)
 })
 
+export const serverPort = () => Number(process.env.PORT || 3733)
+
 export const guideFeedUrl = ({ address, port }) => {
   const host = String(address).replace(/^::ffff:/, '')
   return `http://${host.includes(':') ? `[${host}]` : host}:${port}${GUIDE_FEED_PATH}`
