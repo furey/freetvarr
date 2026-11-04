@@ -5,6 +5,8 @@ import { watchForOfferOf } from '/watch-for.js'
 import { api } from '/shared/api.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { openWatchFor } from '/components/watch-for-sheet.js'
+import { keepFocusInside } from '/components/ui-sheet.js'
+import { overlayStack } from '/overlay-stack.js'
 import { fmtClockTz, fmtRelativeDay } from '/shared/time.js'
 
 export const searchOpen = ref(false)
@@ -55,7 +57,8 @@ export const SearchOverlay = {
                     </button>
                   </div>
                 </section>
-                <p v-if="searching && !shows.length && !programmes.length" class="ui-search-hint">Searching…</p>
+                <p v-if="guideFailure" class="ui-search-hint">Could not search the guide: {{ guideFailure }}</p>
+                <p v-else-if="searching && !shows.length && !programmes.length" class="ui-search-hint">Searching…</p>
                 <p v-else-if="!searching && !shows.length && !programmes.length" class="ui-search-hint">Nothing matches “{{ query.trim() }}”.</p>
                 <section v-if="watchForOffer">
                   <h2 class="ui-group-label">Not in the next 7 days</h2>
@@ -83,6 +86,7 @@ export const SearchOverlay = {
     const guideResults = ref([])
     const library = ref({ shows: [], series: [], curated: [], aliases: [] })
     const searching = ref(false)
+    const guideFailure = ref('')
     const hasQuery = computed(() => query.value.trim().length >= MIN_QUERY_LENGTH)
     const showIndex = computed(() => buildShowSearch({ keyOf: showKeyOf, ...library.value }))
     const shows = computed(() => (hasQuery.value
@@ -96,6 +100,7 @@ export const SearchOverlay = {
     const watchForOffer = computed(() => watchForOfferOf({
       query: query.value,
       searching: searching.value,
+      failed: Boolean(guideFailure.value),
       guideCount: programmes.value.length,
       minLength: MIN_QUERY_LENGTH,
     }))
@@ -104,14 +109,18 @@ export const SearchOverlay = {
     const searchGuide = async (text) => {
       const thisRequest = ++requestId
       searching.value = true
-      const { results = [] } = await api('GET', `/api/epg/search?q=${encodeURIComponent(text)}`).catch(() => ({}))
+      const outcome = await api('GET', `/api/epg/search?q=${encodeURIComponent(text)}`)
+        .then(({ results = [] }) => ({ results, failure: '' }))
+        .catch((err) => ({ results: [], failure: err.message }))
       if (thisRequest !== requestId) return
-      guideResults.value = results.slice(0, MAX_GUIDE_RESULTS)
+      guideResults.value = outcome.results.slice(0, MAX_GUIDE_RESULTS)
+      guideFailure.value = outcome.failure
       searching.value = false
     }
     watch(query, (text) => {
       clearTimeout(debounceTimer)
       guideResults.value = []
+      guideFailure.value = ''
       if (text.trim().length < MIN_QUERY_LENGTH) return
       searching.value = true
       debounceTimer = setTimeout(() => searchGuide(text.trim()), SEARCH_DEBOUNCE_MS)
@@ -129,6 +138,7 @@ export const SearchOverlay = {
       }
     }
     const onKeydown = (event) => {
+      if (event.key === 'Tab' && panel.value) return keepFocusInside({ event, root: panel.value })
       if (event.key !== 'Escape') return
       event.stopImmediatePropagation()
       close()
@@ -136,16 +146,28 @@ export const SearchOverlay = {
     const setBodyLock = (isOpen) => {
       try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
     }
+    let layer = null
+    const releaseLayer = () => {
+      if (layer) overlayStack.remove(layer.id)
+      layer = null
+    }
+    const stopListening = () => {
+      window.removeEventListener('keydown', onKeydown, true)
+      window.removeEventListener('hashchange', close)
+    }
     let returnFocus = null
     watch(searchOpen, async (isOpen) => {
       setBodyLock(isOpen)
-      window.removeEventListener('keydown', onKeydown, true)
+      stopListening()
       if (!isOpen) {
+        releaseLayer()
         returnFocus?.focus?.()
         return
       }
       returnFocus = document.activeElement
+      layer = overlayStack.push({ onBack: close })
       window.addEventListener('keydown', onKeydown, true)
+      window.addEventListener('hashchange', close)
       loadLibrary()
       await nextTick()
       input.value?.focus()
@@ -166,9 +188,10 @@ export const SearchOverlay = {
     }
     onUnmounted(() => {
       setBodyLock(false)
-      window.removeEventListener('keydown', onKeydown, true)
+      stopListening()
+      releaseLayer()
     })
-    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, close, openResult, watchForOffer, watchFor }
+    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, guideFailure, close, openResult, watchForOffer, watchFor }
   },
 }
 

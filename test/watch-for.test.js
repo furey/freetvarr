@@ -16,6 +16,10 @@ test('watchForOfferOf: offers the trimmed query only when the guide has nothing'
   assert.equal(watchForOfferOf({ query: null }), null)
 })
 
+test('watchForOfferOf: a failed guide search offers nothing, because the guide may have the title', () => {
+  assert.equal(watchForOfferOf({ query: 'Utopia', failed: true }), null)
+})
+
 test('watchForTitleOf: trims the title', () => {
   assert.equal(watchForTitleOf('  Hard Quiz  '), 'Hard Quiz')
   assert.equal(watchForTitleOf(undefined), '')

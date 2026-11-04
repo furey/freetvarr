@@ -154,7 +154,8 @@ export const EpgView = {
       </div>
 
       <section v-if="searchActive" class="guide-results" aria-label="Search results">
-        <p class="ui-meta" role="status">{{ searching ? 'Searching…' : resultsLabel }}</p>
+        <p v-if="searchFailure" class="status-readout err" role="status">Could not search the guide: {{ searchFailure }}</p>
+        <p v-else class="ui-meta" role="status">{{ searching ? 'Searching…' : resultsLabel }}</p>
         <div v-if="searchResults.length" class="ui-group">
           <button v-for="p in searchResults" :key="p.program_id + '-' + p.start" type="button" class="ui-group-row is-tall guide-result"
             @click="openProgram(p, channelById(p.channelId))">
@@ -171,7 +172,7 @@ export const EpgView = {
             </span>
           </button>
         </div>
-        <p v-else-if="!searching" class="ui-meta">Nothing in the next 7 days matches “{{ searchQ.trim() }}”.</p>
+        <p v-else-if="!searching && !searchFailure" class="ui-meta">Nothing in the next 7 days matches “{{ searchQ.trim() }}”.</p>
         <div v-if="watchForOffer" class="ui-group">
           <button type="button" class="ui-group-row" @click="openWatchFor(watchForOffer)">
             <span class="ui-group-row-main">
@@ -374,6 +375,7 @@ export const EpgView = {
     const searchQ = ref('')
     const searchResults = ref([])
     const searching = ref(false)
+    const searchFailure = ref('')
     const channelsModal = ref(false)
     const channelsModalMode = ref('channels')
     const searchOpen = ref(false)
@@ -571,7 +573,7 @@ export const EpgView = {
     const searchActive = computed(() => searchOpen.value && searchQ.value.trim().length >= 2)
 
     const watchForOffer = computed(() => (searchActive.value
-      ? watchForOfferOf({ query: searchQ.value, searching: searching.value, guideCount: searchResults.value.length })
+      ? watchForOfferOf({ query: searchQ.value, searching: searching.value, failed: Boolean(searchFailure.value), guideCount: searchResults.value.length })
       : null))
 
     const resultsLabel = computed(() => {
@@ -792,15 +794,17 @@ export const EpgView = {
       error.value = ''
       errorCode.value = ''
       if (!force && guideByDay.has(d)) {
+        loading.value = false
         showGuide(guideByDay.get(d))
         return
       }
       loading.value = true
+      const isShownDay = () => day.value === d
       try {
         const ticket = favourites.ticket()
         const g = await api('GET', `/api/epg/guide?day=${d}`)
         if (g.configured === false) {
-          errorCode.value = 'no-url'
+          if (isShownDay()) errorCode.value = 'no-url'
           return
         }
         favourites.adopt(() => {
@@ -809,10 +813,11 @@ export const EpgView = {
         }, ticket)
         dayFreshAt = Date.now()
       } catch (err) {
+        if (!isShownDay()) return
         error.value = `TV guide load failed: ${err.message}`
         errorCode.value = err.code || ''
       } finally {
-        loading.value = false
+        if (isShownDay()) loading.value = false
       }
     }
 
@@ -1354,6 +1359,7 @@ export const EpgView = {
     watch(searchQ, () => {
       if (searchTimer) clearTimeout(searchTimer)
       const ticket = searches.issue()
+      searchFailure.value = ''
       if (!searchActive.value) {
         searchResults.value = []
         searching.value = false
@@ -1364,8 +1370,10 @@ export const EpgView = {
         try {
           const r = await api('GET', `/api/epg/search?q=${encodeURIComponent(searchQ.value.trim())}`)
           if (searches.isLatest(ticket)) searchResults.value = r.results || []
-        } catch {
-          if (searches.isLatest(ticket)) searchResults.value = []
+        } catch (err) {
+          if (!searches.isLatest(ticket)) return
+          searchResults.value = []
+          searchFailure.value = err.message
         } finally {
           if (searches.isLatest(ticket)) searching.value = false
         }
@@ -1440,7 +1448,7 @@ export const EpgView = {
       midnightX, midnightOnScreen, goToNextDay, nextDayLabel, nextDayWeekday, nextDayLongLabel, lastDayLabel,
       cellState, cellStyle, cellWidth, cellTitle, isSeriesScheduled,
       jumpNow, jumpTonight,
-      searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, resultsLabel, watchForOffer, openWatchFor,
+      searchOpen, toggleSearch, closeSearch, searchQ, searchActive, searchResults, searching, searchFailure, resultsLabel, watchForOffer, openWatchFor,
       openProgram, programmeSheetOpen,
       channelsModal, channelsModalMode, openChannelsModal, openOrderEditor, onChannelPrefsSaved,
       togglePin, railItems, narrow, showImages, toggleImages, imagesLeaving, cellHasThumb,
