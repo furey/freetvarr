@@ -71,8 +71,15 @@ const scanRecordingAds = async ({ filePath, mode, recordingId, tools }) => {
       const outPath = await tools.cut({ filePath: sourcePath, workdir, breaks, recordingId })
       const { backupCreated } = await swapInCut({ filePath, outPath })
       const { size } = await fs.stat(filePath)
-      await db('recordings').where({ recording_id: recordingId })
-        .update(cutPatchOf({ before, backupCreated, size, now: new Date().toISOString(), breaks, fromBackup: sourcePath !== filePath }))
+      const latest = await db('recordings').where({ recording_id: recordingId }).first('playback_position_s')
+      await db('recordings').where({ recording_id: recordingId }).update(cutPatchOf({
+        before: { ...before, playback_position_s: latest?.playback_position_s ?? null },
+        backupCreated,
+        size,
+        now: new Date().toISOString(),
+        breaks,
+        fromBackup: sourcePath !== filePath,
+      }))
       status = 'cut'
     }
   } catch (err) {

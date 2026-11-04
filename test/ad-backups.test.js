@@ -97,9 +97,20 @@ test('cutting ads moves a saved position inside a break to the break start, and 
 })
 
 test('restoring the original maps a saved position back to the uncut time', async () => {
-  await setPosition(30)
   await cut(fakeTools())
+  await setPosition(20)
   await restoreOriginal({ recordingId: RECORDING_ID, filePath })
+  assert.equal((await row()).playback_position_s, 30)
+})
+
+test('a position saved while the cut runs is the one the cut maps', async () => {
+  await setPosition(5)
+  const tools = fakeTools()
+  const slowCut = async (args) => {
+    await setPosition(40)
+    return tools.cut(args)
+  }
+  await cut({ ...tools, cut: slowCut })
   assert.equal((await row()).playback_position_s, 30)
 })
 
