@@ -169,6 +169,7 @@ import {
   resumeStartFor,
   startOffsetFor,
   positionFrom,
+  playedDurationOf,
   view as playbackView,
 } from './playback.js'
 import { BUILD_HEADER, readBuildId } from './build-id.js'
@@ -1006,6 +1007,8 @@ const liveLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+const clientTokenOf = (value) => (typeof value === 'string' && value ? value.slice(0, 64) : null)
+
 const liveError = (res, err, context) => {
   if (err instanceof LiveTvError) {
     return res.status(err.status).json({ ok: false, error: err.message, code: err.code, ...err.details })
@@ -1018,7 +1021,8 @@ app.post('/api/live', liveLimiter, doubleCsrfProtection, async (req, res) => {
   if (!channelId) return res.status(400).json({ error: 'channel_id is required' })
   try {
     const pictureRank = Number(req.body?.picture_rank) || 0
-    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank, client: req.get('user-agent') || null })) })
+    const clientToken = clientTokenOf(req.body?.client_token)
+    res.json({ ok: true, ...(await startLiveChannel({ channelId, sessions: liveSessions, encoder: await liveEncoderReady, pictureRank, client: req.get('user-agent') || null, clientToken })) })
   } catch (err) {
     liveError(res, err, 'live start')
   }
@@ -1088,10 +1092,15 @@ app.post('/api/live/:session/hold', doubleCsrfProtection, async (req, res) => {
   res.json({ ok: true, held })
 })
 
+app.post('/api/live/:session/unhold', doubleCsrfProtection, (req, res) => {
+  res.json({ ok: true, unheld: liveSessions.unhold(String(req.params.session)) })
+})
+
 app.post('/api/live/:session/attention', doubleCsrfProtection, (req, res) => {
   const attending = req.body?.attending
   if (typeof attending !== 'boolean') return res.status(400).json({ error: 'attending must be true or false' })
-  res.json({ ok: true, changed: liveSessions.setAttending(String(req.params.session), attending) })
+  const viewer = clientTokenOf(req.body?.viewer)
+  res.json({ ok: true, changed: liveSessions.setAttending(String(req.params.session), attending, viewer) })
 })
 
 app.delete('/api/live/:session', doubleCsrfProtection, async (req, res) => {
@@ -1180,6 +1189,7 @@ app.post('/api/recordings/:recording_id/play', playLimiter, doubleCsrfProtection
     const plan = planForFile({ probe, encoder: await liveEncoderReady })
     const replace = typeof req.body?.replace === 'string' ? req.body.replace : null
     const player = typeof req.body?.player === 'string' ? req.body.player.slice(0, 64) : null
+    await liveSessions.releaseHeld({ clientToken: clientTokenOf(req.body?.client_token) })
     const session = await playbackSessions.start({
       recordingId: row.recording_id,
       label: recordingLabel(row),
@@ -1219,9 +1229,10 @@ app.post('/api/recordings/:recording_id/position', playPingLimiter, doubleCsrfPr
     plexWatchSync.noteWatchChange()
     return res.json({ ok: true, seconds })
   }
+  const playedDurationS = playedDurationOf({ sessions: playbackSessions.list(), recordingId: req.params.recording_id })
   const n = await db('recordings')
     .where({ recording_id: req.params.recording_id })
-    .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds }) })
+    .update({ playback_position_s: seconds, played_at: new Date().toISOString(), watched_at: watchedAtAfterPosition({ seconds, playedDurationS }) })
   if (n > 0) {
     plexWatchSync.noteWatchChange()
     return res.json({ ok: true, seconds })
@@ -1435,7 +1446,16 @@ mountActivityRoutes({
 })
 
 mountTunerStatus({ app, streams: () => streamCapacity({ liveStreams, sessions: [liveSessions, playbackSessions] }), onTunerCount: liveStreams.noteTunerCount, onError: liveError })
-mountInProgressPlayback({ app, csrf: doubleCsrfProtection, limiter: playLimiter, sessions: playbackSessions, encoderReady: liveEncoderReady, folders: inProgressFolders, onError: liveError })
+mountInProgressPlayback({
+  app,
+  csrf: doubleCsrfProtection,
+  limiter: playLimiter,
+  sessions: playbackSessions,
+  encoderReady: liveEncoderReady,
+  folders: inProgressFolders,
+  onError: liveError,
+  releaseHeld: liveSessions.releaseHeld,
+})
 
 app.get('/api/health-summary', healthSummaryRoute)
 

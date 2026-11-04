@@ -60,7 +60,10 @@ test('in Multiview only the tile with the sound is attended, and a shared sessio
 test('ended sessions drop out and live and playback ids stay apart', () => {
   const sent = attentionChangesOf({ current: [{ kind: 'live', sessionId: 'x', attending: true }] }).sent
   const { changes, sent: next } = attentionChangesOf({ sent, current: [{ kind: 'play', sessionId: 'x', attending: true }] })
-  assert.deepEqual(changes, [{ kind: 'play', sessionId: 'x', attending: true }])
+  assert.deepEqual(changes, [
+    { kind: 'play', sessionId: 'x', attending: true },
+    { kind: 'live', sessionId: 'x', attending: false },
+  ])
   assert.deepEqual([...next.keys()], ['play:x'])
   assert.equal(attentionPathOf({ kind: 'live', sessionId: 'x' }), '/api/live/x/attention')
   assert.equal(attentionPathOf({ kind: 'play', sessionId: 'x' }), '/api/play/x/attention')
@@ -79,4 +82,13 @@ test('a failed report does not undo a newer state or an ended session', () => {
   assert.equal(unsentAttention({ sent: newer, change }), newer)
   const ended = new Map()
   assert.equal(unsentAttention({ sent: ended, change }), ended)
+})
+
+test('a session that leaves the page reports not attending, so a shared session drops this viewer', () => {
+  const sent = attentionChangesOf({ current: [{ kind: 'live', sessionId: 'a', attending: true }] }).sent
+  const { changes, sent: next } = attentionChangesOf({ sent, current: [] })
+  assert.deepEqual(changes, [{ kind: 'live', sessionId: 'a', attending: false }])
+  assert.deepEqual([...next.keys()], [])
+  const idle = attentionChangesOf({ sent: new Map([['live:b', { kind: 'live', sessionId: 'b', attending: false }]]), current: [] })
+  assert.deepEqual(idle.changes, [])
 })

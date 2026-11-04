@@ -188,9 +188,9 @@ const moveRowsToShow = ({ ids, title }) => db.transaction(async (trx) => {
   return { previous: rows.map((row) => ({ id: row.recording_id, title: row.show_title_override ?? null })) }
 })
 
-export const watchedAtAfterPosition =({ seconds, nowIso = new Date().toISOString() }) => db.raw(
-  `CASE WHEN duration_s > 0 AND ? >= duration_s - ${RESUME_END_MARGIN_S} THEN ? ELSE watched_at END`,
-  [seconds, nowIso],
+export const watchedAtAfterPosition =({ seconds, playedDurationS = null, nowIso = new Date().toISOString() }) => db.raw(
+  `CASE WHEN duration_s > 0 AND ? >= MIN(duration_s, COALESCE(?, duration_s)) - ${RESUME_END_MARGIN_S} THEN ? ELSE watched_at END`,
+  [seconds, playedDurationS > 0 ? playedDurationS : null, nowIso],
 )
 
 export const updateShowRule = async ({ key, patch, loadSeries = getSeries, update = updateSeriesRule }) => {
