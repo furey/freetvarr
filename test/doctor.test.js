@@ -110,6 +110,7 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     interfaces: () => ({ eth0: [{ family: 'IPv4', address: '192.0.2.5', internal: false }] }),
     dockerVm: () => null,
     uid: () => 1000,
+    libraryRootProblem: async () => null,
     ...overrides,
   }
 }
@@ -130,7 +131,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 17, warn: 0, fail: 0, skip: 3 })
+  assert.deepEqual(report.summary, { pass: 18, warn: 0, fail: 0, skip: 3 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -317,6 +318,15 @@ test('runDoctor: imports that copy across separate mounts on one disk warn and n
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /copy each file/)
   assert.match(check.fix, /separate mounts/)
+})
+
+test('runDoctor: an empty library folder that imported recordings point into warns', async () => {
+  const now = Date.now()
+  const libraryRootProblem = async () => 'empty'
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, libraryRootProblem }))['paths.mounted']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /media is empty, but imported recordings point into it\. Syncs skip imports into it\.$/)
+  assert.match(check.fix, /mounted/)
 })
 
 test('runDoctor: a real link between the test folders passes the hardlink check', async () => {
