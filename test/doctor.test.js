@@ -14,6 +14,8 @@ import {
   isBridgeOnly,
   guideCoverage,
   liveStreamsCheck,
+  hostNamesCheck,
+  withHostNamesCheck,
 } from '../src/doctor.js'
 
 const HOUR_MS = 60 * 60 * 1000
@@ -114,6 +116,7 @@ const doctorDeps = async ({ url, timeZone = '', ...overrides } = {}) => {
     uid: () => 1000,
     libraryRootProblem: async () => null,
     anchorFailures: async () => [],
+    hostNames: async () => ({ anyHost: false, added: 0, seen: [] }),
     ...overrides,
   }
 }
@@ -143,7 +146,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 19, warn: 0, fail: 0, skip: 3 })
+  assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 3 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -610,6 +613,83 @@ test('live.streams: warns when the limit is above the estimate, skips before the
   assert.equal(tooSlow.status, 'warn')
   assert.equal(tooSlow.fix, 'Pictures may stutter even with 1 live stream.')
   assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
+})
+
+test('host.names: passes when no unknown name was seen, and counts the names added', () => {
+  assert.deepEqual(hostNamesCheck({ anyHost: false, added: 0, seen: [] }), { status: 'pass', detail: 'Freetvarr answers to IP addresses and local names.' })
+  assert.equal(hostNamesCheck({ anyHost: false, added: 1, seen: [] }).detail, 'Freetvarr answers to IP addresses, local names, and 1 name you added.')
+  assert.equal(hostNamesCheck({ anyHost: false, added: 2, seen: [] }).detail, 'Freetvarr answers to IP addresses, local names, and 2 names you added.')
+})
+
+const seenName = (name, extra = {}) => ({ name, count: 1, last_seen: 0, from: '192.168.1.23', page_load: true, allowable: true, ...extra })
+
+test('host.names: warns about a name 3.0.0 will refuse and offers to allow a name opened as a page', () => {
+  const seen = [seenName('tv.example.com', { count: 12, last_seen: Date.parse('2026-11-20T08:04:00Z') })]
+  const check = hostNamesCheck({ anyHost: false, added: 0, seen })
+  assert.equal(check.status, 'warn')
+  assert.equal(check.title, undefined)
+  assert.match(check.detail, /^Freetvarr was opened as tv\.example\.com \(12 requests, last .+, from 192\.168\.1\.23\)\. From 3\.0\.0 Freetvarr refuses names it does not know\.$/)
+  assert.match(check.fix, /If you open Freetvarr by this name, press Allow tv\.example\.com\./)
+  assert.deepEqual(check.action, { label: 'Allow tv.example.com', post: '/api/allowed-hosts/allow/tv.example.com', done: 'Added tv.example.com to Allowed hostnames.' })
+})
+
+test('host.names: Allow goes to the most used name opened as a page, never to a name only fetched', () => {
+  const seen = [
+    seenName('a.example.com', { last_seen: 3 }),
+    seenName('rebind.attacker.example', { count: 900, last_seen: 2, page_load: false }),
+    seenName('b.example.com', { count: 40, last_seen: 1 }),
+    seenName('d.example.com'),
+  ]
+  const check = hostNamesCheck({ anyHost: false, added: 0, seen })
+  assert.match(check.detail, /^Freetvarr was opened as a\.example\.com \(1 request, .+\), rebind\.attacker\.example \(900 requests, .+\), b\.example\.com \(.+\), and 1 more name\./)
+  assert.match(check.fix, /If you open Freetvarr by these names, allow each one/)
+  assert.equal(check.action.label, 'Allow b.example.com')
+})
+
+test('host.names: with no name opened as a page, or none that can be saved, the action opens Setup', () => {
+  const fetched = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName('rebind.attacker.example', { count: 900, page_load: false })] })
+  assert.deepEqual(fetched.action, { label: 'Open setup', href: '#/settings/system/setup/hostnames' })
+  assert.match(fetched.fix, /^If you open Freetvarr by this name, add it in Allowed hostnames\./)
+  const unsaveable = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName('user@attacker.example', { allowable: false })] })
+  assert.equal(unsaveable.action.href, '#/settings/system/setup/hostnames')
+})
+
+test('host.names: on a page opened by a name that is not allowed, Allow is dropped and the fix says to open the IP address first', () => {
+  const seen = [seenName('nas.tail1234.ts.net', { count: 12 })]
+  const check = hostNamesCheck({ anyHost: false, added: 0, seen }, { hostAllowed: false })
+  assert.equal(check.status, 'warn')
+  assert.equal(check.action, undefined)
+  assert.match(check.fix, /^Open Freetvarr by its IP address, then press Allow nas\.tail1234\.ts\.net here\. /)
+  const allowed = hostNamesCheck({ anyHost: false, added: 0, seen })
+  const report = { summary: {}, checks: [{ id: 'tvh.reach', status: 'pass' }, { id: 'host.names', group: 'host', title: 'Allowed hostnames', ...allowed }] }
+  const swapped = withHostNamesCheck({ report, check })
+  const hostNames = swapped.checks.find((entry) => entry.id === 'host.names')
+  assert.equal(hostNames.action, undefined)
+  assert.equal(hostNames.title, 'Allowed hostnames')
+  assert.equal(hostNames.fix, check.fix)
+  assert.deepEqual(swapped.checks[0], report.checks[0])
+  assert.ok(report.checks[1].action.post)
+})
+
+test('host.names: a long name is cut in the button label but not in the request', () => {
+  const name = `${'a'.repeat(60)}.example.com`
+  const check = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName(name)] })
+  assert.equal(check.action.label, `Allow ${name.slice(0, 39)}…`)
+  assert.equal(check.action.post, `/api/allowed-hosts/allow/${name}`)
+})
+
+test('host.names: * warns, and Health skips the check outside the running server', async () => {
+  const check = hostNamesCheck({ anyHost: true, added: 1, seen: [] })
+  assert.equal(check.status, 'warn')
+  assert.equal(check.detail, 'Freetvarr answers to any name, so any website can reach it through a browser on your network.')
+  assert.equal(check.fix, 'Remove * from Allowed hostnames and list the names you use.')
+  assert.equal(check.action.href, '#/settings/system/setup/hostnames')
+  assert.equal(hostNamesCheck(null).status, 'skip')
+  const now = Date.now()
+  const report = await runAgainst({ routes: healthyRoutes({ now }), now, hostNames: async () => ({ anyHost: true, added: 0, seen: [] }) })
+  assert.equal(byId(report)['host.names'].status, 'warn')
+  assert.equal(byId(report)['host.names'].group, 'host')
+  assert.equal(byId(report)['host.names'].title, 'Allowed hostnames')
 })
 
 const oneOffCheck = async ({ oneOffRoot, items }) => {

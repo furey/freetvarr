@@ -165,7 +165,7 @@ test('localAddressToward finds the address Freetvarr uses to reach TVHeadend', a
 })
 
 test('guideFeedUrl builds the address TVHeadend downloads the guide from', () => {
-  assert.equal(guideFeedUrl({ address: '192.168.86.254', port: 3733 }), 'http://192.168.86.254:3733/guide/xmltv.xml')
+  assert.equal(guideFeedUrl({ address: '192.168.1.254', port: 3733 }), 'http://192.168.1.254:3733/guide/xmltv.xml')
   assert.equal(guideFeedUrl({ address: '::ffff:127.0.0.1', port: 3733 }), 'http://127.0.0.1:3733/guide/xmltv.xml')
   assert.equal(guideFeedUrl({ address: '::1', port: 3733 }), 'http://[::1]:3733/guide/xmltv.xml')
 })

@@ -211,7 +211,7 @@ test('diagramMarkup: docs annotation adds the function of every main piece', () 
 })
 
 test('statusPartsOf: splits a status at its separators so each value stays whole, and keeps a path in one part', () => {
-  assert.deepEqual(statusPartsOf({ text: 'Connected · 192.168.86.254:9981' }), ['Connected', '192.168.86.254:9981'])
+  assert.deepEqual(statusPartsOf({ text: 'Connected · 192.168.1.254:9981' }), ['Connected', '192.168.1.254:9981'])
   assert.deepEqual(statusPartsOf({ text: 'Sydney · 33 of 35 channels' }), ['Sydney', '33 of 35 channels'])
   assert.deepEqual(statusPartsOf({ text: '/data/recordings · old', mono: true }), ['/data/recordings · old'])
   assert.deepEqual(statusPartsOf(null), [])

@@ -4,7 +4,7 @@ import {
   fulfillJson, keepRequestsRoutable, refuseUnknownGet, refuseWrites, reportServerWrites, isServerWrite,
 } from './capture-demo-api.mjs'
 
-export const TVH_URL = 'http://192.168.86.20:9981'
+export const TVH_URL = 'http://192.168.1.20:9981'
 export const ADMIN_PASSWORD = 'roof-aerial-42'
 
 export const prepareWizardContext = async ({ context, timeZone, simNow = Date.now() }) => {
@@ -23,7 +23,7 @@ export const prepareWizardContext = async ({ context, timeZone, simNow = Date.no
 
 const SRC_DIR = process.env.WIZARD_SRC || '/work/src'
 const FIXTURE_DIR = process.env.WIZARD_FIXTURES || '/work/test/fixtures'
-const HOST_ADDRESS = '192.168.86.20'
+const HOST_ADDRESS = '192.168.1.20'
 const PLEX_PORT = 32400
 const PLEX_TOKEN = 'wizard-demo-plex-token'
 const TVH_CONN = { url: TVH_URL, username: 'freetvarr', password: 'wizard-demo' }
