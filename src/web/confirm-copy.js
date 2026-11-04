@@ -44,6 +44,10 @@ export const deleteTvLoginConfirm = ({ username }) => ({
   danger: true,
 })
 
+export const RESET_CONFIRM_BODY = Object.freeze({ confirm: 'reset' })
+
+export const isResetConfirmed = (body) => body?.confirm === RESET_CONFIRM_BODY.confirm
+
 export const resetConfirm = ({ mediaRoot }) => ({
   title: 'Reset Freetvarr',
   body: [

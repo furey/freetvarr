@@ -6,7 +6,7 @@ import {
   normaliseCron,
   syncSchedulePreset,
 } from '/sync-schedule.js'
-import { resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
+import { RESET_CONFIRM_BODY, resetConfirm, restoreOpenAccessConfirm } from '/confirm-copy.js'
 import { useConfirm } from '/components/dialogs.js'
 import { dataCreditsOf } from '/data-credits.js'
 import { holdAtLeast } from '/pending.js'
@@ -1028,7 +1028,7 @@ export const SettingsView = {
       resetting.value = true
       resetError.value = ''
       try {
-        await api('POST', '/api/reset')
+        await api('POST', '/api/reset', RESET_CONFIRM_BODY)
         window.location.hash = '#/welcome'
         window.location.reload()
       } catch (err) {
