@@ -256,19 +256,19 @@ TVHeadend exposes a JSON API at `<tvh_url>/api/<path>`. `src/tvheadend.js` holds
 
 - `apiGet(path, params, conn)` sends a `GET` with the parameters in the query string. `apiPost(path, form, conn)` sends a form-encoded `POST`; object fields travel as JSON strings in one field (`node` or `conf`).
 - `tvhRead` and `tvhWrite` export `apiGet` and `apiPost`. The setup, guide, bootstrap, and doctor modules build their own paths and call TVHeadend through these two functions.
-- `resolveConnection` reads the settings `tvh_url`, `tvh_username`, and `tvh_password`.
+- `resolveConnection` reads the settings `tvh_url`, `tvh_username`, and `tvh_password`. A caller URL gets the stored password only when it has the origin (scheme, host, and port) of `tvh_url` ([Secret binding](#secret-binding)).
 - `sendAuthenticated` sends every request. With a username set, it sends the cached `Authorization` header. On a `401` it stores the `www-authenticate` challenge, signs the request, and sends it once more.
 - `authorizationFor` in `src/http-auth.js` gives a Basic header, or a Digest response (MD5 or SHA-256, `qop=auth`). The challenge cache keys by `<url>|<username>` and drops an entry idle for `90 s`.
 
-| Request or cache                          | Value                                                      |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons   |
-| Discovery probe                           | `1.5 s` timeout                                            |
-| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, `image/*` only               |
-| Live stream (`openChannelStream`)         | No timeout                                                 |
-| Past airings cache                        | `10` min; `apiPost` clears it before and after every write |
-| Tuner count and service multiplex caches  | `10` min                                                   |
-| Default DVR profile and default languages | Process lifetime                                           |
+| Request or cache                          | Value                                                       |
+| ----------------------------------------- | ----------------------------------------------------------- |
+| Default API call (`REQUEST_TIMEOUT_MS`)   | `15 s` timeout; also `/dvrfile/<uuid>` and channel icons    |
+| Discovery probe                           | `1.5 s` timeout                                             |
+| Programme image (`fetchProgrammeImage`)   | `5 s` timeout, `4 MiB` limit, JPEG, PNG, WebP, or GIF bytes |
+| Live stream (`openChannelStream`)         | No timeout                                                  |
+| Past airings cache                        | `10` min; `apiPost` clears it before and after every write  |
+| Tuner count and service multiplex caches  | `10` min                                                    |
+| Default DVR profile and default languages | Process lifetime                                            |
 
 ### Auto-discovery
 
@@ -681,7 +681,7 @@ Each import is an `import` job in [Activity](#activity), titled `Import · <titl
 
 ### Path translation
 
-`localPathFor({ tvhFilename, tvhRecordingsPath, recordingsRoot })` replaces the `tvh_recordings_path` prefix of the TVHeadend filename with `recordings_root` ([Full environment reference](#full-environment-reference)). A filename outside that prefix gives `null` and the error `TVHeadend file path is outside the recordings mount`.
+`localPathFor({ tvhFilename, tvhRecordingsPath, recordingsRoot })` replaces the `tvh_recordings_path` prefix of the TVHeadend filename with `recordings_root` ([Full environment reference](#full-environment-reference)). A filename outside that prefix, or with a `..` segment, gives `null` and the error `TVHeadend file path is outside the recordings mount`. Before the import, `processItem` resolves the real path of the source and of `recordings_root`; a source outside the folder is skipped with the error `<path> is outside the recordings folder <root>`.
 
 ### Destination paths
 
@@ -901,7 +901,7 @@ Each target must be an absolute path inside the TV, one-off, or movies folder, i
 
 `sweepLibraryStates` (`src/library-files.js`) runs in each sync. For each `done` or `partial` row with a missing file, `library_state` becomes `replaced` (another video with the same `SxxEyy` in the same or a sibling `Season N` folder, stored in `library_replacement`) or `not_in_library`. `POST /api/recordings/:recording_id/library` with `choice: 'include'` resets a `not_in_library` row to `pending` and starts a `manual:import` sync.
 
-`POST /api/reset` returns `409` while a sync runs. Otherwise it deletes all rows of `recordings`, `syncs`, `shows`, and `settings`, and restarts the scheduler.
+`POST /api/reset` needs the body `{ "confirm": "reset" }` (else `400`) and uses `syncLimiter`. It returns `409` while a sync runs. Otherwise it deletes all rows of `recordings`, `syncs`, `shows`, and `settings`, and restarts the scheduler.
 
 ## Live TV
 
@@ -1252,12 +1252,13 @@ A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+`
 | Route                                                         | Does                                                                                                                                            |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /api/discover-plex`                                     | GDM discovery: a UDP broadcast to port `32414`, replies collected for `2 s` ([Plex GDM](https://developer.plex.tv/pms/)); needs host networking |
-| `POST /api/plex-detect-token`                                 | Reads `PlexOnlineToken` from `Preferences.xml` and saves it as `plex_token`                                                                     |
+| `POST /api/plex-detect-token`                                 | Reads `PlexOnlineToken` from `Preferences.xml`, saves it as `plex_token` with `plex_token_scope = 'this-machine'`, and returns `plex_token_set` |
 | `POST /api/plex-sections`                                     | Lists the sections (`key`, `title`, `type`, `locations`)                                                                                        |
 | `POST /api/plex-libraries`, `POST /api/plex-libraries/create` | Plans and creates one library each for the TV (`TV Shows`), one-off (`One-offs`), and movies (`Movies`) roots, and saves the section ids        |
 | `POST /api/plex-refresh`                                      | Starts a section refresh                                                                                                                        |
 
-- The path of `Preferences.xml` is the setting `plex_prefs_path`, else `PLEX_PREFS_PATH`, else `/plex/Library/Application Support/Plex Media Server/Preferences.xml`.
+- The path of `Preferences.xml` is the setting `plex_prefs_path`, else `PLEX_PREFS_PATH`, else `/plex/Library/Application Support/Plex Media Server/Preferences.xml`. The file name must be `Preferences.xml` or end in `-preferences.xml`.
+- `storedPlexTokenFor(url)` gives the stored token to a URL only under the rules in [Secret binding](#secret-binding); otherwise the route answers `Paste the Plex token for this server.`
 - Requests to Plex use axios with a `5 s` timeout; a section item list uses `15 s`.
 - After a sync, each kind with an import refreshes its section with `GET /library/sections/<id>/refresh`: TV through `notifyPlexSectionRefresh`, one-offs and films through `refreshSection`. With no URL, token, or section, the result is `{ skipped: true, reason: 'plex not configured' }`.
 
@@ -1300,7 +1301,7 @@ Sonarr and Radarr link to Freetvarr in three places: the settings routes, the li
 
 `src/arr-client.js` calls the v3 API of each app with the header `X-Api-Key`. Reads time out after `8 s` with `1` retry; writes time out after `15 s` with no retry. A `401` gives an `ArrError` of kind `key`, `404` gives `missing`, and `409` gives `conflict`. `arrClientFor` in `src/arr-store.js` caches one client and one circuit breaker per `<url>|<apiKey>`.
 
-The settings are `sonarr_url`, `radarr_url`, `sonarr_api_key`, `radarr_api_key`, and `arr_unmonitor_on_delete` (**Stop downloading it again**, default on). Without a saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `SONARR_CONFIG_PATH` or `RADARR_CONFIG_PATH`.
+The settings are `sonarr_url`, `radarr_url`, `sonarr_api_key`, `radarr_api_key`, and `arr_unmonitor_on_delete` (**Stop downloading it again**, default on). Without a saved key, Freetvarr reads `ApiKey`, `Port`, and `UrlBase` from the app's `config.xml` at `SONARR_CONFIG_PATH` or `RADARR_CONFIG_PATH`. The `config.xml` key goes only to a URL on this machine (loopback, `host.docker.internal`, the app's container name, or a local interface address) at the `config.xml` port. A saved URL with a new origin and no key in the same request empties the saved key.
 
 | Route                     | Does                                                                                                                                                                            |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1535,10 +1536,24 @@ The secret comes from `CSRF_SECRET` when set; a value under `32` characters logs
 - `POST /api/shows` and `PATCH /api/shows/:id` reject `dest_folder` and `season_template` values that start with `/` or `\` or contain `..`. Import paths go through `guardWithinRoot`.
 - Live and playback file routes accept only a `16`-hex session id and the HLS file names.
 - Library delete checks each target against the library roots with `realpath` and `lstat` ([Library delete](#library-delete)).
+- `POST /api/settings` checks each root it changes (`rootSettingsProblem` in `src/path-check.js`). `media_root`, `oneoff_root`, `movies_root`, and `recordings_root` must be absolute, existing folders, and not `/`, `/etc`, `/proc`, `/sys`, `/dev`, `/app`, the config folder, a folder inside it, or a parent of it. `tvh_recordings_path` must be absolute and not `/`. A failure gives `400` with `{ field, error }` and saves nothing.
+- Image routes send only JPEG, PNG, WebP, or GIF, with the type read from the image bytes, never from the upstream header, and add `Content-Security-Policy: default-src 'none'; sandbox`. Anything else answers `404`. A thumbnail that cannot be resized gives no image.
 
 ### Credential storage
 
-The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sonarr and Radarr keys, and the TMDB key are plain text in the `settings` table. The read routes return booleans (`tvh_password_set`, `plex_token_set`, `hasKey`, `key_set`), never the values.
+The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sonarr and Radarr keys, and the TMDB key are plain text in the `settings` table. The read routes return booleans (`tvh_password_set`, `plex_token_set`, `hasKey`, `key_set`), never the values. At startup the server sets mode `0600` on `state.db`, `state.db-wal`, and `state.db-shm`.
+
+### Secret binding
+
+`src/url-binding.js` holds `sameOrigin(a, b)` (scheme, lowercase host, and port; the path and a trailing slash do not count) and `isThisMachineHost(host)` (loopback, `host.docker.internal`, or an address from `os.networkInterfaces()`). Each stored secret goes only to the URL it was saved with:
+
+| Secret                             | Sent to                                                                                                                    | Address change with no secret in the request                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tvh_password`                     | A URL with the origin of `tvh_url`                                                                                         | `POST /api/settings` and a passing `POST /api/tvh-test` delete it and return `cleared: ['tvh_password']`                                        |
+| `plex_token`                       | No `plex_token_scope`: a URL with the origin of `plex_url`. Scope `this-machine` (a detected token): a URL on this machine | `POST /api/settings` keeps it when the new URL passes the rule and then clears the scope; else deletes it and returns `cleared: ['plex_token']` |
+| `sonarr_api_key`, `radarr_api_key` | The saved URL; the `config.xml` key only to a URL on this machine at the `config.xml` port                                 | `PUT /api/arr` empties the saved key                                                                                                            |
+
+A secret typed in the same request is always used as sent. The Settings view and the setup wizard read `cleared` and show the field as empty.
 
 ### Supply chain
 
@@ -1548,6 +1563,8 @@ The TVHeadend password (`tvh_password`), the Plex token (`plex_token`), the Sona
 | Install       | `npm ci` from the committed `package-lock.json`                                                                              |
 | Native builds | `npm run rebuild:natives` rebuilds only `better-sqlite3` with `--ignore-scripts=false`                                       |
 | Signatures    | `npm run setup` ends with `npm audit signatures`                                                                             |
+| Actions       | Every `uses:` names a full commit SHA with the tag in a comment; `test/workflow-pins.test.js` fails on a tag-only line       |
+| Updates       | `.github/dependabot.yml` opens weekly pull requests for the `github-actions` ecosystem                                       |
 
 ## Full environment reference
 

@@ -51,7 +51,7 @@ Freetvarr can read each API key from Sonarr's and Radarr's `config.xml`, the sam
    docker compose up -d freetvarr
    ```
 
-Under each **API key** field, Settings then says `Read from Sonarr's config.xml.` or `Read from Radarr's config.xml.` A key you paste in Settings wins over the file. If you set the key with an environment variable in Sonarr or Radarr, the file does not hold it, so paste it in Settings.
+Under each **API key** field, Settings then says `Read from Sonarr's config.xml.` or `Read from Radarr's config.xml.` Freetvarr uses the key from the file only for an address on its own server at the port in `config.xml`. A key you paste in Settings wins over the file. If you set the key with an environment variable in Sonarr or Radarr, the file does not hold it, so paste it in Settings.
 
 ## When you delete
 

@@ -107,6 +107,8 @@ Where `Preferences.xml` lives depends on how Plex is installed:
 | Docker ([linuxserver](https://docs.linuxserver.io/images/docker-plex/) or official) | `<plex config folder>/Library/Application Support/Plex Media Server/Preferences.xml`     |
 | [Synology](https://www.synology.com/en-global/dsm) package (DSM 7)                  | `/volume1/PlexMediaServer/AppData/Plex Media Server/Preferences.xml`                     |
 
+A detected token works only with a Plex server on the same computer as Freetvarr. For a Plex server on another computer, paste its token.
+
 Auto-detect fails with `PlexOnlineToken attribute not found` when that Plex server was never signed in to a Plex account. Sign in to that Plex server from Plex's own web app in a browser, then press **Auto-detect token** again.
 
 ## Refresh
