@@ -3,9 +3,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 import { AD_JOB_POLL_MS, freshEpisodeOf, hasAdJobRunning } from '../src/web/ad-confirm.js'
+import { createPoll } from '../src/web/poll.js'
 
 const showView = readFileSync(new URL('../src/web/views/show-view.js', import.meta.url), 'utf8')
-const actions = readFileSync(new URL('../src/web/components/library-actions.js', import.meta.url), 'utf8')
+
+const flush = async () => {
+  for (let i = 0; i < 5; i++) await Promise.resolve()
+}
 
 test('hasAdJobRunning: true while any episode scans for ads', () => {
   assert.equal(hasAdJobRunning([{ ads: { status: 'cut' } }, { ads: { status: 'scanning' } }]), true)
@@ -21,9 +25,25 @@ test('freshEpisodeOf: an open episode menu takes the reloaded episode, so Restor
   assert.equal(freshEpisodeOf({ episode: null, episodes: [reloaded] }), null)
 })
 
-test('show page: reloads every 5 s while an ad job runs, stops on unmount, and the menu follows the reload', () => {
-  assert.match(showView, /if \(unmounted \|\| !hasAdJobRunning\(allEpisodes\.value\)\) return\n\s*adJobTimer = setTimeout\(load, AD_JOB_POLL_MS\)/)
-  assert.match(showView, /watch\(\[show, error\], scheduleAdJobPoll\)/)
-  assert.match(showView, /onUnmounted\(\(\) => \{\n\s*unmounted = true\n\s*stopAdJobPoll\(\)/)
-  assert.match(actions, /if \(menuEpisode\.value\) menuEpisode\.value = freshEpisodeOf\(\{ episode: menuEpisode\.value, episodes: list \}\)/)
+test('ad job poll: two failed show reloads in a row, then a third GET still goes out, and it stops when the cut ends', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let episodes = [{ recordingId: 'r1', ads: { status: 'scanning' } }]
+  const gets = []
+  const load = async () => {
+    gets.push('GET /api/library/shows/the-block')
+    if (gets.length <= 2) throw new Error('Could not reach Freetvarr. Check the connection, then try again.')
+    episodes = [{ recordingId: 'r1', ads: { status: 'cut' } }]
+  }
+  const poll = createPoll({ run: load, delayOf: () => (hasAdJobRunning(episodes) ? AD_JOB_POLL_MS : null) })
+  poll.book()
+  for (let i = 0; i < 4; i++) {
+    t.mock.timers.tick(AD_JOB_POLL_MS)
+    await flush()
+  }
+  assert.equal(gets.length, 3)
+  assert.equal(poll.isBooked(), false)
+})
+
+test('show page: the ad job poll is a createPoll with the show reload', () => {
+  assert.match(showView, /createPoll\(\{\n\s*run: load,/)
 })

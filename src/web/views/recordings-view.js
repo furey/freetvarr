@@ -18,7 +18,8 @@ import {
 import { RECORDING_SORTS, recordingSortFor, headerSortKey } from '/recording-sort.js'
 import { LOG_STATUSES, logFiltersFromHash } from '/recording-log-filters.js'
 import { sentenceCase } from '/sentence-case.js'
-import { createResponseOrder } from '/response-order.js'
+import { latestOnly } from '/response-order.js'
+import { createPoll } from '/poll.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 import { SHOW_PAGE_MENU, adActionLabelOf, adConfirmOf, adStartedToastOf, adsOfRecording, episodeOfRecording } from '/ad-confirm.js'
 import { ActionConfirm } from '/components/library-menus.js'
@@ -241,9 +242,8 @@ export const RecordingsView = {
       || deletedFilter.value !== 'all',
     )
 
-    const refreshes = createResponseOrder()
+    const latestRefresh = latestOnly()
     const refresh = async () => {
-      const ticket = refreshes.issue()
       const params = new URLSearchParams({
         page: String(page.value),
         pageSize: String(pageSize.value),
@@ -254,8 +254,8 @@ export const RecordingsView = {
       if (showFilter.value !== 'all') params.set('show_id', String(showFilter.value))
       if (sinceFilter.value !== 'all') params.set('since', sinceFilter.value)
       if (deletedFilter.value !== 'all') params.set('deleted', deletedFilter.value)
-      const r = await api('GET', `/api/recordings?${params}`)
-      if (!refreshes.isLatest(ticket)) return
+      const { latest, result: r } = await latestRefresh(() => api('GET', `/api/recordings?${params}`))
+      if (!latest) return
       recordings.value = r.recordings
       total.value = r.total
       loaded.value = true
@@ -516,31 +516,23 @@ export const RecordingsView = {
       }
     }
 
-    let pollTimer = null
-    let stopped = false
     const hasActiveProgress = () => recordings.value.some((r) => r.progress)
-    const scheduleNextPoll = () => {
-      if (stopped) return
-      const delay = hasActiveProgress() ? RECORDINGS_ACTIVE_POLL_MS : RECORDINGS_POLL_MS
-      pollTimer = setTimeout(pollTick, delay)
-    }
-    const pollTick = async () => {
-      await refresh().catch(() => {})
-      scheduleNextPoll()
-    }
+    const poll = createPoll({
+      run: () => refresh(),
+      delayOf: () => (hasActiveProgress() ? RECORDINGS_ACTIVE_POLL_MS : RECORDINGS_POLL_MS),
+    })
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refresh().catch(() => {})
     }
     onMounted(() => {
       loadShows()
       loadAdRemovalSetting()
-      refresh().catch(() => {}).finally(scheduleNextPoll)
+      refresh().catch(() => {}).finally(poll.book)
       document.addEventListener('visibilitychange', refreshWhenVisible)
     })
     window.addEventListener('hashchange', applyLinkedFilters)
     onUnmounted(() => {
-      stopped = true
-      if (pollTimer) clearTimeout(pollTimer)
+      poll.stop()
       window.removeEventListener('hashchange', applyLinkedFilters)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     })
