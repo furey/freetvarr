@@ -270,7 +270,7 @@ export const planUpcomingRecordings = ({
     const tagByLink = new Map()
     for (const t of seriesTags) {
       const link = t?.seriesLinkId ?? t?.id
-      if (link != null) tagByLink.set(String(link), t)
+      if (link != null && t.enabled !== false) tagByLink.set(String(link), t)
     }
     const firstAiringByEpisode = timerEpisodeAirings({ guide, timers })
     const candidates = []

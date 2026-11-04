@@ -192,3 +192,9 @@ test('projectUpcomingRecordings: a repeat of an episode that already has a timer
   const out = projectUpcomingRecordings({ seriesTags: [{ seriesLinkId: 'sl', channelId: 'c' }], futureRecordings, guide: g, nowMs: NOW })
   assert.deepEqual(out.map((r) => r.programId), ['night'])
 })
+
+test('projectUpcomingRecordings: a paused series projects no expected episodes', () => {
+  const paused = [{ ...seriesTags[0], enabled: false }]
+  const out = projectUpcomingRecordings({ seriesTags: paused, futureRecordings: [], guide, nowMs: NOW })
+  assert.deepEqual(out.filter((r) => r.source === 'series'), [])
+})
