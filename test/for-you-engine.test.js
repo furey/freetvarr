@@ -46,3 +46,20 @@ test('an embed run whose model is still current runs once', async () => {
   await latest.start()
   assert.equal(runs, 1)
 })
+
+test('a second embed run uses the time it starts, not the time of the first run', async () => {
+  let wanted = 'standard-model'
+  const times = []
+  const latest = createLatestRun({
+    run: async ({ nowMs }) => {
+      times.push(nowMs)
+      const model = wanted
+      wanted = 'plus-model'
+      return { model }
+    },
+    currentId: async () => wanted,
+    now: () => 5_000,
+  })
+  await latest.start({ nowMs: 1_000 })
+  assert.deepEqual(times, [1_000, 5_000])
+})

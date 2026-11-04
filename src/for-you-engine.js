@@ -70,13 +70,13 @@ export const probeIfStale = async ({ version }) => {
   return { probe: await runProbe({ version }), fresh: true }
 }
 
-export const createLatestRun = ({ run, currentId, maxRuns = MAX_EMBED_RUNS }) => {
+export const createLatestRun = ({ run, currentId, maxRuns = MAX_EMBED_RUNS, now = Date.now }) => {
   let active = null
   const runUntilCurrent = async (options, runsLeft) => {
     const result = await run(options)
     const wanted = await currentId().catch(() => null)
     const changed = Boolean(wanted && result?.model && wanted !== result.model)
-    return changed && runsLeft > 1 ? runUntilCurrent(options, runsLeft - 1) : result
+    return changed && runsLeft > 1 ? runUntilCurrent({ ...options, nowMs: now() }, runsLeft - 1) : result
   }
   const start = (options) => {
     active ??= runUntilCurrent(options, maxRuns).finally(() => { active = null })
