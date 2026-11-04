@@ -59,11 +59,12 @@ export const plexItemPlaybackRow = async ({ itemId, partId = null }) => {
 
 export const loadPartsByFile = (filePath) => db('library_items').where({ file_path: filePath }).select()
 
-export const saveScannedItems = async ({ rows, full, sectionId, seenAt }) => {
+export const saveScannedItems = async ({ rows, full, sectionId, seenAt, nowMs = Date.now() }) => {
+  forgetOldDeletions(nowMs)
   const existing = await db('library_items').where({ section_id: sectionId }).select('rating_key', 'part_id', 'pending_push', 'watched_at', 'view_offset_s', 'manager', 'manager_file_id', 'manager_item_id', 'manager_series_id', 'file_path')
   const byId = new Map(existing.map((row) => [partKeyOf(row), row]))
   await db.transaction(async (trx) => {
-    for (const row of rows) {
+    for (const row of rows.filter((entry) => !recentlyDeletedFiles.has(entry.file_path))) {
       const kept = byId.get(partKeyOf(row))
       await trx('library_items').insert(rowToSave({ row, kept })).onConflict(['rating_key', 'part_id']).merge()
     }
@@ -129,7 +130,10 @@ export const clearPendingPush = ({ ratingKey, action }) => db('library_items')
   .where({ rating_key: ratingKey, pending_push: action })
   .update({ pending_push: null })
 
-export const removePartsByFile = (filePath) => db('library_items').where({ file_path: filePath }).delete()
+export const removePartsByFile = (filePath, { nowMs = Date.now() } = {}) => {
+  recentlyDeletedFiles.set(filePath, nowMs)
+  return db('library_items').where({ file_path: filePath }).delete()
+}
 
 export const loadRecordingFiles = () => db('recordings')
   .whereNotNull('file_path')
@@ -148,5 +152,14 @@ const parseIds = (raw) => {
 
 const partKeyOf = (row) => `${row.rating_key}|${row.part_id}`
 
+const forgetOldDeletions = (nowMs) => {
+  for (const [filePath, deletedAt] of recentlyDeletedFiles) {
+    if (nowMs - deletedAt >= DELETED_FILE_MEMORY_MS) recentlyDeletedFiles.delete(filePath)
+  }
+}
+
+const recentlyDeletedFiles = new Map()
+
 const ENABLED_KEY = 'plex_whole_library'
 const SECTIONS_KEY = 'plex_library_sections'
+const DELETED_FILE_MEMORY_MS = 30 * 60 * 1000

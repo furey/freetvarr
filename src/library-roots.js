@@ -20,10 +20,11 @@ export const moviesRootFrom = (setting) => (setting != null ? setting.trim() : (
 
 export const rootsAfterSaveOf = async (body, read = getSetting) => {
   const valueOf = async (key) => (body[key] !== undefined ? String(body[key]) : read(key))
+  const moviesSetting = await valueOf('movies_root')
   return {
     mediaRoot: mediaRootFrom(await valueOf('media_root')),
     oneOffRoot: oneOffRootFrom(await valueOf('oneoff_root')),
-    moviesRoot: moviesRootFrom(await valueOf('movies_root')),
+    moviesRoot: moviesRootFrom(moviesSetting?.trim() ? moviesSetting : null),
   }
 }
 

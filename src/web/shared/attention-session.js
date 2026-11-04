@@ -1,6 +1,8 @@
 import { api } from '/shared/api.js'
 import { ATTENTION_MEDIA_EVENTS, ATTENTION_SAMPLE_MS, attentionChangesOf, attentionPathOf, isAttending, unsentAttention } from '/attention.js'
 
+const VIEWER = crypto.randomUUID?.() ?? String(Math.random()).slice(2)
+
 const sources = new Set()
 let sent = new Map()
 let isSharedScreen = () => false
@@ -21,7 +23,7 @@ export const reportAttention = () => {
   const outcome = attentionChangesOf({ sent, current })
   sent = outcome.sent
   for (const change of outcome.changes) {
-    api('POST', attentionPathOf(change), { attending: change.attending }).catch((err) => {
+    api('POST', attentionPathOf(change), { attending: change.attending, viewer: VIEWER }).catch((err) => {
       if (err.status !== 404) sent = unsentAttention({ sent, change })
     })
   }

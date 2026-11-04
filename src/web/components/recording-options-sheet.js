@@ -3,11 +3,13 @@ import {
   KEEP_OPTIONS,
   LAG_OPTIONS,
   LEAD_OPTIONS,
+  adRemovalModeOf,
   canStep,
   channelChipsOf,
   guideMatchesFor,
   keepLabel,
   paddingLabel,
+  rolledBackStepsOf,
   sheetIntroOf,
   stepOption,
 } from '/show-page.js'
@@ -160,12 +162,18 @@ export const RecordingOptionsSheet = {
     })
     const unassignedText = computed(() => unfiledShowText(rule.value.savesTo))
 
+    let openAdMode = 'off'
+    let savedSteps = {}
+    const stepRefs = { episodes_to_keep: keep, lead_time: lead, lag_time: lag }
+
     const resetFromShow = () => {
       const autorecs = rule.value.autorecs || []
       keep.value = rule.value.episodesToKeep || 0
       lead.value = maxOf(autorecs.map((a) => a.leadTime), DEFAULT_LEAD_MINUTES)
       lag.value = maxOf(autorecs.map((a) => a.lagTime), DEFAULT_LAG_MINUTES)
       removeAds.value = rule.value.adRemoval === 'cut'
+      openAdMode = rule.value.adRemoval
+      savedSteps = { episodes_to_keep: keep.value, lead_time: lead.value, lag_time: lag.value }
       paused.value = Boolean(rule.value.paused)
       stage.value = 'options'
       editingFolder.value = false
@@ -206,9 +214,12 @@ export const RecordingOptionsSheet = {
       if (!Object.keys(patch).length) return
       try {
         await api('PATCH', `/api/library/shows/${encodeURIComponent(props.show.key)}/rule`, patch)
+        savedSteps = { ...savedSteps, ...patch }
         announce('Saved.')
         emit('changed')
       } catch (err) {
+        const rolledBack = rolledBackStepsOf({ failed: patch, saved: savedSteps, pending: pendingPatch.value })
+        Object.entries(rolledBack).forEach(([field, value]) => { stepRefs[field].value = value })
         fail('Saving the recording options', err)
       }
     }
@@ -241,7 +252,7 @@ export const RecordingOptionsSheet = {
 
     const toggleAds = () => runBusy('Changing ad removal', async () => {
       const next = !removeAds.value
-      await api('PATCH', `/api/shows/${rule.value.folder.id}`, { ad_removal: next ? 'cut' : 'off' })
+      await api('PATCH', `/api/shows/${rule.value.folder.id}`, { ad_removal: adRemovalModeOf({ on: next, openMode: openAdMode }) })
       removeAds.value = next
       announce(next ? 'Ads will be removed.' : 'Ads will stay in.')
     })

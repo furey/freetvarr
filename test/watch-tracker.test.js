@@ -226,8 +226,10 @@ test('the writer buffers, flushes in chunks, and drops rows when inserts fail', 
   await writer.flush()
   assert.match(warnings[0], /dropped 1 event/)
   writer.setEnabled(false)
-  assert.equal(writer.log({ kind: 'thumb_up', title: 'y' }), false)
+  assert.equal(writer.log({ kind: 'watch_start', title: 'y' }), false)
   assert.equal(writer.pending(), 0)
+  assert.equal(writer.log({ kind: 'thumb_up', title: 'y' }), true)
+  assert.equal(writer.pending(), 1)
 })
 
 test('the writer keeps only the newest events when the buffer is full', async () => {

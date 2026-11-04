@@ -67,10 +67,21 @@ export const createPlexWatchClient = ({ url, token, request = axiosRequest }) =>
   const metadata = async (ratingKeys) => {
     const items = []
     for (let start = 0; start < ratingKeys.length; start += METADATA_BATCH) {
-      const keys = ratingKeys.slice(start, start + METADATA_BATCH).map(encodeURIComponent).join(',')
-      items.push(...metadataOf(await get({ path: `/library/metadata/${keys}` })))
+      items.push(...await metadataBatch(ratingKeys.slice(start, start + METADATA_BATCH)))
     }
     return items
+  }
+
+  const metadataBatch = async (keys) => {
+    try {
+      return metadataOf(await get({ path: `/library/metadata/${keys.map(encodeURIComponent).join(',')}` }))
+    } catch (err) {
+      if (err.status !== 404) throw err
+      if (keys.length === 1) return []
+      const items = []
+      for (const key of keys) items.push(...await metadataBatch([key]))
+      return items
+    }
   }
 
   const write = ({ action, ratingKey, seconds }) => {

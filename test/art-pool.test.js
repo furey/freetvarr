@@ -368,3 +368,21 @@ test('a pool saved before the wide picture sizes is served at once and saved aga
   assert.equal(calls.count, 1)
   assert.match(poolStore.rows.get('wide-v1:show:the-block').value.entries[0].origin, /width=1920&height=1080/)
 })
+
+test('an expired TVmaze pool refreshed with no guide details keeps the old pictures', async () => {
+  const { SERIES_MATCH_VERSION } = await import('../src/web/artwork-stamps.js')
+  const { sizedKeyOf } = await import('../src/artwork-match.js')
+  const cache = memoryCache()
+  const key = sizedKeyOf(`art-pool:tvmaze-${SERIES_MATCH_VERSION}:block`)
+  const kept = [{ origin: 'https://tvmaze/old.jpg', kind: 'background', source: 'tvmaze' }]
+  cache.rows.set(key, { sources: kept, expiresAt: 900 })
+  const sources = await poolWith({
+    cache,
+    now: () => 1_000,
+    tvmazeHitTtlMs: 100,
+    plexConnection: async () => null,
+    searchTvmaze: async () => [],
+  }).showSources('the-block')
+  assert.deepEqual(sources.tvmaze, kept)
+  assert.deepEqual(cache.rows.get(key), { sources: kept, expiresAt: 900 })
+})

@@ -6,9 +6,11 @@ import {
   SUGGESTIONS_HREF,
   chooserShownOf,
   doneLabelOf,
+  forYouLoadFailureOf,
   isScheduled,
   pageIntroOf,
   pickableOf,
+  picksErrorOf,
   scheduledKeysOf,
   sectionsOf,
 } from '/for-you.js'
@@ -79,6 +81,7 @@ export const ForYouView = {
       </section>
 
       <template v-else>
+        <p v-if="refreshFailed" class="status-readout err for-you-refresh-note" role="status">Could not refresh suggestions. These are the last ones that loaded.</p>
         <section v-if="chooserShown" class="for-you-chooser" aria-labelledby="for-you-chooser-title">
           <div class="for-you-chooser-head">
             <div>
@@ -100,6 +103,7 @@ export const ForYouView = {
               </span>
             </button>
           </div>
+          <p v-if="picksError" class="status-readout err for-you-picks-error" role="alert">{{ picksError.text }}<template v-if="picksError.needsSettings"> <a :href="suggestionsHref">Open For you settings</a></template></p>
           <div class="for-you-chooser-actions ui-only-phone">
             <button type="button" class="ui-button ui-button-secondary" @click="skipChooser">Skip</button>
             <button type="button" class="ui-button ui-button-primary" :disabled="!picked.size || savingPicks" @click="savePicks">{{ doneLabel }}</button>
@@ -139,6 +143,8 @@ export const ForYouView = {
     const pickable = ref(cached?.pickable ?? [])
     const loaded = ref(Boolean(cached))
     const missing = ref(false)
+    const refreshFailed = ref(false)
+    const picksError = ref(null)
     const picked = ref(new Set())
     const picksSaved = ref(false)
     const savingPicks = ref(false)
@@ -181,9 +187,12 @@ export const ForYouView = {
         upcoming.value = fresh.upcoming
         pickable.value = fresh.pickable
         missing.value = false
+        refreshFailed.value = false
         forYouStore.keep(fresh)
       } catch {
-        missing.value = true
+        const failure = forYouLoadFailureOf({ hasPayload: Boolean(payload.value) })
+        missing.value = failure.missing
+        refreshFailed.value = failure.refreshFailed
       } finally {
         loaded.value = true
       }
@@ -216,11 +225,13 @@ export const ForYouView = {
 
     const savePicks = async () => {
       savingPicks.value = true
+      picksError.value = null
       try {
         await api('POST', '/api/for-you/picks', { seriesKeys: [...picked.value] })
         picksSaved.value = true
         await load()
-      } catch {
+      } catch (err) {
+        picksError.value = picksErrorOf(err)
         savingPicks.value = false
         return
       }
@@ -234,7 +245,7 @@ export const ForYouView = {
     watch(recordingChangeTick, load)
 
     return {
-      payload, loaded, unavailable, sections, intro, chooserShown, pickable, picked, doneLabel, savingPicks, failedArt,
+      payload, loaded, unavailable, sections, intro, chooserShown, pickable, picked, doneLabel, savingPicks, failedArt, refreshFailed, picksError,
       ctl, togglePick, skipChooser, savePicks, fallbackStyleOf, markFailed, suggestionsHref: SUGGESTIONS_HREF,
       genreLookup,
     }

@@ -20,6 +20,9 @@ export const attentionChangesOf = ({ sent = new Map(), current = [] }) => {
   for (const [key, entry] of next) {
     if ((sent.get(key)?.attending ?? false) !== entry.attending) changes.push(entry)
   }
+  for (const [key, entry] of sent) {
+    if (!next.has(key) && entry.attending) changes.push({ kind: entry.kind, sessionId: entry.sessionId, attending: false })
+  }
   return { changes, sent: next }
 }
 

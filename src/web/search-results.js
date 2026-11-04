@@ -1,3 +1,4 @@
+import { failureText } from './shared/request-errors.js'
 import { episodeMetaParts } from './scheduled-groups.js'
 import { buildSearchIndex, searchIndex } from './search-index.js'
 import { normaliseSearchText } from './search-text.js'
@@ -56,6 +57,15 @@ export const showEntriesOf = ({ keyOf, shows = [], series = [] }) => {
   shows.filter((show) => show.title).forEach((show) => { entryFor(show.title).recordingCount += Number(show.recordingCount) || 0 })
   series.filter((rule) => rule.title).forEach((rule) => { entryFor(rule.title).hasRule = true })
   return [...entries.values()]
+}
+
+export const guideSearchOutcomeOf = async (request) => {
+  try {
+    const body = await request()
+    return { results: body?.results || [], failure: '' }
+  } catch (err) {
+    return { results: [], failure: failureText({ action: 'Could not search the guide', err }) }
+  }
 }
 
 const showMetaOf = ({ recordingCount, hasRule }) => [

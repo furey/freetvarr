@@ -104,4 +104,12 @@ test('rootsAfterSaveOf: uses the posted folders and falls back to the stored one
     oneOffRoot: '/data/media/one-offs',
     moviesRoot: '/data/media/movies',
   })
+  const env = process.env.MOVIES_ROOT
+  process.env.MOVIES_ROOT = '/data/media/films'
+  try {
+    assert.equal((await rootsAfterSaveOf({ movies_root: '' }, read)).moviesRoot, '/data/media/films')
+  } finally {
+    if (env === undefined) delete process.env.MOVIES_ROOT
+    else process.env.MOVIES_ROOT = env
+  }
 })

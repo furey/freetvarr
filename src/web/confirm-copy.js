@@ -52,6 +52,7 @@ export const resetConfirm = ({ mediaRoot }) => ({
     `Your video files in ${mediaRoot || '/media/tv'} and the other library folders stay where they are,`
       + ' and so do the recordings and settings in TVHeadend.',
     'The first sync after setup imports the recordings still in TVHeadend again.',
+    'Freetvarr keeps the TV login it made. You can still delete it, or restore open access, after setup.',
     'You cannot undo this.',
   ],
   confirmLabel: 'Reset Freetvarr',

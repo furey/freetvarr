@@ -14,6 +14,15 @@ export const stepOption = ({ options, value, direction }) => {
   return [...options].reverse().find((option) => option < current) ?? options[0]
 }
 
+export const rolledBackStepsOf = ({ failed, saved, pending = {} }) => Object.fromEntries(Object.keys(failed)
+  .filter((field) => !(field in pending))
+  .map((field) => [field, saved[field]]))
+
+export const adRemovalModeOf = ({ on, openMode }) => {
+  if (on) return 'cut'
+  return openMode === 'detect' ? 'detect' : 'off'
+}
+
 export const canStep = ({ options, value, direction }) => (direction > 0
   ? Number(value) < options.at(-1)
   : Number(value) > options[0])

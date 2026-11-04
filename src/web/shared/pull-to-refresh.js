@@ -1,10 +1,11 @@
 import { shouldReloadOnPull } from '/stale-build.js'
 import { loadedBuild, latestBuild, checkForNewBuild } from '/shared/api.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
-import { refreshTick } from '/shared/store.js'
+import { refreshTick, unsavedSettings } from '/shared/store.js'
+import { route } from '/shared/router.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
-import { pullMoveOf, pullOffsetOf, pullProgressOf, isPullCommitted } from '/pull-gesture.js'
+import { pullMoveOf, pullOffsetOf, pullProgressOf, isPullCommitted, isPullRefreshAllowed } from '/pull-gesture.js'
 
 const PULL_HOLD_PX = 52
 const PULL_TICKS = 8
@@ -28,6 +29,7 @@ const hasScrolledAncestor = (el) => {
 }
 
 const pullBlocked = (e) => window.scrollY > 0
+  || !isPullRefreshAllowed({ route: route.value, unsavedSettings: unsavedSettings.value })
   || e.touches.length > 1
   || Boolean(e.target.closest?.('.ui-sheet-backdrop, .ui-search-backdrop, .epg-row.pinned .epg-rail-cell, .live-row.pinned .live-row-handle'))
   || hasScrolledAncestor(e.target)

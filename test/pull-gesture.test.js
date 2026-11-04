@@ -7,8 +7,32 @@ import {
   pullMoveOf,
   pullOffsetOf,
   pullProgressOf,
-  isPullCommitted
+  isPullCommitted,
+  isPullRefreshAllowed
 } from '../src/web/pull-gesture.js'
+import { readFileSync } from 'node:fs'
+import { hasUnsavedSettings, settingsSnapshotOf } from '../src/web/settings-load.js'
+
+test('isPullRefreshAllowed: no pull to refresh in the setup wizard or over unsaved Settings', () => {
+  assert.equal(isPullRefreshAllowed({ route: 'welcome' }), false)
+  assert.equal(isPullRefreshAllowed({ route: 'settings', unsavedSettings: true }), false)
+  assert.equal(isPullRefreshAllowed({ route: 'settings', unsavedSettings: false }), true)
+  assert.equal(isPullRefreshAllowed({ route: 'home' }), true)
+})
+
+test('hasUnsavedSettings: Settings counts as unsaved once a field differs from the last load or save', () => {
+  const snapshot = settingsSnapshotOf({ tvh_url: 'http://tvh:9981', sync_cron: '*/30 * * * *' })
+  assert.equal(hasUnsavedSettings({ snapshot, body: { tvh_url: 'http://tvh:9981', sync_cron: '*/30 * * * *' } }), false)
+  assert.equal(hasUnsavedSettings({ snapshot, body: { tvh_url: 'http://tvh:9982', sync_cron: '*/30 * * * *' } }), true)
+  assert.equal(hasUnsavedSettings({ snapshot: null, body: { tvh_url: 'x' } }), false)
+})
+
+test('pull to refresh: the gesture asks isPullRefreshAllowed, and Settings reports unsaved changes', () => {
+  const pull = readFileSync(new URL('../src/web/shared/pull-to-refresh.js', import.meta.url), 'utf8')
+  const settings = readFileSync(new URL('../src/web/views/settings-view.js', import.meta.url), 'utf8')
+  assert.match(pull, /isPullRefreshAllowed\(/)
+  assert.match(settings, /hasUnsavedSettings\(/)
+})
 
 test('pullMoveOf holds a downward move inside the slop so the native bounce never starts', () => {
   assert.equal(pullMoveOf({ dx: 0, dy: 1, claimed: false }), 'hold')

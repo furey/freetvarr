@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, watch } from '/vendor/vue.esm-browser.prod.js'
-import { adBreakAt, fmtPlayTime } from '/playback.js'
+import { adBreakAt, endedPositionOf, fmtPlayTime } from '/playback.js'
 import {
   adsText,
   airedRangeText,
@@ -342,7 +342,7 @@ export const RecordingPlayer = {
 
     const onEnded = () => {
       playback.paused = true
-      playback.position = playback.duration || playback.position
+      playback.position = endedPositionOf({ offset: playback.offset, currentTime: playVideo.currentTime })
       savePlaybackPosition()
     }
 

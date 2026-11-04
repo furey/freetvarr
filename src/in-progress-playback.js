@@ -15,12 +15,13 @@ export const RECORDING_CHECK_MS = 5000
 export const PROBE_HEAD_BYTES = 2 * 1024 * 1024
 
 export const mountInProgressPlayback = ({
-  app, csrf, limiter, sessions, encoderReady, folders, onError,
+  app, csrf, limiter, sessions, encoderReady, folders, onError, releaseHeld = async () => {},
 }) => {
   app.post('/api/play/in-progress', limiter, csrf, async (req, res) => {
     const dvrUuid = typeof req.body?.dvrUuid === 'string' ? req.body.dvrUuid.trim() : ''
     if (!dvrUuid) return res.status(400).json({ ok: false, error: 'dvrUuid is required', code: 'dvr-uuid' })
     try {
+      await releaseHeld({ clientToken: clientTokenOf(req.body?.client_token) })
       const started = await startInProgressPlayback({
         dvrUuid,
         sessions,
@@ -36,6 +37,8 @@ export const mountInProgressPlayback = ({
     }
   })
 }
+
+const clientTokenOf = (value) => (typeof value === 'string' && value ? value.slice(0, 64) : null)
 
 export const inProgressFolders = async () => {
   const [tvhRecordingsPath, recordingsRoot] = await Promise.all([getTvhRecordingsPath(), getRecordingsRoot()])

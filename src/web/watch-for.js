@@ -1,9 +1,9 @@
 export const WATCH_FOR_DEFAULT_LEAD = 2
 export const WATCH_FOR_DEFAULT_LAG = 10
 
-export const watchForOfferOf = ({ query, searching = false, guideCount = 0, minLength = 2 }) => {
+export const watchForOfferOf = ({ query, searching = false, failed = false, guideCount = 0, minLength = 2 }) => {
   const title = String(query ?? '').trim()
-  if (searching || guideCount > 0 || title.length < minLength) return null
+  if (searching || failed || guideCount > 0 || title.length < minLength) return null
   return title
 }
 

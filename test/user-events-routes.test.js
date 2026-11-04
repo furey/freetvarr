@@ -25,6 +25,7 @@ const { HISTORY_RETENTION_MS, SHOWN_RETENTION_MS } = await import('../src/user-e
 const passThrough = (req, res, next) => next()
 let appServer
 let baseUrl
+const choices = []
 
 const call = async (method, url, body) => {
   const res = await fetch(`${baseUrl}${url}`, {
@@ -46,7 +47,7 @@ before(async () => {
   const app = express()
   app.use(express.json())
   app.use(observeUserEvents)
-  mountUserEvents({ app, csrf: passThrough })
+  mountUserEvents({ app, csrf: passThrough, onChoice: () => choices.push(Date.now()) })
   app.post('/api/library/delete', (req, res) => res.json({ results: req.body.ids.map((recordingId) => ({ recordingId, ok: recordingId !== 'r3' })) }))
   app.delete('/api/watchlist/:id', async (req, res) => {
     await db('watchlist').where({ id: Number(req.params.id) }).delete()
@@ -71,6 +72,7 @@ beforeEach(async () => {
   await db('watchlist').delete()
   await db('settings').delete()
   await call('PUT', '/api/events/settings', { viewing_history_enabled: true })
+  choices.length = 0
 })
 
 test('feedback is validated and logged', async () => {
@@ -90,7 +92,7 @@ test('feedback is validated and logged', async () => {
 test('turning viewing history off stops logging and the setting reads back', async () => {
   assert.equal((await call('PUT', '/api/events/settings', { viewing_history_enabled: 'no' })).status, 400)
   await call('PUT', '/api/events/settings', { viewing_history_enabled: false })
-  const logged = await call('POST', '/api/events/feedback', { kind: 'thumb_up', title: 'Bluey' })
+  const logged = await call('POST', '/api/events/feedback', { kind: 'suggestion_shown', title: 'Bluey' })
   assert.equal(logged.body.logged, 0)
   const settings = await call('GET', '/api/events/settings')
   assert.equal(settings.body.viewing_history_enabled, false)
@@ -188,4 +190,30 @@ test('pruning removes shown cards after 30 days and keeps other kinds', async ()
   const kinds = (await db('user_events').orderBy('ts')).map((row) => row.kind)
   assert.deepEqual(kinds, ['watch_end', 'suggestion_shown'])
   assert.ok(SHOWN_RETENTION_MS > 29 * dayMs)
+})
+
+test('Not interested and thumbs are kept while viewing history is paused', async () => {
+  await call('PUT', '/api/events/settings', { viewing_history_enabled: false })
+  const logged = await call('POST', '/api/events/feedback', {
+    events: [
+      { kind: 'not_interested', title: 'Bluey' },
+      { kind: 'thumb_down', title: 'MKR' },
+      { kind: 'thumb_clear', title: 'MKR' },
+      { kind: 'suggestion_shown', title: 'Rake' },
+    ],
+  })
+  assert.equal(logged.body.logged, 3)
+  assert.deepEqual((await events()).map((row) => [row.kind, row.series_key]), [
+    ['not_interested', 'bluey'],
+    ['thumb_down', 'mkr'],
+    ['thumb_clear', 'mkr'],
+  ])
+})
+
+test('Not interested and thumbs are saved before the answer and refresh suggestions once', async () => {
+  await call('POST', '/api/events/feedback', { kind: 'suggestion_shown', title: 'Rake' })
+  assert.equal(choices.length, 0)
+  await call('POST', '/api/events/feedback', { events: [{ kind: 'not_interested', title: 'Bluey' }, { kind: 'thumb_up', title: 'MKR' }] })
+  assert.equal(choices.length, 1)
+  assert.deepEqual((await db('user_events').orderBy('id')).map((row) => row.kind), ['suggestion_shown', 'not_interested', 'thumb_up'])
 })

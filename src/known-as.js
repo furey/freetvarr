@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { db } from './db.js'
+import { artworkClient } from './fallback-artwork.js'
 import { normaliseSearchText } from './web/search-text.js'
 import { showKeyOf } from './web/show-key.js'
 
@@ -40,7 +41,8 @@ export const wikidataNamesOf = (sparql) => {
 }
 
 export const createKnownAs = ({
-  fetchAkas = tvmazeAkas,
+  client = artworkClient,
+  fetchAkas = (showId) => tvmazeAkas({ client, showId }),
   queryWikidata = wikidataQuery,
   cache = databaseCache,
   onChange = () => {},
@@ -94,15 +96,10 @@ const parseNames = (json) => {
   }
 }
 
-const tvmazeAkas = async (showId) => {
-  const res = await axios.get(`${TVMAZE_API}/shows/${showId}/akas`, {
-    timeout: REQUEST_TIMEOUT_MS,
-    validateStatus: () => true,
-    headers: { 'User-Agent': USER_AGENT },
-  })
-  if (res.status !== 200) throw new Error(`TVmaze HTTP ${res.status}`)
-  return res.data
-}
+const tvmazeAkas = async ({ client, showId }) => (await client.getJson({
+  url: `${TVMAZE_API}/shows/${encodeURIComponent(showId)}/akas`,
+  isBackground: true,
+})) || []
 
 const wikidataQuery = async (query) => {
   const res = await axios.get(WIKIDATA_SPARQL, {
@@ -131,7 +128,6 @@ const MAX_NAME_LENGTH = 80
 const MAX_NAMES = 12
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const LOOKUP_GAP_MS = 700
-const REQUEST_TIMEOUT_MS = 8000
 const SPARQL_TIMEOUT_MS = 20000
 const TVMAZE_API = 'https://api.tvmaze.com'
 const WIKIDATA_SPARQL = 'https://query.wikidata.org/sparql'

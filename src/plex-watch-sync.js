@@ -76,6 +76,7 @@ export const createPlexWatchSync = ({
         failures: 0,
         nextAttemptAt: null,
         tokenMark: null,
+        fullPassDue: !result.full && result.missingKeys > 0,
       })
       return result
     } catch (err) {
@@ -113,11 +114,12 @@ export const createPlexWatchSync = ({
     if (fullPass && planned.ambiguous) job.fact('More than one match', planned.ambiguous)
     const rowById = new Map(rows.map((row) => [row.recording_id, row]))
     job.step('Copy from Plex')
-    const pulled = await applyPulls({ plans: planned.plans, rowById, job })
+    const { pulled, staleIds } = await applyPulls({ plans: planned.plans, rowById, job })
+    const freshPlans = planned.plans.filter((plan) => !staleIds.has(plan.recordingId))
     job.step('Send to Plex')
-    const pushOutcome = await applyPushes({ plans: planned.plans, rowById, client, job })
+    const pushOutcome = await applyPushes({ plans: freshPlans, rowById, client, job })
     job.step('Save state')
-    await saveSnapshots(snapshotsToSave({ plans: planned.plans, snapshotById, pushOutcome }))
+    await saveSnapshots(snapshotsToSave({ plans: freshPlans, snapshotById, pushOutcome }))
     const library = await afterSync({ client, full: fullPass, status, job }).catch((err) => {
       if (err.kind === 'token') throw err
       job.log(`Whole library: ${err.message}`, 'warn')
@@ -137,6 +139,7 @@ export const createPlexWatchSync = ({
       pulled,
       pushed: pushOutcome.pushed,
       failed: pushOutcome.failed,
+      missingKeys: planned.missingKeys ?? 0,
     }
   }
 
@@ -155,23 +158,31 @@ export const createPlexWatchSync = ({
       .map((row) => ({ row, snapshot: snapshotById.get(row.recording_id) }))
       .filter(({ row, snapshot }) => snapshot && !viewedKeys.has(String(snapshot.rating_key)) && freetvarrChanged({ row, snapshot }))
       .map(({ snapshot }) => String(snapshot.rating_key))
-    const items = [...viewed, ...(changedKeys.length ? await client.metadata(changedKeys) : [])]
+    const changedItems = changedKeys.length ? await metadataOrMissing({ client, keys: changedKeys }) : []
+    const items = [...viewed, ...changedItems]
     const itemByKey = new Map(items.map((item) => [String(item.ratingKey), item]))
+    const missingKeys = changedKeys.filter((key) => !itemByKey.has(key)).length
     const plans = rows
       .map((row) => ({ row, snapshot: snapshotById.get(row.recording_id) }))
       .filter(({ snapshot }) => snapshot && itemByKey.has(String(snapshot.rating_key)))
       .map(({ row, snapshot }) => planRow({ row, item: itemByKey.get(String(snapshot.rating_key)), snapshot, ...toggles, nowMs }))
-    return { plans, unmatched: 0, ambiguous: 0 }
+    return { plans, unmatched: 0, ambiguous: 0, missingKeys }
   }
 
   const applyPulls = async ({ plans, rowById, job }) => {
     let pulled = 0
+    const staleIds = new Set()
     for (const plan of plans.filter((entry) => entry.pull)) {
-      await applyPull({ recordingId: plan.recordingId, patch: plan.pull })
+      const row = rowById.get(plan.recordingId)
+      const changed = await applyPull({ recordingId: plan.recordingId, patch: plan.pull, expected: expectedStateOf(row) })
+      if (changed === 0) {
+        staleIds.add(plan.recordingId)
+        continue
+      }
       pulled += 1
-      job.item({ label: labelOf(rowById.get(plan.recordingId)), detail: pullText(plan.pull) })
+      job.item({ label: labelOf(row), detail: pullText(plan.pull) })
     }
-    return pulled
+    return { pulled, staleIds }
   }
 
   const applyPushes = async ({ plans, rowById, client, job }) => {
@@ -236,6 +247,7 @@ export const createPlexWatchSync = ({
 
 export const needsFullPass = ({ status, rows, snapshotById, nowMs }) => {
   if (!status.lastFullAt || !status.lastRunAt) return true
+  if (status.fullPassDue) return true
   if (nowMs - status.lastFullAt >= FULL_PASS_EVERY_MS) return true
   const unsnapshotted = rows.some((row) => !snapshotById.has(row.recording_id))
   return unsnapshotted && nowMs - status.lastFullAt >= UNMATCHED_FULL_PASS_EVERY_MS
@@ -254,6 +266,20 @@ export const outcomeText = ({ pulled, pushed, failed = 0 }) => {
     failed ? `${failed} not sent` : null,
   ].filter(Boolean)
   return parts.length ? parts.join(' · ') : 'No changes'
+}
+
+const expectedStateOf = (row) => ({
+  watched_at: row?.watched_at ?? null,
+  playback_position_s: row?.playback_position_s ?? null,
+})
+
+const metadataOrMissing = async ({ client, keys }) => {
+  try {
+    return await client.metadata(keys)
+  } catch (err) {
+    if (err.status === 404) return []
+    throw err
+  }
 }
 
 const freetvarrChanged = ({ row, snapshot }) => {

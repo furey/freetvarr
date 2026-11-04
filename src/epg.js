@@ -22,7 +22,7 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
-import { createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
+import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
@@ -375,9 +375,11 @@ export const getProgrammeSheet = async ({ channelId, startMs, nowMs = Date.now()
 
 export const withClassification = async ({ sheet, store }) => {
   if (!sheet.programme) return sheet
+  const channelName = sheet.channel?.name ?? null
+  const shiftHours = channelShiftHours(channelName)
   const [classification, category] = await Promise.all([
-    programmeClassification({ programme: sheet.programme, store }),
-    store.categoryAt?.({ title: sheet.programme.title, startMs: sheet.programme.start }).catch(() => null) ?? null,
+    programmeClassification({ programme: { ...sheet.programme, channelName }, store }),
+    store.categoryAt?.({ title: sheet.programme.title, startMs: sheet.programme.start, shiftHours }).catch(() => null) ?? null,
   ])
   const ratingsLikely = isRatingsLikely({ kind: sheet.programme.kind, category })
   return { ...sheet, programme: { ...sheet.programme, classification, ratingsLikely } }
@@ -385,9 +387,10 @@ export const withClassification = async ({ sheet, store }) => {
 
 const classificationStore = createClassificationStore()
 
-const classificationLookupFor = (programmes) => createClassificationLookup({
+const classificationLookupFor = async (programmes) => createClassificationLookup({
   programmes: programmes.filter(Boolean),
   store: classificationStore,
+  channels: (await Promise.resolve().then(getCachedGuide).catch(() => null))?.channels || [],
 })
 
 export const savedWithKinds = ({ guide, saved = [] }) => (guide?.kindOf
@@ -548,7 +551,7 @@ const loadRecordingState = async (now) => {
   return value
 }
 
-const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
+export const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
   const timerById = new Map(futureRecordings.map((recording) => [String(recording.programId), recording]))
   const sources = upcoming.map((recording) => {
     const timer = timerById.get(String(recording.programId))
@@ -556,6 +559,7 @@ const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], gu
     return {
       title: recording.name,
       start: recording.startDate,
+      channelName: recording.channelName ?? null,
       rating: timer?.rating ?? listed?.rating ?? null,
       ratingLabel: timer?.ratingLabel ?? null,
     }

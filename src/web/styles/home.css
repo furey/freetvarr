@@ -743,6 +743,16 @@
   margin: 2px 0 0;
 }
 
+.for-you-refresh-note {
+  margin: 0 0 16px;
+  text-wrap: pretty;
+}
+
+.for-you-picks-error {
+  margin: 0;
+  text-wrap: pretty;
+}
+
 .for-you-chooser-actions {
   display: flex;
   flex: none;
