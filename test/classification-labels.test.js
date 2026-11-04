@@ -284,3 +284,26 @@ test('a recording from a +1 channel takes the +1 label when labels are copied to
     .map((row) => [row.recording_id, row.classification]))
   assert.deepEqual(labels, { base: 'MA15+', plus: 'M' })
 })
+
+test('an upcoming timer on a +1 channel takes the +1 label', async () => {
+  const { programmeClassifications } = await import('../src/guide-feed.js')
+  const { withUpcomingClassifications } = await import('../src/epg.js')
+  await createClassificationStore().record(programmeClassifications({ xml: GOGGLEBOX_FEED, shifts: [{ id: 'ten.plus1', baseId: 'ten', hours: 1 }] }))
+  const at = Date.UTC(2026, 9, 21, 10, 30)
+  const upcoming = [
+    { programId: '1', name: 'Gogglebox', startDate: at, channelName: '10 HD' },
+    { programId: '2', name: 'Gogglebox', startDate: at, channelName: '10 HD +1' },
+  ]
+  const labelled = await withUpcomingClassifications({ upcoming, guide: null })
+  assert.deepEqual(labelled.map((recording) => recording.classification), ['MA15+', 'M'])
+})
+
+test('a lookup without channels still reads the +1 label from a programme channel name', async () => {
+  const { programmeClassifications } = await import('../src/guide-feed.js')
+  const store = createClassificationStore()
+  await store.record(programmeClassifications({ xml: GOGGLEBOX_FEED, shifts: [{ id: 'ten.plus1', baseId: 'ten', hours: 1 }] }))
+  const at = Date.UTC(2026, 9, 21, 10, 30)
+  const plusOne = { title: 'Gogglebox', start: at, channelName: '10 HD +1' }
+  const classificationOf = await createClassificationLookup({ programmes: [plusOne], store })
+  assert.equal(classificationOf(plusOne), 'M')
+})

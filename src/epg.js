@@ -551,7 +551,7 @@ const loadRecordingState = async (now) => {
   return value
 }
 
-const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
+export const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], guide }) => {
   const timerById = new Map(futureRecordings.map((recording) => [String(recording.programId), recording]))
   const sources = upcoming.map((recording) => {
     const timer = timerById.get(String(recording.programId))
@@ -559,6 +559,7 @@ const withUpcomingClassifications = async ({ upcoming, futureRecordings = [], gu
     return {
       title: recording.name,
       start: recording.startDate,
+      channelName: recording.channelName ?? null,
       rating: timer?.rating ?? listed?.rating ?? null,
       ratingLabel: timer?.ratingLabel ?? null,
     }
