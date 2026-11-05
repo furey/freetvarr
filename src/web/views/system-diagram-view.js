@@ -19,7 +19,14 @@ const PieceDetail = {
     <p class="sd-detail-job">{{ piece.job }}</p>
     <p v-if="piece.more" class="sd-detail-more">{{ piece.more }}</p>
     <div v-if="status || piece.own" class="ui-group sd-detail-rows">
-      <div v-if="status" class="ui-group-row sd-current">
+      <div v-for="row in status?.rows" :key="row.key" class="ui-group-row">
+        <span class="ui-group-row-main">
+          <span class="ui-group-row-title">{{ row.title }}</span>
+          <span :class="['ui-group-row-meta', { 'sd-mono': row.mono }]">{{ row.meta }}</span>
+          <span v-if="row.note" class="ui-group-row-meta">{{ row.note }}</span>
+        </span>
+      </div>
+      <div v-if="status?.text" class="ui-group-row sd-current">
         <span class="ui-group-row-main"><span class="ui-group-row-title">Current</span></span>
         <span :class="['ui-group-row-value', 'sd-current-value', { 'sd-mono': status.mono }]"><template v-for="(part, position) in statusParts" :key="position"><template v-if="position"> · </template><span class="sd-unbroken">{{ part }}</span></template></span>
       </div>

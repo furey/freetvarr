@@ -47,12 +47,12 @@ export const hostOf = (url) => {
   }
 }
 
-export const stepDoneValues = ({ tvhUrl, channels, guideLinked, guideTotal, folderProblems, plexLibrary, plexConnected }) => ({
+export const stepDoneValues = ({ tvhUrl, channels, guideLinked, guideTotal, folderProblems, plexLibraries = {}, plexConnected }) => ({
   tvheadend: hostOf(tvhUrl),
   channels: channels ? countOf({ count: channels, one: 'channel', many: 'channels' }) : 'No channels yet',
   guide: guideLinked ? `${guideLinked} of ${guideTotal || guideLinked} channels` : 'No guide yet',
   folders: folderProblems ? 'Needs a fix' : 'Checks passed',
-  plex: plexConnected ? plexLibrary || 'Connected' : 'Skipped',
+  plex: plexConnected ? plexLibraryNames(plexLibraries) || 'Connected' : 'Skipped',
 })
 
 export const readySummaryRows = ({
@@ -63,9 +63,6 @@ export const readySummaryRows = ({
   guideLinked,
   guideTotal,
   guideRegion,
-  syncText,
-  plexLibrary,
-  mediaRoot,
 }) => [
   {
     key: 'tvheadend',
@@ -90,15 +87,20 @@ export const readySummaryRows = ({
     ok: Boolean(guideLinked),
     fix: guideLinked ? null : { step: 'guide', label: 'Go to Guide' },
   },
-  {
-    key: 'recordings',
-    title: 'Recordings',
-    meta: `Added to your library ${syncText}`,
-    value: plexLibrary || mediaRoot || '',
-    mono: !plexLibrary,
-    ok: true,
-  },
 ]
+
+export const readyDestinationRows = ({ mediaRoot, moviesRoot, oneOffRoot, importUnmatched = true, plexLibraries = {} }) => {
+  const unmatchedNote = importUnmatched ? '' : UNMATCHED_OFF_NOTE
+  return [
+    destinationRow({ key: 'tv', title: 'TV episodes', folder: mediaRoot, library: plexLibraries.tv }),
+    moviesRoot
+      ? destinationRow({ key: 'movies', title: 'Movies', folder: moviesRoot, library: plexLibraries.movies, note: unmatchedNote })
+      : { key: 'movies', title: 'Movies', meta: NO_MOVIES_FOLDER, mono: false, value: '', note: '' },
+    destinationRow({ key: 'oneoff', title: 'One-offs', folder: oneOffRoot, library: plexLibraries.oneoff, note: unmatchedNote }),
+  ]
+}
+
+export const readyImportNote = (syncText) => `Freetvarr imports new recordings ${syncText}.`
 
 export const setupSettingsRows = ({ settings = {}, channelStatus = null, guideStatus = null, folders = null, hosts = null }) => {
   const channels = channelStatus?.channels || 0
@@ -233,6 +235,21 @@ const hostnamesTone = ({ hosts, added }) => {
   if (hosts.any_host || hosts.seen.length) return 'warn'
   return added ? 'ok' : ''
 }
+
+const destinationRow = ({ key, title, folder, library, note = '' }) => ({
+  key,
+  title,
+  meta: folder || 'Not set',
+  mono: Boolean(folder),
+  value: library || '',
+  note,
+})
+
+const plexLibraryNames = (libraries) => [...new Set(['tv', 'movies', 'oneoff'].map((kind) => libraries[kind]).filter(Boolean))].join(', ')
+
+const NO_MOVIES_FOLDER = 'No movies folder, so movies save to One-offs'
+
+const UNMATCHED_OFF_NOTE = 'Import every recording is off, so only your series and recordings with Add to library on save here.'
 
 const signInLine = (username) => (username ? `Signs in as ${username}` : 'Signs in without a login')
 

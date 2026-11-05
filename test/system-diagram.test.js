@@ -132,6 +132,9 @@ test('pieceStatuses: derives the current value of each piece from settings and l
       tvh_url: 'http://nas:9981',
       recordings_root: '/data/recordings',
       media_root: '/data/media/tv',
+      oneoff_root: '/data/media/one-offs',
+      movies_root: '',
+      import_unmatched: true,
       ad_removal_enabled: false,
       plex_url: 'http://nas:32400',
       show_artwork_lookup: true,
@@ -147,7 +150,13 @@ test('pieceStatuses: derives the current value of each piece from settings and l
   assert.deepEqual(statuses, {
     tvheadend: { text: 'Connected · nas:9981' },
     recordings: { text: '/data/recordings', mono: true },
-    library: { text: '/data/media/tv', mono: true },
+    library: {
+      rows: [
+        { key: 'tv', title: 'TV episodes', meta: '/data/media/tv', mono: true, value: '', note: '' },
+        { key: 'movies', title: 'Movies', meta: 'No movies folder, so movies save to One-offs', mono: false, value: '', note: '' },
+        { key: 'oneoff', title: 'One-offs', meta: '/data/media/one-offs', mono: true, value: '', note: '' },
+      ],
+    },
     'ad-removal': { text: 'Off' },
     metadata: { text: 'On' },
     player: { text: 'Plex · nas:32400' },

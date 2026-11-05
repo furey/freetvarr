@@ -8,6 +8,8 @@ import {
   hostOf,
   stepDoneValues,
   readySummaryRows,
+  readyDestinationRows,
+  readyImportNote,
   isSetupComplete,
   runStepValue,
   runStepProgress,
@@ -52,9 +54,16 @@ test('hostOf: keeps the host and port of an address', () => {
 })
 
 test('stepDoneValues: short values for the rail', () => {
-  const values = stepDoneValues({ tvhUrl: 'http://nas:9981', channels: 1, guideLinked: 22, guideTotal: 24, folderProblems: 0, plexLibrary: 'TV Shows', plexConnected: true })
+  const values = stepDoneValues({ tvhUrl: 'http://nas:9981', channels: 1, guideLinked: 22, guideTotal: 24, folderProblems: 0, plexLibraries: { tv: 'TV Shows' }, plexConnected: true })
   assert.deepEqual(values, { tvheadend: 'nas:9981', channels: '1 channel', guide: '22 of 24 channels', folders: 'Checks passed', plex: 'TV Shows' })
   assert.equal(stepDoneValues({ plexConnected: false }).plex, 'Skipped')
+  assert.equal(stepDoneValues({ plexConnected: true }).plex, 'Connected')
+})
+
+test('stepDoneValues: the rail names every chosen Plex library once', () => {
+  const all = { tv: 'TV Shows', movies: 'Movies', oneoff: 'One-offs' }
+  assert.equal(stepDoneValues({ plexLibraries: all, plexConnected: true }).plex, 'TV Shows, Movies, One-offs')
+  assert.equal(stepDoneValues({ plexLibraries: { tv: 'TV Shows', movies: 'Films', oneoff: 'Films' }, plexConnected: true }).plex, 'TV Shows, Films')
 })
 
 const READY = {
@@ -65,28 +74,74 @@ const READY = {
   guideLinked: 24,
   guideTotal: 24,
   guideRegion: 'Sydney',
-  syncText: 'every 15 minutes',
-  plexLibrary: 'TV Shows',
-  mediaRoot: '/data/media/tv',
 }
+
+const FOLDERS = {
+  mediaRoot: '/data/media/tv',
+  moviesRoot: '/data/media/movies',
+  oneOffRoot: '/data/media/one-offs',
+  importUnmatched: true,
+}
+
+const PLEX_ALL = { tv: 'TV Shows', movies: 'Movies', oneoff: 'One-offs' }
 
 test('readySummaryRows: one row per part, all done', () => {
   const rows = readySummaryRows(READY)
-  assert.deepEqual(rows.map((row) => row.key), ['tvheadend', 'channels', 'guide', 'recordings'])
+  assert.deepEqual(rows.map((row) => row.key), ['tvheadend', 'channels', 'guide'])
   assert.equal(rows[0].value, '192.168.1.20:9981')
   assert.equal(rows[1].meta, 'Favourites: ABC TV, SBS')
   assert.equal(rows[2].value, '24 of 24')
-  assert.equal(rows[3].meta, 'Added to your library every 15 minutes')
   assert.equal(isSetupComplete(rows), true)
 })
 
 test('readySummaryRows: missing channels or guide offer a way back and block completion', () => {
-  const rows = readySummaryRows({ ...READY, channels: 0, guideLinked: 0, plexLibrary: '' })
+  const rows = readySummaryRows({ ...READY, channels: 0, guideLinked: 0 })
   assert.deepEqual(rows[1].fix, { step: 'channels', label: 'Go to Channels' })
   assert.deepEqual(rows[2].fix, { step: 'guide', label: 'Go to Guide' })
-  assert.equal(rows[3].value, '/data/media/tv')
-  assert.equal(rows[3].mono, true)
   assert.equal(isSetupComplete(rows), false)
+})
+
+test('readyDestinationRows: each folder with its Plex library', () => {
+  const rows = readyDestinationRows({ ...FOLDERS, plexLibraries: PLEX_ALL })
+  assert.deepEqual(rows, [
+    { key: 'tv', title: 'TV episodes', meta: '/data/media/tv', mono: true, value: 'TV Shows', note: '' },
+    { key: 'movies', title: 'Movies', meta: '/data/media/movies', mono: true, value: 'Movies', note: '' },
+    { key: 'oneoff', title: 'One-offs', meta: '/data/media/one-offs', mono: true, value: 'One-offs', note: '' },
+  ])
+})
+
+test('readyDestinationRows: with no movies folder, movies save to One-offs', () => {
+  const rows = readyDestinationRows({ ...FOLDERS, moviesRoot: '', plexLibraries: { tv: 'TV Shows', movies: 'Movies' } })
+  assert.equal(rows[1].meta, 'No movies folder, so movies save to One-offs')
+  assert.equal(rows[1].mono, false)
+  assert.equal(rows[1].value, '')
+  assert.equal(rows[0].value, 'TV Shows')
+  assert.equal(rows[2].value, '')
+})
+
+test('readyDestinationRows: without Plex, rows show only the folder', () => {
+  const rows = readyDestinationRows(FOLDERS)
+  assert.deepEqual(rows.map((row) => row.value), ['', '', ''])
+  assert.deepEqual(rows.map((row) => row.meta), ['/data/media/tv', '/data/media/movies', '/data/media/one-offs'])
+})
+
+test('readyDestinationRows: with Import every recording off, movies and one-offs say what still saves', () => {
+  const note = 'Import every recording is off, so only your series and recordings with Add to library on save here.'
+  const rows = readyDestinationRows({ ...FOLDERS, importUnmatched: false })
+  assert.deepEqual(rows.map((row) => row.note), ['', note, note])
+  const noMovies = readyDestinationRows({ ...FOLDERS, moviesRoot: '', importUnmatched: false })
+  assert.deepEqual(noMovies.map((row) => row.note), ['', '', note])
+})
+
+test('readyDestinationRows: an empty folder reads Not set', () => {
+  const rows = readyDestinationRows({ ...FOLDERS, mediaRoot: '' })
+  assert.equal(rows[0].meta, 'Not set')
+  assert.equal(rows[0].mono, false)
+})
+
+test('readyImportNote: uses the sync interval', () => {
+  assert.equal(readyImportNote('every 15 minutes'), 'Freetvarr imports new recordings every 15 minutes.')
+  assert.equal(readyImportNote('on your sync schedule'), 'Freetvarr imports new recordings on your sync schedule.')
 })
 
 test('runStepValue: hides zero counts', () => {

@@ -30,7 +30,7 @@ Press a match to open its page. Freetvarr scrolls to the setting and marks it fo
 
 ### System diagram
 
-Press a component to see its function, whether it is required, and who supplies it. On a wide screen the card sits beside the component you chose; press the component again, press **×**, or press Esc to close it. **Current** shows the value Freetvarr uses now, such as the TVHeadend address or the recordings folder. **Existing setup** says what to use if you already have that component. The buttons under it open the matching Settings pages.
+Press a component to see its function, whether it is required, and who supplies it. On a wide screen the card sits beside the component you chose; press the component again, press **×**, or press Esc to close it. **Current** shows the value Freetvarr uses now, such as the TVHeadend address or the recordings folder. For **TV library**, the card lists the folder for TV episodes, movies, and one-offs instead. **Existing setup** says what to use if you already have that component. The buttons under it open the matching Settings pages.
 
 The info sheets on the TVHeadend, Media library, Plex, Ad removal, Film and TV info, Watch on TV, Channels, and Setup pages have a **System diagram** button. It opens the diagram with that component selected.
 

@@ -1,4 +1,4 @@
-import { hostOf } from './setup-steps.js'
+import { hostOf, readyDestinationRows } from './setup-steps.js'
 
 export const PIECES = [
   {
@@ -63,7 +63,7 @@ export const PIECES = [
     id: 'library', row: 5, kind: 'main', icon: 'library', title: 'TV library', meta: 'Renamed episodes',
     need: 'Required', source: 'Created by the install script',
     job: 'Episode files named Show/Season 01/Show - S01E02.ts, the format that media players match.',
-    more: 'One-off programmes go to a separate one-off folder.',
+    more: 'Films go to the movies folder when one is set. Other one-off programmes go to the one-off folder.',
     own: 'The TV folder that an existing media player reads.',
     links: [{ label: 'Media library', href: '#/settings/storage' }],
   },
@@ -404,7 +404,7 @@ const annotationMarkup = ({ x, width }) => PIECES.filter((piece) => piece.kind =
 const settingsStatuses = ({ settings, tvheadendState }) => ({
   tvheadend: { text: tvheadendStatusText({ url: settings.tvh_url, state: tvheadendState }) },
   recordings: pathStatusOf(settings.recordings_root),
-  library: pathStatusOf(settings.media_root),
+  library: { rows: libraryRowsOf(settings) },
   'ad-removal': { text: settings.ad_removal_enabled ? 'On' : 'Off' },
   metadata: { text: lookupStatusText(settings) },
   player: { text: settings.plex_url ? `Plex · ${hostOf(settings.plex_url)}` : 'Plex not connected' },
@@ -419,6 +419,13 @@ const tvheadendStatusText = ({ url, state }) => {
 }
 
 const pathStatusOf = (path) => (path ? { text: path, mono: true } : { text: 'Not set' })
+
+const libraryRowsOf = (settings) => readyDestinationRows({
+  mediaRoot: settings.media_root,
+  moviesRoot: settings.movies_root,
+  oneOffRoot: settings.oneoff_root,
+  importUnmatched: settings.import_unmatched !== false,
+})
 
 const LOOKUP_KEYS = ['show_artwork_lookup', 'ratings_lookup_enabled', 'reviews_lookup_enabled', 'credits_lookup_enabled']
 
