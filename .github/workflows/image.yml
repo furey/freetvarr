@@ -19,8 +19,7 @@ on:
       - .github/workflows/image.yml
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   IMAGE: ghcr.io/furey/freetvarr
@@ -107,9 +106,11 @@ jobs:
 
       - name: Record the digest
         if: env.PUBLISH == 'true'
+        env:
+          PUSH_DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.push.outputs.digest }}"
+          digest="${PUSH_DIGEST}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload the digest
