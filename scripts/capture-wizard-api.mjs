@@ -25,7 +25,6 @@ const SRC_DIR = process.env.WIZARD_SRC || '/work/src'
 const FIXTURE_DIR = process.env.WIZARD_FIXTURES || '/work/test/fixtures'
 const HOST_ADDRESS = '192.168.1.20'
 const PLEX_PORT = 32400
-const PLEX_TOKEN = 'wizard-demo-plex-token'
 const TVH_CONN = { url: TVH_URL, username: 'freetvarr', password: 'wizard-demo' }
 const SECURE_STEP_MS = 330
 const DISCOVER_DELAY_MS = 1_800
@@ -118,7 +117,7 @@ const freshSettings = (timeZone) => ({
   oneoff_root: '/data/media/one-offs',
   import_unmatched: true,
   plex_oneoff_section_id: null,
-  movies_root: '/media/movies',
+  movies_root: '/data/media/movies',
   plex_movies_section_id: null,
   delete_after_plex_refresh_only: true,
   ad_removal_enabled: false,
@@ -493,11 +492,11 @@ const plexServer = () => ({
 
 const detectPlexToken = (sim) => {
   sim.settings.plex_token_set = true
-  return { ok: true, path: sim.settings.plex_prefs_path, source: 'preferences.xml', token: PLEX_TOKEN }
+  return { ok: true, path: sim.settings.plex_prefs_path, source: 'preferences.xml', plex_token_set: true }
 }
 
 const plexSections = () => [
-  { key: '1', title: 'Movies', type: 'movie', locations: ['/media/movies'] },
+  { key: '1', title: 'Movies', type: 'movie', locations: ['/data/media/movies'] },
   { key: '2', title: 'TV Shows', type: 'show', locations: ['/data/media/tv'] },
   { key: '3', title: 'One-offs', type: 'movie', locations: ['/data/media/one-offs'] },
 ]
