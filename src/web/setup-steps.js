@@ -89,18 +89,18 @@ export const readySummaryRows = ({
   },
 ]
 
-export const readyDestinationRows = ({ mediaRoot, moviesRoot, oneOffRoot, importUnmatched = true, plexLibraries = {} }) => {
-  const unmatchedNote = importUnmatched ? '' : UNMATCHED_OFF_NOTE
-  return [
-    destinationRow({ key: 'tv', title: 'TV episodes', folder: mediaRoot, library: plexLibraries.tv }),
-    moviesRoot
-      ? destinationRow({ key: 'movies', title: 'Movies', folder: moviesRoot, library: plexLibraries.movies, note: unmatchedNote })
-      : { key: 'movies', title: 'Movies', meta: NO_MOVIES_FOLDER, mono: false, value: '', note: '' },
-    destinationRow({ key: 'oneoff', title: 'One-offs', folder: oneOffRoot, library: plexLibraries.oneoff, note: unmatchedNote }),
-  ]
-}
+export const readyDestinationRows = ({ mediaRoot, moviesRoot, oneOffRoot, plexLibraries = {} }) => [
+  destinationRow({ key: 'tv', title: 'TV episodes', folder: mediaRoot, library: plexLibraries.tv }),
+  moviesRoot
+    ? destinationRow({ key: 'movies', title: 'Movies', folder: moviesRoot, library: plexLibraries.movies })
+    : { key: 'movies', title: 'Movies', meta: NO_MOVIES_FOLDER, mono: false, value: '' },
+  destinationRow({ key: 'oneoff', title: 'One-offs', folder: oneOffRoot, library: plexLibraries.oneoff }),
+]
 
-export const readyImportNote = (syncText) => `Freetvarr imports new recordings ${syncText}.`
+export const readyImportNote = ({ syncText, importUnmatched = true }) => {
+  const timing = `Freetvarr imports new recordings ${syncText}.`
+  return importUnmatched ? timing : `${timing} ${UNMATCHED_OFF_NOTE}`
+}
 
 export const setupSettingsRows = ({ settings = {}, channelStatus = null, guideStatus = null, folders = null, hosts = null }) => {
   const channels = channelStatus?.channels || 0
@@ -236,20 +236,19 @@ const hostnamesTone = ({ hosts, added }) => {
   return added ? 'ok' : ''
 }
 
-const destinationRow = ({ key, title, folder, library, note = '' }) => ({
+const destinationRow = ({ key, title, folder, library }) => ({
   key,
   title,
   meta: folder || 'Not set',
   mono: Boolean(folder),
   value: library || '',
-  note,
 })
 
 const plexLibraryNames = (libraries) => [...new Set(['tv', 'movies', 'oneoff'].map((kind) => libraries[kind]).filter(Boolean))].join(', ')
 
 const NO_MOVIES_FOLDER = 'No movies folder, so movies save to One-offs'
 
-const UNMATCHED_OFF_NOTE = 'Import every recording is off, so only your series and recordings with Add to library on save here.'
+const UNMATCHED_OFF_NOTE = 'Import every recording is off, so only your series and recordings with Add to library on are imported.'
 
 const signInLine = (username) => (username ? `Signs in as ${username}` : 'Signs in without a login')
 

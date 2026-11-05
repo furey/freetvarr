@@ -80,7 +80,6 @@ const FOLDERS = {
   mediaRoot: '/data/media/tv',
   moviesRoot: '/data/media/movies',
   oneOffRoot: '/data/media/one-offs',
-  importUnmatched: true,
 }
 
 const PLEX_ALL = { tv: 'TV Shows', movies: 'Movies', oneoff: 'One-offs' }
@@ -104,9 +103,9 @@ test('readySummaryRows: missing channels or guide offer a way back and block com
 test('readyDestinationRows: each folder with its Plex library', () => {
   const rows = readyDestinationRows({ ...FOLDERS, plexLibraries: PLEX_ALL })
   assert.deepEqual(rows, [
-    { key: 'tv', title: 'TV episodes', meta: '/data/media/tv', mono: true, value: 'TV Shows', note: '' },
-    { key: 'movies', title: 'Movies', meta: '/data/media/movies', mono: true, value: 'Movies', note: '' },
-    { key: 'oneoff', title: 'One-offs', meta: '/data/media/one-offs', mono: true, value: 'One-offs', note: '' },
+    { key: 'tv', title: 'TV episodes', meta: '/data/media/tv', mono: true, value: 'TV Shows' },
+    { key: 'movies', title: 'Movies', meta: '/data/media/movies', mono: true, value: 'Movies' },
+    { key: 'oneoff', title: 'One-offs', meta: '/data/media/one-offs', mono: true, value: 'One-offs' },
   ])
 })
 
@@ -125,14 +124,6 @@ test('readyDestinationRows: without Plex, rows show only the folder', () => {
   assert.deepEqual(rows.map((row) => row.meta), ['/data/media/tv', '/data/media/movies', '/data/media/one-offs'])
 })
 
-test('readyDestinationRows: with Import every recording off, movies and one-offs say what still saves', () => {
-  const note = 'Import every recording is off, so only your series and recordings with Add to library on save here.'
-  const rows = readyDestinationRows({ ...FOLDERS, importUnmatched: false })
-  assert.deepEqual(rows.map((row) => row.note), ['', note, note])
-  const noMovies = readyDestinationRows({ ...FOLDERS, moviesRoot: '', importUnmatched: false })
-  assert.deepEqual(noMovies.map((row) => row.note), ['', '', note])
-})
-
 test('readyDestinationRows: an empty folder reads Not set', () => {
   const rows = readyDestinationRows({ ...FOLDERS, mediaRoot: '' })
   assert.equal(rows[0].meta, 'Not set')
@@ -140,8 +131,15 @@ test('readyDestinationRows: an empty folder reads Not set', () => {
 })
 
 test('readyImportNote: uses the sync interval', () => {
-  assert.equal(readyImportNote('every 15 minutes'), 'Freetvarr imports new recordings every 15 minutes.')
-  assert.equal(readyImportNote('on your sync schedule'), 'Freetvarr imports new recordings on your sync schedule.')
+  assert.equal(readyImportNote({ syncText: 'every 15 minutes' }), 'Freetvarr imports new recordings every 15 minutes.')
+  assert.equal(readyImportNote({ syncText: 'on your sync schedule' }), 'Freetvarr imports new recordings on your sync schedule.')
+})
+
+test('readyImportNote: says once what Import every recording off leaves out', () => {
+  assert.equal(
+    readyImportNote({ syncText: 'every 30 minutes', importUnmatched: false }),
+    'Freetvarr imports new recordings every 30 minutes. Import every recording is off, so only your series and recordings with Add to library on are imported.',
+  )
 })
 
 test('runStepValue: hides zero counts', () => {

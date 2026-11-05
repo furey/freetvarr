@@ -23,7 +23,6 @@ const PieceDetail = {
         <span class="ui-group-row-main">
           <span class="ui-group-row-title">{{ row.title }}</span>
           <span :class="['ui-group-row-meta', { 'sd-mono': row.mono }]">{{ row.meta }}</span>
-          <span v-if="row.note" class="ui-group-row-meta">{{ row.note }}</span>
         </span>
       </div>
       <div v-if="status?.text" class="ui-group-row sd-current">

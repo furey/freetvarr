@@ -368,7 +368,6 @@ export const WelcomeView = {
                   <span class="ui-group-row-main">
                     <span class="ui-group-row-title">{{ row.title }}</span>
                     <span :class="['ui-group-row-meta', { 'setup-mono': row.mono }]">{{ row.meta }}</span>
-                    <span v-if="row.note" class="ui-group-row-meta">{{ row.note }}</span>
                   </span>
                   <span v-if="row.value" class="ui-group-row-value">{{ row.value }}</span>
                 </div>
@@ -697,10 +696,9 @@ export const WelcomeView = {
       mediaRoot: mediaRoot.value,
       moviesRoot: moviesRoot.value,
       oneOffRoot: oneOffRoot.value,
-      importUnmatched: importUnmatched.value,
       plexLibraries: plexIsSetUp.value ? plexLibraries.value : {},
     }))
-    const importNote = computed(() => readyImportNote(syncFrequencyText.value))
+    const importNote = computed(() => readyImportNote({ syncText: syncFrequencyText.value, importUnmatched: importUnmatched.value }))
     const complete = computed(() => isSetupComplete(summaryRows.value))
 
     const primary = computed(() => {

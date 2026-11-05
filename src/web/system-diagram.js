@@ -424,7 +424,6 @@ const libraryRowsOf = (settings) => readyDestinationRows({
   mediaRoot: settings.media_root,
   moviesRoot: settings.movies_root,
   oneOffRoot: settings.oneoff_root,
-  importUnmatched: settings.import_unmatched !== false,
 })
 
 const LOOKUP_KEYS = ['show_artwork_lookup', 'ratings_lookup_enabled', 'reviews_lookup_enabled', 'credits_lookup_enabled']

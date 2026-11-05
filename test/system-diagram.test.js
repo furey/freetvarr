@@ -152,9 +152,9 @@ test('pieceStatuses: derives the current value of each piece from settings and l
     recordings: { text: '/data/recordings', mono: true },
     library: {
       rows: [
-        { key: 'tv', title: 'TV episodes', meta: '/data/media/tv', mono: true, value: '', note: '' },
-        { key: 'movies', title: 'Movies', meta: 'No movies folder, so movies save to One-offs', mono: false, value: '', note: '' },
-        { key: 'oneoff', title: 'One-offs', meta: '/data/media/one-offs', mono: true, value: '', note: '' },
+        { key: 'tv', title: 'TV episodes', meta: '/data/media/tv', mono: true, value: '' },
+        { key: 'movies', title: 'Movies', meta: 'No movies folder, so movies save to One-offs', mono: false, value: '' },
+        { key: 'oneoff', title: 'One-offs', meta: '/data/media/one-offs', mono: true, value: '' },
       ],
     },
     'ad-removal': { text: 'Off' },
