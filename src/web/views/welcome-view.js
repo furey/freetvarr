@@ -20,6 +20,9 @@ import {
   railGroups,
   stepDoneValues,
   readySummaryRows,
+  readyDestinationRows,
+  readyImportNote,
+  plexLibraryTitles,
   isSetupComplete,
 } from '/setup-steps.js'
 import {
@@ -355,10 +358,23 @@ export const WelcomeView = {
                   <span class="ui-group-row-meta">{{ row.meta }}</span>
                   <button v-if="row.fix" type="button" class="setup-inline-link" @click="jumpToKey(row.fix.step)">{{ row.fix.label }}</button>
                 </span>
-                <span v-if="row.value" :class="['ui-group-row-value', { 'setup-mono': row.mono }]">{{ row.value }}</span>
+                <span v-if="row.value" class="ui-group-row-value">{{ row.value }}</span>
               </div>
             </div>
-            <p class="setup-quiet-text">Change any of this later in Settings → SYSTEM → Setup. To check everything, <a href="#/settings/system/health">run the health checks</a>.</p>
+            <div class="setup-block">
+              <h2 class="ui-group-label">Recordings save to</h2>
+              <div class="ui-group setup-destinations">
+                <div v-for="row in destinationRows" :key="row.key" class="ui-group-row">
+                  <setup-status-icon status="done" />
+                  <span class="ui-group-row-main">
+                    <span class="ui-group-row-title">{{ row.title }}</span>
+                    <span :class="['ui-group-row-meta', { 'setup-mono': row.mono }]">{{ row.meta }}</span>
+                  </span>
+                  <span v-if="row.value" class="ui-group-row-value">{{ row.value }}</span>
+                </div>
+              </div>
+            </div>
+            <p class="setup-quiet-text">{{ importNote }} Change any of this later in Settings → SYSTEM → Setup. To check everything, <a href="#/settings/system/health">run the health checks</a>.</p>
             <button type="button" class="ui-button ui-button-primary setup-ready-action" @click="primary.run">{{ primary.label }}</button>
           </div>
         </main>
@@ -452,12 +468,15 @@ export const WelcomeView = {
     const plexTokenSet = ref(false)
 
     const mediaRoot = ref('')
+    const oneOffRoot = ref('')
+    const moviesRoot = ref('')
+    const importUnmatched = ref(true)
     const mediaRootTesting = ref(false)
     const mediaRootStatus = ref('')
     const mediaRootStatusKind = ref('ok')
 
     const saved = reactive({
-      mediaRoot: '', recordingsRoot: '', tvhRecordingsPath: '', plexUrl: '', plexSectionId: '', plexPrefsPath: '',
+      mediaRoot: '', recordingsRoot: '', tvhRecordingsPath: '', plexUrl: '', plexSectionId: '', plexPrefsPath: '', plexPicks: {},
     })
     const syncCron = ref(DEFAULT_SYNC_CRON)
     const syncFrequencyText = computed(() => syncFrequency(syncCron.value))
@@ -478,6 +497,9 @@ export const WelcomeView = {
       recordingsRoot.value = s.recordings_root || ''
       tvhRecordingsPath.value = s.tvh_recordings_path || ''
       mediaRoot.value = s.media_root || ''
+      oneOffRoot.value = s.oneoff_root || ''
+      moviesRoot.value = s.movies_root || ''
+      importUnmatched.value = s.import_unmatched !== false
       plexUrl.value = s.plex_url || ''
       plexTokenSet.value = Boolean(s.plex_token_set)
       Object.assign(plexPicks, {
@@ -493,6 +515,7 @@ export const WelcomeView = {
         plexUrl: plexUrl.value,
         plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
+        plexPicks: { ...plexPicks },
       })
     })
 
@@ -599,8 +622,15 @@ export const WelcomeView = {
     })
 
     const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
-    const plexIsSetUp = computed(() => plexWillSave.value || Boolean(saved.plexUrl))
-    const plexLibrary = computed(() => plexSections.value.find((sec) => String(sec.key) === String(plexPicks.tv))?.title || '')
+    const plexSkipped = ref(false)
+    const plexIsSetUp = computed(() => (plexWillSave.value && !plexSkipped.value) || Boolean(saved.plexUrl))
+    const plexLibraries = computed(() => plexLibraryTitles({
+      skipped: plexSkipped.value,
+      livePicks: plexPicks,
+      savedPicks: saved.plexPicks,
+      sections: plexSections.value,
+      moviesRoot: moviesRoot.value,
+    }))
 
     const nextLabel = computed(() => {
       if (step.value === 2) return tvhKind.value === 'err' ? 'Try again' : 'Save and next'
@@ -647,8 +677,8 @@ export const WelcomeView = {
       guideLinked: guideState.value.linked,
       guideTotal: guideState.value.total,
       folderProblems: storageProblems.value.length,
-      plexLibrary: plexLibrary.value,
-      plexConnected: plexWillSave.value,
+      plexLibraries: plexLibraries.value,
+      plexConnected: plexIsSetUp.value,
     }))
     const rail = computed(() => railGroups({ current: current.value, doneValues: doneValues.value }))
 
@@ -660,10 +690,14 @@ export const WelcomeView = {
       guideLinked: guideState.value.linked,
       guideTotal: guideState.value.total,
       guideRegion: guideState.value.region,
-      syncText: syncFrequencyText.value,
-      plexLibrary: plexIsSetUp.value ? plexLibrary.value : '',
-      mediaRoot: mediaRoot.value,
     }))
+    const destinationRows = computed(() => readyDestinationRows({
+      mediaRoot: mediaRoot.value,
+      moviesRoot: moviesRoot.value,
+      oneOffRoot: oneOffRoot.value,
+      plexLibraries: plexIsSetUp.value ? plexLibraries.value : {},
+    }))
+    const importNote = computed(() => readyImportNote({ syncText: syncFrequencyText.value, importUnmatched: importUnmatched.value }))
     const complete = computed(() => isSetupComplete(summaryRows.value))
 
     const primary = computed(() => {
@@ -707,8 +741,13 @@ export const WelcomeView = {
 
     const skipPlex = () => {
       clearSaveStatus()
+      plexSkipped.value = true
       step.value = totalSteps
     }
+
+    watch(step, (curr) => {
+      if (curr === PLEX_STEP) plexSkipped.value = false
+    })
 
     const heading = ref(null)
     const doneMark = ref(null)
@@ -802,6 +841,7 @@ export const WelcomeView = {
         plexUrl: plexUrl.value,
         plexSectionId: plexPicks.tv,
         plexPrefsPath: plexPrefsPath.value,
+        plexPicks: { ...plexPicks },
       })
       if (!result?.cleared?.includes('plex_token')) return true
       plexTokenSet.value = false
@@ -1153,7 +1193,7 @@ export const WelcomeView = {
 
     return {
       step, touring, startFromTour, totalSteps, current, isReady, fills, caption, rail, stepTitle, subtitle, saving, primary, secondary, barNote,
-      summaryRows, complete, markState, doneMark, heading, jumpTo, jumpToKey, channelStep, guideStep,
+      summaryRows, destinationRows, importNote, complete, markState, doneMark, heading, jumpTo, jumpToKey, channelStep, guideStep,
       hasExistingConfig, channelState, guideState, plexIsSetUp, syncFrequencyText,
       timeZone, tzSource, zones, zoneClock, zoneSourceText,
       tvhUrl, tvhUsername, tvhPassword, tvhPasswordSet, tvhTesting,
@@ -1187,6 +1227,7 @@ const bootstrapInputProblem = ({ username, password, prefixes }) => {
 }
 
 const FIRST_STEP = 2
+const PLEX_STEP = FIRST_STEP + SETUP_STEPS.findIndex((setupStep) => setupStep.key === 'plex')
 const RAIL_LAYOUT_QUERY = '(min-width: 768px) and (min-height: 501px)'
 const PROGRESS_FILL_MS = 280
 const MORPH_HOLD_MS = 700

@@ -399,6 +399,10 @@
   font-weight: 500;
 }
 
+.setup-destinations .ui-group-row-value {
+  max-width: 45%;
+}
+
 .setup-run-row .ui-group-row-value {
   flex: none;
   font-variant-numeric: tabular-nums;
