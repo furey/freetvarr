@@ -10,6 +10,7 @@ import {
   readySummaryRows,
   readyDestinationRows,
   readyImportNote,
+  plexLibraryTitles,
   isSetupComplete,
   runStepValue,
   runStepProgress,
@@ -128,6 +129,35 @@ test('readyDestinationRows: an empty folder reads Not set', () => {
   const rows = readyDestinationRows({ ...FOLDERS, mediaRoot: '' })
   assert.equal(rows[0].meta, 'Not set')
   assert.equal(rows[0].mono, false)
+})
+
+const SECTIONS = [
+  { key: '1', title: 'Movies' },
+  { key: '2', title: 'TV Shows' },
+  { key: '3', title: 'One-offs' },
+  { key: '4', title: 'Old TV' },
+]
+
+test('plexLibraryTitles: live picks name each library', () => {
+  const titles = plexLibraryTitles({ livePicks: { tv: '2', movies: '1', oneoff: '3' }, savedPicks: { tv: '4' }, sections: SECTIONS, moviesRoot: '/data/media/movies' })
+  assert.deepEqual(titles, { tv: 'TV Shows', movies: 'Movies', oneoff: 'One-offs' })
+})
+
+test('plexLibraryTitles: after Skip Plex, only saved picks count', () => {
+  const live = { tv: '2', movies: '1', oneoff: '3' }
+  assert.deepEqual(plexLibraryTitles({ skipped: true, livePicks: live, savedPicks: {}, sections: SECTIONS, moviesRoot: '/m' }), { tv: '', movies: '', oneoff: '' })
+  assert.deepEqual(plexLibraryTitles({ skipped: true, livePicks: live, savedPicks: { tv: '4' }, sections: SECTIONS, moviesRoot: '/m' }), { tv: 'Old TV', movies: '', oneoff: '' })
+})
+
+test('plexLibraryTitles: with no movies folder, the Movies library is left out', () => {
+  const titles = plexLibraryTitles({ livePicks: { tv: '2', movies: '1' }, sections: SECTIONS, moviesRoot: '' })
+  assert.deepEqual(titles, { tv: 'TV Shows', movies: '', oneoff: '' })
+})
+
+test('plexLibraryTitles: empty and unknown section ids give no name', () => {
+  const titles = plexLibraryTitles({ livePicks: { tv: '', movies: '99', oneoff: null }, sections: SECTIONS, moviesRoot: '/m' })
+  assert.deepEqual(titles, { tv: '', movies: '', oneoff: '' })
+  assert.deepEqual(plexLibraryTitles({}), { tv: '', movies: '', oneoff: '' })
 })
 
 test('readyImportNote: uses the sync interval', () => {

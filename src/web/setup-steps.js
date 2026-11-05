@@ -97,6 +97,12 @@ export const readyDestinationRows = ({ mediaRoot, moviesRoot, oneOffRoot, plexLi
   destinationRow({ key: 'oneoff', title: 'One-offs', folder: oneOffRoot, library: plexLibraries.oneoff }),
 ]
 
+export const plexLibraryTitles = ({ skipped = false, livePicks = {}, savedPicks = {}, sections = [], moviesRoot = '' }) => {
+  const picks = skipped ? savedPicks : livePicks
+  const titleOf = (kind) => sectionTitle({ sections, key: picks[kind] })
+  return { tv: titleOf('tv'), movies: moviesRoot ? titleOf('movies') : '', oneoff: titleOf('oneoff') }
+}
+
 export const readyImportNote = ({ syncText, importUnmatched = true }) => {
   const timing = `Freetvarr imports new recordings ${syncText}.`
   return importUnmatched ? timing : `${timing} ${UNMATCHED_OFF_NOTE}`
@@ -243,6 +249,11 @@ const destinationRow = ({ key, title, folder, library }) => ({
   mono: Boolean(folder),
   value: library || '',
 })
+
+const sectionTitle = ({ sections, key }) => {
+  if (key == null || key === '') return ''
+  return sections.find((section) => String(section.key) === String(key))?.title || ''
+}
 
 const plexLibraryNames = (libraries) => [...new Set(['tv', 'movies', 'oneoff'].map((kind) => libraries[kind]).filter(Boolean))].join(', ')
 

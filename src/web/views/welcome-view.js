@@ -22,6 +22,7 @@ import {
   readySummaryRows,
   readyDestinationRows,
   readyImportNote,
+  plexLibraryTitles,
   isSetupComplete,
 } from '/setup-steps.js'
 import {
@@ -362,7 +363,7 @@ export const WelcomeView = {
             </div>
             <div class="setup-block">
               <h2 class="ui-group-label">Recordings save to</h2>
-              <div class="ui-group">
+              <div class="ui-group setup-destinations">
                 <div v-for="row in destinationRows" :key="row.key" class="ui-group-row">
                   <setup-status-icon status="done" />
                   <span class="ui-group-row-main">
@@ -623,15 +624,13 @@ export const WelcomeView = {
     const plexWillSave = computed(() => plexConnected.value || plexEditedByHand.value)
     const plexSkipped = ref(false)
     const plexIsSetUp = computed(() => (plexWillSave.value && !plexSkipped.value) || Boolean(saved.plexUrl))
-    const plexLibraries = computed(() => {
-      const picks = plexSkipped.value ? saved.plexPicks : plexPicks
-      const titleOf = (kind) => plexSections.value.find((sec) => String(sec.key) === String(picks[kind]))?.title || ''
-      return {
-        tv: titleOf('tv'),
-        movies: moviesRoot.value ? titleOf('movies') : '',
-        oneoff: titleOf('oneoff'),
-      }
-    })
+    const plexLibraries = computed(() => plexLibraryTitles({
+      skipped: plexSkipped.value,
+      livePicks: plexPicks,
+      savedPicks: saved.plexPicks,
+      sections: plexSections.value,
+      moviesRoot: moviesRoot.value,
+    }))
 
     const nextLabel = computed(() => {
       if (step.value === 2) return tvhKind.value === 'err' ? 'Try again' : 'Save and next'
