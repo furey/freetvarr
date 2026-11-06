@@ -104,6 +104,12 @@ When something Freetvarr needs is broken, such as TVHeadend not answering or the
 
 Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in groups, then a watchlist offer. A group with no results does not show.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/home">
+  <img src="../img/screenshot-search.png" alt="The Search overlay with young typed in, showing the Recordings, For you, and TV guide groups and a Show all row" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 - **SCHEDULED**: programmes in the next 7 days that Freetvarr will record. Each row says whether the recording is a one-off or part of a series. Press one to open its programme sheet.
 - **SERIES**: programmes in the next 7 days that one of your series rules matches.
 - **RECORDINGS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
