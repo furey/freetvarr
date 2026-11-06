@@ -115,6 +115,8 @@ export const ForYouView = {
             <h2 :id="'for-you-' + section.key" class="ui-section-title">{{ section.title }}</h2>
             <span v-if="section.sortedByAirTime" class="ui-row-meta ui-only-wide">Sorted by air time</span>
             <a v-if="section.credit" :href="section.credit.href" class="ui-row-link" target="_blank" rel="noopener" :aria-label="'Ratings from ' + section.credit.source"><span class="ui-only-wide">Ratings from&nbsp;</span>{{ section.credit.source }}</a>
+            <button v-if="section.theme" type="button" class="ui-icon-button is-plain for-you-row-more" :aria-label="section.title + ' row options'"
+              aria-haspopup="dialog" @click="ctl.openRowMenu(section.theme)"><more-glyph /></button>
           </div>
           <for-you-rows :rows="section.rows" :ctl="ctl" />
         </section>

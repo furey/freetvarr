@@ -1400,12 +1400,12 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 | Similarity | `src/for-you-similarity.js`, `src/for-you-engine.js` | Compares programme texts by [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) or by embedding vectors |
 | Upkeep     | `src/for-you-service.js`, `src/series-ratings.js`    | Runs the embeddings, the genre lookups, and the TVmaze series scores once a day                      |
 
-- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `not_interested_undo`, `thumb_up`, `thumb_down`, `thumb_clear`, and `programme_opened`.
+- `user_events` kinds: `watch_start`, `watch_end`, `record_request`, `record_cancel`, `series_stop`, `series_pause`, `series_resume`, `recording_deleted`, `suggestion_shown`, `suggestion_accepted`, `suggestion_dismissed`, `not_interested`, `not_interested_undo`, `thumb_up`, `thumb_down`, `thumb_clear`, `programme_opened`, `theme_muted`, `theme_unmuted`, `theme_boosted`, and `theme_unboosted`.
 - `thumb_clear` empties both thumbs of a show; the client sends it when a thumb turns off, and **Show again** writes it with `not_interested_undo` when the newest thumb is down. **Hidden shows** lists `not_interested` shows of the last `90` days and shows whose newest thumb is down.
-- The setting `viewing_history_enabled` stops writes when `false`, except the choices in `CHOICE_KINDS` (`not_interested`, `thumb_up`, `thumb_down`, `thumb_clear`). A feedback post with a choice flushes the events, forgets the cached For you result, and rebuilds the Home hero. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
+- The setting `viewing_history_enabled` stops writes when `false`, except the choices in `CHOICE_KINDS` (`not_interested`, `thumb_up`, `thumb_down`, `thumb_clear`, `theme_muted`, `theme_unmuted`, `theme_boosted`, `theme_unboosted`). A feedback post with a choice flushes the events, forgets the cached For you result, and rebuilds the Home hero. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
 - `profileOf` decays each event with a half-life of `60` days. A show with `3` or more starts, under `15%` finished, and no thumbs up is abandoned and keeps `0.3` of its affinity.
 - Fewer than `5` engaged shows (`COLD_START_SHOWS`) give a cold start: sections `ready-to-watch`, `finish-started`, `tonight-movies`, `top-rated-series`, `premieres`, `top-rated`, and `movies`. A warm response adds `coming-up`, `new-seasons`, and `might-like`.
-- The page order is `ready-to-watch`, `finish-started`, `coming-up`, `new-seasons`, `tonight-movies`, `might-like`, `top-rated-series`, `top-rated`, `movies`, `premieres` (`SECTION_ORDER` in `src/web/for-you.js`). Airing sections share one list of taken shows: a show goes into the first airing section that takes it, and the airing sections after it skip the show. `ready-to-watch` lists recordings and takes no show from the airing sections, except `finish-started`, which skips a show that has a `ready-to-watch` item. A section with no items is left out.
+- The page order is `ready-to-watch`, `finish-started`, `coming-up`, `new-seasons`, `tonight-movies`, `might-like`, the theme rows, `top-rated-series`, `top-rated`, `movies`, `premieres` (`SECTION_ORDER` in `src/web/for-you.js`; see [Theme rows](#theme-rows)). Airing sections share one list of taken shows: a show goes into the first airing section that takes it, and the airing sections after it skip the show. `ready-to-watch` lists recordings and takes no show from the airing sections, except `finish-started`, which skips a show that has a `ready-to-watch` item. A section with no items is left out.
 - The new sections hold up to `12` items (`ROW_LIMIT`). `GET /api/for-you` returns up to `12` items per section by default and up to `20` with `limit`.
 
 | Section            | Selection                                                                                                                                                                                                          | Order                                                      |
@@ -1433,6 +1433,75 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 `src/for-you-capability.js` picks the level: `plus` when Ollama lists an embedding model; `basic` when the ONNX runtime does not load, free memory is under `400 MB`, or the daily texts take over `300 s`; `plus` when the `standard` time times `2.5` is under `120 s`; else `standard`. The setting `for_you_tier_override` forces a level. The embeddings are cached in `text_embeddings`; the model files download into `models/` on first use. When the level changes during an embed run, another run starts with the new model as soon as the first ends (`createLatestRun`, up to `3` runs).
 
 `runForYouUpkeep` runs on each cron tick. It starts upkeep when none has run, the last run is over `36 h` old, or the local hour is `2–5` and the last run was on another day. The service builds the For you result `3 s` after startup and after each guide load.
+
+### Theme rows
+
+Theme rows are For you sections named after a kind of programme, such as `Cooking` or `AFL`. `themeSectionsOf` in `src/for-you.js` builds them in the For you worker, in the same build as the other sections. A cold start has no theme rows.
+
+| Part      | Module                                    | Mechanism                                                                                            |
+| --------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Catalogue | `src/for-you-theme-catalogue.js`          | Categories, each with subthemes; each subtheme has `3` or `4` example sentences (`prototypes`)       |
+| Tagging   | `src/for-you-themes.js`                   | Gives each title up to one format category and one topic category                                    |
+| Affinity  | `src/for-you-themes.js`                   | Sums the household's events per category                                                             |
+| Rows      | `src/for-you.js`, `src/for-you-themes.js` | Picks the categories with enough share and enough programmes, then ranks and dedupes the items       |
+| Vectors   | `src/for-you-engine.js`                   | Embeds the prototype sentences with the programme texts and keeps their `text_embeddings` rows fresh |
+
+The catalogue (`THEME_CATALOGUE_VERSION` `2`):
+
+- Format categories: `Reality`, `Quiz and game shows`, `Comedy`, `Drama`, `Crime drama`.
+- Topic categories: `Cooking`, `Home and property`, `Politics and current affairs`, `True crime`, `Police and rescue`, `Nature and animals`, `Travel`, `History`, `Science and health`, the local-life category, and `Music and arts`.
+- `Lifestyle` holds `Motoring`, `Fishing`, `Antiques`, and `Fitness`. Each one is its own row, named after the subtheme.
+- `Sport` holds one subtheme per sport: `afl`, `rugby-league`, `rugby-union`, `cricket`, `soccer`, `american-football`, `tennis`, `motorsport`, `horse-racing` (with harness racing), `greyhound-racing`, `golf`, `netball`, `basketball`, `baseball`, `ice-hockey`, `cycling`, and `other-sport`. `other-sport` is never a row.
+- `News`, `Kids`, `Shopping`, and `Religion` take titles but are never rows.
+
+The country comes from the time zone (`countryForTimeZone` in `src/zone-countries.js`):
+
+- The local-life row is `Life in <country>`, with the English region name from `Intl.DisplayNames` and `the` before names such as `United Kingdom`. Its prototypes fill `{in}` with `in <country>`. With no known country, the row is `Local life` and `{in}` is empty.
+- `sportLabelOf` names each sport row by the sport: `afl` is `Australian rules`, `rugby-league` is `Rugby league`, `rugby-union` is `Rugby union`. `soccer` is `Football (soccer)` in `au`, `Soccer` in `us` and `ca`, else `Football`; `american-football` is `Football` in `us` and `ca`, else `American football`.
+
+Tagging (`tagTitle`):
+
+1. `titleKindOf` sorts each title into `film`, `kids`, `sport`, `fiction`, `factual`, or `unknown`. `kids` is an OP-39 genre code in group `0x5`, a `kids` category, or airings in kids slots only. A channel whose name says `kids` is a kids slot; when its name also says `family`, only airings before `19:00` local time (`FAMILY_EVENING_HOUR`) are. `sport` is a TVmaze type `Sports`, a `sport` category, or a sport XMLTV category. TVmaze `Scripted` is `fiction`; other TVmaze types are `factual`. Films take no theme.
+2. Each subtheme lists the kinds it accepts: drama and crime drama take `fiction`, topics take `factual`, sitcoms take `fiction`, comedy panel and stand-up take `factual`, and `unknown` takes both. `Kids` takes only `kids`; sport codes take only `sport`; `Fishing` also takes `sport`.
+3. A `sport` title takes its code from the title and channel names first (`sportCodeOf`). League, competition, and show names map to the sport, such as `NRLW`, `State of Origin`, and `NRL 360` to `rugby-league`, and `SANFL`, `WAFL`, and `Footy Classified` to `afl`. The order is `rugby-league`, `afl`, `rugby-union`, `american-football`, `cricket`, `soccer` (so `Cricket World Cup` is cricket and `World Cup` alone is soccer), then the other sports. A plain `football` is `soccer`, or `american-football` in `us` and `ca`, and no code in `au`. A `sport` title with fishing words is `Fishing`.
+4. With prototype vectors, the title vector is the mean of up to `6` of its text vectors. A subtheme scores the highest dot product with its prototypes. The best format subtheme and the best topic subtheme stay when they score within `0.08` of the better one.
+5. The weight of a kept subtheme ramps from `0` at a score of `0.30` to `1` at `0.45`; two weights that sum above `1` are scaled to sum to `1`. A title is a row member only at a score of `0.42` or more.
+6. With no prototype vectors (the `basic` level, or before the first embed run), keyword and genre rules tag the title, each at weight `1`.
+
+The prototype sentences go into the embed run with the programme texts, so they share the model and the `text_embeddings` table. `keepThemeVectors` sets their `created_at` after each run, so the `60`-day prune keeps them. A catalogue change or a new country changes the sentences, so the next embed run embeds them. The worker keeps the tags per vector map and country, so a build with the same guide reuses them.
+
+Affinity (`householdEpisodesOf`, `householdThemesOf`):
+
+| Event                            | Weight |
+| -------------------------------- | ------ |
+| A recording, or `record_request` | `3`    |
+| `watch_start` or `watch_end`     | `2`    |
+| `suggestion_accepted`            | `1`    |
+| `programme_opened`               | `0.5`  |
+
+- Each event kind counts once per episode. The episode is the season and episode number, else the episode title, else the start minute. An event with a `recording_id` uses the episode of that recording.
+- Each count decays with the `60`-day half-life of `profileOf`.
+- A category sums the weight of each title times the title's tag weight. One title gives at most `30%` of the category's uncapped sum. Sports have no cap.
+- The share is the category sum divided by the weight of all tagged titles. News bulletins are not in the divisor.
+
+Rows (`selectThemeGroups`, `selectSportCodes`):
+
+- A category row needs a share of `4%` or more (`ROW_SHARE`), `3` or more titles with weight, and `4` or more upcoming members. At most `3` theme rows show, highest share first.
+- The sport row needs codes with a share of `4%` or more (`ROW_SHARE`), `1` or more titles, and `4` or more upcoming airings. One code gives a row named after the code; more codes give one row named `Sport this week`.
+- Candidates are upcoming members that are not films, not excluded like the other sections, and not shows the household already likes. A theme row ranks the subthemes that hold `25%` or more of the category weight first, leaves out the other subthemes, then ranks by the airing score. The sport row lists each airing: `sportAiringKindOf` ranks matches (`v`, `vs`, `live`, finals, rounds, races, and tests in the title or episode title) first, other shows about the sport next, and replays, `Classic`, `Highlights`, and `Flashback` airings last, then by start time. It keeps at most `3` airings of one title.
+- A theme row takes no show that an earlier section took. A row is left out when more than half of its first `12` items show in earlier sections, or when fewer than `4` items are left.
+- The section key is `theme-<category>` (or `sport` for `Sport this week`); the title is the category name. Each item carries `theme` (`key`, `title`, `phrase`) and a reason with its subtheme name. **Why this?** names the category share and the closest subtheme.
+
+Choices:
+
+- Each theme row and the sport row has a **⋯** button in its header. It opens a sheet with **More &lt;theme&gt;** and **Hide &lt;theme&gt;**.
+- **More** sends `theme_boosted` with the series key `theme-<key>`; **Undo** sends `theme_unboosted`. A boost multiplies the category share by `1.5` once; more boosts do not add to it. A mute clears the boost.
+- **Hide &lt;theme&gt;**, in the row menu and in the card menu of a theme row, sends `theme_muted`. **Undo** and **Show again** send `theme_unmuted`. An unmute restores a boost that the mute cleared, and a newer boost cancels a mute.
+- A mute hides the row and multiplies the category share by `0.2` for `90` days, or until an unmute. After `90` days the share is back to normal. A mute or boost of `sport` covers every sport.
+- The setting `for_you_themes_off` holds a JSON list of the themes turned off in Settings. An off theme has no row. Its tags do not count towards any share, and the tag weight of its titles leaves the divisor. The snapshot stamp `themesOff` starts a new build when the list changes.
+- `GET /api/for-you/themes` lists every theme and sport (`themeSettingsOf`) with `on`: off when in the list or muted in the last `90` days. A muted `Sport this week` row shows every sport off. `PUT /api/for-you/themes/:key` with `{ on }` updates the list; turning a theme on also sends `theme_unmuted`, and for a sport also unmutes `sport`.
+- `GET /api/for-you/hidden` lists the muted themes of the last `90` days (`hiddenThemesOf`) with the hidden shows; a theme entry has the series key `theme:<key>` and a `themeKey`. `DELETE /api/for-you/themes/:key/mute` unmutes a theme in the catalogue, or `sport`; any other key returns `404`. `DELETE /api/for-you/hidden/:seriesKey` only handles shows, so a show such as `theme-park-secrets` unhides as a show.
+- The client hides the cards of a muted row at once (`forYouMutedThemes` in `src/web/shared/for-you-session.js`).
 
 ### Home hero
 

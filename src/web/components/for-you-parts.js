@@ -1,5 +1,6 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import {
+  rowMenuOf,
   badgeOf,
   cardLabelOf,
   cardMetaOf,
@@ -139,6 +140,18 @@ export const ForYouOverlays = {
       </div>
     </ui-sheet>
 
+    <ui-sheet :open="Boolean(rowTheme)" :title="rowTheme?.title || ''" subtitle="A row of programmes like the ones you watch and record" @close="ctl.closeRowMenu()">
+      <div v-if="rowTheme" class="library-menu for-you-menu">
+        <div class="ui-group library-menu-group">
+          <button v-for="entry in rowMenu" :key="entry.key" type="button" class="ui-group-row library-menu-item"
+            @click="ctl.chooseRow(entry.key)">
+            <for-you-icon :name="entry.icon" />
+            <span class="library-menu-label">{{ entry.label }}</span>
+          </button>
+        </div>
+      </div>
+    </ui-sheet>
+
     <ui-sheet :open="Boolean(whyItem)" title="Why this?" :subtitle="whySubtitle" @close="ctl.closeWhy()">
       <template #header-lead>
         <span v-if="whyItem?.image && !failedArt[whyItem.image]" class="library-menu-art is-wide for-you-why-art" aria-hidden="true">
@@ -185,6 +198,8 @@ export const ForYouOverlays = {
     const nowMs = computed(() => now.value.getTime())
     const menuItem = computed(() => props.ctl.menuItem.value)
     const whyItem = computed(() => props.ctl.why.item)
+    const rowTheme = computed(() => props.ctl.rowTheme.value)
+    const rowMenu = computed(() => (rowTheme.value ? rowMenuOf(rowTheme.value) : []))
     const menu = computed(() => (menuItem.value
       ? menuOf({ item: menuItem.value, scheduled: props.ctl.isScheduled(menuItem.value), nowMs: nowMs.value, timeZone: tz.value })
       : { actions: [], more: [] }))
@@ -199,7 +214,7 @@ export const ForYouOverlays = {
     const signals = computed(() => props.ctl.why.data?.signals ?? [])
     const failedArt = ref({})
     const markFailed = (src) => { failedArt.value = { ...failedArt.value, [src]: true } }
-    return { failedArt, markFailed, menuItem, whyItem, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals }
+    return { failedArt, markFailed, menuItem, whyItem, rowTheme, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals }
   },
 }
 
@@ -272,4 +287,12 @@ const FOR_YOU_ICONS = {
     { tag: 'circle', attrs: { cx: 13, cy: 18, r: 2 } },
   ],
   check: [{ tag: 'path', attrs: { d: 'M20 6 9 17l-5-5' } }],
+  more: [
+    { tag: 'circle', attrs: { cx: 12, cy: 12, r: 9 } },
+    { tag: 'path', attrs: { d: 'M12 8v8M8 12h8' } },
+  ],
+  fewer: [
+    { tag: 'circle', attrs: { cx: 12, cy: 12, r: 9 } },
+    { tag: 'path', attrs: { d: 'M8 12h8' } },
+  ],
 }
