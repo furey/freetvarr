@@ -65,7 +65,7 @@ test('the For you signature changes with guide content, schedules, rules, events
   const base = signatureOf()
   assert.notEqual(signatureOf({ guide: guideWith([programme(1, 'Hard Quiz')]) }), base)
   assert.notEqual(signatureOf({ state: stateWith({ programIds: ['1', '2'] }) }), base)
-  assert.notEqual(signatureOf({ watchlist: [{ title: 'Muster Dogs', mode: 'watch' }] }), base)
+  assert.notEqual(signatureOf({ watchlist: [{ title: 'Hard Quiz', mode: 'record' }] }), base)
   assert.notEqual(signatureOf({ events: { count: 5, lastId: 41 } }), base)
   assert.notEqual(signatureOf({ recordings: { count: 2, watched: 2, position: 300 } }), base)
   assert.notEqual(signatureOf({ tier: 'basic' }), base)

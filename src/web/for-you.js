@@ -20,7 +20,7 @@ export const CHOOSER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 export const MAX_SHOWN_EVENTS = 50
 
 export const SECTION_ORDER = [
-  'ready-to-watch', 'last-chance', 'finish-started', 'coming-up', 'new-seasons', 'tonight-movies',
+  'ready-to-watch', 'finish-started', 'coming-up', 'new-seasons', 'tonight-movies',
   'might-like', 'top-rated-series', 'top-rated', 'movies', 'premieres',
 ]
 export const TOP_RATED_SECTION = 'top-rated'
@@ -33,7 +33,6 @@ export const OTHER_LANGUAGE_OPTIONS = [
 
 export const SECTION_TITLES = {
   'ready-to-watch': 'Ready to watch',
-  'last-chance': 'Last chance',
   'finish-started': 'Finish what you started',
   'coming-up': 'Coming up this week for you',
   'new-seasons': 'New seasons and returning',
