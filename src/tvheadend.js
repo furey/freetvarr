@@ -7,7 +7,7 @@ import { keepsStoppedRecording, recordedMsOf } from './web/stop-recording.js'
 import { isHdChannelName } from './web/simulcast.js'
 import { TVHEADEND_UNCONFIGURED_CODE } from './tvheadend-unconfigured.js'
 import { cleanGuideText } from './consumer-advice.js'
-import { anchorAutorecTitle, autorecMatchFieldsOf, literalTitleOf } from './autorec-match.js'
+import { anchorAutorecTitle, anchoredTitlesOf, autorecMatchFieldsOf, literalTitleOf } from './autorec-match.js'
 import { earlierAiringOfEntry } from './repeat-match.js'
 import { sameOrigin } from './url-binding.js'
 import { sourceImageTypeOf } from './raster-type.js'
@@ -236,9 +236,14 @@ export const listAutorecs = async (conn) => {
     leadTime: a.start_extra ?? 0,
     lagTime: a.stop_extra ?? 0,
     episodesToKeep: a.maxcount ?? 0,
+    titleVariants: anchoredTitlesOf(a.title)?.titles.slice(1) ?? [],
+    titleEditable: isTitleEditable(a),
     match: autorecMatchFieldsOf(a),
   }))
 }
+
+const isTitleEditable = (autorec) =>
+  autorec.comment === CREATOR_TAG && !autorec.fulltext && !autorec.mergetext && Boolean(anchoredTitlesOf(autorec.title))
 
 export const scheduleRecording = async ({ programId, leadTime, lagTime, addToLibrary = true } = {}) => {
   const conn = await resolveConnection()
@@ -332,6 +337,7 @@ export const enableSeriesTag = async ({
   lagTime = DEFAULT_LAG_MINUTES,
   episodesToKeep = 0,
   paused = false,
+  variants = [],
 } = {}) => {
   const conn = await resolveConnection()
   const seriesLink = anyChannel ? seriesKey({ channelId: '', title }) : requestedLink
@@ -344,6 +350,7 @@ export const enableSeriesTag = async ({
     lagTime,
     episodesToKeep,
     paused,
+    variants,
     configName: await defaultDvrConfig(conn),
   })
   const body = await apiPost('dvr/autorec/create', { conf: JSON.stringify(conf) }, conn)
@@ -386,7 +393,19 @@ export const updateSeriesTags = async ({ seriesLinkIds = [], patch = {}, conn } 
   uuids: await saveMatchingSeriesTags({ seriesLinkIds, fields: autorecFieldsOf(patch), conn }),
 })
 
-const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
+export const setSeriesTitleVariants = async ({ seriesLinkIds = [], variants = [], conn } = {}) => {
+  const connection = conn || (await resolveConnection())
+  const autorecs = await listSeriesRules({ seriesLinkIds, conn: connection })
+  if (!autorecs.every((autorec) => autorec.titleEditable)) {
+    throw new TvheadendError('This series recording was changed in TVHeadend, so Freetvarr leaves its title as it is.', { stage: 'series', code: 'title-not-editable' })
+  }
+  for (const autorec of autorecs) {
+    await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, title: anchorAutorecTitle(autorec.name, variants) }) }, connection)
+  }
+  return { ok: true, uuids: autorecs.map((a) => a.id), variants }
+}
+
+export const listSeriesRules = async ({ seriesLinkIds = [], conn } = {}) => {
   const connection = conn || (await resolveConnection())
   const wanted = new Set(seriesLinkIds.map(String))
   const autorecs = (await listAutorecs(connection))
@@ -394,16 +413,22 @@ const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
   if (autorecs.length === 0) {
     throw new TvheadendError('No series recording matches.', { stage: 'series', code: 'not-found' })
   }
+  return autorecs
+}
+
+const saveMatchingSeriesTags = async ({ seriesLinkIds, fields, conn }) => {
+  const connection = conn || (await resolveConnection())
+  const autorecs = await listSeriesRules({ seriesLinkIds, conn: connection })
   for (const autorec of autorecs) {
     await apiPost('idnode/save', { node: JSON.stringify({ uuid: autorec.id, ...fields }) }, connection)
   }
   return autorecs.map((a) => a.id)
 }
 
-export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, configName }) => ({
+export const newAutorecConfOf = ({ title, channelId, leadTime, lagTime, episodesToKeep, paused = false, variants = [], configName }) => ({
   enabled: !paused,
   name: title,
-  title: anchorAutorecTitle(title),
+  title: anchorAutorecTitle(title, variants),
   fulltext: false,
   channel: channelId,
   start: 'Any',

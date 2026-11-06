@@ -18,6 +18,7 @@ import { applyStoredTimeZone, currentTimeZone, resolveTimeZone, timeZoneFromEnv 
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { anchorSeriesRulesQuietly } from './autorec-anchor.js'
+import { mountSeriesVariantRoutes } from './series-variant-routes.js'
 import { USER_ORIGIN } from './show-origin.js'
 import { FOLDER_UNWRITABLE, PLACEHOLDER_KEPT, keepOneOffFolder } from './one-off-placeholder.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
@@ -853,6 +854,8 @@ app.post('/api/epg/pause-series', epgLimiter, doubleCsrfProtection, async (req, 
     epgError(res, err, 'pause-series')
   }
 })
+
+mountSeriesVariantRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onError: epgError })
 
 app.get('/api/epg/channel-prefs', async (req, res) => {
   try {

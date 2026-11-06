@@ -29,6 +29,7 @@ import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
 import { isSameShowTitle } from './autorec-match.js'
+import { loadTitleVariants, withTitleVariants } from './title-variants.js'
 import { isLibraryChanging, libraryChangesSettled } from './library-busy.js'
 import { lookUpDatabaseIds, needsDatabaseIds } from './database-ids.js'
 import { showIdentityFor } from './show-identity.js'
@@ -125,10 +126,14 @@ export const matchShow = (shows, showTitle, { sport = false } = {}) => {
 }
 
 const titleMatchesShow = ({ show, title, sport }) => {
+  if (isVariantOfShow({ show, title, sport })) return true
   if (!isAutoTitleMatch(show)) return wordPatternOf(show.show_pattern)?.test(title) ?? false
   const sameKey = showKeyOf(show.show_pattern) === showKeyOf(title)
   return sport ? sameKey : sameKey || isSameShowTitle({ title, show: String(show.show_pattern ?? '').trim() })
 }
+
+const isVariantOfShow = ({ show, title, sport }) => (show.title_variants || []).some((variant) =>
+  showKeyOf(variant) === showKeyOf(title) || (!sport && isSameShowTitle({ title, show: variant })))
 
 const wordPatternOf = (pattern) => {
   const text = String(pattern ?? '').trim()
@@ -398,7 +403,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
 
   let shows, finished, conn
   try {
-    shows = await db('shows').where({ enabled: true })
+    shows = withTitleVariants({ shows: await db('shows').where({ enabled: true }), variants: await loadTitleVariants() })
     if (showId != null && !shows.some((s) => s.id === showId)) {
       summary.message = `show_id ${showId} not found or not enabled`
       await finishSync(syncId, 'error', summary)
