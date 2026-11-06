@@ -202,7 +202,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
-    item.theme?.key && { key: 'fewer-theme', label: hideThemeLabelOf(item.theme), icon: 'fewer' },
+    item.theme?.key && { key: 'fewer-theme', label: hideThemeLabelOf(item.theme), icon: 'hide' },
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)

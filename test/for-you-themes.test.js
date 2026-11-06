@@ -362,7 +362,7 @@ test('For you: a basic-tier household gets a Cooking row with its own shows left
 test('web: theme cards offer Hide for their row, and a muted row hides its cards', () => {
   const item = { id: '1', title: 'Recipe Hour', seriesKey: 'recipe-hour', channelId: 'seven', start: NOW + HOUR, stop: NOW + 2 * HOUR, theme: { key: 'cooking', title: 'Cooking', phrase: 'cooking' } }
   const more = menuOf({ item, nowMs: NOW, timeZone: 'UTC' }).more
-  assert.deepEqual(more.find((entry) => entry.key === 'fewer-theme'), { key: 'fewer-theme', label: 'Hide Cooking', icon: 'fewer' })
+  assert.deepEqual(more.find((entry) => entry.key === 'fewer-theme'), { key: 'fewer-theme', label: 'Hide Cooking', icon: 'hide' })
   assert.deepEqual(rowMenuOf(item.theme).map((entry) => entry.label), ['More Cooking', 'Hide Cooking'])
   assert.equal(menuOf({ item: { ...item, theme: undefined }, nowMs: NOW, timeZone: 'UTC' }).more.some((entry) => entry.key === 'fewer-theme'), false)
   const hidden = new Set([themeHiddenKeyOf('cooking')])
