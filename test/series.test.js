@@ -10,6 +10,8 @@ import { TitleVariantError, setSeriesTitleVariant } from '../src/epg.js'
 import { matchShow } from '../src/sync.js'
 import { withTitleVariants } from '../src/title-variants.js'
 
+process.env.TZ = 'Australia/Sydney'
+
 const NOW = Date.UTC(2026, 9, 6, 8, 0)
 const HOUR_MS = 60 * 60 * 1000
 const ABC_TV = '3b6b1efd5c4ad532eef656c9ab9f6f4e'
