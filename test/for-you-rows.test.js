@@ -5,7 +5,7 @@ import path from 'node:path'
 
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-rows-${process.pid}.db`)
 
-const { buildForYou, finaleReasonOf, tonightWindowOf } = await import('../src/for-you.js')
+const { buildForYou, tonightWindowOf } = await import('../src/for-you.js')
 const { isTopRatedSeries, seriesFactsByKeyOf, tvmazeIdOf } = await import('../src/top-rated.js')
 
 const HOUR = 60 * 60 * 1000
@@ -152,58 +152,6 @@ test('finish what you started: a show you already record as a series is left out
   assert.equal(sectionOf(result, 'finish-started'), undefined)
 })
 
-test('last chance: finale wording in the title, episode title, or synopsis, for shows you watch, never news or sport', () => {
-  assert.equal(finaleReasonOf({ title: 'MasterChef Australia', synopsis: 'The season finale.' }), 'Season finale')
-  assert.equal(finaleReasonOf({ title: 'Utopia', episode_title: 'Series Finale' }), 'Series finale')
-  assert.equal(finaleReasonOf({ title: 'Rosehaven', synopsis: 'In the final episode, Daniel leaves.' }), 'Final episode')
-  assert.equal(finaleReasonOf({ title: 'The Voice: Grand Finale' }), 'Finale')
-  assert.equal(finaleReasonOf({ title: 'AFL Grand Final' }), null)
-  assert.equal(finaleReasonOf({ title: 'The Chase', synopsis: 'Contestants face the final chase.' }), null)
-  assert.equal(finaleReasonOf({ title: 'Home and Away', synopsis: 'Following on from last episode, Alf takes charge.' }), null)
-  assert.equal(finaleReasonOf({ title: 'Rosehaven', episode_title: 'The Last Episode' }), 'Final episode')
-  assert.equal(finaleReasonOf({ title: 'Final Score' }), null)
-  assert.equal(finaleReasonOf({ title: 'The Final Quarter' }), null)
-  assert.equal(finaleReasonOf({ title: 'Grand Final', synopsis: 'The Grand Final live from the MCG.' }), null)
-  const programmes = [
-    airing('The Voice', { synopsis: 'The grand finale.', start: NOW + 26 * HOUR }),
-    airing('Repeat Reality', { synopsis: 'The season finale.', channel_id: ABC }),
-    airing('Watchlist Drama', { synopsis: 'The series finale.' }),
-    airing('Sports Finale', { synopsis: 'The NRL season finale.', title: 'NRL Finale Live' }),
-    airing('News Finale', { title: 'Seven News', synopsis: 'Finale coverage.' }),
-  ]
-  const events = [...engagedEvents(), ...watched('The Voice', { episodes: 2 }), ...watched('NRL Finale Live'), ...watched('Seven News')]
-  const result = run({ programmes, events, watchlistKeys: new Set(['watchlist-drama']) })
-  assert.deepEqual(titlesIn(result, 'last-chance'), ['The Voice', 'Watchlist Drama'])
-  assert.equal(sectionOf(result, 'last-chance').items[0].reason, 'Finale')
-})
-
-test('last chance: a stripped run with no airings in the last days of the guide ends, for shows you watch', () => {
-  const run3 = (title) => [0, 1, 2].map((day) => airing(title, { start: NOW + 3 * HOUR + day * DAY, episode_no: day + 1 }))
-  const programmes = [
-    ...run3('Bachelor in Paradise'),
-    ...run3('Unwatched Strip'),
-    ...[0, 1, 2, 5].map((day) => airing('Weekly Again', { start: NOW + 3 * HOUR + day * DAY, episode_no: day + 1 })),
-    airing('Late Filler', { start: NOW + 7 * DAY - 2 * HOUR }),
-  ]
-  const events = [...engagedEvents(), ...watched('Bachelor in Paradise', { episodes: 5 }), ...watched('Unwatched Strip', { episodes: 0 }), ...watched('Weekly Again', { episodes: 5 })]
-  const result = run({ programmes, events })
-  assert.deepEqual(titlesIn(result, 'last-chance'), ['Bachelor in Paradise'])
-  const item = sectionOf(result, 'last-chance').items[0]
-  assert.equal(item.start, NOW + 3 * HOUR + 2 * DAY)
-  assert.equal(item.reason, 'Last episode in the guide')
-})
-
-test('last chance: each channel uses its own guide end, so a short guide is no reason to call a run over', () => {
-  const programmes = [
-    ...[0, 1, 2].map((day) => airing('Short Guide Strip', { channel_id: ABC, start: NOW + 3 * HOUR + day * DAY, episode_no: day + 1 })),
-    airing('ABC Late', { channel_id: ABC, start: NOW + 5 * DAY }),
-    airing('Seven Late', { start: NOW + 7 * DAY - 2 * HOUR }),
-  ]
-  const events = [...engagedEvents(), ...watched('Short Guide Strip', { episodes: 5 })]
-  const result = run({ programmes, events })
-  assert.equal(sectionOf(result, 'last-chance'), undefined)
-})
-
 test('tonight: films from 5 pm to 3 am ranked by fit and rating, posters only', () => {
   const programmes = [
     film('The Castle', { start: NOW + 11 * HOUR }),
@@ -308,26 +256,26 @@ test('series rating helpers read saved TVmaze rows by title key and the source i
   assert.equal(facts.get('the-newsreader').score, 8.2)
 })
 
-test('row order puts ready, last chance, and started shows first, and each show appears once', () => {
+test('row order puts ready and started shows first, and each show appears once', () => {
   const genresByKey = new Map([['rosehaven', { categories: ['comedy'], genres: [], source: 'tvmaze:7' }]])
   const seriesRatings = new Map([['rosehaven', { score: 8, weight: 80, type: 'Scripted' }]])
   const programmes = [
-    airing('Rosehaven', { synopsis: 'The series finale.' }),
+    airing('Rosehaven'),
     airing('The Newsreader', { start: NOW + 5 * HOUR }),
   ]
   const events = [...engagedEvents(), ...watched('The Newsreader', { episodes: 2 })]
   const recordings = [recording('Utopia')]
   const result = run({ programmes, events, recordings, genresByKey, seriesRatings })
-  assert.deepEqual(result.sections.map((section) => section.key).slice(0, 3), ['ready-to-watch', 'last-chance', 'finish-started'])
+  assert.deepEqual(result.sections.map((section) => section.key).slice(0, 2), ['ready-to-watch', 'finish-started'])
   assert.equal(allTitles(result).filter((title) => title === 'Rosehaven').length, 1)
-  assert.deepEqual(titlesIn(result, 'last-chance'), ['Rosehaven'])
+  assert.deepEqual(titlesIn(result, 'finish-started'), ['The Newsreader'])
 })
 
 test('cold start keeps the new rows that need no viewing history', () => {
-  const programmes = [film('The Castle', { start: NOW + 11 * HOUR }), airing('The Voice', { synopsis: 'The grand finale.' })]
-  const result = run({ programmes, recordings: [recording('Utopia')], watchlistKeys: new Set(['the-voice']) })
+  const programmes = [film('The Castle', { start: NOW + 11 * HOUR }), airing('The Voice')]
+  const result = run({ programmes, recordings: [recording('Utopia')] })
   assert.equal(result.coldStart, true)
-  assert.deepEqual(result.sections.map((section) => section.key), ['ready-to-watch', 'last-chance', 'tonight-movies'])
+  assert.deepEqual(result.sections.map((section) => section.key), ['ready-to-watch', 'tonight-movies'])
 })
 
 test('tonight: leaves out films you already recorded or watched, and shopping blocks', () => {

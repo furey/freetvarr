@@ -6,7 +6,6 @@ import knexConfig from '../knexfile.js'
 import { saveArtwork } from '../src/artwork.js'
 import { pickBigFive } from '../src/default-favourites.js'
 import { showKeyOf } from '../src/web/show-key.js'
-import { finaleReasonOf } from '../src/for-you.js'
 import { createSeriesRatings } from '../src/series-ratings.js'
 import { db as appDb } from '../src/db.js'
 
@@ -73,8 +72,6 @@ export const seedCaptureLibrary = async () => {
     await db.batchInsert('syncs', demoSyncs({ recordings, nowMs }), 50)
     const startedShows = pickStartedShows({ airings: showAirings, taken: [...shows.map((s) => s.title), ...ruleTitles], nowMs })
     await db.batchInsert('user_events', startedShowEvents({ shows: startedShows, nowMs }), 50)
-    const finaleShows = pickFinaleShows({ airings, taken: [...shows.map((s) => s.title), ...ruleTitles, ...startedShows.map((s) => s.title)], nowMs })
-    await db.batchInsert('user_events', startedShowEvents({ shows: finaleShows, nowMs, episodes: FINALE_SHOW_EPISODES }), 50)
     const scored = await seedSeriesScores({ airings, nowMs })
     await saveSettings(db, {
       plex_url: 'http://192.168.1.100:32400',
@@ -95,7 +92,6 @@ export const seedCaptureLibrary = async () => {
     console.log(`[seed] shows: ${shows.map((s) => s.title).join(' | ')}`)
     console.log(`[seed] films: ${films.map((f) => f.program.title).join(' | ')}`)
     console.log(`[seed] started shows: ${startedShows.map((s) => s.title).join(' | ')}`)
-    console.log(`[seed] finale shows: ${finaleShows.map((s) => s.title).join(' | ')}`)
     console.log(`[seed] series scores: ${JSON.stringify(scored)}`)
   } finally {
     await db.destroy()
@@ -251,17 +247,6 @@ const pickStartedShows = ({ airings, taken, nowMs }) => latestSeasonGroups(airin
   .sort((a, b) => showScore({ group: b, ruleTitles: [] }) - showScore({ group: a, ruleTitles: [] }))
   .slice(0, STARTED_SHOW_COUNT)
 
-const pickFinaleShows = ({ airings, taken, nowMs }) => {
-  const picked = new Map()
-  for (const { channel, program } of airings) {
-    if (picked.size === FINALE_SHOW_COUNT) break
-    if (program.start <= nowMs || taken.includes(program.title) || picked.has(program.title)) continue
-    if (SPORT_TITLE.test(program.title || '') || NEWSY_TITLE.test(program.title || '') || !finaleReasonOf(program)) continue
-    picked.set(program.title, { title: program.title, channel })
-  }
-  return [...picked.values()]
-}
-
 const seedSeriesScores = ({ airings, nowMs }) => {
   const titles = [...new Set(airings
     .filter(({ program }) => program.start > nowMs && isEpisodic({ program }) && isPrimeTime(program))
@@ -269,7 +254,7 @@ const seedSeriesScores = ({ airings, nowMs }) => {
   return createSeriesRatings({ budget: SERIES_SCORE_BUDGET }).run({ titles }).catch((err) => ({ error: err.message }))
 }
 
-const startedShowEvents = ({ shows, nowMs, episodes = null }) => shows.flatMap((show, i) => Array.from({ length: episodes ?? STARTED_EPISODES[i] ?? 2 }, (_, episode) => {
+const startedShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array.from({ length: STARTED_EPISODES[i] ?? 2 }, (_, episode) => {
   const programmeStart = nowMs - (episode + 2) * WEEK_MS / 7 - (i + 1) * HOUR_MS
   return {
     ts: programmeStart + HOUR_MS,
@@ -287,8 +272,6 @@ const startedShowEvents = ({ shows, nowMs, episodes = null }) => shows.flatMap((
 }))
 
 const STARTED_SHOW_COUNT = 4
-const FINALE_SHOW_COUNT = 3
-const FINALE_SHOW_EPISODES = 4
 const SERIES_SCORE_BUDGET = 60
 const KIDS_CHANNEL = /kids|family/i
 const STARTED_EPISODES = [2, 3, 1, 2]

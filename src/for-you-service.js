@@ -31,7 +31,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 5
+export const SCORING_VERSION = 6
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -154,7 +154,6 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
     ...watchlist.filter((row) => row.mode === 'record').map((row) => showKeyOf(row.title)),
   ])
-  const watchlistKeys = new Set(watchlist.map((row) => showKeyOf(row.title)))
   const scheduledProgramIds = new Set([
     ...(state?.futureRecordings || []).map((recording) => String(recording.programId)),
     ...(state?.skippedProgramIds || []).map(String),
@@ -162,7 +161,6 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
   ])
   return {
     ruleKeys,
-    watchlistKeys,
     scheduledProgramIds,
     autorecs,
     channelPrefs,
@@ -170,7 +168,6 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       guide: guideVersionOf(guide),
       scheduled: hashOf([...scheduledProgramIds].sort().join(',')),
       rules: hashOf([...ruleKeys].sort().join(',')),
-      watchlist: hashOf([...watchlistKeys].sort().join(',')),
       autorecs: hashOf(JSON.stringify(autorecs)),
       channels: hashOf(JSON.stringify(channelPrefs)),
       lastEventId: Number(events?.lastId) || 0,
@@ -381,7 +378,6 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       recordings,
       scheduledProgramIds: snapshot.scheduledProgramIds,
       ruleKeys: snapshot.ruleKeys,
-      watchlistKeys: snapshot.watchlistKeys,
       autorecs: snapshot.autorecs,
       channelPrefs: snapshot.channelPrefs,
       genresByKey,
