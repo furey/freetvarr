@@ -4,7 +4,7 @@ import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
 import { showKeyOf } from './show-key.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { artUrlKeyOf, pickDistinctArt } from './hero-art.js'
-import { forYouItemSlideOf, identityOf as suggestionIdentityOf, topRatedItemSlideOf } from './for-you.js'
+import { forYouItemSlideOf, isHiddenSuggestion, topRatedItemSlideOf } from './for-you.js'
 import { episodeCodeOf, minutesLeftOf, watchedFractionOf, showHrefOf } from './home-feed.js'
 import { hourlyOrderOf } from './hero-remix.js'
 import { recordingEndMsOf, recordingLeftText } from './recording-time-left.js'
@@ -65,7 +65,7 @@ export const currentCandidateTestOf = ({
   return ({ type, source = {} }) => {
     if (listed[type]) return listed[type].has((source.episode ?? source.movie)?.recordingId)
     if (type === 'upcoming') return scheduled.has(String(source.item?.programId)) && !active.has(String(source.item?.programId))
-    if (type === 'for-you' || type === 'top-rated') return !hiddenKeys.has(suggestionIdentityOf(source.item ?? {}))
+    if (type === 'for-you' || type === 'top-rated') return !isHiddenSuggestion({ item: source.item ?? {}, hiddenKeys })
     return true
   }
 }

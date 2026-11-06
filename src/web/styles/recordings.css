@@ -951,6 +951,7 @@
 .library-menu-label {
   flex: 1;
   min-width: 0;
+  text-wrap: balance;
 }
 
 .library-menu-detail {

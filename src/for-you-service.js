@@ -24,6 +24,9 @@ import { showTitleKey } from './show-artwork.js'
 import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom, tvmazeIdOf } from './top-rated.js'
 import { createSeriesRatings, loadSeriesRatings, seriesRatingStamp, warmSeriesRatingsIfEmpty } from './series-ratings.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
+import { THEME_KINDS, createThemeIndex, groupOfMuteKey, hiddenThemesOf, themeChoicesOf, themeSettingsOf } from './for-you-themes.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
 import { measureJob } from './event-loop-lag.js'
@@ -31,7 +34,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 6
+export const SCORING_VERSION = 7
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -148,7 +151,7 @@ export const resultFingerprintOf = (result) => {
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone() }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone(), themesOff = [] }) => {
   const autorecs = (state?.seriesTags || []).map(({ seriesLinkId, channelId, enabled, match }) => ({ seriesLinkId, channelId, enabled, match }))
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
@@ -181,6 +184,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       seriesRatings: `${Number(seriesRatings?.count) || 0}:${Number(seriesRatings?.latest) || 0}`,
       otherLanguageFilms,
       timeZone,
+      themesOff: [...themesOff].sort().join(','),
       scoring: SCORING_VERSION,
     },
   }
@@ -218,12 +222,46 @@ export const forgetForYouCache = () => forYouCache.forget()
 
 export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
-  const events = await db('user_events').whereIn('kind', HIDING_KINDS).orderBy('ts')
-  return hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })
+  const [events, themeEvents] = await Promise.all([
+    db('user_events').whereIn('kind', HIDING_KINDS).orderBy('ts'),
+    db('user_events').whereIn('kind', [...THEME_KINDS]).orderBy('ts'),
+  ])
+  const themes = hiddenThemesOf({ index: currentThemeIndex(), mutes: themeChoicesOf(themeEvents).mutes, nowMs })
+  return [...themes, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
 }
+
+export const getThemeSettings = async ({ nowMs = Date.now() } = {}) => {
+  await flushUserEvents().catch(() => {})
+  const [events, off] = await Promise.all([db('user_events').whereIn('kind', [...THEME_KINDS]).orderBy('ts'), themesOffSetting()])
+  return themeSettingsOf({ index: currentThemeIndex(), mutes: themeChoicesOf(events).mutes, off: new Set(off), nowMs })
+}
+
+export const setThemeOn = async ({ key, on, nowMs = Date.now() }) => {
+  const index = currentThemeIndex()
+  if (!index.groups.has(key)) return { error: 'That theme is not in the catalogue' }
+  const off = new Set(await themesOffSetting())
+  if (on) off.delete(key)
+  else off.add(key)
+  await setSetting(SETTINGS.themesOff, JSON.stringify([...off].sort()))
+  if (on) await db('user_events').insert(eventRowOf({ event: { kind: 'theme_unmuted', series_key: `theme-${key}`, title: index.groups.get(key).title, source: 'settings', ts: nowMs }, nowMs }))
+  forgetForYouCache()
+  return { themes: await getThemeSettings({ nowMs }) }
+}
+
+const themesOffSetting = async () => {
+  try {
+    const keys = JSON.parse((await getSetting(SETTINGS.themesOff)) || '[]')
+    return Array.isArray(keys) ? keys.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+const currentThemeIndex = () => createThemeIndex({ country: countryForTimeZone(currentTimeZone()) })
 
 export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   await flushUserEvents().catch(() => {})
+  if (seriesKey.startsWith('theme-')) return unmuteTheme({ seriesKey, nowMs })
   const latest = await db('user_events').whereIn('kind', HIDING_CHOICES).where({ series_key: seriesKey }).orderBy('ts', 'desc').first()
   const latestThumb = await db('user_events').whereIn('kind', THUMB_KINDS).where({ series_key: seriesKey }).orderBy('ts', 'desc').orderBy('id', 'desc').first()
   const kinds = latestThumb?.kind === 'thumb_down' ? ['not_interested_undo', 'thumb_clear'] : ['not_interested_undo']
@@ -234,6 +272,13 @@ export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   })))
   forgetForYouCache()
   return { ok: true, wasHidden: Boolean(latest) }
+}
+
+const unmuteTheme = async ({ seriesKey, nowMs }) => {
+  const group = groupOfMuteKey(seriesKey)
+  await db('user_events').insert(eventRowOf({ event: { kind: 'theme_unmuted', series_key: seriesKey, title: currentThemeIndex().groups.get(group)?.title ?? null, source: 'for-you', ts: nowMs }, nowMs }))
+  forgetForYouCache()
+  return { ok: true, wasHidden: true }
 }
 
 export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS, ratingsDelayMs = RATINGS_WARM_DELAY_MS }) => {
@@ -324,7 +369,7 @@ const upkeepNow = async ({ nowMs }) => {
 }
 
 const loadSnapshot = async () => {
-  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs] = await Promise.all([
+  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, themesOff] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
     db('watchlist').select('title', 'mode'),
@@ -338,6 +383,7 @@ const loadSnapshot = async () => {
     seriesRatingStamp(),
     currentOtherLanguageFilms(),
     getChannelPrefs().catch(() => null),
+    themesOffSetting(),
   ])
   const vectors = vectorsVersion()
   return {
@@ -347,14 +393,15 @@ const loadSnapshot = async () => {
     tier: tier.tier,
     vectors,
     otherLanguageFilms,
-    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs }),
+    themesOff,
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, themesOff }),
   }
 }
 
 const computeForYou = async ({ snapshot, nowMs }) => {
   const job = currentJob()
   job?.step('Read history and recordings')
-  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings, seriesRatings] = await Promise.all([
+  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings, seriesRatings, guideCategories] = await Promise.all([
     db('user_events').orderBy('id'),
     db('recordings').select(...RECORDING_COLUMNS),
     loadTitleGenres(),
@@ -362,6 +409,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
     snapshot.embedder ? loadVectors(snapshot.embedder.id) : null,
     filmRatingRows().select('lookup_key', 'found_json').catch(() => []),
     loadSeriesRatings(),
+    guideCategoriesOf({ nowMs }),
   ])
   const guide = {
     programmes: Object.values(snapshot.guide.programsByChannel || {}).flat(),
@@ -390,6 +438,8 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       }),
       otherLanguageFilms: snapshot.otherLanguageFilms,
       seriesRatings,
+      guideCategories,
+      themesOff: snapshot.themesOff ?? [],
     },
   }
   job?.step('Score programmes').fact('Programmes', guide.programmes.length).fact('Events', events.length)
@@ -522,6 +572,19 @@ export const withClassifications = async ({ result, programmes, channels = [], s
 
 export const currentOtherLanguageFilms = async () => otherLanguageChoiceFrom(await getSetting(SETTINGS.otherLanguageFilms).catch(() => null))
 
+export const guideCategoriesOf = async ({ nowMs, database = db }) => {
+  const rows = await database('programme_categories')
+    .where('start_ms', '>', nowMs - GUIDE_CATEGORY_LOOKBACK_MS)
+    .distinct('title_key', 'category')
+    .catch(() => [])
+  const byTitle = new Map()
+  for (const row of rows) {
+    if (!byTitle.has(row.title_key)) byTitle.set(row.title_key, [])
+    byTitle.get(row.title_key).push(row.category)
+  }
+  return byTitle
+}
+
 const filmRatingRows = () => db('programme_ratings').where('lookup_key', 'like', `${FILM_RATINGS_PREFIX}%`).whereNot('found_json', 'null')
 
 const recordingStampOf = (recordings) => RECORDING_STAMP_FIELDS.map((field) => recordings?.[field] ?? '').join(':')
@@ -575,6 +638,7 @@ const RECORDING_COLUMNS = [
   'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status', 'image_path', 'purged_at', 'library_state',
 ]
 const GUIDE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+const GUIDE_CATEGORY_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000
 const HIDING_KINDS = ['not_interested', 'not_interested_undo', 'thumb_up', 'thumb_down', 'thumb_clear']
 const HIDING_CHOICES = ['not_interested', 'thumb_down']
 const THUMB_KINDS = ['thumb_up', 'thumb_down', 'thumb_clear']

@@ -65,6 +65,11 @@ export const isMovie = (item) => kindOf(item) === 'movie'
 
 export const identityOf = (item) => item.seriesKey || showKeyOf(item.title)
 
+export const themeHiddenKeyOf = (themeKey) => `theme:${themeKey}`
+
+export const isHiddenSuggestion = ({ item, hiddenKeys }) => hiddenKeys.has(identityOf(item))
+  || Boolean(item.theme?.key && hiddenKeys.has(themeHiddenKeyOf(item.theme.key)))
+
 export const scheduleKeyOf = ({ channelId, startMs }) => `${channelId}@${Math.round(startMs / 60_000)}`
 
 export const scheduledKeysOf = (upcoming = []) => new Set(upcoming
@@ -82,9 +87,10 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
   return orderedSections(payload?.sections)
     .map((section) => {
       const seen = section.key === READY_SECTION ? seenRecordings : seenAirings
+      const perAiring = Boolean(section.theme?.sport)
       const items = (section.items ?? []).filter((item) => {
-        const identity = identityOf(item)
-        if (hiddenKeys.has(identity) || seen.has(identity)) return false
+        const identity = perAiring ? `airing:${item.id}` : identityOf(item)
+        if (isHiddenSuggestion({ item, hiddenKeys }) || seen.has(identity)) return false
         seen.add(identity)
         return true
       })
@@ -93,6 +99,7 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
         title: section.title || SECTION_TITLES[section.key] || 'For you',
         sortedByAirTime: section.key === 'coming-up',
         credit: creditOf(section.credit),
+        theme: themeOf(section.theme),
         rows: rowsOf(scheduledLast({ items, scheduledKeys })),
       }
     })
@@ -195,6 +202,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
+    item.theme?.key && { key: 'fewer-theme', label: fewerThemeLabelOf(item.theme), icon: 'fewer' },
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)
@@ -369,6 +377,31 @@ export const doneLabelOf = (count) => (count ? `Done · ${count} picked` : 'Done
 
 export const hiddenToastOf = (title) => `${title} is hidden from For you`
 
+export const fewerThemeLabelOf = (theme) => `Fewer ${theme.title} suggestions`
+
+export const themeMutedToastOf = (theme) => `The ${theme.title} row is hidden for 90 days`
+
+export const themeGroupsOf = (themes = []) => [
+  { label: 'Themes', themes: themes.filter((theme) => !theme.sport) },
+  { label: 'Sport', themes: themes.filter((theme) => theme.sport) },
+].filter((group) => group.themes.length)
+
+export const themesOnCountOf = (themes = []) => `${themes.filter((theme) => theme.on).length} of ${themes.length}`
+
+export const themeBoostedToastOf = (theme) => `More ${theme.title} suggestions from now on`
+
+export const rowMenuOf = (theme) => [
+  { key: 'boost-theme', label: `More ${theme.title}`, icon: 'more' },
+  { key: 'mute-theme', label: `Hide ${theme.title}`, icon: 'hide' },
+]
+
+export const themeFeedbackOf = ({ kind, theme, source }) => ({
+  kind,
+  series_key: `theme-${theme.key}`,
+  title: theme.title,
+  source,
+})
+
 export const movieKindToastOf = ({ title, kind }) => (kind === 'movie'
   ? `${title} is now listed as a movie`
   : `${title} is no longer listed as a movie`)
@@ -438,9 +471,16 @@ export const picksErrorOf = (err) => ({
 const orderedSections = (sections = []) => [...sections].sort((a, b) => rankOf(a.key) - rankOf(b.key))
 
 const rankOf = (key) => {
+  if (isThemeSection(key)) return SECTION_ORDER.indexOf(THEMES_AFTER) + 0.5
   const index = SECTION_ORDER.indexOf(key)
   return index < 0 ? SECTION_ORDER.length : index
 }
+
+const themeOf = (theme) => (theme?.key ? { key: theme.key, title: theme.title, phrase: theme.phrase, ...(theme.sport && { sport: true }) } : null)
+
+const isThemeSection = (key) => String(key).startsWith('theme-') || key === 'sport'
+
+const THEMES_AFTER = 'might-like'
 
 const scheduledLast = ({ items, scheduledKeys }) => [
   ...items.filter((item) => !isScheduled({ item, scheduledKeys })),

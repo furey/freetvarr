@@ -7,6 +7,9 @@ import { saveArtwork } from '../src/artwork.js'
 import { pickBigFive } from '../src/default-favourites.js'
 import { showKeyOf } from '../src/web/show-key.js'
 import { createSeriesRatings } from '../src/series-ratings.js'
+import { createThemeIndex, sportAiringKindOf, tagTitle } from '../src/for-you-themes.js'
+import { keywordCategoriesOf } from '../src/genre-enrichment.js'
+import { countryForTimeZone } from '../src/zone-countries.js'
 import { db as appDb } from '../src/db.js'
 
 const BASE = (process.env.FREETVARR_URL || 'http://127.0.0.1:3801').replace(/\/$/, '')
@@ -72,6 +75,8 @@ export const seedCaptureLibrary = async () => {
     await db.batchInsert('syncs', demoSyncs({ recordings, nowMs }), 50)
     const startedShows = pickStartedShows({ airings: showAirings, taken: [...shows.map((s) => s.title), ...ruleTitles], nowMs })
     await db.batchInsert('user_events', startedShowEvents({ shows: startedShows, nowMs }), 50)
+    const themeShows = pickThemeShows({ airings, taken: [...shows.map((s) => s.title), ...ruleTitles, ...startedShows.map((s) => s.title)] })
+    await db.batchInsert('user_events', themeShowEvents({ shows: themeShows, nowMs }), 50)
     const scored = await seedSeriesScores({ airings, nowMs })
     await saveSettings(db, {
       plex_url: 'http://192.168.1.100:32400',
@@ -92,6 +97,7 @@ export const seedCaptureLibrary = async () => {
     console.log(`[seed] shows: ${shows.map((s) => s.title).join(' | ')}`)
     console.log(`[seed] films: ${films.map((f) => f.program.title).join(' | ')}`)
     console.log(`[seed] started shows: ${startedShows.map((s) => s.title).join(' | ')}`)
+    console.log(`[seed] theme shows: ${themeShows.map((s) => `${s.group}: ${s.title}`).join(' | ')}`)
     console.log(`[seed] series scores: ${JSON.stringify(scored)}`)
   } finally {
     await db.destroy()
@@ -271,6 +277,56 @@ const startedShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array
   }
 }))
 
+const pickThemeShows = ({ airings, taken }) => {
+  const index = createThemeIndex({ country: countryForTimeZone(process.env.TZ || '') })
+  const byTitle = new Map()
+  for (const { channel, program } of airings) {
+    if (taken.includes(program.title) || KIDS_CHANNEL.test(channel.name || '')) continue
+    if (!byTitle.has(program.title)) byTitle.set(program.title, { title: program.title, channel, entries: [] })
+    byTitle.get(program.title).entries.push({ channel, program })
+  }
+  const groupOf = (show) => tagTitle({
+    index,
+    facts: { title: show.title, categories: keywordCategoriesOf(show.title), channelNames: [show.channel.name] },
+  }).entries[0]?.group
+  const isMatch = (show) => show.entries.some(({ program }) => sportAiringKindOf({ title: program.title, episodeTitle: program.episode_title, synopsis: program.synopsis }) === 'match')
+  return THEME_SEEDS.flatMap(({ group, count, matches = false, episodes = THEME_EPISODES }) => [...byTitle.values()]
+    .filter((show) => groupOf(show) === group && (!matches || isMatch(show)))
+    .sort((a, b) => a.entries.length - b.entries.length || a.title.localeCompare(b.title))
+    .slice(0, count)
+    .map((show) => ({ ...show, group, episodes })))
+}
+
+const themeShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array.from({ length: show.episodes }, (_, episode) => {
+  const programmeStart = nowMs - (episode + 1) * WEEK_MS - (i % 5 + 2) * HOUR_MS
+  const base = {
+    series_key: showKeyOf(show.title),
+    title: show.title,
+    programme_start: programmeStart,
+    channel_id: String(show.channel.id),
+  }
+  return [
+    { ...base, ts: programmeStart - DAY_MS, kind: 'record_request', source: 'guide', meta_json: JSON.stringify({ type: 'episode' }) },
+    {
+      ...base,
+      ts: programmeStart + HOUR_MS,
+      kind: 'watch_end',
+      duration_s: 3300,
+      position_s: 3300,
+      programme_len_s: 3600,
+      source: 'live',
+      meta_json: JSON.stringify({ attended: true }),
+    },
+  ]
+}).flat())
+
+const THEME_SEEDS = [
+  { group: 'cooking', count: 3 },
+  { group: 'home', count: 3 },
+  { group: 'police-rescue', count: 3 },
+  { group: 'rugby-league', count: 1, matches: true, episodes: 10 },
+]
+const THEME_EPISODES = 4
 const STARTED_SHOW_COUNT = 4
 const SERIES_SCORE_BUDGET = 60
 const KIDS_CHANNEL = /kids|family/i
