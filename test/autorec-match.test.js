@@ -7,8 +7,9 @@ import path from 'node:path'
 
 const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-autorec-match-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
+process.env.TZ = 'Australia/Sydney'
 
-const { SAME_SHOW_SUFFIX, anchorAutorecTitle, anchoredTitlesOf, autorecMatchFieldsOf, autorecMatchesAiring, isSameShowTitle, literalTitleOf } = await import('../src/autorec-match.js')
+const { sameShowSuffixOf, anchorAutorecTitle, anchoredTitlesOf, autorecMatchFieldsOf, autorecMatchesAiring, isSameShowTitle, literalTitleOf } = await import('../src/autorec-match.js')
 const { enableSeriesTag, listAutorecs, newAutorecConfOf, setSeriesTitleVariants } = await import('../src/tvheadend.js')
 const { db, setSetting, deleteSetting } = await import('../src/db.js')
 
@@ -21,6 +22,7 @@ after(async () => {
 
 const CHANNEL = 'c1'
 const LEGACY_SUFFIX = '( ?[:(-].*)?$'
+const SAME_SHOW_SUFFIX = sameShowSuffixOf('au')
 const START = Date.UTC(2026, 10, 9, 8, 30)
 
 const programmeOf = (title) => ({ title, channel_id: CHANNEL, start: START, end: START + 3600000 })
@@ -203,7 +205,7 @@ test('listAutorecs: an old-form alternation rule keeps its raw title as its name
 test('a rule anchored by 2.9.0 still matches foreign editions until it is re-anchored', () => {
   const rule = ruleOf(`^Say Yes To The Dress${LEGACY_SUFFIX}`)
   assert.equal(autorecMatchesAiring({ autorec: rule, programme: programmeOf('Say Yes To The Dress: UK') }), true)
-  assert.deepEqual(anchoredTitlesOf(`^Say Yes To The Dress${LEGACY_SUFFIX}`), { titles: ['Say Yes To The Dress'], foreignEditions: true })
+  assert.deepEqual(anchoredTitlesOf(`^Say Yes To The Dress${LEGACY_SUFFIX}`), { titles: ['Say Yes To The Dress'], excludedTags: [] })
 })
 
 test('a rule with a title variant records both titles and nothing else', () => {
@@ -228,7 +230,7 @@ test('anchorAutorecTitle: variants join the title as a group, without repeats, a
   const pattern = anchorAutorecTitle('Big Brother', ['Big Brother Australia', 'big brother australia', 'Big Brother', ''])
   assert.equal(pattern, `^(Big Brother|Big Brother Australia)${SAME_SHOW_SUFFIX}`)
   assert.equal(literalTitleOf(pattern), 'Big Brother')
-  assert.deepEqual(anchoredTitlesOf(pattern), { titles: ['Big Brother', 'Big Brother Australia'], foreignEditions: false })
+  assert.deepEqual(anchoredTitlesOf(pattern), { titles: ['Big Brother', 'Big Brother Australia'], excludedTags: ['UK', 'US', 'USA'] })
   const tricky = anchorAutorecTitle('A|B', ['A|B (2026)', 'Q+A'])
   assert.deepEqual(anchoredTitlesOf(tricky).titles, ['A|B', 'A|B (2026)', 'Q+A'])
   assert.equal(literalTitleOf(`^(Big Brother|Big.*)${SAME_SHOW_SUFFIX}`), null)
@@ -289,4 +291,70 @@ test('enableSeriesTag: a new rule includes the saved title variants', async () =
   )
   assert.equal(creates[0].title, anchorAutorecTitle('Big Brother', ['Big Brother Australia']))
   assert.equal(creates[0].name, 'Big Brother')
+})
+
+const AU_SUFFIX_2_10_1 = '( ?[:(-]([^Uu ].*|U([^KkSs].*|K([^)].*|\\).+)|S([^)Aa].*|\\).+|A([^)].*|\\).+)))?| ([^Uu].*|U([^KkSs].*|K([^)].*|\\).+)|S([^)Aa].*|\\).+|A([^)].*|\\).+)))?)?)?)?$'
+
+test('an Australian or New Zealand install sends the same series rule title as 2.10.1', () => {
+  assert.equal(anchorAutorecTitle('The Chase', [], 'au'), `^The Chase${AU_SUFFIX_2_10_1}`)
+  assert.equal(anchorAutorecTitle('Big Brother', ['Big Brother Australia'], 'au'), `^(Big Brother|Big Brother Australia)${AU_SUFFIX_2_10_1}`)
+  assert.equal(anchorAutorecTitle('The Chase', [], 'nz'), `^The Chase${AU_SUFFIX_2_10_1}`)
+  assert.equal(anchorAutorecTitle('The Chase'), `^The Chase${AU_SUFFIX_2_10_1}`)
+})
+
+const COUNTRY_EDITIONS = [
+  { country: 'au', recorded: ['Australia', 'AU', 'NZ'], skipped: ['UK', 'US', 'USA'] },
+  { country: 'nz', recorded: ['NZ', 'AUS', 'Australia'], skipped: ['UK', 'US', 'USA'] },
+  { country: 'uk', recorded: ['UK', 'Canada', 'Ireland'], skipped: ['US', 'USA', 'AU', 'AUS', 'NZ'] },
+  { country: 'us', recorded: ['US', 'USA', 'Canada'], skipped: ['UK', 'AU', 'AUS', 'NZ'] },
+  { country: 'de', recorded: ['Germany', 'Canada', 'India'], skipped: ['UK', 'US', 'USA', 'AU', 'AUS', 'NZ'] },
+  { country: '', recorded: ['UK', 'US', 'USA', 'AU', 'NZ', 'Canada'], skipped: [] },
+]
+
+test('each install country records its own edition and skips the short tags of other countries', () => {
+  for (const { country, recorded, skipped } of COUNTRY_EDITIONS) {
+    const rule = ruleOf(anchorAutorecTitle('Say Yes To The Dress', [], country))
+    const matches = (title) => autorecMatchesAiring({ autorec: rule, programme: programmeOf(title) })
+    assert.equal(matches('Say Yes To The Dress'), true, country)
+    assert.equal(matches('Say Yes To The Dress: Atlanta'), true, country)
+    for (const tag of recorded) assert.equal(matches(`Say Yes To The Dress: ${tag}`), true, `${country} ${tag}`)
+    for (const tag of skipped) {
+      assert.equal(matches(`Say Yes To The Dress: ${tag}`), false, `${country} ${tag}`)
+      assert.equal(matches(`Say Yes To The Dress (${tag})`), false, `${country} (${tag})`)
+      assert.equal(matches(`Say Yes To The Dress: ${tag} Special`), true, `${country} ${tag} Special`)
+    }
+  }
+})
+
+test('the series rule title follows the time zone of the install', () => {
+  const zone = process.env.TZ
+  try {
+    process.env.TZ = 'Europe/London'
+    assert.equal(anchorAutorecTitle('The Chase'), anchorAutorecTitle('The Chase', [], 'uk'))
+    assert.equal(isSameShowTitle({ title: 'The Chase: UK', show: 'The Chase' }), true)
+    process.env.TZ = 'America/New_York'
+    assert.equal(isSameShowTitle({ title: 'The Chase: UK', show: 'The Chase' }), false)
+    assert.equal(isSameShowTitle({ title: 'The Chase (US)', show: 'The Chase' }), true)
+    process.env.TZ = 'Asia/Tokyo'
+    assert.equal(anchorAutorecTitle('The Chase'), '^The Chase( ?[-:(].*)?$')
+  } finally {
+    process.env.TZ = zone
+  }
+})
+
+test('every country form reads back as the same titles and agrees with isSameShowTitle', () => {
+  const subjects = ['Show', 'Show: UK', 'Show (US)', 'Show (USA', 'Show - AU', 'Show:AUS', 'Show: NZ)', 'Show: UKraine', 'Show: Canada', 'Show:', 'Show (2026)', 'Shows', 'Show UK']
+  for (const { country } of COUNTRY_EDITIONS) {
+    const pattern = anchorAutorecTitle('Show', ['Show Two'], country)
+    const anchored = anchoredTitlesOf(pattern)
+    assert.deepEqual(anchored.titles, ['Show', 'Show Two'], country)
+    assert.equal(literalTitleOf(pattern), 'Show', country)
+    assert.equal(literalTitleOf(anchorAutorecTitle('Mr. Bean (1990)?', [], country)), 'Mr. Bean (1990)?', country)
+    assert.doesNotMatch(pattern, /\(\?|\*\?|\+\?|\*\+|\(\||\|\||\|\)|\\[dswb]/i)
+    const regex = new RegExp(pattern, 'i')
+    for (const subject of subjects) {
+      const expected = isSameShowTitle({ title: subject, show: 'Show', excludedTags: anchored.excludedTags })
+      assert.equal(regex.test(subject), expected, `${country} ${subject}`)
+    }
+  }
 })

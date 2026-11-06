@@ -5,6 +5,8 @@ import express from 'express'
 import { setSeriesTitleVariant } from '../src/epg.js'
 import { mountSeriesVariantRoutes } from '../src/series-variant-routes.js'
 
+process.env.TZ = 'Australia/Sydney'
+
 const passThrough = (req, res, next) => next()
 const writes = []
 let rules = []

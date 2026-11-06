@@ -106,9 +106,11 @@ A series recording is one TVHeadend autorec entry (an automatic recording rule i
 
 The title must be the whole show title. A title followed by a colon, a dash, or a bracket also matches, so a series recording of `The Chase` records `The Chase`, `The Chase (Ep 5)`, and `The Chase: Celebrity Special`, but not `The Chase Australia` or `Beat The Chase`.
 
-`UK`, `US`, or `USA` alone after the colon, dash, or bracket marks an edition from another country, so it does not match. A series recording of `Say Yes To The Dress` does not record `Say Yes To The Dress: UK` or `Say Yes To The Dress (US)`. Other places still match, because a subtitle often names a destination, such as `Travel Guides: Canada` or `Escape to the Country: Ireland`. A longer subtitle also matches, such as `Play School: Rainforest Rangers` or `Say Yes To The Dress: UK Special`.
+A short country tag alone after the colon, dash, or bracket marks an edition from another country, so it does not match. The tags are `UK`, `US`, `USA`, `AU`, `AUS`, and `NZ`, less the tags of the country of your time zone (Settings → SYSTEM → [Schedule](/guide/settings#system)). In Australia, a series recording of `Say Yes To The Dress` does not record `Say Yes To The Dress: UK` or `Say Yes To The Dress (US)`. It records `Say Yes To The Dress: NZ`, because Australian and New Zealand channels show each other's editions; the same holds in New Zealand. In the UK, the same series recording records `Say Yes To The Dress: UK` and leaves out `US`, `USA`, `AU`, `AUS`, and `NZ`. In the US, it records `(US)` and `(USA)`. When Freetvarr does not know the country of your time zone, no tag is left out.
 
-TVHeadend reads the title of a series recording as a regular expression that can match anywhere in a longer title. So Freetvarr sends the title as an expression that starts `^The Chase( ?[:(-]`. The rest of the expression lists what can follow the title, without `UK`, `US`, and `USA`. A series recording you made or changed in TVHeadend yourself keeps your title. Versions `2.7.0` and `2.10.0` change the titles of the series recordings Freetvarr made before them, once ([version note](/guide/updating#_2-10-0)).
+Country names in full still match, because a subtitle often names a destination, such as `Travel Guides: Canada` or `Escape to the Country: Ireland`. A longer subtitle also matches, such as `Play School: Rainforest Rangers` or `Say Yes To The Dress: UK Special`.
+
+TVHeadend reads the title of a series recording as a regular expression that can match anywhere in a longer title. So Freetvarr sends the title as an expression that starts `^The Chase( ?[:(-]`. The rest of the expression lists what can follow the title, without the tags it leaves out. When you change the time zone to one in another country, Freetvarr changes the titles of the series recordings it made to match, once. When Freetvarr does not know the country of your time zone, it leaves the titles of existing series recordings as they are. A series recording you made or changed in TVHeadend yourself keeps your title. Versions `2.7.0` and `2.10.0` change the titles of the series recordings Freetvarr made before them, once ([version note](/guide/updating#_2-10-0)).
 
 The same show under a longer name does not match: a series recording of `House of Games` does not record `Richard Osman's House Of Games`. Record that title as its own series. For a title that adds a region or a year, such as `Big Brother Australia` for `Big Brother`, use [Other titles in the guide](#other-titles-in-the-guide). The **Keep the latest** option in [Recording options](/guide/recordings#recording-options) (**Keep** in the programme sheet) maps to the maximum-count field of TVHeadend, so TVHeadend removes the oldest episodes itself.
 
@@ -125,9 +127,11 @@ The same show under a longer name does not match: a series recording of `House o
 
 Some channels list one series under two titles, such as `Big Brother` and `Big Brother Australia`. The open series lists these titles under **Other titles in the guide**, each with its number of airings in the next 7 days. Freetvarr looks for them in the TV guide on the channels of the series recording (all channels with **Any channel**). A title is listed when it is the series title plus one of these words, or the series title without one:
 
-- `Australia`, `AU`, `AUS`, `NZ`, `New Zealand`, or `Aotearoa`
+- a name or tag of the country of your time zone; in Australia and New Zealand, `Australia`, `AU`, `AUS`, `NZ`, `New Zealand`, or `Aotearoa`
 - `Encore`
 - a year, such as `2026`
+
+In other countries the words are `UK` or `Britain` in the UK, `US`, `USA`, or `America` in the US, `Canada` in Canada, and `Ireland` in Ireland. Elsewhere they are the English name of the country and its two-letter code, such as `Germany` or `DE`. A country code, such as `US` or `DE`, counts only in capitals, so `Fool Us` is not another title for `Fool`. A country name counts in any case. When Freetvarr does not know the country of your time zone, only `Encore` and a year count.
 
 Each title is off at first, because the same words can name a different edition. On the same channel, `The Chase` and `The Chase Australia` are different shows, and so are `Tipping Point` and `Tipping Point Australia`.
 

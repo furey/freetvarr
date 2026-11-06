@@ -1,10 +1,14 @@
+import { excludedEditionTagsOf, installCountry, knownEditionTagSets } from './title-countries.js'
+
 export const escapeAutorecTitle = (title) => String(title ?? '').replace(REGEX_SYNTAX, '\\$&')
 
-export const anchorAutorecTitle = (title, variants = []) => {
+export const anchorAutorecTitle = (title, variants = [], country = installCountry()) => {
   const titles = distinctTitlesOf([title, ...variants])
   const body = titles.length === 1 ? escapeAutorecTitle(titles[0]) : `(${titles.map(escapeAutorecTitle).join('|')})`
-  return `^${body}${SAME_SHOW_SUFFIX}`
+  return `^${body}${sameShowSuffixOf(country)}`
 }
+
+export const sameShowSuffixOf = (country = installCountry()) => suffixOfTags(excludedEditionTagsOf(country))
 
 export const literalTitleOf = (pattern) => anchoredLiteralOf(pattern) ?? plainLiteralOf(pattern)
 
@@ -12,22 +16,46 @@ export const anchoredLiteralOf = (pattern) => anchoredTitlesOf(pattern)?.titles[
 
 export const anchoredTitlesOf = (pattern) => {
   const source = String(pattern ?? '')
-  const suffix = [SAME_SHOW_SUFFIX, FOREIGN_EDITIONS_SUFFIX].find((candidate) => source.endsWith(candidate))
-  if (!source.startsWith('^') || !suffix) return null
-  const foreignEditions = suffix === FOREIGN_EDITIONS_SUFFIX
-  const titles = titlesOfBody({ body: source.slice(1, -suffix.length), variantsAllowed: !foreignEditions })
-  return titles ? { titles, foreignEditions } : null
+  const known = knownSuffixes().find(({ suffix }) => source.endsWith(suffix))
+  if (!source.startsWith('^') || !known) return null
+  const titles = titlesOfBody({ body: source.slice(1, -known.suffix.length), variantsAllowed: !known.legacy })
+  return titles ? { titles, excludedTags: known.tags } : null
 }
 
-export const isCurrentAnchor = (pattern) => anchoredTitlesOf(pattern)?.foreignEditions === false
+export const isCurrentAnchor = (pattern, country = installCountry()) =>
+  String(pattern ?? '').endsWith(sameShowSuffixOf(country)) && Boolean(anchoredTitlesOf(pattern))
 
-export const isSameShowTitle = ({ title, show, foreignEditions = false }) => {
+export const isSameShowTitle = ({ title, show, excludedTags = excludedEditionTagsOf() }) => {
   const text = String(title ?? '').toLowerCase()
   const wanted = String(show ?? '').toLowerCase()
   if (!wanted || !text.startsWith(wanted)) return false
   const rest = SAME_SHOW_REST.exec(text.slice(wanted.length))
   if (!rest) return false
-  return foreignEditions || rest[1] == null || !FOREIGN_EDITION_REST.test(rest[1])
+  return rest[1] == null || !excludedTags.length || !editionRestOf(excludedTags).test(rest[1])
+}
+
+const suffixOfTags = (tags) => {
+  const key = tags.join('|')
+  if (!suffixes.has(key)) {
+    suffixes.set(key, tags.length ? `( ?[:(-]${notAnyOfPattern(editionFormsOf(tags))})?$` : ANY_REST_SUFFIX)
+  }
+  return suffixes.get(key)
+}
+
+const knownSuffixes = () => {
+  known ??= [
+    ...knownEditionTagSets().map((tags) => ({ tags, suffix: suffixOfTags(tags), legacy: false })),
+    { tags: [], suffix: LEGACY_SUFFIX, legacy: true },
+  ].sort((a, b) => b.suffix.length - a.suffix.length)
+  return known
+}
+
+const editionFormsOf = (tags) => tags.flatMap((tag) => [tag, `${tag})`, ` ${tag}`, ` ${tag})`])
+
+const editionRestOf = (tags) => {
+  const key = tags.join('|')
+  if (!editionRests.has(key)) editionRests.set(key, new RegExp(`^ ?(${key})\\)?$`, 'i'))
+  return editionRests.get(key)
 }
 
 const distinctTitlesOf = (titles) => {
@@ -124,8 +152,8 @@ const matcherOf = (title) => {
 const buildMatcher = (title) => {
   const anchored = anchoredTitlesOf(title)
   if (anchored) {
-    const { titles, foreignEditions } = anchored
-    return (text) => titles.some((show) => isSameShowTitle({ title: text, show, foreignEditions }))
+    const { titles, excludedTags } = anchored
+    return (text) => titles.some((show) => isSameShowTitle({ title: text, show, excludedTags }))
   }
   const literal = plainLiteralOf(title)
   if (literal != null) {
@@ -250,6 +278,9 @@ const minutesOfClock = (value) => {
 const isSet = (value) => Array.isArray(value) ? value.length > 0 : Boolean(value) && value !== '0'
 
 const compiled = new Map()
+const suffixes = new Map()
+const editionRests = new Map()
+let known = null
 
 const notAnyOfPattern = (words) => {
   const root = { children: new Map(), terminal: false }
@@ -278,14 +309,11 @@ const bothCasesOf = (char) => (char.toLowerCase() === char ? char : `${char}${ch
 
 const literalOf = (char) => (REGEX_SYNTAX_CHARS.includes(char) ? `\\${char}` : char)
 
-const FOREIGN_EDITION_TAGS = ['UK', 'US', 'USA']
-const FOREIGN_EDITION_FORMS = FOREIGN_EDITION_TAGS.flatMap((tag) => [tag, `${tag})`, ` ${tag}`, ` ${tag})`])
-const FOREIGN_EDITION_REST = new RegExp(`^ ?(${FOREIGN_EDITION_TAGS.join('|')})\\)?$`, 'i')
-const FOREIGN_EDITIONS_SUFFIX = '( ?[:(-].*)?$'
+const ANY_REST_SUFFIX = '( ?[-:(].*)?$'
+const LEGACY_SUFFIX = '( ?[:(-].*)?$'
 const SAME_SHOW_REST = /^(?: ?[:(-](.*))?$/s
 const REGEX_SYNTAX_CHARS = '.*+?^${}()|[]\\'
 const REGEX_SYNTAX = /[.*+?^${}()|[\]\\]/g
-export const SAME_SHOW_SUFFIX = `( ?[:(-]${notAnyOfPattern(FOREIGN_EDITION_FORMS)})?$`
 const MAX_PATTERN_LENGTH = 200
 const MAX_MATCHED_TEXT_LENGTH = 500
 const MAX_MATCH_STEPS = 1_000_000

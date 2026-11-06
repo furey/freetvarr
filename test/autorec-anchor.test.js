@@ -7,17 +7,20 @@ import path from 'node:path'
 
 const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-autorec-anchor-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
+process.env.TZ = 'Australia/Sydney'
 
 const {
+  AUTOREC_ANCHOR_2_10_DONE_KEY,
   AUTOREC_ANCHOR_DONE_KEY,
   anchorPlanOf,
   readAnchorFailures,
   runAutorecAnchorOnce,
 } = await import('../src/autorec-anchor.js')
-const { SAME_SHOW_SUFFIX, anchorAutorecTitle, autorecMatchFieldsOf, autorecMatchesAiring } = await import('../src/autorec-match.js')
-const { db, getSetting } = await import('../src/db.js')
+const { sameShowSuffixOf, anchorAutorecTitle, autorecMatchFieldsOf, autorecMatchesAiring } = await import('../src/autorec-match.js')
+const { db, getSetting, setSetting } = await import('../src/db.js')
 
 const LEGACY_SUFFIX = '( ?[:(-].*)?$'
+const SAME_SHOW_SUFFIX = sameShowSuffixOf('au')
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/tvh/${name}.json`, import.meta.url), 'utf8'))
 const LIVE_RULES = fixture('live-autorec-grid')
@@ -215,4 +218,65 @@ test('runAutorecAnchorOnce: re-anchors rules from 2.9.0 once, then a second run 
   await db('settings').del()
   assert.deepEqual(await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn } }), { changed: 0, failed: [] })
   assert.equal(tvh.saves.length, 1)
+})
+
+test('runAutorecAnchorOnce: a new install country re-anchors Freetvarr rules once and leaves hand-edited rules alone', async () => {
+  const entries = [
+    { uuid: 'dress', name: 'Say Yes To The Dress', title: anchorAutorecTitle('Say Yes To The Dress', [], 'au'), comment: 'freetvarr' },
+    { uuid: 'bb', name: 'Big Brother', title: anchorAutorecTitle('Big Brother', ['Big Brother Australia'], 'au'), comment: 'freetvarr' },
+    { uuid: 'own', name: 'Hard Quiz', title: 'Hard Quiz|Hard Quiz Kids', comment: 'freetvarr' },
+    { uuid: 'user', name: 'Bluey', title: anchorAutorecTitle('Bluey', [], 'au'), comment: '' },
+  ]
+  const tvh = fakeTvh({ autorecs: { entries }, upcoming: { entries: [] } })
+  const { log, warn } = quietLog()
+  const run = (country) => runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn }, loadVariants: async () => new Map(), country })
+  assert.deepEqual(await run('au'), { changed: 0, failed: [] })
+  assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), 'au')
+  assert.equal(await run('au'), null)
+  assert.deepEqual(await run('uk'), { changed: 2, failed: [] })
+  assert.deepEqual(tvh.saves.map(({ node }) => [node.uuid, node.title]), [
+    ['dress', anchorAutorecTitle('Say Yes To The Dress', [], 'uk')],
+    ['bb', anchorAutorecTitle('Big Brother', ['Big Brother Australia'], 'uk')],
+  ])
+  assert.equal(await run('uk'), null)
+  assert.deepEqual(await run('au'), { changed: 2, failed: [] })
+  assert.deepEqual(tvh.saves.slice(-2).map(({ node }) => node.title), [entries[0].title, entries[1].title])
+  assert.equal(tvh.saves.length, 4)
+})
+
+test('runAutorecAnchorOnce: an unknown country reads nothing, changes nothing, and stores no mark', async () => {
+  const read = async () => assert.fail('no read')
+  assert.equal(await runAutorecAnchorOnce({ read, write: async () => assert.fail('no save'), log: quietLog(), country: '' }), null)
+  assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), null)
+})
+
+test('runAutorecAnchorOnce: an Australian or New Zealand install that ran the 2.10.0 change stores the mark without a run', async () => {
+  for (const country of ['au', 'nz']) {
+    await db('settings').del()
+    await setSetting(AUTOREC_ANCHOR_2_10_DONE_KEY, '2026-11-01T00:00:00.000Z')
+    const read = async () => assert.fail('no read')
+    assert.equal(await runAutorecAnchorOnce({ read, write: async () => assert.fail('no save'), log: quietLog(), country }), null)
+    assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), country)
+  }
+  await db('settings').del()
+  await setSetting(AUTOREC_ANCHOR_2_10_DONE_KEY, '2026-11-01T00:00:00.000Z')
+  const entries = [{ uuid: 'dress', name: 'Say Yes To The Dress', title: anchorAutorecTitle('Say Yes To The Dress', [], 'au'), comment: 'freetvarr' }]
+  const tvh = fakeTvh({ autorecs: { entries }, upcoming: { entries: [] } })
+  const { log, warn } = quietLog()
+  assert.deepEqual(await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn }, loadVariants: async () => new Map(), country: 'uk' }), { changed: 1, failed: [] })
+})
+
+test('runAutorecAnchorOnce: a country change during a run starts one more run after it', async () => {
+  const entries = [{ uuid: 'dress', name: 'Say Yes To The Dress', title: anchorAutorecTitle('Say Yes To The Dress', [], 'au'), comment: 'freetvarr' }]
+  const tvh = fakeTvh({ autorecs: { entries }, upcoming: { entries: [] } })
+  const { log, warn } = quietLog()
+  const run = (country) => runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn }, loadVariants: async () => new Map(), country })
+  const first = run('au')
+  const again = run('au')
+  const second = run('uk')
+  assert.equal(again, first)
+  assert.deepEqual(await first, { changed: 0, failed: [] })
+  assert.deepEqual(await second, { changed: 1, failed: [] })
+  assert.deepEqual(tvh.saves.map(({ node }) => node.title), [anchorAutorecTitle('Say Yes To The Dress', [], 'uk')])
+  assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), 'uk')
 })
