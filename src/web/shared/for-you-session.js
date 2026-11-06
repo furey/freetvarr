@@ -17,12 +17,22 @@ import {
   liveChannelOfItem,
   shownBatchesOf,
   tapActionOf,
+  themeBoostedToastOf,
+  themeFeedbackOf,
+  themeHiddenKeyOf,
+  themeMutedToastOf,
   thumbToggleOf,
 } from '/for-you.js'
 
 export const forYouHidden = ref(new Set())
 
-export const forYouHiddenKeys = computed(() => new Set([...forYouHidden.value, ...kindPendingKeys.value]))
+export const forYouMutedThemes = ref(new Set())
+
+export const forYouHiddenKeys = computed(() => new Set([
+  ...forYouHidden.value,
+  ...kindPendingKeys.value,
+  ...[...forYouMutedThemes.value].map(themeHiddenKeyOf),
+]))
 
 const READY_KEY = 'freetvarr.forYouRail'
 
@@ -120,8 +130,11 @@ export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }
 
 export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
 
+export const unmuteTheme = (themeKey) => api('DELETE', `/api/for-you/themes/${encodeURIComponent(themeKey)}/mute`)
+
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
+  const rowTheme = ref(null)
   const why = reactive({ item: null, data: null, loading: false, failed: false })
   const thumbs = ref({})
 
@@ -157,6 +170,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     'thumb-up': (item) => toggleThumb(item, 'up'),
     'thumb-down': (item) => toggleThumb(item, 'down'),
     'not-interested': (item) => hide(item),
+    'fewer-theme': (item) => muteTheme(item.theme),
     'movie-kind': (item) => changeMovieKind(item),
     why: (item) => openWhy(item),
   }
@@ -200,6 +214,46 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     onChanged()
   }
 
+  const openRowMenu = (theme) => { rowTheme.value = theme }
+
+  const closeRowMenu = () => { rowTheme.value = null }
+
+  const ROW_ACTIONS = {
+    'boost-theme': (theme) => boostTheme(theme),
+    'mute-theme': (theme) => muteTheme(theme),
+  }
+
+  const chooseRow = (key) => {
+    const theme = rowTheme.value
+    closeRowMenu()
+    if (theme) ROW_ACTIONS[key]?.(theme)
+  }
+
+  const boostTheme = async (theme) => {
+    await sendFeedback(themeFeedbackOf({ kind: 'theme_boosted', theme, source }))
+    toast({ text: themeBoostedToastOf(theme), action: { label: 'Undo', run: () => undoBoostTheme(theme) } })
+    onChanged()
+  }
+
+  const undoBoostTheme = async (theme) => {
+    await sendFeedback(themeFeedbackOf({ kind: 'theme_unboosted', theme, source }))
+    onChanged()
+  }
+
+  const muteTheme = (theme) => {
+    if (!theme?.key) return
+    closeWhy()
+    forYouMutedThemes.value = new Set([...forYouMutedThemes.value, theme.key])
+    sendFeedback(themeFeedbackOf({ kind: 'theme_muted', theme, source }))
+    toast({ text: themeMutedToastOf(theme), action: { label: 'Undo', run: () => undoMuteTheme(theme) } })
+  }
+
+  const undoMuteTheme = async (theme) => {
+    forYouMutedThemes.value = new Set([...forYouMutedThemes.value].filter((key) => key !== theme.key))
+    await sendFeedback(themeFeedbackOf({ kind: 'theme_unmuted', theme, source }))
+    onChanged()
+  }
+
   const changeMovieKind = (item) => {
     closeWhy()
     return changeProgrammeKind({ showKey: identityOf(item), title: item.title, kind: item.movieChoice })
@@ -238,7 +292,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     why.item = null
   }
 
-  return { menuItem, why, openItem, openMenu, closeMenu, choose, thumbOf, closeWhy, undoHide, isScheduled }
+  return { menuItem, rowTheme, why, openItem, openMenu, closeMenu, openRowMenu, closeRowMenu, chooseRow, choose, thumbOf, closeWhy, undoHide, isScheduled }
 }
 
 const playReady = async (item) => {

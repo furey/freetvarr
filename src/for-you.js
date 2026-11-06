@@ -32,6 +32,25 @@ import {
   unitVectorOf,
 } from './for-you-similarity.js'
 import { embedTextOf, textHashOf } from './for-you-texts.js'
+import {
+  SPORT_ROW_KEY,
+  SPORT_ROW_TITLE,
+  createThemeIndex,
+  dedupeThemeRow,
+  householdEpisodesOf,
+  householdThemesOf,
+  rankSportCandidates,
+  rankThemeCandidates,
+  selectSportCodes,
+  selectThemeGroups,
+  tagsForTitles,
+  sportAiringKindOf,
+  themeChoicesOf,
+  themeSectionKeyOf,
+  titleFactsOf,
+} from './for-you-themes.js'
+import { classificationTitleKey } from './classification-labels.js'
+import { countryForTimeZone } from './zone-countries.js'
 import { msOf } from './user-events.js'
 import {
   PRIOR_SCORE,
@@ -84,6 +103,8 @@ export const buildForYou = ({
   autorecs = [],
   seriesRatings = new Map(),
   timeZone = localTimeZone(),
+  guideCategories = new Map(),
+  themesOff = [],
 }) => {
   const listedChannels = channelPrefs ? orderChannels({ channels, ...channelPrefs }) : channels
   const candidates = programmes.filter((programme) => isCandidateAiring({ programme, nowMs, horizonMs }))
@@ -132,12 +153,16 @@ export const buildForYou = ({
     tonight: tonightMoviesOf({ choices, scored, context }),
     topRatedSeries: topRatedSeriesOf({ choices, context }),
   }
-  const sections = coldStart
+  const baseSections = coldStart
     ? coldStartSections({ items: best, topRated, rows, limit, otherLimit })
     : sectionsOf({ items: best, topRated, rows, limit, nowMs, genreShares: context.genreShares, otherLimit })
+  const themes = coldStart
+    ? { sections: [] }
+    : themeSectionsOf({ allowed, upcoming, history, recordings, events, keyOf, records, scored: best, context, vectorsByHash, tier, guideCategories, themesOff, limit, used: usedKeysOf(baseSections), usedIds: usedIdsOf(baseSections) })
+  const sections = withThemeSections({ sections: baseSections, themeSections: themes.sections })
   const explanations = new Map(scored.map((entry) => [entry.item.id, explanationOf({ entry, context })]))
   for (const section of sections) {
-    const explain = ROW_EXPLANATIONS[section.key]
+    const explain = ROW_EXPLANATIONS[section.key] || section.explain
     if (!explain) continue
     for (const entry of section.entries) explanations.set(entry.item.id, explain({ entry, known: explanations.get(entry.item.id) }))
   }
@@ -148,14 +173,60 @@ export const buildForYou = ({
     similarity: context.similarity.method,
     generatedAt: nowMs,
     topPick: topPickOf(sections),
-    sections: sections.map(({ key, entries }) => ({
+    sections: sections.map(({ key, title, theme, entries }) => ({
       key,
-      title: SECTION_TITLES[key],
+      title: title ?? SECTION_TITLES[key],
+      ...(theme && { theme }),
       ...(key === 'top-rated-series' && { credit: TVMAZE_CREDIT }),
       items: entries.map((entry) => entry.item),
     })),
     explanations,
   }
+}
+
+export const themeSectionsOf = ({ allowed, upcoming, history = [], recordings = [], events = [], keyOf: resolveKey, records = new Map(), scored = [], context, vectorsByHash = null, tier = 'basic', guideCategories = new Map(), themesOff = [], limit = DEFAULT_LIMIT, used = new Set(), usedIds = new Set() }) => {
+  const index = createThemeIndex({ country: countryForTimeZone(context.timeZone) })
+  const keyOf = rememberedKeys(resolveKey)
+  const isFilm = (programme) => programme.kind === 'movie' || context.categoriesOf(programme).includes('movie')
+  const titles = titleFactsOf({
+    programmes: [...history, ...upcoming],
+    recordings,
+    keyOf,
+    categoriesOf: context.categoriesOf,
+    recordOf: (key) => records.get(key),
+    channelNames: context.channelNames,
+    guideCategoriesOf: (title) => guideCategories.get(classificationTitleKey(title)) || [],
+    isFilm,
+    hourOf: context.hourOf,
+  })
+  const tagsByKey = tagsForTitles({ index, titles, vectorsByHash: tier === 'basic' ? null : vectorsByHash })
+  const programmeAt = programmeLookupOf([...history, ...upcoming])
+  const weights = householdEpisodesOf({ events, recordings, keyOf, programmeAt, nowMs: context.nowMs })
+  const { mutes, boosts } = themeChoicesOf(events)
+  const household = householdThemesOf({ index, weights, tagsByKey, mutes, boosts, off: new Set(themesOff), nowMs: context.nowMs })
+  const candidates = themeCandidatesOf({ allowed, keyOf, tagsByKey, isFilm, scored })
+  const itemCounts = new Map([...candidates].map(([group, byKey]) => [group, byKey.size]))
+  const rowLimit = Math.min(limit, ROW_LIMIT)
+  const taken = new Set(used)
+  const sections = []
+  for (const entry of selectThemeGroups({ household, itemCounts })) {
+    const ranked = rankThemeCandidates({ candidates: [...candidates.get(entry.group).values()], entry })
+    const picked = dedupeThemeRow({ ranked, used: taken, limit: rowLimit })
+    if (!picked.length) continue
+    for (const candidate of picked) taken.add(candidate.key)
+    sections.push(themeSectionOf({ group: entry.group, info: entry.info, picked, share: entry.share, index, context }))
+  }
+  const codes = selectSportCodes({ household, itemCounts })
+  if (codes.length) {
+    const group = codes.length === 1 ? codes[0].group : SPORT_ROW_KEY
+    const info = codes.length === 1 ? codes[0].info : { title: SPORT_ROW_TITLE, phrase: 'sport', row: 'sport', menuTitle: 'Sport' }
+    const pooled = new Map(codes.flatMap((code) => [...candidates.get(code.group).values()]).map((candidate) => [candidate.programme.program_id, candidate]))
+    const takenIds = new Set([...usedIds, ...sections.flatMap((section) => section.entries.map((entry) => entry.item.id))])
+    const picked = dedupeThemeRow({ ranked: rankSportCandidates([...pooled.values()]), used: takenIds, limit: rowLimit, keyOf: (candidate) => String(candidate.programme.program_id) })
+    const share = codes.reduce((sum, code) => sum + code.share, 0)
+    if (picked.length) sections.push(themeSectionOf({ group, info, picked, share, index, context, sport: true }))
+  }
+  return { sections, household, tagsByKey }
 }
 
 export const isInfomercial = ({ title = '', synopsis = '' }) => INFOMERCIAL_TITLE.test(String(title).trim())
@@ -777,6 +848,102 @@ const bestAiringPerShow = (scored) => {
   return [...byKey.values()].sort((a, b) => b.score - a.score || a.item.start - b.item.start)
 }
 
+const themeCandidatesOf = ({ allowed, keyOf, tagsByKey, isFilm, scored }) => {
+  const preferred = new Map(scored.map((entry) => [entry.key, entry]))
+  const groups = new Map()
+  for (const programme of allowed) {
+    const tags = tagsByKey.get(keyOf(programme.title))
+    if (!tags?.entries.length || isFilm(programme)) continue
+    const key = showKeyOf(programme.title)
+    const best = preferred.get(key)
+    if (best?.liked && tags.kind !== 'sport') continue
+    const candidate = {
+      key,
+      programme,
+      start: Number(programme.start),
+      score: best?.score || 0,
+      kind: best?.item.kind,
+      preferred: best?.item.id === String(programme.program_id),
+      sportKind: sportAiringKindOf({ title: programme.title, episodeTitle: programme.episode_title, synopsis: programme.synopsis }),
+    }
+    for (const entry of tags.entries) {
+      if (!entry.member) continue
+      if (!groups.has(entry.group)) groups.set(entry.group, new Map())
+      const byKey = groups.get(entry.group)
+      const slot = entry.category === 'sport' ? `${key}|${programme.program_id}` : key
+      const known = byKey.get(slot)
+      if (known && !isBetterAiring({ candidate, known })) continue
+      byKey.set(slot, { ...candidate, subtheme: entry.subtheme })
+    }
+  }
+  return groups
+}
+
+const isBetterAiring = ({ candidate, known }) => {
+  if (candidate.preferred !== known.preferred) return candidate.preferred
+  const pictured = Boolean(candidate.programme.image)
+  if (pictured !== Boolean(known.programme.image)) return pictured
+  return candidate.start < known.start
+}
+
+const themeSectionOf = ({ group, info, picked, share, index, context, sport = false }) => {
+  const theme = { key: group, title: info.menuTitle ?? info.title, phrase: info.phrase, ...(sport && { sport: true }) }
+  const percent = Math.max(1, Math.round(share * 100))
+  return {
+    key: themeSectionKeyOf(group),
+    title: info.title,
+    theme,
+    explain: ({ entry }) => ({
+      title: entry.item.title,
+      reasons: [{ text: `Matches the ${info.phrase} shows you watch and record`, weight: 1 }],
+      signals: [
+        `${info.title} is ${percent}% of what you watched and recorded`,
+        ...(entry.subthemeTitle ? [`Closest match: ${entry.subthemeTitle}`] : []),
+      ],
+    }),
+    entries: picked.map((candidate) => {
+      const subthemeTitle = sport ? null : subthemeTitleOf({ index, candidate, info })
+      const categories = context.categoriesOf(candidate.programme)
+      return {
+        key: candidate.key,
+        subthemeTitle,
+        item: {
+          ...airingItemOf({ programme: candidate.programme, context, movie: false, categories, kind: candidate.kind || 'theme', reason: subthemeTitle || '', score: candidate.score }),
+          theme,
+        },
+      }
+    }),
+  }
+}
+
+const subthemeTitleOf = ({ index, candidate, info }) => {
+  const title = index.subthemes.get(candidate.subtheme)?.title
+  return title && title !== info.title ? title : null
+}
+
+const programmeLookupOf = (programmes) => {
+  const byAiring = new Map(programmes.map((programme) => [`${programme.channel_id}|${programme.start}`, programme]))
+  return ({ channelId, start }) => byAiring.get(`${channelId}|${start}`) || null
+}
+
+const rememberedKeys = (keyOf) => {
+  const known = new Map()
+  return (title) => {
+    if (!known.has(title)) known.set(title, keyOf(title))
+    return known.get(title)
+  }
+}
+
+const usedIdsOf = (sections) => new Set(sections.flatMap((section) => section.entries.map((entry) => entry.item.id)))
+
+const usedKeysOf = (sections) => new Set(sections.flatMap((section) => section.entries.map((entry) => entry.key)))
+
+const withThemeSections = ({ sections, themeSections }) => {
+  if (!themeSections.length) return sections
+  const index = sections.findLastIndex((section) => THEMES_AFTER.includes(section.key)) + 1
+  return [...sections.slice(0, index), ...themeSections, ...sections.slice(index)]
+}
+
 const sectionsOf = ({ items, topRated, rows, limit, nowMs, genreShares, otherLimit }) => {
   const used = new Set()
   const take = (entries) => {
@@ -966,6 +1133,7 @@ const W = {
 }
 
 const SIMILAR_REASON_RATIO = 0.5
+const THEMES_AFTER = ['ready-to-watch', 'finish-started', 'coming-up', 'new-seasons', 'tonight-movies', 'might-like']
 const LEADING_FEATURES = new Set(['new-season', 'back'])
 const REASON_FEATURES = new Set(['affinity', 'new-season', 'back', 'premiere', 'habit', 'genre', 'similar', 'pinned', 'prime'])
 const LIKED = 0.25
