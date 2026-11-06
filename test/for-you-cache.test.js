@@ -5,7 +5,7 @@ import path from 'node:path'
 
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-cache-${process.pid}.db`)
 
-const { SCORING_VERSION, createForYouCache, createForYouWorker, createSavedResultStore, forYouSignatureOf, guideVersionOf, snapshotStampsOf } = await import('../src/for-you-service.js')
+const { SCORING_VERSION, createForYouCache, forYouIdsOf, createForYouWorker, createSavedResultStore, forYouSignatureOf, guideVersionOf, snapshotStampsOf } = await import('../src/for-you-service.js')
 const { buildForYouFromRequest } = await import('../src/for-you-worker.js')
 const { buildForYou } = await import('../src/for-you.js')
 
@@ -420,4 +420,17 @@ test('a time zone change restarts the For you worker before the next build', asy
   assert.equal(made[0].terminated, true)
   made[1].emit('message', { id: 2, result: 'sydney' })
   assert.deepEqual(await second, { result: 'sydney' })
+})
+
+test('forYouIdsOf: collects the top pick and every section item, and tolerates no result', () => {
+  const result = { topPick: { id: 7 }, sections: [{ items: [{ id: 8 }, { id: '9' }] }, { items: [] }] }
+  assert.deepEqual([...forYouIdsOf(result)].sort(), ['7', '8', '9'])
+  assert.equal(forYouIdsOf(null).size, 0)
+})
+
+test('createForYouCache: peek reads the cached result without computing', async () => {
+  const cache = createForYouCache({ loadSnapshot: async () => ({ stamps: {} }), compute: async () => ({ topPick: null, sections: [] }) })
+  assert.equal(cache.peek(), null)
+  await cache.get({ nowMs: 0 })
+  assert.deepEqual(cache.peek(), { topPick: null, sections: [] })
 })

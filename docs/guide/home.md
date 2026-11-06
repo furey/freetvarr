@@ -102,10 +102,17 @@ When something Freetvarr needs is broken, such as TVHeadend not answering or the
 
 ## Search
 
-Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in two groups, then a watchlist offer:
+Press **Search** in any page header, then type at least two letters. Search covers your recordings, your series rules, and the next 7 days of the TV guide. The results come in groups, then a watchlist offer. A group with no results does not show.
 
-- **IN RECORDINGS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
-- **IN THE TV GUIDE**: programmes in the next 7 days, best match first. Press one to open its programme sheet.
+- **SCHEDULED**: programmes in the next 7 days that Freetvarr will record. Each row says whether the recording is a one-off or part of a series. Press one to open its programme sheet.
+- **SERIES**: programmes in the next 7 days that one of your series rules matches.
+- **RECORDINGS**: shows you have recorded or have a series rule for. Press one to open its [show page](/guide/recordings#show-pages).
+- **FOR YOU**: programmes in the next 7 days that appear on [For you](/guide/for-you).
+- **TV GUIDE**: every other programme in the next 7 days, best match first.
+
+Each group shows 5 results. Press **Show all** at the end of a group to list the rest in place. Press `↓` or `↑` to move between results, across groups, and press `Enter` to open the first result once **Searching…** has gone.
+
+The search ignores a leading “the”, so `the chase` and `chase` find the same shows.
 
 When nothing in the next 7 days matches, the results end with **Add “title” to watchlist** under **NOT IN THE NEXT 7 DAYS**. Press it to list the show under **WATCHLIST** in Scheduled, or to record it when it is in the TV guide. See [Watchlist](/guide/tv-guide#watchlist).
 

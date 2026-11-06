@@ -18,21 +18,55 @@ export const searchShowsOf = ({ index, query, limit = MAX_SHOW_RESULTS }) => sea
     reason,
   }))
 
-export const guideRowsOf = ({ results = [], query, whenOf }) => {
+export const guideRowsOf = ({ results = [], query, whenOf, stateTextOf = () => '' }) => {
   const notedShows = new Set()
   return results.map((programme) => {
     const showKey = showKeyOf(programme.title)
     const note = notedShows.has(showKey) ? '' : matchNoteOf({ ...programme, query })
     notedShows.add(showKey)
+    const group = programme.group || 'guide'
+    const stateText = STATE_TEXT_GROUPS.has(group) ? stateTextOf(programme) : ''
     return {
       key: `${programme.channelId}:${programme.start}`,
+      group,
       title: programme.title,
       episode: episodeLineOf(programme),
-      meta: [note, whenOf(programme.start), programme.channelName].filter(Boolean).join(' · '),
+      meta: [stateText, note, whenOf(programme.start), programme.channelName].filter(Boolean).join(' · '),
       programme,
     }
   })
 }
+
+export const searchGroupsOf = ({ shows = [], programmes = [], expanded = new Set(), limit = GROUP_ROW_LIMIT }) => {
+  const rowsByGroup = new Map([['recordings', shows.map((show) => ({ ...show, kind: 'show' }))]])
+  for (const programme of programmes) {
+    const rows = rowsByGroup.get(programme.group) || []
+    rowsByGroup.set(programme.group, [...rows, { ...programme, kind: 'programme' }])
+  }
+  return GROUP_ORDER
+    .filter((key) => rowsByGroup.get(key)?.length)
+    .map((key) => {
+      const rows = rowsByGroup.get(key)
+      const isCapped = rows.length > limit && !expanded.has(key)
+      const label = SEARCH_GROUP_LABELS[key]
+      const isTotalKnown = key === 'recordings' ? shows.length < MAX_SHOW_RESULTS : programmes.length < MAX_GUIDE_RESULTS
+      return {
+        key,
+        label,
+        rows: isCapped ? rows.slice(0, limit) : rows,
+        total: rows.length,
+        isCapped,
+        ...showAllLabelsOf({ label, total: rows.length, isTotalKnown }),
+      }
+    })
+}
+
+export const showAllLabelsOf = ({ label, total, isTotalKnown }) => ({
+  showAllText: isTotalKnown ? `Show all ${total}` : 'Show all',
+  showAllLabel: isTotalKnown ? `Show all ${total} in ${label}` : `Show all in ${label}`,
+})
+
+export const remainingBusyMs = ({ startedAt, nowMs, minimum = MIN_SEARCHING_MS }) => Math.max(0, minimum - (nowMs - startedAt))
 
 export const episodeLineOf = ({ title, series_no: seriesNo, episode_no: episodeNo, episode_title: episodeTitle }) => episodeMetaParts({
   seriesNo: seriesNo ?? null,
@@ -73,6 +107,12 @@ const showMetaOf = ({ recordingCount, hasRule }) => [
   hasRule && 'Series rule',
 ].filter(Boolean).join(' · ')
 
+const SEARCH_GROUP_LABELS = { scheduled: 'Scheduled', series: 'Series', recordings: 'Recordings', 'for-you': 'For you', guide: 'TV guide' }
+const GROUP_ORDER = ['scheduled', 'series', 'recordings', 'for-you', 'guide']
+const STATE_TEXT_GROUPS = new Set(['scheduled', 'series'])
+export const GROUP_ROW_LIMIT = 5
+const MIN_SEARCHING_MS = 800
 const ALIAS_REASONS = new Set(['alias', 'yours', 'known-as'])
 
-const MAX_SHOW_RESULTS = 8
+export const MAX_SHOW_RESULTS = 8
+export const MAX_GUIDE_RESULTS = 30

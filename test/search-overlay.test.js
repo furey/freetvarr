@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { createHistoryEntries, createOverlayLayer, createOverlayStack } from '../src/web/overlay-stack.js'
-import { guideSearchOutcomeOf } from '../src/web/search-results.js'
+import { readFileSync } from 'node:fs'
+import { guideSearchOutcomeOf, remainingBusyMs } from '../src/web/search-results.js'
 import { OFFLINE_MESSAGE } from '../src/web/shared/request-errors.js'
 import { watchForOfferOf } from '../src/web/watch-for.js'
 
@@ -74,4 +75,30 @@ test('guideSearchOutcomeOf: offline shows the offline message alone, and a good 
   assert.equal(offline.failure, OFFLINE_MESSAGE)
   assert.deepEqual(await guideSearchOutcomeOf(async () => ({ results: [{ title: 'Utopia' }] })), { results: [{ title: 'Utopia' }], failure: '' })
   assert.deepEqual(await guideSearchOutcomeOf(async () => ({ results: null })), { results: [], failure: '' })
+})
+
+test('remainingBusyMs: a Searching state holds for 0.8 s, then ends at once', () => {
+  assert.equal(remainingBusyMs({ startedAt: 1000, nowMs: 1100 }), 700)
+  assert.equal(remainingBusyMs({ startedAt: 1000, nowMs: 1800 }), 0)
+  assert.equal(remainingBusyMs({ startedAt: 1000, nowMs: 9000 }), 0)
+})
+
+const overlaySource = readFileSync(new URL('../src/web/components/search-overlay.js', import.meta.url), 'utf8')
+
+const blockFrom = (marker) => {
+  const rest = overlaySource.slice(overlaySource.indexOf(marker))
+  return rest.slice(0, rest.indexOf('\n    }'))
+}
+
+test('search overlay: a new query collapses every expanded group', () => {
+  assert.match(blockFrom('watch(query, (text) => {'), /expandedGroups\.value = new Set\(\)/)
+})
+
+test('search overlay: Enter opens nothing while a search is running', () => {
+  assert.match(blockFrom('const openFirstResult'), /if \(searching\.value\) return[\s\S]*\.click\(\)/)
+})
+
+test('search overlay: Show all moves focus to the first row it reveals and names its group for screen readers', () => {
+  assert.match(blockFrom('const expand = async'), /await nextTick\(\)[\s\S]*\[GROUP_ROW_LIMIT\]\?\.focus\(\)/)
+  assert.match(overlaySource, /:aria-label="group\.showAllLabel"/)
 })

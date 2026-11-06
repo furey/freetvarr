@@ -2,6 +2,7 @@ import fs from 'fs/promises'
 
 import { getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
+import { scheduledByProgramIdOf, seriesLinkSetOf } from './web/programme-state.js'
 import { SIMULCAST_START_TOLERANCE_MS, findHdSimulcast, isHdChannel, sdSimulcastIds } from './web/simulcast.js'
 import {
   listChannels,
@@ -434,14 +435,15 @@ const parseJsonArray = (raw) => {
   }
 }
 
-export const searchGuide = async ({ q } = {}) => {
+export const searchGuide = async ({ q, forYouIds = () => new Set() } = {}) => {
   if ((q || '').trim().length < 2) return { results: [] }
   const [guide, prefs, aliases] = await Promise.all([getCachedGuide(), getChannelPrefs(), loadSearchAliases()])
   const channels = orderChannels({ channels: guide.channels, ...prefs }).filter((c) => !c.hidden)
   const built = guideSearchFor({ guide, aliases })
   const nowMs = Date.now()
   const twinContext = await twinContextFor({ guide, prefs })
-  const results = searchGuideListings({ built, channels, query: q, nowMs, toProgramme: toBrowserProgram })
+  const seriesLinks = seriesLinkSetOf(twinContext.autorecs)
+  const results = searchGuideListings({ built, channels, query: q, nowMs, toProgramme: toBrowserProgram, scheduledIds: twinContext.scheduledIds, seriesLinks, forYouIds: forYouIds() })
     .filter((programme) => isPreferredAiring({ identity: twinContext.identity, programme, nowMs }))
     .map((programme) => ({ ...programme, ...twinFieldsOf({ programme, twinContext }) }))
   return { results }
@@ -465,8 +467,13 @@ export const guideIdentityFor = ({ guide, prefs }) => {
 
 const twinContextFor = async ({ guide, prefs }) => {
   const state = await getRecordingState().catch(() => null)
-  return { identity: guideIdentityFor({ guide, prefs }), autorecs: state?.seriesTags || [] }
+  return { identity: guideIdentityFor({ guide, prefs }), autorecs: state?.seriesTags || [], scheduledIds: scheduledIdsOf(state) }
 }
+
+export const scheduledIdsOf = (state) => new Set([
+  ...scheduledByProgramIdOf(state?.futureRecordings || []).keys(),
+  ...(state?.activeRecordingIds || []).map(String),
+])
 
 const twinFieldsOf = ({ programme, twinContext }) => (twinContext
   ? twinAnnotationOf({ identity: twinContext.identity, programme, autorecs: twinContext.autorecs })

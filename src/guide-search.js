@@ -1,5 +1,6 @@
 import { MIN_SEARCH_LENGTH, buildSearchIndex, searchIndex } from './web/search-index.js'
 import { normaliseSearchText, startsAtWord } from './web/search-text.js'
+import { programmeIdOf, seriesLinkOfProgramme } from './web/programme-state.js'
 import { showKeyOf } from './web/show-key.js'
 
 export const GUIDE_RESULT_CAP = 100
@@ -23,7 +24,16 @@ export const buildGuideSearch = ({ guide, curated = [], aliases = [] }) => {
   return { index: buildSearchIndex({ entries, curated, aliases }), byKey, episodes }
 }
 
-export const searchGuideListings = ({ built, channels = [], query, nowMs = Date.now(), toProgramme = (p) => p, cap = GUIDE_RESULT_CAP }) => {
+export const GUIDE_GROUP_RANK = { scheduled: 0, series: 1, 'for-you': 2, guide: 3 }
+
+export const guideGroupOf = ({ programme, scheduledIds = new Set(), seriesLinks = new Set(), forYouIds = new Set() }) => {
+  if (scheduledIds.has(programmeIdOf(programme))) return 'scheduled'
+  if (seriesLinkOfProgramme({ programme, seriesLinks })) return 'series'
+  if (forYouIds.has(String(programme.program_id))) return 'for-you'
+  return 'guide'
+}
+
+export const searchGuideListings = ({ built, channels = [], query, nowMs = Date.now(), toProgramme = (p) => p, cap = GUIDE_RESULT_CAP, scheduledIds, seriesLinks, forYouIds }) => {
   const needle = normaliseSearchText(query)
   if (needle.length < MIN_SEARCH_LENGTH) return []
   const channelsByEpgId = new Map(channels.map((channel) => [String(channel.epgId), channel]))
@@ -38,9 +48,12 @@ export const searchGuideListings = ({ built, channels = [], query, nowMs = Date.
     .filter(isListed)
     .map((airing) => ({ airing, score: match.score, reason: match.reason, matchedName: match.matchedName })))
   return [...titleHits, ...episodeHits]
-    .sort((a, b) => b.score - a.score || a.airing.programme.start - b.airing.programme.start)
+    .map((hit) => ({ ...hit, group: guideGroupOf({ programme: hit.airing.programme, scheduledIds, seriesLinks, forYouIds }) }))
+    .sort((a, b) => GUIDE_GROUP_RANK[a.group] - GUIDE_GROUP_RANK[b.group]
+      || b.score - a.score
+      || a.airing.programme.start - b.airing.programme.start)
     .slice(0, cap)
-    .map(({ airing, score, reason, matchedName }) => {
+    .map(({ airing, score, reason, matchedName, group }) => {
       const channel = channelsByEpgId.get(String(airing.epgId))
       return {
         ...toProgramme(airing.programme),
@@ -48,6 +61,7 @@ export const searchGuideListings = ({ built, channels = [], query, nowMs = Date.
         channelName: channel.name,
         score: Math.round(score),
         reason,
+        group,
         ...(matchedName ? { matchedName } : {}),
       }
     })

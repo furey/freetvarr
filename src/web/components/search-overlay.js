@@ -1,9 +1,9 @@
 import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
-import { buildShowSearch, guideRowsOf, guideSearchOutcomeOf, searchShowsOf } from '/search-results.js'
+import { GROUP_ROW_LIMIT, MAX_GUIDE_RESULTS, buildShowSearch, guideRowsOf, guideSearchOutcomeOf, remainingBusyMs, searchGroupsOf, searchShowsOf } from '/search-results.js'
 import { showHrefOf, showKeyOf } from '/show-key.js'
 import { watchForOfferOf } from '/watch-for.js'
 import { api } from '/shared/api.js'
-import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
+import { loadEpgState, recordingStateText, useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { openWatchFor } from '/components/watch-for-sheet.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { createOverlayLayer, overlayStack } from '/overlay-stack.js'
@@ -23,7 +23,7 @@ export const SearchOverlay = {
               <label class="ui-search-field">
                 <search-glyph />
                 <span class="ui-visually-hidden">Search shows and the guide</span>
-                <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="search"
+                <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="search" @keydown.enter.prevent="openFirstResult"
                   placeholder="Search shows and the guide" autocomplete="off" spellcheck="false" />
               </label>
               <button type="button" class="ui-button ui-button-sm" @click="close">Cancel</button>
@@ -31,35 +31,36 @@ export const SearchOverlay = {
             <div class="ui-search-results" aria-live="polite">
               <p v-if="!hasQuery" class="ui-search-hint">Type at least two letters to search recordings, series rules, and the next week of the guide.</p>
               <template v-else>
-                <section v-if="shows.length">
-                  <h2 class="ui-group-label">In Recordings</h2>
+                <section v-for="group in groups" :key="group.key" :data-group="group.key">
+                  <h2 class="ui-group-label">{{ group.label }}</h2>
                   <div class="ui-group">
-                    <a v-for="show in shows" :key="show.key" class="ui-group-row" :href="show.href" @click="close">
+                    <template v-for="row in group.rows" :key="row.key">
+                      <a v-if="row.kind === 'show'" class="ui-group-row" data-search-row data-search-result :href="row.href" @click="close">
+                        <span class="ui-group-row-main">
+                          <span class="ui-group-row-title">{{ row.title }}</span>
+                          <span class="ui-group-row-meta">{{ row.meta }}</span>
+                        </span>
+                        <chevron-glyph class="ui-group-row-chevron" />
+                      </a>
+                      <button v-else type="button" class="ui-group-row" data-search-row data-search-result @click="openResult(row)">
+                        <span class="ui-group-row-main">
+                          <span class="ui-group-row-title search-row-line">{{ row.title }}</span>
+                          <span v-if="row.episode" class="search-row-episode search-row-line">{{ row.episode }}</span>
+                          <span class="ui-group-row-meta">{{ row.meta }}</span>
+                        </span>
+                        <chevron-glyph class="ui-group-row-chevron" />
+                      </button>
+                    </template>
+                    <button v-if="group.isCapped" type="button" class="ui-group-row" data-search-row :aria-label="group.showAllLabel" @click="expand(group.key)">
                       <span class="ui-group-row-main">
-                        <span class="ui-group-row-title">{{ show.title }}</span>
-                        <span class="ui-group-row-meta">{{ show.meta }}</span>
+                        <span class="ui-group-row-title">{{ group.showAllText }}</span>
                       </span>
-                      <chevron-glyph class="ui-group-row-chevron" />
-                    </a>
-                  </div>
-                </section>
-                <section v-if="programmes.length">
-                  <h2 class="ui-group-label">In the TV guide</h2>
-                  <div class="ui-group">
-                    <button v-for="programme in programmes" :key="programme.key" type="button" class="ui-group-row"
-                      @click="openResult(programme)">
-                      <span class="ui-group-row-main">
-                        <span class="ui-group-row-title search-row-line">{{ programme.title }}</span>
-                        <span v-if="programme.episode" class="search-row-episode search-row-line">{{ programme.episode }}</span>
-                        <span class="ui-group-row-meta">{{ programme.meta }}</span>
-                      </span>
-                      <chevron-glyph class="ui-group-row-chevron" />
                     </button>
                   </div>
                 </section>
                 <p v-if="guideFailure" class="ui-search-hint">{{ guideFailure }}</p>
-                <p v-else-if="searching && !shows.length && !programmes.length" class="ui-search-hint">Searching…</p>
-                <p v-else-if="!searching && !shows.length && !programmes.length" class="ui-search-hint">Nothing matches “{{ query.trim() }}”.</p>
+                <p v-else-if="searching" class="ui-search-hint">Searching…</p>
+                <p v-else-if="!groups.length" class="ui-search-hint">Nothing matches “{{ query.trim() }}”.</p>
                 <section v-if="watchForOffer">
                   <h2 class="ui-group-label">Not in the next 7 days</h2>
                   <div class="ui-group">
@@ -96,7 +97,19 @@ export const SearchOverlay = {
       results: guideResults.value,
       query: query.value,
       whenOf: (start) => `${fmtRelativeDay(start)} ${fmtClockTz(start)}`,
+      stateTextOf: recordingStateText,
     }))
+    const expandedGroups = ref(new Set())
+    const groups = computed(() => searchGroupsOf({
+      shows: shows.value,
+      programmes: programmes.value,
+      expanded: expandedGroups.value,
+    }))
+    const expand = async (key) => {
+      expandedGroups.value = new Set([...expandedGroups.value, key])
+      await nextTick()
+      panel.value?.querySelectorAll(`[data-group="${key}"] [data-search-result]`)[GROUP_ROW_LIMIT]?.focus()
+    }
     const watchForOffer = computed(() => watchForOfferOf({
       query: query.value,
       searching: searching.value,
@@ -106,21 +119,32 @@ export const SearchOverlay = {
     }))
     let debounceTimer = null
     let requestId = 0
+    let busySince = 0
+    const startBusy = () => {
+      if (!searching.value) busySince = Date.now()
+      searching.value = true
+    }
     const searchGuide = async (text) => {
       const thisRequest = ++requestId
-      searching.value = true
+      startBusy()
       const outcome = await guideSearchOutcomeOf(() => api('GET', `/api/epg/search?q=${encodeURIComponent(text)}`))
       if (thisRequest !== requestId) return
       guideResults.value = outcome.results.slice(0, MAX_GUIDE_RESULTS)
       guideFailure.value = outcome.failure
-      searching.value = false
+      await new Promise((resolve) => setTimeout(resolve, remainingBusyMs({ startedAt: busySince, nowMs: Date.now() })))
+      if (thisRequest === requestId) searching.value = false
     }
     watch(query, (text) => {
       clearTimeout(debounceTimer)
-      guideResults.value = []
       guideFailure.value = ''
-      if (text.trim().length < MIN_QUERY_LENGTH) return
-      searching.value = true
+      expandedGroups.value = new Set()
+      requestId += 1
+      if (text.trim().length < MIN_QUERY_LENGTH) {
+        guideResults.value = []
+        searching.value = false
+        return
+      }
+      startBusy()
       debounceTimer = setTimeout(() => searchGuide(text.trim()), SEARCH_DEBOUNCE_MS)
     })
     const loadLibrary = async () => {
@@ -137,9 +161,22 @@ export const SearchOverlay = {
     }
     const onKeydown = (event) => {
       if (event.key === 'Tab' && panel.value) return keepFocusInside({ event, root: panel.value })
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') return moveFocus({ event, step: event.key === 'ArrowDown' ? 1 : -1 })
       if (event.key !== 'Escape') return
       event.stopImmediatePropagation()
       close()
+    }
+    const moveFocus = ({ event, step }) => {
+      const rows = [...(panel.value?.querySelectorAll('[data-search-row]') || [])]
+      if (!rows.length || !panel.value.contains(document.activeElement)) return
+      event.preventDefault()
+      const next = rows.indexOf(document.activeElement) + step
+      if (next < 0) return input.value?.focus()
+      rows[Math.min(next, rows.length - 1)].focus()
+    }
+    const openFirstResult = () => {
+      if (searching.value) return
+      panel.value?.querySelector('[data-search-result]')?.click()
     }
     const setBodyLock = (isOpen) => {
       try { document.body.classList.toggle('sheet-open', isOpen) } catch {}
@@ -161,12 +198,14 @@ export const SearchOverlay = {
       layer.open()
       window.addEventListener('keydown', onKeydown, true)
       loadLibrary()
+      loadEpgState()
       await nextTick()
       input.value?.focus()
     })
     const close = () => {
       searchOpen.value = false
       query.value = ''
+      expandedGroups.value = new Set()
     }
     const { openProgramme } = useProgrammeSheet()
     const openResult = ({ programme }) => {
@@ -183,10 +222,9 @@ export const SearchOverlay = {
       stopListening()
       layer.release()
     })
-    return { open: searchOpen, panel, input, query, hasQuery, shows, programmes, searching, guideFailure, close, openResult, watchForOffer, watchFor }
+    return { open: searchOpen, panel, input, query, hasQuery, groups, searching, guideFailure, close, openResult, expand, openFirstResult, watchForOffer, watchFor }
   },
 }
 
 const MIN_QUERY_LENGTH = 2
 const SEARCH_DEBOUNCE_MS = 200
-const MAX_GUIDE_RESULTS = 30

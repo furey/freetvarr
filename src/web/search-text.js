@@ -8,6 +8,8 @@ export const normaliseSearchText = (text) => foldText(text)
   .replace(/[^a-z0-9]+/g, ' ')
   .trim()
 
+export const withoutLeadingThe = (normalised) => (normalised.startsWith('the ') ? normalised.slice(4).trim() : normalised)
+
 export const withoutRegionWords = (normalised) => normalised
   .split(' ')
   .filter((word) => !REGION_WORDS.has(word))
