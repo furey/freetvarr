@@ -21,7 +21,8 @@ import { createEndedHistory } from './guide-history.js'
 import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
 import { showKeyOf } from './web/show-key.js'
 import { showTitleKey } from './show-artwork.js'
-import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom } from './top-rated.js'
+import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom, tvmazeIdOf } from './top-rated.js'
+import { createSeriesRatings, loadSeriesRatings, seriesRatingStamp, warmSeriesRatingsIfEmpty } from './series-ratings.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
@@ -30,7 +31,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 4
+export const SCORING_VERSION = 5
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -147,12 +148,13 @@ export const resultFingerprintOf = (result) => {
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone() }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone() }) => {
   const autorecs = (state?.seriesTags || []).map(({ seriesLinkId, channelId, enabled, match }) => ({ seriesLinkId, channelId, enabled, match }))
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
     ...watchlist.filter((row) => row.mode === 'record').map((row) => showKeyOf(row.title)),
   ])
+  const watchlistKeys = new Set(watchlist.map((row) => showKeyOf(row.title)))
   const scheduledProgramIds = new Set([
     ...(state?.futureRecordings || []).map((recording) => String(recording.programId)),
     ...(state?.skippedProgramIds || []).map(String),
@@ -160,6 +162,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
   ])
   return {
     ruleKeys,
+    watchlistKeys,
     scheduledProgramIds,
     autorecs,
     channelPrefs,
@@ -167,6 +170,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       guide: guideVersionOf(guide),
       scheduled: hashOf([...scheduledProgramIds].sort().join(',')),
       rules: hashOf([...ruleKeys].sort().join(',')),
+      watchlist: hashOf([...watchlistKeys].sort().join(',')),
       autorecs: hashOf(JSON.stringify(autorecs)),
       channels: hashOf(JSON.stringify(channelPrefs)),
       lastEventId: Number(events?.lastId) || 0,
@@ -177,6 +181,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       pinned: pinned.join(','),
       tier,
       filmRatings: `${Number(filmRatings?.count) || 0}:${Number(filmRatings?.latest) || 0}`,
+      seriesRatings: `${Number(seriesRatings?.count) || 0}:${Number(seriesRatings?.latest) || 0}`,
       otherLanguageFilms,
       timeZone,
       scoring: SCORING_VERSION,
@@ -234,7 +239,7 @@ export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   return { ok: true, wasHidden: Boolean(latest) }
 }
 
-export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS }) => {
+export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS, ratingsDelayMs = RATINGS_WARM_DELAY_MS }) => {
   onGuideLoaded(() => warmForYou().catch((err) => console.warn(`[for-you] guide warm-up failed: ${err.message}`)))
   const warm = setTimeout(() => {
     isForYouEnabled()
@@ -246,6 +251,15 @@ export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs =
     afterStartup({ version }).catch((err) => console.warn(`[for-you] startup check failed: ${err.message}`))
   }, delayMs)
   timer.unref?.()
+  const ratings = setTimeout(() => {
+    warmSeriesRatings().catch((err) => console.warn(`[for-you] series scores warm-up failed: ${err.message}`))
+  }, ratingsDelayMs)
+  ratings.unref?.()
+}
+
+export const warmSeriesRatings = async ({ nowMs = Date.now() } = {}) => {
+  if (!(await isForYouEnabled())) return { skipped: true }
+  return warmSeriesRatingsIfEmpty({ refresh: () => refreshSeriesRatings({ nowMs }) })
 }
 
 export const runForYouUpkeep = async ({ nowMs = Date.now(), force = false } = {}) => {
@@ -289,6 +303,15 @@ export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
   return genreEnrichment.run({ titles })
 }
 
+export const refreshSeriesRatings = async ({ nowMs = Date.now() } = {}) => {
+  const [guide, recordsByKey] = await Promise.all([getGuideSnapshot(), loadTitleGenres().catch(() => new Map())])
+  const titles = Object.values(guide?.programsByChannel || {}).flat()
+    .filter((programme) => programme.end > nowMs && programme.start < nowMs + GUIDE_WINDOW_MS)
+    .filter((programme) => tvmazeIdOf(recordsByKey.get(showKeyOf(programme.title))))
+    .map((programme) => programme.title)
+  return seriesRatingLookups.run({ titles })
+}
+
 const afterStartup = async ({ version }) => {
   if (!(await isForYouEnabled())) return
   await probeIfStale({ version })
@@ -299,11 +322,12 @@ const upkeepNow = async ({ nowMs }) => {
   await setSetting(SETTINGS.upkeep, String(nowMs))
   const embeddings = await runEmbeddings({ nowMs }).catch((err) => ({ ok: false, error: err.message }))
   const genres = await enrichGenres({ nowMs }).catch((err) => ({ error: err.message }))
-  return { embeddings, genres }
+  const ratings = await refreshSeriesRatings({ nowMs }).catch((err) => ({ error: err.message }))
+  return { embeddings, genres, ratings }
 }
 
 const loadSnapshot = async () => {
-  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, otherLanguageFilms, channelPrefs] = await Promise.all([
+  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
     db('watchlist').select('title', 'mode'),
@@ -314,6 +338,7 @@ const loadSnapshot = async () => {
     currentEmbedder(),
     pinnedChannelIds(),
     filmRatingRows().first(db.raw('count(*) as count'), db.raw('max(expires_at) as latest')).catch(() => null),
+    seriesRatingStamp(),
     currentOtherLanguageFilms(),
     getChannelPrefs().catch(() => null),
   ])
@@ -325,20 +350,21 @@ const loadSnapshot = async () => {
     tier: tier.tier,
     vectors,
     otherLanguageFilms,
-    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, otherLanguageFilms, channelPrefs }),
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs }),
   }
 }
 
 const computeForYou = async ({ snapshot, nowMs }) => {
   const job = currentJob()
   job?.step('Read history and recordings')
-  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings] = await Promise.all([
+  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings, seriesRatings] = await Promise.all([
     db('user_events').orderBy('id'),
-    db('recordings').select('recording_id', 'title', 'season', 'episode', 'aired_at', 'imported_at', 'played_at', 'watched_at', 'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status'),
+    db('recordings').select(...RECORDING_COLUMNS),
     loadTitleGenres(),
     endedHistory.read({ nowMs }).catch(() => []),
     snapshot.embedder ? loadVectors(snapshot.embedder.id) : null,
     filmRatingRows().select('lookup_key', 'found_json').catch(() => []),
+    loadSeriesRatings(),
   ])
   const guide = {
     programmes: Object.values(snapshot.guide.programsByChannel || {}).flat(),
@@ -355,6 +381,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       recordings,
       scheduledProgramIds: snapshot.scheduledProgramIds,
       ruleKeys: snapshot.ruleKeys,
+      watchlistKeys: snapshot.watchlistKeys,
       autorecs: snapshot.autorecs,
       channelPrefs: snapshot.channelPrefs,
       genresByKey,
@@ -366,6 +393,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
         keyOf: showTitleKey,
       }),
       otherLanguageFilms: snapshot.otherLanguageFilms,
+      seriesRatings,
     },
   }
   job?.step('Score programmes').fact('Programmes', guide.programmes.length).fact('Events', events.length)
@@ -531,25 +559,33 @@ const forYouCache = createForYouCache({
 })
 const classificationStore = createClassificationStore()
 const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
+const seriesRatingLookups = createSeriesRatings()
 
 const CACHED_LIMIT = 20
 const WORKER_URL = new URL('./for-you-worker.js', import.meta.url)
 const WORKER_TIMEOUT_MS = 60 * 1000
 const WORKER_TIMED_OUT = 'worker-timed-out'
-const RECORDING_STAMP_FIELDS = ['count', 'watched', 'imported', 'watchedAt', 'aired']
+const RECORDING_STAMP_FIELDS = ['count', 'watched', 'imported', 'watchedAt', 'aired', 'purged']
 const RECORDING_STAMP_COLUMNS = [
   'count(*) as count',
   'count(watched_at) as watched',
   'max(imported_at) as imported',
   'max(watched_at) as watchedAt',
   'max(aired_at) as aired',
+  'count(purged_at) as purged',
 ]
+const RECORDING_COLUMNS = [
+  'recording_id', 'title', 'show_title_override', 'season', 'episode', 'episode_title', 'aired_at', 'imported_at', 'played_at', 'watched_at',
+  'playback_position_s', 'duration_s', 'channel_id', 'synopsis', 'status', 'image_path', 'purged_at', 'library_state',
+]
+const GUIDE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 const HIDING_KINDS = ['not_interested', 'not_interested_undo', 'thumb_up', 'thumb_down', 'thumb_clear']
 const HIDING_CHOICES = ['not_interested', 'thumb_down']
 const THUMB_KINDS = ['thumb_up', 'thumb_down', 'thumb_clear']
 const BUCKET_MS = 5 * 60 * 1000
 const STARTUP_DELAY_MS = 20 * 1000
 const WARM_DELAY_MS = 3 * 1000
+const RATINGS_WARM_DELAY_MS = 60 * 1000
 const NIGHT_START = 2
 const NIGHT_END = 6
 const OVERDUE_MS = 36 * 60 * 60 * 1000
