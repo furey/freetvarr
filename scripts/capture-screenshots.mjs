@@ -27,6 +27,8 @@ const DESKTOP_SHOTS = [
   { hash: '#/guide', file: 'screenshot-channels.png', wait: '.epg-cell', prepare: (page) => openChannelSettings(page) },
   { hash: '#/live', file: 'screenshot-live.png', wait: '.live-row, .live-list' },
   { hash: '#/live', file: 'screenshot-player.png', wait: '.live-row, .live-list', prepare: (page, picks) => playLive(page, picks) },
+  { hash: '#/home', file: 'screenshot-search.png', wait: '.home-hero, .home-row', prepare: (page) => openSearch(page, SEARCH_QUERY) },
+  { hash: '#/settings/system/series', file: 'screenshot-series-drawer.png', wait: '.settings-page', prepare: (page) => openSeriesDrawer(page, SERIES_WITH_OTHER_TITLES) },
   { hash: '#/for-you', file: 'screenshot-for-you.png', wait: '.for-you-view, .fy-rail' },
   { hash: '#/recordings/scheduled', file: 'screenshot-scheduled.png', wait: '.scheduled-view, .ui-empty' },
   { hash: '#/recordings/show/:showcase', file: 'screenshot-show.png', wait: '.show-view, .show-hero' },
@@ -73,6 +75,26 @@ const showPlexLibraryNames = async (page) => {
   await page.getByRole('button', { name: 'Load libraries' }).first().click()
   await page.locator('#settings-plex-oneoff option', { hasText: 'One-offs' }).first().waitFor({ state: 'attached', timeout: 10_000 })
   await scrollToText(page, 'Watched state')
+}
+
+const SEARCH_QUERY = 'young'
+const SERIES_WITH_OTHER_TITLES = 'Big Brother'
+
+const openSearch = async (page, query) => {
+  await page.getByRole('button', { name: 'Search' }).first().click()
+  await page.locator('.ui-search-input').fill(query)
+  await page.waitForSelector('.ui-search [data-group]', { timeout: 10_000 })
+  await page.waitForFunction(() => !document.body.innerText.includes('Searching…'), null, { timeout: 15_000 })
+  await page.waitForTimeout(800)
+}
+
+const openSeriesDrawer = async (page, title) => {
+  const row = page.locator('tr', { hasText: title }).first()
+  await row.click()
+  const variants = page.locator('.series-drawer-variants').first()
+  await variants.waitFor({ timeout: 10_000 })
+  await variants.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(800)
 }
 
 const openProgramme = async (page, { program }) => {

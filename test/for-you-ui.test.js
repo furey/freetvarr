@@ -397,11 +397,11 @@ test('new rows: page order, the TVmaze credit link, and recordings kept off the 
     sections: [
       { key: 'top-rated-series', title: 'Top rated series this week', credit: { source: 'TVmaze', href: 'https://www.tvmaze.com' }, items: [item({ id: 's1', seriesKey: 'the-newsreader', title: 'The Newsreader', kind: 'rated', reason: '', rating: { score: 8.1, votes: null } })] },
       { key: 'ready-to-watch', title: 'Ready to watch', items: [readyItem()] },
-      { key: 'last-chance', title: 'Last chance', credit: { source: 'Elsewhere', href: 'javascript:alert(1)' }, items: [item({ id: 'l1', seriesKey: 'utopia', title: 'Utopia', kind: 'last-chance', reason: 'Series finale' })] },
+      { key: 'finish-started', title: 'Finish what you started', credit: { source: 'Elsewhere', href: 'javascript:alert(1)' }, items: [item({ id: 'l1', seriesKey: 'utopia', title: 'Utopia', kind: 'continue', reason: 'You watched 2 episodes' })] },
     ],
   })
   const sections = sectionsOf({ payload: page })
-  assert.deepEqual(sections.map((s) => s.key), ['ready-to-watch', 'last-chance', 'top-rated-series'])
+  assert.deepEqual(sections.map((s) => s.key), ['ready-to-watch', 'finish-started', 'top-rated-series'])
   assert.deepEqual(sections[2].credit, { source: 'TVmaze', href: 'https://www.tvmaze.com' })
   assert.equal(sections[1].credit, null)
   assert.ok(!homeRowOf({ payload: page }).items.some((entry) => entry.kind === 'ready'))

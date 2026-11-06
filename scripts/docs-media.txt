@@ -44,3 +44,5 @@ img screenshot-plex.png
 img screenshot-arr.png
 img screenshot-programme-movie.png
 img screenshot-mobile-recording-banner.png
+img screenshot-search.png
+img screenshot-series-drawer.png

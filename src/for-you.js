@@ -51,7 +51,6 @@ export const ROW_LIMIT = 12
 export const TVMAZE_CREDIT = { source: 'TVmaze', href: 'https://www.tvmaze.com' }
 export const SECTION_TITLES = {
   'ready-to-watch': 'Ready to watch',
-  'last-chance': 'Last chance',
   'finish-started': 'Finish what you started',
   'coming-up': 'Coming up from your shows',
   'new-seasons': 'New seasons and returns',
@@ -72,7 +71,6 @@ export const buildForYou = ({
   recordings = [],
   scheduledProgramIds = new Set(),
   ruleKeys = new Set(),
-  watchlistKeys = new Set(),
   genresByKey = new Map(),
   vectorsByHash = null,
   pinnedChannelIds = [],
@@ -113,7 +111,6 @@ export const buildForYou = ({
     scheduledProgramIds: new Set([...scheduledProgramIds].map(String)),
     coveredProgramIds: coveredProgrammeIdsOf({ identity, isCovered: airingCoverCheckOf({ scheduledProgramIds, autorecs }) }),
     ruleKeys,
-    watchlistKeys,
     timeZone,
     filmFactsOf: (programme) => filmFacts.get(programme.title) || null,
     seriesFactsOf: (programme) => seriesRatings.get(showKeyOf(programme.title)) || null,
@@ -131,7 +128,6 @@ export const buildForYou = ({
   const choices = allowed.filter((programme) => Number(programme.start) >= nowMs)
   const rows = {
     ready: readyToWatchOf({ recordings, profile, keyOf }),
-    lastChance: lastChanceOf({ upcoming, choices, context, channelEnds: channelEndsOf(programmes) }),
     finish: finishStartedOf({ choices, context }),
     tonight: tonightMoviesOf({ choices, scored, context }),
     topRatedSeries: topRatedSeriesOf({ choices, context }),
@@ -545,30 +541,6 @@ export const readyToWatchOf = ({ recordings = [], profile, keyOf = showKeyOf }) 
     .sort((a, b) => b.affinity - a.affinity || b.addedAt - a.addedAt)
 }
 
-export const lastChanceOf = ({ upcoming, choices, context, channelEnds }) => {
-  const lastStarts = lastStartsOf(upcoming)
-  const runs = runLengthsOf(upcoming)
-  const byKey = new Map()
-  for (const programme of choices) {
-    const categories = context.categoriesOf(programme)
-    if (!isEpisodeChoice({ programme, categories })) continue
-    const key = showKeyOf(programme.title)
-    const show = context.profile.shows.get(key)
-    if (!isFollowedShow({ key, show, context })) continue
-    const finale = finaleReasonOf(programme)
-    const runEnds = !finale && endsRunOf({ programme, lastStarts, runs, channelEnds })
-    if (!finale && !runEnds) continue
-    if (isLaterThanKnown({ known: byKey.get(key), programme })) continue
-    byKey.set(key, {
-      key,
-      show,
-      finale: Boolean(finale),
-      item: airingItemOf({ programme, context, movie: false, categories, kind: 'last-chance', reason: finale || 'Last episode in the guide', score: show?.affinity || 0 }),
-    })
-  }
-  return [...byKey.values()].sort((a, b) => (b.show?.affinity || 0) - (a.show?.affinity || 0) || a.item.start - b.item.start)
-}
-
 export const finishStartedOf = ({ choices, context }) => {
   const byKey = new Map()
   for (const programme of choices) {
@@ -618,12 +590,6 @@ export const tonightMoviesOf = ({ choices, scored = [], context }) => {
   return [...byKey.values()].sort((a, b) => b.rank - a.rank || a.item.start - b.item.start)
 }
 
-export const finaleReasonOf = ({ title = '', episode_title: episodeTitle = '', synopsis = '' }) => {
-  const text = `${title || ''} ${episodeTitle || ''} ${synopsis || ''}`
-  return FINALE_REASONS.find(({ pattern }) => pattern.test(text))?.reason
-    ?? (LAST_EPISODE_TITLE.test(String(episodeTitle || '')) ? 'Final episode' : null)
-}
-
 export const tonightWindowOf = ({ nowMs, timeZone = localTimeZone() }) => {
   const { year, month, day, hour } = localPartsOf({ ms: nowMs, timeZone })
   if (hour < TONIGHT_END_HOUR) return { start: nowMs, end: localMsOf({ timeZone, year, month, day, hour: TONIGHT_END_HOUR }) }
@@ -652,8 +618,6 @@ const localMsOf = ({ timeZone, year, month, day, hour }) => {
   const guess = wall - offsetAt({ ms: wall, timeZone })
   return wall - offsetAt({ ms: guess, timeZone })
 }
-
-const isFollowedShow = ({ key, show, context }) => show?.affinity > 0 || context.watchlistKeys.has(key) || context.ruleKeys.has(key)
 
 const isEpisodeChoice = ({ programme, categories }) => !categories.includes('movie')
   && programme.kind !== 'movie'
@@ -725,43 +689,6 @@ const readyItemOf = ({ row, key, title, count }) => ({
 const episodeLabelOf = ({ season, episode }) => {
   if (season != null && episode != null) return `S${season} E${episode}`
   return episode != null ? `Episode ${episode}` : null
-}
-
-const lastStartsOf = (upcoming) => {
-  const last = new Map()
-  for (const programme of upcoming) {
-    const key = showKeyOf(programme.title)
-    last.set(key, Math.max(last.get(key) ?? 0, Number(programme.start)))
-  }
-  return last
-}
-
-const runLengthsOf = (upcoming) => {
-  const episodes = new Map()
-  for (const programme of upcoming) {
-    if (!programme.series_link) continue
-    if (!episodes.has(programme.series_link)) episodes.set(programme.series_link, new Set())
-    episodes.get(programme.series_link).add(episodeIdentityOf(programme))
-  }
-  return new Map([...episodes].map(([link, ids]) => [link, ids.size]))
-}
-
-const episodeIdentityOf = (programme) => (programme.episode_no != null
-  ? `${programme.series_no ?? ''}x${programme.episode_no}`
-  : programme.episode_title || String(programme.start))
-
-const endsRunOf = ({ programme, lastStarts, runs, channelEnds }) => Boolean(programme.series_link)
-  && (runs.get(programme.series_link) || 0) >= MIN_RUN_EPISODES
-  && Number(programme.start) === lastStarts.get(showKeyOf(programme.title))
-  && Number(programme.start) + RUN_GAP_MS <= (channelEnds.get(String(programme.channel_id)) || 0)
-
-const channelEndsOf = (programmes) => {
-  const ends = new Map()
-  for (const programme of programmes) {
-    const channelId = String(programme.channel_id)
-    ends.set(channelId, Math.max(ends.get(channelId) || 0, Number(programme.end ?? programme.stop) || 0))
-  }
-  return ends
 }
 
 const showImageUrlOf = ({ title, isFilm }) =>
@@ -861,7 +788,6 @@ const sectionsOf = ({ items, topRated, rows, limit, nowMs, genreShares, otherLim
   const rowLimit = Math.min(limit, ROW_LIMIT)
   const ready = rows.ready.slice(0, rowLimit)
   const readyKeys = new Set(ready.map((entry) => entry.key))
-  const lastChance = take(rows.lastChance.filter(fresh).slice(0, rowLimit))
   const finish = take(rows.finish.filter((entry) => fresh(entry) && !readyKeys.has(entry.key)).slice(0, rowLimit))
   const newSeasons = take(items.filter((entry) => fresh(entry) && entry.liked && (entry.newSeason || entry.back)).slice(0, limit))
   const comingUp = take(capped(items.filter((entry) => fresh(entry) && entry.liked))
@@ -883,7 +809,6 @@ const sectionsOf = ({ items, topRated, rows, limit, nowMs, genreShares, otherLim
     .sort((a, b) => a.item.start - b.item.start))
   return [
     { key: 'ready-to-watch', entries: ready },
-    { key: 'last-chance', entries: lastChance },
     { key: 'finish-started', entries: finish },
     { key: 'coming-up', entries: comingUp },
     { key: 'new-seasons', entries: newSeasons },
@@ -907,7 +832,6 @@ const coldStartSections = ({ items, topRated, rows, limit, otherLimit }) => {
   const rowLimit = Math.min(limit, ROW_LIMIT)
   const ready = rows.ready.slice(0, rowLimit)
   const readyKeys = new Set(ready.map((entry) => entry.key))
-  const lastChance = take(rows.lastChance.filter(fresh).slice(0, rowLimit))
   const finish = take(rows.finish.filter((entry) => fresh(entry) && !readyKeys.has(entry.key)).slice(0, rowLimit))
   const tonight = take(capped(rows.tonight.filter(fresh)).slice(0, rowLimit))
   const topRatedSeries = take(rows.topRatedSeries.filter(fresh).slice(0, rowLimit))
@@ -919,7 +843,6 @@ const coldStartSections = ({ items, topRated, rows, limit, otherLimit }) => {
   const movies = capped(items.filter((entry) => fresh(entry) && entry.movie)).slice(0, limit)
   return [
     { key: 'ready-to-watch', entries: ready },
-    { key: 'last-chance', entries: lastChance },
     { key: 'finish-started', entries: finish },
     { key: 'tonight-movies', entries: tonight },
     { key: 'top-rated-series', entries: topRatedSeries },
@@ -1000,14 +923,6 @@ const ROW_EXPLANATIONS = {
     signals: [
       `You have ${plural(count, 'unwatched recording')} of ${item.title}`,
       ...(count > 1 ? ['This is the oldest one'] : []),
-    ],
-  }),
-  'last-chance': ({ entry: { item, show, finale } }) => ({
-    title: item.title,
-    reasons: [{ text: item.reason, weight: 1 }],
-    signals: [
-      finale ? 'The guide describes this episode as a finale' : `No more episodes of ${item.title} are in the guide after this one`,
-      ...(show?.affinity > 0 ? [`You watched or recorded ${show.title || item.title}`] : []),
     ],
   }),
   'finish-started': ({ entry: { item, show } }) => ({
@@ -1091,12 +1006,3 @@ const READY_IMAGE_WIDTH = 384
 const FINISH_MIN_EPISODES = 1
 const FINISH_MAX_EPISODES = 3
 const FINISH_RECENT_MS = 60 * DAY_MS
-const MIN_RUN_EPISODES = 3
-const RUN_GAP_MS = 4 * DAY_MS
-const LAST_EPISODE_TITLE = /\blast episode\b/i
-const FINALE_REASONS = [
-  { pattern: /\bseason finale\b/i, reason: 'Season finale' },
-  { pattern: /\bseries finale\b/i, reason: 'Series finale' },
-  { pattern: /\bfinal episode\b|\bfinal ever episode\b/i, reason: 'Final episode' },
-  { pattern: /\bfinale\b/i, reason: 'Finale' },
-]

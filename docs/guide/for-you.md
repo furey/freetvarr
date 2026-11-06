@@ -27,7 +27,6 @@ Suggestions show in three places:
 The page groups its suggestions under these headings, in this order, and leaves out any heading with nothing in it. Each heading shows up to 12 cards. A show appears under the first heading that fits it only.
 
 - **Ready to watch**: one card for each show with recordings you have not watched yet. The card shows the oldest of those episodes. A recording counts as watched when you finish it in Freetvarr, or when [Plex](https://www.plex.tv) marks it watched.
-- **Last chance**: for shows you watch, record, or have on your watchlist, episodes this week that the TV guide calls a finale or a final episode. It also lists the last episode of a run that airs most nights, when that channel's TV guide goes on for at least 4 more days with no more episodes.
 - **Finish what you started**: shows you watched 1 to 3 episodes of in the last 60 days, with the next episode this week.
 - **Coming up this week for you**, sorted by air time.
 - **New seasons and returning**.
