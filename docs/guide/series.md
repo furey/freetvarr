@@ -117,6 +117,12 @@ The same show under a longer name does not match: a series recording of `House o
 
 ## Other titles in the guide
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/settings/system/series">
+  <img src="../img/screenshot-series-drawer.png" alt="The open Big Brother series with Other titles in the guide, listing Big Brother Australia with a switch that is off" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 Some channels list one series under two titles, such as `Big Brother` and `Big Brother Australia`. The open series lists these titles under **Other titles in the guide**, each with its number of airings in the next 7 days. Freetvarr looks for them in the TV guide on the channels of the series recording (all channels with **Any channel**). A title is listed when it is the series title plus one of these words, or the series title without one:
 
 - `Australia`, `AU`, `AUS`, `NZ`, `New Zealand`, or `Aotearoa`

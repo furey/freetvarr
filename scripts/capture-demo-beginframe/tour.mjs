@@ -178,7 +178,8 @@ const run = async () => {
     await scrollEased({ selector: '.app-content', dy: scrollDy, ms: 1400 })
     if (warm) { await settle('home on now'); await checkRows('home') }
     const onNowTile = (title) => `[...(${onNow})?.querySelectorAll('a, button') || []].find((el) => el.textContent.includes(${JSON.stringify(title)}))`
-    await hoverOn(onNowTile('Gardening Australia'), { fy: 0.4, rest: 450 })
+    const otherOnNowTile = `[...(${onNow})?.querySelectorAll('a, button') || []].find((el) => el.querySelector('img') && !el.textContent.includes(${JSON.stringify(LIVE_TITLE)}))`
+    await hoverOn(otherOnNowTile, { fy: 0.4, rest: 450 })
     await hoverOn(onNowTile('Big Wave Season'), { fy: 0.4, rest: 700 })
     await mark('shot 3 live tv')
     await clickOn(tab('live'))
