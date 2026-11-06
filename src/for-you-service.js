@@ -24,7 +24,7 @@ import { showTitleKey } from './show-artwork.js'
 import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom, tvmazeIdOf } from './top-rated.js'
 import { createSeriesRatings, loadSeriesRatings, seriesRatingStamp, warmSeriesRatingsIfEmpty } from './series-ratings.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
-import { THEME_KINDS, createThemeIndex, groupOfMuteKey, hiddenThemesOf, themeChoicesOf, themeSettingsOf } from './for-you-themes.js'
+import { SPORT_ROW_KEY, SPORT_ROW_TITLE, THEME_KINDS, createThemeIndex, hiddenThemesOf, themeChoicesOf, themeMuteKeyOf, themeSettingsOf } from './for-you-themes.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { eventRowOf } from './user-events.js'
@@ -243,7 +243,8 @@ export const setThemeOn = async ({ key, on, nowMs = Date.now() }) => {
   if (on) off.delete(key)
   else off.add(key)
   await setSetting(SETTINGS.themesOff, JSON.stringify([...off].sort()))
-  if (on) await db('user_events').insert(eventRowOf({ event: { kind: 'theme_unmuted', series_key: `theme-${key}`, title: index.groups.get(key).title, source: 'settings', ts: nowMs }, nowMs }))
+  const sport = index.groups.get(key).row === 'sport'
+  if (on) await insertUnmutes({ index, keys: sport ? [key, SPORT_ROW_KEY] : [key], nowMs, source: 'settings' })
   forgetForYouCache()
   return { themes: await getThemeSettings({ nowMs }) }
 }
@@ -261,7 +262,6 @@ const currentThemeIndex = () => createThemeIndex({ country: countryForTimeZone(c
 
 export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   await flushUserEvents().catch(() => {})
-  if (seriesKey.startsWith('theme-')) return unmuteTheme({ seriesKey, nowMs })
   const latest = await db('user_events').whereIn('kind', HIDING_CHOICES).where({ series_key: seriesKey }).orderBy('ts', 'desc').first()
   const latestThumb = await db('user_events').whereIn('kind', THUMB_KINDS).where({ series_key: seriesKey }).orderBy('ts', 'desc').orderBy('id', 'desc').first()
   const kinds = latestThumb?.kind === 'thumb_down' ? ['not_interested_undo', 'thumb_clear'] : ['not_interested_undo']
@@ -274,12 +274,21 @@ export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   return { ok: true, wasHidden: Boolean(latest) }
 }
 
-const unmuteTheme = async ({ seriesKey, nowMs }) => {
-  const group = groupOfMuteKey(seriesKey)
-  await db('user_events').insert(eventRowOf({ event: { kind: 'theme_unmuted', series_key: seriesKey, title: currentThemeIndex().groups.get(group)?.title ?? null, source: 'for-you', ts: nowMs }, nowMs }))
+export const unmuteTheme = async ({ key, nowMs = Date.now() }) => {
+  const index = currentThemeIndex()
+  if (!isThemeKey({ index, key })) return { error: 'That theme is not in the catalogue' }
+  await flushUserEvents().catch(() => {})
+  await insertUnmutes({ index, keys: [key], nowMs, source: 'for-you' })
   forgetForYouCache()
-  return { ok: true, wasHidden: true }
+  return { ok: true }
 }
+
+const isThemeKey = ({ index, key }) => index.groups.has(key) || key === SPORT_ROW_KEY
+
+const insertUnmutes = ({ index, keys, nowMs, source }) => db('user_events').insert(keys.map((key) => eventRowOf({
+  event: { kind: 'theme_unmuted', series_key: themeMuteKeyOf(key), title: index.groups.get(key)?.title ?? SPORT_ROW_TITLE, source, ts: nowMs },
+  nowMs,
+})))
 
 export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS, ratingsDelayMs = RATINGS_WARM_DELAY_MS }) => {
   onGuideLoaded(() => warmForYou().catch((err) => console.warn(`[for-you] guide warm-up failed: ${err.message}`)))

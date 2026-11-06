@@ -140,7 +140,8 @@ export const householdThemesOf = ({ index, weights, tagsByKey, mutes = new Map()
   for (const [key, { weight }] of weights) {
     const tags = tagsByKey.get(key)
     if (!tags || tags.bulletin || !(weight > 0)) continue
-    total += weight
+    const offWeight = tags.entries.filter((entry) => entry.weight > 0 && isOff({ off, group: entry.group, index })).reduce((sum, entry) => sum + entry.weight, 0)
+    total += weight * Math.max(0, 1 - offWeight)
     for (const entry of tags.entries) {
       if (!(entry.weight > 0) || isOff({ off, group: entry.group, index })) continue
       const group = entry.group
@@ -179,15 +180,23 @@ export const themeMutesOf = (events = []) => themeChoicesOf(events).mutes
 export const themeChoicesOf = (events = []) => {
   const mutes = new Map()
   const boosts = new Set()
+  const boostedBeforeMute = new Set()
   for (const event of [...events].sort((a, b) => Number(a.ts) - Number(b.ts))) {
     if (!THEME_KINDS.has(event.kind)) continue
     const group = groupOfMuteKey(event.series_key)
     if (event.kind === THEME_MUTED) {
       mutes.set(group, Number(event.ts))
-      boosts.delete(group)
+      if (boosts.delete(group)) boostedBeforeMute.add(group)
     }
-    if (event.kind === THEME_UNMUTED) mutes.delete(group)
-    if (event.kind === THEME_BOOSTED) boosts.add(group)
+    if (event.kind === THEME_UNMUTED) {
+      mutes.delete(group)
+      if (boostedBeforeMute.delete(group)) boosts.add(group)
+    }
+    if (event.kind === THEME_BOOSTED) {
+      mutes.delete(group)
+      boostedBeforeMute.delete(group)
+      boosts.add(group)
+    }
     if (event.kind === THEME_UNBOOSTED) boosts.delete(group)
   }
   return { mutes, boosts }
@@ -196,7 +205,8 @@ export const themeChoicesOf = (events = []) => {
 export const hiddenThemesOf = ({ index, mutes, nowMs }) => [...mutes]
   .filter(([group, ts]) => nowMs - ts < MUTE_DAYS * DAY_MS && (index.groups.has(group) || group === SPORT_ROW_KEY))
   .map(([group, ts]) => ({
-    seriesKey: themeMuteKeyOf(group),
+    seriesKey: `theme:${group}`,
+    themeKey: group,
     title: index.groups.get(group)?.title ?? SPORT_ROW_TITLE,
     theme: true,
     hiddenAt: ts,
@@ -209,7 +219,9 @@ export const themeSettingsOf = ({ index, mutes = new Map(), off = new Set(), now
     key: info.group,
     title: info.title,
     sport: info.row === 'sport',
-    on: !off.has(info.group) && !muteOf({ mutes, group: info.group, nowMs }).hidden,
+    on: !off.has(info.group)
+      && !muteOf({ mutes, group: info.group, nowMs }).hidden
+      && !(info.row === 'sport' && muteOf({ mutes, group: SPORT_ROW_KEY, nowMs }).hidden),
   }))
 
 export const selectThemeGroups = ({ household, itemCounts }) => {
@@ -429,7 +441,8 @@ const episodeIdOf = ({ season, episode, episodeTitle, at }) => {
 const muteOf = ({ mutes, group, nowMs }) => {
   const ts = mutes.get(group)
   if (ts == null) return { applies: false, hidden: false }
-  return { applies: true, hidden: nowMs - ts < MUTE_DAYS * DAY_MS }
+  const active = nowMs - ts < MUTE_DAYS * DAY_MS
+  return { applies: active, hidden: active }
 }
 
 const sportRankOf = (candidate) => SPORT_RANKS[candidate.sportKind] ?? SPORT_RANKS.show
@@ -495,7 +508,7 @@ const NATURE = /\b(vets?|zoo|wildlife|animals?|pets?|safari)\b/i
 const MOTORING = /\b(cars|motoring|garage|wheeler dealers|top gear)\b/i
 const GENERIC_EPISODE = /^(episode \d+|episode \d+ of season \d+|part \d+|new|tba)$/i
 const KIDS_ETSI_GROUP = 0x5
-const KIDS_CHANNEL = /kids|nickelodeon|abc me\b|cbeebies|cartoon|disney junior|nick jr/i
+const KIDS_CHANNEL = /kids|nickelodeon|cbeebies|cartoon|disney junior|nick jr/i
 const FAMILY_CHANNEL = /family/i
 const FAMILY_EVENING_HOUR = 19
 const KIDS_GUIDE = new Set(['kids', 'children', 'kids & family', 'children & family', 'animation'])

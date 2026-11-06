@@ -130,6 +130,8 @@ export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }
 
 export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
 
+export const unmuteTheme = (themeKey) => api('DELETE', `/api/for-you/themes/${encodeURIComponent(themeKey)}/mute`)
+
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
   const rowTheme = ref(null)

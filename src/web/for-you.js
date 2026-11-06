@@ -202,7 +202,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
-    item.theme?.key && { key: 'fewer-theme', label: fewerThemeLabelOf(item.theme), icon: 'fewer' },
+    item.theme?.key && { key: 'fewer-theme', label: hideThemeLabelOf(item.theme), icon: 'fewer' },
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)
@@ -377,7 +377,7 @@ export const doneLabelOf = (count) => (count ? `Done · ${count} picked` : 'Done
 
 export const hiddenToastOf = (title) => `${title} is hidden from For you`
 
-export const fewerThemeLabelOf = (theme) => `Fewer ${theme.title} suggestions`
+export const hideThemeLabelOf = (theme) => `Hide ${theme.title}`
 
 export const themeMutedToastOf = (theme) => `The ${theme.title} row is hidden for 90 days`
 
@@ -392,7 +392,7 @@ export const themeBoostedToastOf = (theme) => `More ${theme.title} suggestions f
 
 export const rowMenuOf = (theme) => [
   { key: 'boost-theme', label: `More ${theme.title}`, icon: 'more' },
-  { key: 'mute-theme', label: `Hide ${theme.title}`, icon: 'hide' },
+  { key: 'mute-theme', label: hideThemeLabelOf(theme), icon: 'hide' },
 ]
 
 export const themeFeedbackOf = ({ kind, theme, source }) => ({

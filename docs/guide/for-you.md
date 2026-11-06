@@ -54,7 +54,7 @@ Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 - **Play**, **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
 - **More like this** and **Fewer like this**: tell Freetvarr what you think of the show. **Fewer like this** also hides the show from For you, until you press it again on the same card or press **Show again** in **Hidden shows**.
 - **Not interested in** the show: hides it from For you for 90 days.
-- **Fewer** suggestions for a theme row, such as **Fewer Cooking suggestions**: on cards in a theme row only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows).
+- **Hide** and the theme of the row, such as **Hide Cooking**: on cards in a theme row only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows).
 - **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
 
@@ -89,7 +89,7 @@ A theme row leaves out the shows you already record or watch, as these show unde
 Press **⋯** beside the title of a theme row or the sport row for these choices:
 
 - **More** and the theme, such as **More Cooking**: makes the theme count half as much again towards its row. Press **Undo** on the message to take it back.
-- **Hide** and the theme, such as **Hide Cooking**: hides the row for 90 days and makes it less likely to come back after that. Press **Undo** on the message to bring the row back.
+- **Hide** and the theme, such as **Hide Cooking**: hides the row for 90 days. After that, the theme counts as before. Press **Undo** on the message to bring the row back, with any **More** you chose before. Pressing **More** later also brings the row back.
 
 To turn a theme off before it ever shows, or to turn a hidden theme back on, open **Themes** in the [For you settings](#for-you-settings).
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { currentOtherLanguageFilms, forgetForYouCache, getForYou, getHiddenShows, getPickable, getThemeSettings, isForYouEnabled, setThemeOn, startForYou, titlesForKeys, unhideShow } from './for-you-service.js'
+import { currentOtherLanguageFilms, forgetForYouCache, getForYou, getHiddenShows, getPickable, getThemeSettings, isForYouEnabled, setThemeOn, startForYou, titlesForKeys, unhideShow, unmuteTheme } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { OTHER_LANGUAGE_CHOICES } from './top-rated.js'
@@ -77,6 +77,14 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     if (!THEME_KEY.test(key)) return res.status(400).json({ error: 'key must be a theme key' })
     if (typeof req.body?.on !== 'boolean') return res.status(400).json({ error: 'on must be true or false' })
     const result = await setThemeOn({ key, on: req.body.on })
+    if (result.error) return res.status(404).json({ error: result.error })
+    res.json(result)
+  })
+
+  app.delete('/api/for-you/themes/:key/mute', limiter, csrf, async (req, res) => {
+    const key = String(req.params.key || '')
+    if (!THEME_KEY.test(key)) return res.status(400).json({ error: 'key must be a theme key' })
+    const result = await unmuteTheme({ key })
     if (result.error) return res.status(404).json({ error: result.error })
     res.json(result)
   })

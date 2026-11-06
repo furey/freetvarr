@@ -270,7 +270,10 @@ test('boost and off: More multiplies the share by 1.5 once, and a theme turned o
   assert.equal(settings.find((theme) => theme.key === 'travel').on, true)
   assert.equal(settings.find((theme) => theme.key === 'afl').sport, true)
   assert.ok(!settings.some((theme) => ['news', 'kids', 'other-sport'].includes(theme.key)))
-  assert.deepEqual(hiddenThemesOf({ index, mutes: new Map([['quiz', NOW - DAY]]), nowMs: NOW }).map((entry) => [entry.seriesKey, entry.title]), [['theme-quiz', 'Quiz and game shows']])
+  assert.deepEqual(hiddenThemesOf({ index, mutes: new Map([['quiz', NOW - DAY]]), nowMs: NOW }).map((entry) => [entry.seriesKey, entry.title]), [['theme:quiz', 'Quiz and game shows']])
+  const offShare = householdThemesOf({ index, weights, tagsByKey, off: new Set(['cooking']), nowMs: NOW })
+  assert.equal(offShare.total, 10)
+  assert.ok(Math.abs(offShare.groups.get('quiz').share - 0.3) < 1e-9)
   const muted = themeChoicesOf([
     { kind: 'theme_boosted', series_key: 'theme-cooking', ts: NOW - DAY },
     { kind: 'theme_muted', series_key: 'theme-cooking', ts: NOW },
@@ -297,7 +300,7 @@ test('dedupe: a row is hidden when more than half its items show elsewhere, else
   assert.deepEqual(dedupeThemeRow({ ranked, used: new Set(['a', 'b']), limit: 6 }).map((candidate) => candidate.key), ['c', 'd', 'e', 'f'])
 })
 
-test('mute: hides the row for 90 days and keeps 0.2 of the share after that, undo clears it', () => {
+test('mute: hides the row and keeps 0.2 of the share for 90 days, then expires; undo clears it', () => {
   const mutes = themeMutesOf([{ kind: 'theme_muted', series_key: 'theme-cooking', ts: NOW - DAY }])
   const tagsByKey = new Map(['a', 'b', 'c'].map((key) => [key, cookingTags()]))
   const weights = new Map(['a', 'b', 'c'].map((key) => [key, { weight: 10 }]))
@@ -306,6 +309,24 @@ test('mute: hides the row for 90 days and keeps 0.2 of the share after that, und
   assert.ok(Math.abs(fresh.groups.get('cooking').share - (27 * 0.2) / 30) < 1e-9)
   const later = householdThemesOf({ index, weights, tagsByKey, mutes, nowMs: NOW + 91 * DAY })
   assert.equal(later.groups.get('cooking').muted, false)
+  assert.ok(Math.abs(later.groups.get('cooking').share - 27 / 30) < 1e-9)
+  const reboosted = themeChoicesOf([
+    { kind: 'theme_muted', series_key: 'theme-cooking', ts: NOW - DAY },
+    { kind: 'theme_boosted', series_key: 'theme-cooking', ts: NOW - HOUR },
+  ])
+  assert.equal(reboosted.mutes.has('cooking'), false)
+  assert.equal(reboosted.boosts.has('cooking'), true)
+  const restored = themeChoicesOf([
+    { kind: 'theme_boosted', series_key: 'theme-cooking', ts: NOW - 2 * DAY },
+    { kind: 'theme_muted', series_key: 'theme-cooking', ts: NOW - DAY },
+    { kind: 'theme_unmuted', series_key: 'theme-cooking', ts: NOW - HOUR },
+  ])
+  assert.equal(restored.boosts.has('cooking'), true)
+  const plainUndo = themeChoicesOf([
+    { kind: 'theme_muted', series_key: 'theme-cooking', ts: NOW - DAY },
+    { kind: 'theme_unmuted', series_key: 'theme-cooking', ts: NOW - HOUR },
+  ])
+  assert.equal(plainUndo.boosts.has('cooking'), false)
   const undone = themeMutesOf([
     { kind: 'theme_muted', series_key: 'theme-cooking', ts: NOW - DAY },
     { kind: 'theme_unmuted', series_key: 'theme-cooking', ts: NOW },
@@ -338,10 +359,10 @@ test('For you: a basic-tier household gets a Cooking row with its own shows left
   assert.equal(off.sections.find((section) => section.key === 'theme-cooking'), undefined)
 })
 
-test('web: theme cards offer Fewer suggestions for their row, and a muted row hides its cards', () => {
+test('web: theme cards offer Hide for their row, and a muted row hides its cards', () => {
   const item = { id: '1', title: 'Recipe Hour', seriesKey: 'recipe-hour', channelId: 'seven', start: NOW + HOUR, stop: NOW + 2 * HOUR, theme: { key: 'cooking', title: 'Cooking', phrase: 'cooking' } }
   const more = menuOf({ item, nowMs: NOW, timeZone: 'UTC' }).more
-  assert.deepEqual(more.find((entry) => entry.key === 'fewer-theme'), { key: 'fewer-theme', label: 'Fewer Cooking suggestions', icon: 'fewer' })
+  assert.deepEqual(more.find((entry) => entry.key === 'fewer-theme'), { key: 'fewer-theme', label: 'Hide Cooking', icon: 'fewer' })
   assert.deepEqual(rowMenuOf(item.theme).map((entry) => entry.label), ['More Cooking', 'Hide Cooking'])
   assert.equal(menuOf({ item: { ...item, theme: undefined }, nowMs: NOW, timeZone: 'UTC' }).more.some((entry) => entry.key === 'fewer-theme'), false)
   const hidden = new Set([themeHiddenKeyOf('cooking')])

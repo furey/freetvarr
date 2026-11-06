@@ -12,7 +12,7 @@ import {
 } from '/for-you.js'
 import { api } from '/shared/api.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
-import { forYouHidden, forYouMutedThemes, forYouShown, keepForYouAnimate, unhideShow } from '/shared/for-you-session.js'
+import { forYouHidden, forYouMutedThemes, forYouShown, keepForYouAnimate, unhideShow, unmuteTheme } from '/shared/for-you-session.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -247,11 +247,15 @@ export const SuggestionsSettingsView = {
     const showAgain = async (show) => {
       unhiding.value = show.seriesKey
       try {
-        await unhideShow(show.seriesKey)
+        if (show.themeKey) await unmuteTheme(show.themeKey)
+        else await unhideShow(show.seriesKey)
         hidden.value = hidden.value.filter((entry) => entry.seriesKey !== show.seriesKey)
-        forYouHidden.value = new Set([...forYouHidden.value].filter((key) => key !== show.seriesKey))
-        forYouMutedThemes.value = new Set([...forYouMutedThemes.value].filter((key) => `theme-${key}` !== show.seriesKey))
-        if (show.theme) await loadThemes()
+        if (show.themeKey) {
+          forYouMutedThemes.value = new Set([...forYouMutedThemes.value].filter((key) => key !== show.themeKey))
+          await loadThemes()
+        } else {
+          forYouHidden.value = new Set([...forYouHidden.value].filter((key) => key !== show.seriesKey))
+        }
       } catch (err) {
         error.value = `Could not show ${show.title} again: ${err.message}`
       } finally {

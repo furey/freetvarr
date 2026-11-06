@@ -1461,7 +1461,7 @@ The country comes from the time zone (`countryForTimeZone` in `src/zone-countrie
 
 Tagging (`tagTitle`):
 
-1. `titleKindOf` sorts each title into `film`, `kids`, `sport`, `fiction`, `factual`, or `unknown`. `kids` is an OP-39 genre code in group `0x5`, a `kids` category, or only kids channels. `sport` is a TVmaze type `Sports`, a `sport` category, or a sport XMLTV category. TVmaze `Scripted` is `fiction`; other TVmaze types are `factual`. Films take no theme.
+1. `titleKindOf` sorts each title into `film`, `kids`, `sport`, `fiction`, `factual`, or `unknown`. `kids` is an OP-39 genre code in group `0x5`, a `kids` category, or airings in kids slots only. A channel whose name says `kids` is a kids slot; when its name also says `family`, only airings before `19:00` local time (`FAMILY_EVENING_HOUR`) are. `sport` is a TVmaze type `Sports`, a `sport` category, or a sport XMLTV category. TVmaze `Scripted` is `fiction`; other TVmaze types are `factual`. Films take no theme.
 2. Each subtheme lists the kinds it accepts: drama and crime drama take `fiction`, topics take `factual`, sitcoms take `fiction`, comedy panel and stand-up take `factual`, and `unknown` takes both. `Kids` takes only `kids`; sport codes take only `sport`; `Fishing` also takes `sport`.
 3. A `sport` title takes its code from the title and channel names first (`sportCodeOf`). League, competition, and show names map to the sport, such as `NRLW`, `State of Origin`, and `NRL 360` to `rugby-league`, and `SANFL`, `WAFL`, and `Footy Classified` to `afl`. The order is `rugby-league`, `afl`, `rugby-union`, `american-football`, `cricket`, `soccer` (so `Cricket World Cup` is cricket and `World Cup` alone is soccer), then the other sports. A plain `football` is `soccer`, or `american-football` in `us` and `ca`, and no code in `au`. A `sport` title with fishing words is `Fishing`.
 4. With prototype vectors, the title vector is the mean of up to `6` of its text vectors. A subtheme scores the highest dot product with its prototypes. The best format subtheme and the best topic subtheme stay when they score within `0.08` of the better one.
@@ -1496,11 +1496,11 @@ Choices:
 
 - Each theme row and the sport row has a **⋯** button in its header. It opens a sheet with **More &lt;theme&gt;** and **Hide &lt;theme&gt;**.
 - **More** sends `theme_boosted` with the series key `theme-<key>`; **Undo** sends `theme_unboosted`. A boost multiplies the category share by `1.5` once; more boosts do not add to it. A mute clears the boost.
-- **Hide**, and **Fewer &lt;theme&gt; suggestions** in the card menu, send `theme_muted`. **Undo** and **Show again** send `theme_unmuted`.
-- A mute hides the row for `90` days and multiplies the category share by `0.2` until an unmute. A mute or boost of `sport` covers every sport.
-- The setting `for_you_themes_off` holds a JSON list of the themes turned off in Settings. An off theme has no row, and its tags do not count towards any share. The snapshot stamp `themesOff` starts a new build when the list changes.
-- `GET /api/for-you/themes` lists every theme and sport (`themeSettingsOf`) with `on`: off when in the list or muted in the last `90` days. `PUT /api/for-you/themes/:key` with `{ on }` updates the list; turning a theme on also sends `theme_unmuted`.
-- `GET /api/for-you/hidden` lists the muted themes of the last `90` days (`hiddenThemesOf`) with the hidden shows. `DELETE /api/for-you/hidden/theme-<key>` unmutes a theme.
+- **Hide &lt;theme&gt;**, in the row menu and in the card menu of a theme row, sends `theme_muted`. **Undo** and **Show again** send `theme_unmuted`. An unmute restores a boost that the mute cleared, and a newer boost cancels a mute.
+- A mute hides the row and multiplies the category share by `0.2` for `90` days, or until an unmute. After `90` days the share is back to normal. A mute or boost of `sport` covers every sport.
+- The setting `for_you_themes_off` holds a JSON list of the themes turned off in Settings. An off theme has no row. Its tags do not count towards any share, and the tag weight of its titles leaves the divisor. The snapshot stamp `themesOff` starts a new build when the list changes.
+- `GET /api/for-you/themes` lists every theme and sport (`themeSettingsOf`) with `on`: off when in the list or muted in the last `90` days. A muted `Sport this week` row shows every sport off. `PUT /api/for-you/themes/:key` with `{ on }` updates the list; turning a theme on also sends `theme_unmuted`, and for a sport also unmutes `sport`.
+- `GET /api/for-you/hidden` lists the muted themes of the last `90` days (`hiddenThemesOf`) with the hidden shows; a theme entry has the series key `theme:<key>` and a `themeKey`. `DELETE /api/for-you/themes/:key/mute` unmutes a theme in the catalogue, or `sport`; any other key returns `404`. `DELETE /api/for-you/hidden/:seriesKey` only handles shows, so a show such as `theme-park-secrets` unhides as a show.
 - The client hides the cards of a muted row at once (`forYouMutedThemes` in `src/web/shared/for-you-session.js`).
 
 ### Home hero
