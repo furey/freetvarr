@@ -5,6 +5,10 @@ import http from 'node:http'
 
 import { listAutorecs, newAutorecConfOf, setSeriesTagsEnabled } from '../src/tvheadend.js'
 import { folderForTitle, getSeries, joinSeries, savesTo } from '../src/series.js'
+import { anchorAutorecTitle } from '../src/autorec-match.js'
+import { TitleVariantError, setSeriesTitleVariant } from '../src/epg.js'
+import { matchShow } from '../src/sync.js'
+import { withTitleVariants } from '../src/title-variants.js'
 
 const NOW = Date.UTC(2026, 9, 6, 8, 0)
 const HOUR_MS = 60 * 60 * 1000
@@ -207,7 +211,7 @@ test('newAutorecConfOf: a new rule records unless the show is paused', () => {
   const conf = newAutorecConfOf(base)
   assert.equal(conf.enabled, true)
   assert.equal(conf.channel, ABC_TV)
-  assert.equal(conf.title, '^Hard Quiz( ?[:(-].*)?$')
+  assert.equal(conf.title, anchorAutorecTitle('Hard Quiz'))
   assert.equal(conf.start_extra, 2)
   assert.equal(conf.stop_extra, 5)
   assert.equal(conf.maxcount, 3)
@@ -218,7 +222,8 @@ test('newAutorecConfOf: a new rule records unless the show is paused', () => {
 
 test('newAutorecConfOf: escapes and anchors the guide title so TVHeadend matches that show only', () => {
   const conf = newAutorecConfOf({ title: 'Mr. Bean (1990)?', channelId: ABC_TV, configName: 'dvr' })
-  assert.equal(conf.title, '^Mr\\. Bean \\(1990\\)\\?( ?[:(-].*)?$')
+  assert.equal(conf.title, anchorAutorecTitle('Mr. Bean (1990)?'))
+  assert.ok(conf.title.startsWith('^Mr\\. Bean \\(1990\\)\\?( ?[:(-]'))
   assert.equal(conf.name, 'Mr. Bean (1990)?')
 })
 
@@ -245,6 +250,8 @@ test('getSeries: an unreachable TVHeadend still returns every row as a title mat
     loadShows: async () => shows,
     loadSaving: async () => SAVING,
     loadOverrides: async () => new Map(),
+    loadVariants: async () => new Map(),
+    loadAirings: async () => [],
     loadState: async () => { throw new Error('TVHeadend is not reachable') },
     loadChannels: async () => [],
   })
@@ -258,9 +265,156 @@ test('getSeries: passes the stale flag through from the recording state', async 
     loadShows: async () => [show()],
     loadSaving: async () => SAVING,
     loadOverrides: async () => new Map(),
+    loadVariants: async () => new Map(),
+    loadAirings: async () => [],
     loadState: async () => ({ seriesTags: [], upcomingRecordings: [], stale: true }),
     loadChannels: async () => { throw new Error('no guide') },
   })
   assert.equal(result.stale, true)
   assert.equal(result.titleMatches.length, 1)
+})
+
+const TEN = 'ten-hd'
+const SEVEN = 'seven'
+
+const airing = ({ title, channelId = TEN, hours = 3 }) => ({ channelId, title, start: NOW + hours * HOUR_MS, end: NOW + (hours + 1) * HOUR_MS })
+
+const bigBrother = (overrides) => ({
+  id: 'bb',
+  seriesLinkId: `${TEN}|big brother`,
+  name: 'Big Brother',
+  channelId: TEN,
+  enabled: true,
+  titleVariants: [],
+  titleEditable: true,
+  ...overrides,
+})
+
+const GUIDE = [
+  airing({ title: 'Big Brother' }),
+  airing({ title: 'Big Brother Australia', hours: 24 }),
+  airing({ title: 'Big Brother Australia', hours: 48 }),
+  airing({ title: 'Big Brother Australia', channelId: SEVEN }),
+  airing({ title: 'Big Brother Australia', hours: -5 }),
+  airing({ title: 'Big Brother: UK', hours: 30 }),
+  airing({ title: 'Big Brother Australian', hours: 31 }),
+  airing({ title: 'Celebrity Big Brother', hours: 32 }),
+  airing({ title: 'The Chase Australia', channelId: SEVEN }),
+  airing({ title: 'The Chase', channelId: SEVEN, hours: 5 }),
+]
+
+test('joinSeries: offers near-match guide titles on the rule\'s channels, off, with their upcoming airings', () => {
+  const [series] = joinSeries({ seriesTags: [bigBrother()], airings: GUIDE, nowMs: NOW }).series
+  assert.deepEqual(series.titleVariants, [{ title: 'Big Brother Australia', upcoming: 2, enabled: false }])
+  assert.equal(series.titleVariantsEditable, true)
+  assert.equal(series.key, 'big brother')
+})
+
+test('joinSeries: a chosen variant shows on, from the database or from the rule, even with no airings', () => {
+  const variants = new Map([['big-brother', ['Big Brother Australia', 'Big Brother 2027']]])
+  const [fromDb] = joinSeries({ seriesTags: [bigBrother()], airings: GUIDE, variants, nowMs: NOW }).series
+  assert.deepEqual(fromDb.titleVariants, [
+    { title: 'Big Brother 2027', upcoming: 0, enabled: true },
+    { title: 'Big Brother Australia', upcoming: 2, enabled: true },
+  ])
+  const [fromRule] = joinSeries({ seriesTags: [bigBrother({ titleVariants: ['Big Brother Australia'] })], airings: GUIDE, nowMs: NOW }).series
+  assert.deepEqual(fromRule.titleVariants, [{ title: 'Big Brother Australia', upcoming: 2, enabled: true }])
+  assert.equal(fromRule.title, 'Big Brother')
+})
+
+test('joinSeries: an any-channel rule counts airings on every channel, and the reverse suffix is offered too', () => {
+  const chase = { id: 'chase', seriesLinkId: '|the chase australia', name: 'The Chase Australia', channelId: '', enabled: true }
+  const [series] = joinSeries({ seriesTags: [chase], airings: GUIDE, nowMs: NOW }).series
+  assert.deepEqual(series.titleVariants, [{ title: 'The Chase', upcoming: 1, enabled: false }])
+})
+
+test('joinSeries: a series with no near-match title has no variants, and a hand-edited rule cannot change them', () => {
+  const quiz = { id: 'q', seriesLinkId: `${ABC_TV}|hard quiz`, name: 'Hard Quiz', channelId: ABC_TV, enabled: true }
+  assert.deepEqual(joinSeries({ seriesTags: [quiz], airings: GUIDE, nowMs: NOW }).series[0].titleVariants, [])
+  const [edited] = joinSeries({ seriesTags: [bigBrother({ titleEditable: false })], airings: GUIDE, nowMs: NOW }).series
+  assert.equal(edited.titleVariantsEditable, false)
+})
+
+test('joinSeries: the next airing includes an upcoming airing of a chosen variant', () => {
+  const upcomingRecordings = [upcoming({ name: 'Big Brother Australia', channelId: TEN, seriesLinkId: `${TEN}|big brother australia`, source: 'series' })]
+  const [series] = joinSeries({ seriesTags: [bigBrother({ titleVariants: ['Big Brother Australia'] })], upcomingRecordings, nowMs: NOW }).series
+  assert.equal(series.nextAiring?.programId, 900)
+})
+
+const variantDeps = ({ rules = [bigBrother()], stored = [] } = {}) => {
+  const calls = []
+  const deps = {
+    loadRules: async () => rules,
+    loadVariants: async (title) => {
+      calls.push(['load', title])
+      return stored
+    },
+    writeRule: async ({ seriesLinkIds, variants }) => calls.push(['rule', seriesLinkIds, variants]),
+    saveVariants: async ({ title, variants }) => {
+      calls.push(['save', title, variants])
+      stored = variants
+    },
+  }
+  return { calls, deps }
+}
+
+test('setSeriesTitleVariant: turning on writes the rule first, then saves; turning off removes it', async () => {
+  const { calls, deps } = variantDeps()
+  const seriesLinkIds = [`${TEN}|big brother`]
+  await setSeriesTitleVariant({ seriesLinkIds, variant: 'Big Brother Australia', enabled: true, ...deps })
+  await setSeriesTitleVariant({ seriesLinkIds, variant: 'big brother australia', enabled: false, ...deps })
+  assert.deepEqual(calls, [
+    ['load', 'Big Brother'],
+    ['rule', seriesLinkIds, ['Big Brother Australia']],
+    ['save', 'Big Brother', ['Big Brother Australia']],
+    ['load', 'Big Brother'],
+    ['rule', seriesLinkIds, []],
+    ['save', 'Big Brother', []],
+  ])
+})
+
+test('setSeriesTitleVariant: the series name comes from the rule, and a title that is not a variant is refused', async () => {
+  const { calls, deps } = variantDeps({ rules: [{ ...bigBrother(), name: 'Other' }] })
+  await assert.rejects(
+    setSeriesTitleVariant({ seriesLinkIds: ['x'], title: 'Big Brother', variant: 'Big Brother Australia', enabled: true, ...deps }),
+    (err) => err instanceof TitleVariantError && err.code === 'not-a-variant',
+  )
+  await assert.rejects(setSeriesTitleVariant({ seriesLinkIds: ['x'], variant: 'News', enabled: true, ...deps }), TitleVariantError)
+  assert.deepEqual(calls.filter(([kind]) => kind !== 'load'), [])
+})
+
+test('setSeriesTitleVariant: turning one title off keeps a variant that is only in the rule', async () => {
+  const rules = [bigBrother({ titleVariants: ['Big Brother 2026'] })]
+  const { calls, deps } = variantDeps({ rules, stored: ['Big Brother Australia'] })
+  await setSeriesTitleVariant({ seriesLinkIds: ['x'], variant: 'Big Brother Australia', enabled: false, ...deps })
+  assert.deepEqual(calls.find(([kind]) => kind === 'rule')[2], ['Big Brother 2026'])
+  assert.deepEqual(calls.find(([kind]) => kind === 'save')[2], ['Big Brother 2026'])
+})
+
+test('setSeriesTitleVariant: a chosen title that is not a near match can still be turned off', async () => {
+  const { calls, deps } = variantDeps({ stored: ['BB Late Night'] })
+  await setSeriesTitleVariant({ seriesLinkIds: ['x'], variant: 'bb late night', enabled: false, ...deps })
+  assert.deepEqual(calls.find(([kind]) => kind === 'save')[2], [])
+})
+
+test('setSeriesTitleVariant: a failed rule write saves nothing', async () => {
+  const { calls, deps } = variantDeps()
+  await assert.rejects(setSeriesTitleVariant({
+    seriesLinkIds: ['x'],
+    variant: 'Big Brother Australia',
+    enabled: true,
+    ...deps,
+    writeRule: async () => { throw new Error('HTTP 500') },
+  }), /HTTP 500/)
+  assert.deepEqual(calls.filter(([kind]) => kind === 'save'), [])
+})
+
+test('matchShow: the import files a chosen variant title under the series folder', () => {
+  const folder = show({ id: 7, show_pattern: 'Big Brother', dest_folder: 'Big Brother', origin: 'auto' })
+  const variants = new Map([['big-brother', ['Big Brother Australia']]])
+  assert.equal(matchShow(withTitleVariants({ shows: [folder], variants }), 'Big Brother Australia')?.id, 7)
+  assert.equal(matchShow(withTitleVariants({ shows: [folder], variants }), 'Big Brother Australia: Finale')?.id, 7)
+  assert.equal(matchShow(withTitleVariants({ shows: [folder] }), 'Big Brother Australia'), undefined)
+  const chase = show({ id: 8, show_pattern: 'The Chase', dest_folder: 'The Chase', origin: 'auto' })
+  assert.equal(matchShow([chase], 'The Chase Australia'), undefined)
 })

@@ -2,6 +2,7 @@ import fs from 'fs/promises'
 
 import { getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
+import { scheduledByProgramIdOf, seriesLinkSetOf } from './web/programme-state.js'
 import { SIMULCAST_START_TOLERANCE_MS, findHdSimulcast, isHdChannel, sdSimulcastIds } from './web/simulcast.js'
 import {
   listChannels,
@@ -16,6 +17,9 @@ import {
   disableSeriesTag,
   setSeriesTagsEnabled,
   updateSeriesTags,
+  setSeriesTitleVariants,
+  listSeriesRules,
+  seriesKey,
   resolveConnection,
   getChannelIcon,
   fetchProgrammeImage,
@@ -62,6 +66,7 @@ import {
 import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
 import { measureJob } from './event-loop-lag.js'
 import { loadExternalIds } from './external-ids-store.js'
+import { isVariantTitle, nextVariantsOf, saveTitleVariants, variantsForTitle } from './title-variants.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -271,7 +276,9 @@ export const planUpcomingRecordings = ({
     const tagByLink = new Map()
     for (const t of seriesTags) {
       const link = t?.seriesLinkId ?? t?.id
-      if (link != null && t.enabled !== false) tagByLink.set(String(link), t)
+      if (link == null || t.enabled === false) continue
+      tagByLink.set(String(link), t)
+      for (const variant of t.titleVariants || []) tagByLink.set(seriesKey({ channelId: t.channelId || '', title: variant }), t)
     }
     const firstAiringByEpisode = timerEpisodeAirings({ guide, timers })
     const candidates = []
@@ -434,14 +441,15 @@ const parseJsonArray = (raw) => {
   }
 }
 
-export const searchGuide = async ({ q } = {}) => {
+export const searchGuide = async ({ q, forYouIds = () => new Set() } = {}) => {
   if ((q || '').trim().length < 2) return { results: [] }
   const [guide, prefs, aliases] = await Promise.all([getCachedGuide(), getChannelPrefs(), loadSearchAliases()])
   const channels = orderChannels({ channels: guide.channels, ...prefs }).filter((c) => !c.hidden)
   const built = guideSearchFor({ guide, aliases })
   const nowMs = Date.now()
   const twinContext = await twinContextFor({ guide, prefs })
-  const results = searchGuideListings({ built, channels, query: q, nowMs, toProgramme: toBrowserProgram })
+  const seriesLinks = seriesLinkSetOf(twinContext.autorecs)
+  const results = searchGuideListings({ built, channels, query: q, nowMs, toProgramme: toBrowserProgram, scheduledIds: twinContext.scheduledIds, seriesLinks, forYouIds: forYouIds() })
     .filter((programme) => isPreferredAiring({ identity: twinContext.identity, programme, nowMs }))
     .map((programme) => ({ ...programme, ...twinFieldsOf({ programme, twinContext }) }))
   return { results }
@@ -465,8 +473,13 @@ export const guideIdentityFor = ({ guide, prefs }) => {
 
 const twinContextFor = async ({ guide, prefs }) => {
   const state = await getRecordingState().catch(() => null)
-  return { identity: guideIdentityFor({ guide, prefs }), autorecs: state?.seriesTags || [] }
+  return { identity: guideIdentityFor({ guide, prefs }), autorecs: state?.seriesTags || [], scheduledIds: scheduledIdsOf(state) }
 }
+
+export const scheduledIdsOf = (state) => new Set([
+  ...scheduledByProgramIdOf(state?.futureRecordings || []).keys(),
+  ...(state?.activeRecordingIds || []).map(String),
+])
 
 const twinFieldsOf = ({ programme, twinContext }) => (twinContext
   ? twinAnnotationOf({ identity: twinContext.identity, programme, autorecs: twinContext.autorecs })
@@ -659,7 +672,8 @@ export const recordSeries = async ({ programId, channelId, ...args }) => {
   if (!program) {
     throw new TvheadendError('Programme not found in the guide.', { stage: 'series', code: 'not-found' })
   }
-  const result = await enableSeriesTag({ ...args, channelId, title: program.title })
+  const variants = await variantsForTitle(program.title).catch(() => [])
+  const result = await enableSeriesTag({ ...args, channelId, title: program.title, variants })
   invalidateRecordingState()
   const channel = guide.channels.find((entry) => String(entry.id) === String(channelId))
   return { ...result, title: program.title, airing: seriesAiringOf({ program, channelName: channel?.name }) }
@@ -702,6 +716,41 @@ export const pauseSeries = async ({ seriesLinkIds, paused }) => {
   const result = await setSeriesTagsEnabled({ seriesLinkIds, enabled: !paused })
   invalidateRecordingState()
   return result
+}
+
+export const setSeriesTitleVariant = async ({
+  seriesLinkIds,
+  variant,
+  enabled,
+  loadRules = listSeriesRules,
+  loadVariants = variantsForTitle,
+  writeRule = setSeriesTitleVariants,
+  saveVariants = saveTitleVariants,
+}) => {
+  const rules = await loadRules({ seriesLinkIds })
+  const title = rules[0].name
+  const current = distinctTitlesOf([...await loadVariants(title), ...rules.flatMap((rule) => rule.titleVariants || [])])
+  const chosen = current.find((known) => known.toLowerCase() === variant.toLowerCase())
+  if (!chosen && !isVariantTitle({ title, candidate: variant })) {
+    throw new TitleVariantError(`"${variant}" is not another title of "${title}".`)
+  }
+  const variants = nextVariantsOf({ current, variant: chosen ?? variant, enabled })
+  await writeRule({ seriesLinkIds, variants })
+  await saveVariants({ title, variants })
+  invalidateRecordingState()
+  return { ok: true, title, variants }
+}
+
+export class TitleVariantError extends Error {
+  code = 'not-a-variant'
+}
+
+const distinctTitlesOf = (titles) => [...new Map(titles.map((title) => [title.toLowerCase(), title])).values()]
+
+export const listGuideAirings = async () => {
+  const guide = await getCachedGuide()
+  return guide.channels.flatMap((channel) => (guide.programsByChannel[String(channel.epgId)] || [])
+    .map((p) => ({ channelId: channel.id, title: p.title, start: p.start, end: p.end })))
 }
 
 export const updateSeriesRule = async ({ seriesLinkIds, patch }) => {

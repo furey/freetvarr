@@ -42,9 +42,9 @@ after(async () => {
 })
 
 test('limit is a whole number from 1 to 20', () => {
-  assert.equal(limitFrom(undefined), 10)
+  assert.equal(limitFrom(undefined), 12)
   assert.equal(limitFrom('3'), 3)
-  assert.equal(limitFrom('0'), 10)
+  assert.equal(limitFrom('0'), 12)
   assert.equal(limitFrom('500'), 20)
 })
 

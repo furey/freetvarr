@@ -2822,6 +2822,15 @@ table.recordings-table tbody td {
 }
 .series-drawer-state { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-soft); }
 .series-drawer-state .field-label { display: inline; margin: 0; }
+.series-drawer-variants {
+  display: grid;
+  gap: 0.6rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px dashed var(--color-hairline);
+}
+.series-drawer-variants-text { display: grid; gap: 2px; margin: 0; }
+.series-drawer-variants-text .settings-row-meta { text-wrap: pretty; }
+.series-drawer-variant-list { display: grid; gap: 0.6rem; }
 .toggle-row,
 .toggle-card { cursor: pointer; }
 .toggle-card .drawer-card { cursor: auto; }

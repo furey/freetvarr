@@ -18,6 +18,7 @@ import { applyStoredTimeZone, currentTimeZone, resolveTimeZone, timeZoneFromEnv 
 import { matchShowFolder, listShowFolders } from './folder-matcher.js'
 import { ensureShowFolder } from './show-folders.js'
 import { anchorSeriesRulesQuietly } from './autorec-anchor.js'
+import { mountSeriesVariantRoutes } from './series-variant-routes.js'
 import { USER_ORIGIN } from './show-origin.js'
 import { FOLDER_UNWRITABLE, PLACEHOLDER_KEPT, keepOneOffFolder } from './one-off-placeholder.js'
 import { keepShowFolder, keptFolderPatchOf, planFolderFix, renameShowFolder } from './show-folder-rename.js'
@@ -195,7 +196,7 @@ import { plexItemPlaybackRow, saveItemPosition } from './plex-library-store.js'
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, createSnapshotSaver, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
-import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
+import { cachedForYouIds, forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -630,7 +631,7 @@ app.get('/api/epg/guide', async (req, res) => {
 
 app.get('/api/epg/search', async (req, res) => {
   try {
-    res.json(await searchGuide({ q: String(req.query.q || '') }))
+    res.json(await searchGuide({ q: String(req.query.q || ''), forYouIds: cachedForYouIds }))
   } catch (err) {
     epgError(res, err, 'search')
   }
@@ -853,6 +854,8 @@ app.post('/api/epg/pause-series', epgLimiter, doubleCsrfProtection, async (req, 
     epgError(res, err, 'pause-series')
   }
 })
+
+mountSeriesVariantRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onError: epgError })
 
 app.get('/api/epg/channel-prefs', async (req, res) => {
   try {

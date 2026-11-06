@@ -6,6 +6,7 @@ import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { pickReviewSnippet } from './review-snippet.js'
 import { linkHealth } from './link-health.js'
+import { dominantShowOf, isCinematicSeries } from './top-rated.js'
 import { lookupAllowed } from './lookup-gate.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import { externalIdsOf, hasExternalIds, idKeyedCacheKeyOf, tmdbIdOfExternalIds } from './external-ids.js'
@@ -29,6 +30,8 @@ import {
   titleVariantsOf,
   TMDB_FIRST_SAVED_AFTER_MS,
 } from './artwork-match.js'
+
+export { isCinematicSeries }
 
 export const RATINGS_SETTING = 'ratings_lookup_enabled'
 export const REVIEWS_SETTING = 'reviews_lookup_enabled'
@@ -443,18 +446,8 @@ export const pickRatedShow = ({ results = [], key, hints, country }) => {
   if (candidates.length === 1 && plausible.length === 1) return plausible[0].show
   const english = shortlist.filter(({ show }) => show.language === 'English')
   if (english.length === 1) return english[0].show
-  return dominantShowOf(english)
+  return dominantShowOf(english.map(({ show }) => show))
 }
-
-const dominantShowOf = (verdicts) => {
-  const [top, next] = [...verdicts].sort((a, b) => (b.show.weight || 0) - (a.show.weight || 0))
-  if (!top || (top.show.weight || 0) < MIN_DOMINANT_WEIGHT) return null
-  return !next || top.show.weight >= (next.show.weight || 0) * DOMINANT_WEIGHT_RATIO ? top.show : null
-}
-
-export const isCinematicSeries = ({ tvmazeType = null, tmdbType = null }) => (tvmazeType
-  ? TVMAZE_CINEMATIC_TYPES.has(tvmazeType)
-  : TMDB_CINEMATIC_TYPES.has(tmdbType))
 
 export const lacksFilmLanguage = (found) => Boolean(found)
   && String(found.url || '').startsWith(`${TMDB_WEB}/movie/`)
@@ -589,10 +582,6 @@ const TVMAZE_API = 'https://api.tvmaze.com'
 export const TMDB_WEB = 'https://www.themoviedb.org'
 const TMDB_LANGUAGE = 'en-US'
 const MAX_EPISODE_CHECKS = 4
-const MIN_DOMINANT_WEIGHT = 50
-const DOMINANT_WEIGHT_RATIO = 3
-const TVMAZE_CINEMATIC_TYPES = new Set(['Scripted', 'Animation', 'Documentary'])
-const TMDB_CINEMATIC_TYPES = new Set(['Scripted', 'Documentary', 'Miniseries'])
 const CONTRADICTIONS = new Set(['year', 'cast'])
 const MIN_TMDB_VOTES = 50
 export const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000

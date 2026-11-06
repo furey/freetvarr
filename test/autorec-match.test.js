@@ -8,8 +8,8 @@ import path from 'node:path'
 const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-autorec-match-'))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
-const { anchorAutorecTitle, autorecMatchFieldsOf, autorecMatchesAiring, isSameShowTitle, literalTitleOf } = await import('../src/autorec-match.js')
-const { enableSeriesTag, listAutorecs, newAutorecConfOf } = await import('../src/tvheadend.js')
+const { SAME_SHOW_SUFFIX, anchorAutorecTitle, anchoredTitlesOf, autorecMatchFieldsOf, autorecMatchesAiring, isSameShowTitle, literalTitleOf } = await import('../src/autorec-match.js')
+const { enableSeriesTag, listAutorecs, newAutorecConfOf, setSeriesTitleVariants } = await import('../src/tvheadend.js')
 const { db, setSetting, deleteSetting } = await import('../src/db.js')
 
 before(() => db.migrate.latest())
@@ -20,6 +20,7 @@ after(async () => {
 })
 
 const CHANNEL = 'c1'
+const LEGACY_SUFFIX = '( ?[:(-].*)?$'
 const START = Date.UTC(2026, 10, 9, 8, 30)
 
 const programmeOf = (title) => ({ title, channel_id: CHANNEL, start: START, end: START + 3600000 })
@@ -34,8 +35,8 @@ const ruleOf = (title) => ({
 const anchored = (title) => newAutorecConfOf({ title, channelId: CHANNEL, configName: 'dvr' }).title
 
 test('newAutorecConfOf: anchors the title to the whole show title', () => {
-  assert.equal(anchored('The Chase'), '^The Chase( ?[:(-].*)?$')
-  assert.equal(anchored('Mr. Bean (1990)?'), '^Mr\\. Bean \\(1990\\)\\?( ?[:(-].*)?$')
+  assert.equal(anchored('The Chase'), `^The Chase${SAME_SHOW_SUFFIX}`)
+  assert.equal(anchored('Mr. Bean (1990)?'), `^Mr\\. Bean \\(1990\\)\\?${SAME_SHOW_SUFFIX}`)
 })
 
 test('anchored rules match the show and its subtitled titles, not longer show names', () => {
@@ -78,7 +79,7 @@ test('isSameShowTitle: equal, or followed by a colon, a dash, or a bracket', () 
   assert.equal(isSameShowTitle({ title: 'Anything', show: '' }), false)
 })
 
-const withTvh = async (run, { autorecs = [], creates = [] } = {}) => {
+const withTvh = async (run, { autorecs = [], creates = [], saves = [] } = {}) => {
   const server = http.createServer(async (req, res) => {
     const { pathname } = new URL(req.url, 'http://tvh')
     let body = ''
@@ -86,6 +87,10 @@ const withTvh = async (run, { autorecs = [], creates = [] } = {}) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     if (pathname === '/api/dvr/autorec/grid') return res.end(JSON.stringify({ entries: autorecs }))
     if (pathname === '/api/dvr/config/grid') return res.end(JSON.stringify({ entries: [{ uuid: 'cfg', name: '' }] }))
+    if (pathname === '/api/idnode/save') {
+      saves.push(JSON.parse(new URLSearchParams(body).get('node')))
+      return res.end('{}')
+    }
     if (pathname === '/api/dvr/autorec/create') {
       creates.push(JSON.parse(new URLSearchParams(body).get('conf')))
       return res.end(JSON.stringify({ uuid: 'new-rule' }))
@@ -140,4 +145,148 @@ test('listAutorecs: every tricky anchored title keeps its plain series key', asy
   const autorecs = TRICKY_TITLES.map((title, i) => ({ uuid: `r${i}`, title: anchorAutorecTitle(title), name: title, channel: CHANNEL }))
   const rules = await withTvh((conn) => listAutorecs(conn), { autorecs })
   assert.deepEqual(rules.map((rule) => rule.seriesLinkId), TRICKY_TITLES.map((title) => `${CHANNEL}|${title.toLowerCase()}`))
+})
+
+
+test('the anchored suffix leaves out a foreign edition tag after a colon, a bracket, or a dash', () => {
+  const rule = ruleOf(anchored('Say Yes To The Dress'))
+  const matches = (title) => autorecMatchesAiring({ autorec: rule, programme: programmeOf(title) })
+  assert.equal(matches('Say Yes To The Dress'), true)
+  assert.equal(matches('Say Yes To The Dress: Atlanta'), true)
+  assert.equal(matches('Say Yes To The Dress: UK'), false)
+  assert.equal(matches('Say Yes To The Dress (US)'), false)
+  assert.equal(matches('Say Yes To The Dress - USA'), false)
+  assert.equal(matches('say yes to the dress (usa)'), false)
+  assert.equal(matches('Say Yes To The Dress: South Africa'), true)
+  assert.equal(matches('say yes to the dress (ireland)'), true)
+  assert.equal(matches('Say Yes To The Dress: UK Special'), true)
+  assert.equal(matches('Say Yes To The Dress (USA 2019)'), true)
+  assert.equal(matches('Say Yes To The Dress: Uk-ish'), true)
+})
+
+test('the anchored suffix still matches a subtitle that only starts like a country', () => {
+  const rule = ruleOf(anchored('Play School'))
+  const matches = (title) => autorecMatchesAiring({ autorec: rule, programme: programmeOf(title) })
+  assert.equal(matches('Play School: Rainforest Rangers'), true)
+  assert.equal(matches('Play School: Indian Summer'), true)
+  assert.equal(matches('Play School: Us Two'), true)
+  assert.equal(matches('Play School (Canadas Day)'), true)
+  assert.equal(matches('The Voice (US)'), false)
+})
+
+test('a destination after the title still matches: only UK, US, and USA mark a foreign edition', () => {
+  const travel = ruleOf(anchored('Travel Guides'))
+  const escape = ruleOf(anchored('Escape to the Country'))
+  assert.equal(autorecMatchesAiring({ autorec: travel, programme: programmeOf('Travel Guides: Canada') }), true)
+  assert.equal(autorecMatchesAiring({ autorec: travel, programme: programmeOf('Travel Guides: India') }), true)
+  assert.equal(autorecMatchesAiring({ autorec: travel, programme: programmeOf('Travel Guides - South Africa') }), true)
+  assert.equal(autorecMatchesAiring({ autorec: escape, programme: programmeOf('Escape to the Country: Ireland') }), true)
+  assert.equal(autorecMatchesAiring({ autorec: escape, programme: programmeOf('Escape to the Country (UK)') }), false)
+})
+
+test('an old-form rule with a hand-made alternation is not read as title variants', () => {
+  const pattern = `^(Foo|Bar)${LEGACY_SUFFIX}`
+  assert.equal(anchoredTitlesOf(pattern), null)
+  assert.equal(literalTitleOf(pattern), null)
+  assert.deepEqual(anchoredTitlesOf(`^(Foo|Bar)${SAME_SHOW_SUFFIX}`).titles, ['Foo', 'Bar'])
+})
+
+test('listAutorecs: an old-form alternation rule keeps its raw title as its name and key', async () => {
+  const autorecs = [{ uuid: 'r1', title: `^(Foo|Bar)${LEGACY_SUFFIX}`, name: 'Foo', channel: CHANNEL, comment: 'freetvarr' }]
+  const [rule] = await withTvh((conn) => listAutorecs(conn), { autorecs })
+  assert.equal(rule.name, `^(Foo|Bar)${LEGACY_SUFFIX}`)
+  assert.equal(rule.seriesLinkId, `${CHANNEL}|^(foo|bar)${LEGACY_SUFFIX}`)
+  assert.deepEqual(rule.titleVariants, [])
+  assert.equal(rule.titleEditable, false)
+})
+
+test('a rule anchored by 2.9.0 still matches foreign editions until it is re-anchored', () => {
+  const rule = ruleOf(`^Say Yes To The Dress${LEGACY_SUFFIX}`)
+  assert.equal(autorecMatchesAiring({ autorec: rule, programme: programmeOf('Say Yes To The Dress: UK') }), true)
+  assert.deepEqual(anchoredTitlesOf(`^Say Yes To The Dress${LEGACY_SUFFIX}`), { titles: ['Say Yes To The Dress'], foreignEditions: true })
+})
+
+test('a rule with a title variant records both titles and nothing else', () => {
+  const rule = ruleOf(anchorAutorecTitle('Big Brother', ['Big Brother Australia']))
+  const matches = (title) => autorecMatchesAiring({ autorec: rule, programme: programmeOf(title) })
+  assert.equal(matches('Big Brother'), true)
+  assert.equal(matches('Big Brother Australia'), true)
+  assert.equal(matches('Big Brother Australia: Live Eviction'), true)
+  assert.equal(matches('Big Brother: UK'), false)
+  assert.equal(matches('Big Brother Australian'), false)
+  assert.equal(matches('Celebrity Big Brother'), false)
+})
+
+test('a rule without the variant keeps The Chase and The Chase Australia apart', () => {
+  const rule = ruleOf(anchored('The Chase'))
+  assert.equal(autorecMatchesAiring({ autorec: rule, programme: programmeOf('The Chase Australia') }), false)
+  const australia = ruleOf(anchored('The Chase Australia'))
+  assert.equal(autorecMatchesAiring({ autorec: australia, programme: programmeOf('The Chase') }), false)
+})
+
+test('anchorAutorecTitle: variants join the title as a group, without repeats, and read back as the primary name', () => {
+  const pattern = anchorAutorecTitle('Big Brother', ['Big Brother Australia', 'big brother australia', 'Big Brother', ''])
+  assert.equal(pattern, `^(Big Brother|Big Brother Australia)${SAME_SHOW_SUFFIX}`)
+  assert.equal(literalTitleOf(pattern), 'Big Brother')
+  assert.deepEqual(anchoredTitlesOf(pattern), { titles: ['Big Brother', 'Big Brother Australia'], foreignEditions: false })
+  const tricky = anchorAutorecTitle('A|B', ['A|B (2026)', 'Q+A'])
+  assert.deepEqual(anchoredTitlesOf(tricky).titles, ['A|B', 'A|B (2026)', 'Q+A'])
+  assert.equal(literalTitleOf(`^(Big Brother|Big.*)${SAME_SHOW_SUFFIX}`), null)
+  assert.equal(literalTitleOf(`^(Big Brother)${SAME_SHOW_SUFFIX}`), null)
+})
+
+test('the anchored pattern stays POSIX-safe: no lookaround, no lazy or possessive quantifiers, no empty branches', () => {
+  const pattern = anchorAutorecTitle('Big Brother', ['Big Brother Australia'])
+  assert.doesNotMatch(pattern, /\(\?|\*\?|\+\?|\*\+|\(\||\|\||\|\)|\\[dswb]/i)
+  assert.ok(pattern.length < 250)
+})
+
+test('the anchored pattern and isSameShowTitle agree on foreign edition tags', () => {
+  const tags = ['UK', 'US', 'USA', 'Canada', 'India', 'South Africa', 'Ireland', 'Uk', 'U', 'USB', 'USAF', 'South', 'Australia']
+  const forms = (tag) => [`: ${tag}`, `:${tag}`, ` (${tag})`, `(${tag})`, ` - ${tag}`, `-${tag}`, ` (${tag}`, `: ${tag})`, `:  ${tag}`, `: ${tag} `, ` (${tag}) Special`]
+  const pattern = new RegExp(anchorAutorecTitle('Show'), 'i')
+  for (const tag of tags) {
+    for (const form of forms(tag)) {
+      const subject = `Show${form}`
+      assert.equal(pattern.test(subject), isSameShowTitle({ title: subject, show: 'Show' }), subject)
+    }
+  }
+})
+
+test('listAutorecs: a rule with a variant keeps its primary name and series key, and lists the variant', async () => {
+  const autorecs = [{ uuid: 'r1', title: anchorAutorecTitle('Big Brother', ['Big Brother Australia']), name: 'Big Brother', channel: CHANNEL, comment: 'freetvarr' }]
+  const [rule] = await withTvh((conn) => listAutorecs(conn), { autorecs })
+  assert.equal(rule.name, 'Big Brother')
+  assert.equal(rule.seriesLinkId, `${CHANNEL}|big brother`)
+  assert.deepEqual(rule.titleVariants, ['Big Brother Australia'])
+  assert.equal(rule.titleEditable, true)
+})
+
+test('setSeriesTitleVariants: saves the new title to each rule and refuses a rule changed in TVHeadend', async () => {
+  const saves = []
+  const autorecs = [
+    { uuid: 'sd', title: anchorAutorecTitle('Big Brother'), name: 'Big Brother', channel: CHANNEL, comment: 'freetvarr' },
+    { uuid: 'hd', title: `^Big Brother${LEGACY_SUFFIX}`, name: 'Big Brother', channel: 'c2', comment: 'freetvarr' },
+    { uuid: 'own', title: 'Hard Quiz|Hard Quiz Kids', name: 'Hard Quiz', channel: CHANNEL, comment: 'freetvarr' },
+  ]
+  await withTvh((conn) => setSeriesTitleVariants({ seriesLinkIds: [`${CHANNEL}|big brother`, 'c2|big brother'], variants: ['Big Brother Australia'], conn }), { autorecs, saves })
+  assert.deepEqual(saves, [
+    { uuid: 'sd', title: anchorAutorecTitle('Big Brother', ['Big Brother Australia']) },
+    { uuid: 'hd', title: anchorAutorecTitle('Big Brother', ['Big Brother Australia']) },
+  ])
+  await assert.rejects(
+    withTvh((conn) => setSeriesTitleVariants({ seriesLinkIds: ['own'], variants: ['Hard Quiz Kids'], conn }), { autorecs, saves }),
+    /changed in TVHeadend/,
+  )
+  assert.equal(saves.length, 2)
+})
+
+test('enableSeriesTag: a new rule includes the saved title variants', async () => {
+  const creates = []
+  await withTvh(
+    () => enableSeriesTag({ seriesLink: `${CHANNEL}|big brother`, channelId: CHANNEL, title: 'Big Brother', variants: ['Big Brother Australia'] }),
+    { creates },
+  )
+  assert.equal(creates[0].title, anchorAutorecTitle('Big Brother', ['Big Brother Australia']))
+  assert.equal(creates[0].name, 'Big Brother')
 })

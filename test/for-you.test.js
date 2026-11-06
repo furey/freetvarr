@@ -127,7 +127,7 @@ test('the reason names how you engaged: watched, recorded, or More like this', (
   assert.equal(itemFor(run({ programmes: [airing('Rake')], events: recordedEvents }), 'Rake').reason, 'Because you recorded Rake')
   const likedEvents = [...recordedEvents, feedback('thumb_up', 'Rake')]
   assert.equal(itemFor(run({ programmes: [airing('Rake')], events: likedEvents }), 'Rake').reason, 'More like Rake')
-  const watchedEvents = [...baseEvents(), ...watched('Rake', { episodes: 2 })]
+  const watchedEvents = [...baseEvents(), ...watched('Rake', { episodes: 4 })]
   assert.equal(itemFor(run({ programmes: [airing('Rake')], events: watchedEvents }), 'Rake').reason, 'Because you watched Rake')
 })
 
@@ -392,7 +392,7 @@ test('ranks a full week guide', (t) => {
 })
 
 test('recording titles with an episode suffix join the show', () => {
-  const events = [...baseEvents(), ...watched('The Block', { episodes: 2 })]
+  const events = [...baseEvents(), ...watched('The Block', { episodes: 4 })]
   const recordings = [{ recording_id: 'r9', title: 'The Block - Kids Room Week', season: 22, episode: 35, aired_at: NOW - DAY }]
   const result = run({ programmes: [airing('The Block')], events, recordings })
   const why = result.explanations.get(itemFor(result, 'The Block').id)

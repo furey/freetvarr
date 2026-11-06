@@ -2,7 +2,9 @@ import path from 'path'
 
 import { db, getSetting } from './db.js'
 import { createValidFilename, getMediaRoot, getOneOffRoot, matchShow, seasonFolderName } from './sync.js'
-import { getRecordingState, listGuideChannels } from './epg.js'
+import { getRecordingState, listGuideAirings, listGuideChannels } from './epg.js'
+import { seriesKey } from './tvheadend.js'
+import { chosenVariantsOf, guideTitleIndexOf, loadTitleVariants, variantTitlesOf } from './title-variants.js'
 import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 
@@ -12,15 +14,22 @@ export const getSeries = async ({
   loadChannels = listGuideChannels,
   loadSaving = savingSettings,
   loadOverrides = loadKindOverrides,
+  loadVariants = loadTitleVariants,
+  loadAirings = listGuideAirings,
   nowMs = Date.now(),
 } = {}) => {
-  const [shows, saving, kindOverrides] = await Promise.all([
+  const [shows, saving, kindOverrides, variants] = await Promise.all([
     loadShows(),
     loadSaving(),
     loadOverrides().catch(() => new Map()),
+    loadVariants().catch(() => new Map()),
   ])
   try {
-    const [state, channels] = await Promise.all([loadState(), loadChannels().catch(() => [])])
+    const [state, channels, airings] = await Promise.all([
+      loadState(),
+      loadChannels().catch(() => []),
+      loadAirings().catch(() => []),
+    ])
     const joined = joinSeries({
       seriesTags: state.seriesTags,
       upcomingRecordings: state.upcomingRecordings,
@@ -28,6 +37,8 @@ export const getSeries = async ({
       channels,
       saving,
       kindOverrides,
+      variants,
+      airings,
       nowMs,
     })
     return { ...joined, stale: Boolean(state.stale), error: null }
@@ -43,11 +54,14 @@ export const joinSeries = ({
   channels = [],
   saving = DEFAULT_SAVING,
   kindOverrides = new Map(),
+  variants = new Map(),
+  airings = [],
   nowMs = Date.now(),
 } = {}) => {
   const channelNames = new Map(channels.map((c) => [String(c.id), c.name]))
+  const titleIndex = guideTitleIndexOf({ airings, nowMs })
   const series = groupByTitle(seriesTags)
-    .map(({ key, autorecs }) => describeSeries({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, nowMs }))
+    .map(({ key, autorecs }) => describeSeries({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, variants, titleIndex, nowMs }))
     .sort((a, b) => a.title.localeCompare(b.title))
   const filedIds = new Set(series.filter((s) => s.folder).map((s) => s.folder.id))
   return { series, titleMatches: withSavesTo({ shows: shows.filter((s) => !filedIds.has(s.id)), saving }) }
@@ -85,9 +99,9 @@ const savingSettings = async () => ({
 const withSavesTo = ({ shows, saving }) =>
   shows.map((show) => ({ ...show, savesTo: savesTo({ folder: show, saving }) }))
 
-const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, nowMs }) => {
+const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, variants, titleIndex, nowMs }) => {
   const title = autorecs[0].name
-  const links = new Set(autorecs.map((a) => String(a.seriesLinkId)))
+  const links = new Set(autorecs.flatMap(seriesLinksOf))
   const next = upcomingRecordings
     .filter((r) => links.has(String(r.seriesLinkId)) && r.endDate > nowMs)
     .sort((a, b) => a.startDate - b.startDate)[0]
@@ -108,6 +122,13 @@ const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames
       episodesToKeep: a.episodesToKeep || 0,
     })),
     nextAiring: next ? nextAiringOf({ next, channelNames }) : null,
+    titleVariants: variantTitlesOf({
+      title,
+      titleIndex,
+      chosen: [...chosenVariantsOf({ variants, title }), ...autorecs.flatMap((a) => a.titleVariants || [])],
+      inScope: inChannelScopeOf(autorecs),
+    }),
+    titleVariantsEditable: autorecs.every((a) => a.titleEditable !== false),
     folder,
     savesTo: savesTo({
       folder,
@@ -118,6 +139,17 @@ const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames
       kindOverride: kindOverrides.get(showKeyOf(title)) ?? null,
     }),
   }
+}
+
+const seriesLinksOf = (autorec) => [
+  String(autorec.seriesLinkId),
+  ...(autorec.titleVariants || []).map((variant) => seriesKey({ channelId: autorec.channelId || '', title: variant })),
+]
+
+const inChannelScopeOf = (autorecs) => {
+  if (autorecs.some((a) => !a.channelId)) return () => true
+  const channelIds = new Set(autorecs.map((a) => String(a.channelId)))
+  return (airing) => channelIds.has(String(airing.channelId))
 }
 
 const nextAiringOf = ({ next, channelNames }) => ({
