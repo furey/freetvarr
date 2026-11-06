@@ -16,6 +16,9 @@ import {
   disableSeriesTag,
   setSeriesTagsEnabled,
   updateSeriesTags,
+  setSeriesTitleVariants,
+  listSeriesRules,
+  seriesKey,
   resolveConnection,
   getChannelIcon,
   fetchProgrammeImage,
@@ -62,6 +65,7 @@ import {
 import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
 import { measureJob } from './event-loop-lag.js'
 import { loadExternalIds } from './external-ids-store.js'
+import { isVariantTitle, nextVariantsOf, saveTitleVariants, variantsForTitle } from './title-variants.js'
 
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
@@ -271,7 +275,9 @@ export const planUpcomingRecordings = ({
     const tagByLink = new Map()
     for (const t of seriesTags) {
       const link = t?.seriesLinkId ?? t?.id
-      if (link != null && t.enabled !== false) tagByLink.set(String(link), t)
+      if (link == null || t.enabled === false) continue
+      tagByLink.set(String(link), t)
+      for (const variant of t.titleVariants || []) tagByLink.set(seriesKey({ channelId: t.channelId || '', title: variant }), t)
     }
     const firstAiringByEpisode = timerEpisodeAirings({ guide, timers })
     const candidates = []
@@ -659,7 +665,8 @@ export const recordSeries = async ({ programId, channelId, ...args }) => {
   if (!program) {
     throw new TvheadendError('Programme not found in the guide.', { stage: 'series', code: 'not-found' })
   }
-  const result = await enableSeriesTag({ ...args, channelId, title: program.title })
+  const variants = await variantsForTitle(program.title).catch(() => [])
+  const result = await enableSeriesTag({ ...args, channelId, title: program.title, variants })
   invalidateRecordingState()
   const channel = guide.channels.find((entry) => String(entry.id) === String(channelId))
   return { ...result, title: program.title, airing: seriesAiringOf({ program, channelName: channel?.name }) }
@@ -702,6 +709,41 @@ export const pauseSeries = async ({ seriesLinkIds, paused }) => {
   const result = await setSeriesTagsEnabled({ seriesLinkIds, enabled: !paused })
   invalidateRecordingState()
   return result
+}
+
+export const setSeriesTitleVariant = async ({
+  seriesLinkIds,
+  variant,
+  enabled,
+  loadRules = listSeriesRules,
+  loadVariants = variantsForTitle,
+  writeRule = setSeriesTitleVariants,
+  saveVariants = saveTitleVariants,
+}) => {
+  const rules = await loadRules({ seriesLinkIds })
+  const title = rules[0].name
+  const current = distinctTitlesOf([...await loadVariants(title), ...rules.flatMap((rule) => rule.titleVariants || [])])
+  const chosen = current.find((known) => known.toLowerCase() === variant.toLowerCase())
+  if (!chosen && !isVariantTitle({ title, candidate: variant })) {
+    throw new TitleVariantError(`"${variant}" is not another title of "${title}".`)
+  }
+  const variants = nextVariantsOf({ current, variant: chosen ?? variant, enabled })
+  await writeRule({ seriesLinkIds, variants })
+  await saveVariants({ title, variants })
+  invalidateRecordingState()
+  return { ok: true, title, variants }
+}
+
+export class TitleVariantError extends Error {
+  code = 'not-a-variant'
+}
+
+const distinctTitlesOf = (titles) => [...new Map(titles.map((title) => [title.toLowerCase(), title])).values()]
+
+export const listGuideAirings = async () => {
+  const guide = await getCachedGuide()
+  return guide.channels.flatMap((channel) => (guide.programsByChannel[String(channel.epgId)] || [])
+    .map((p) => ({ channelId: channel.id, title: p.title, start: p.start, end: p.end })))
 }
 
 export const updateSeriesRule = async ({ seriesLinkIds, patch }) => {

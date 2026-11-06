@@ -110,6 +110,16 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.10.0
+
+[Release notes for `2.10.0`](https://github.com/furey/freetvarr/releases/tag/2.10.0)
+
+- **Database**: the first start adds one database change (database change `0043`). `0043` adds a table that keeps the [other titles](/guide/series#other-titles-in-the-guide) you turn on for each series. A version that is older than `0043` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+- **Series recordings leave out foreign editions**: on the first start that reaches TVHeadend, Freetvarr changes the title of each series recording it made, so that `UK`, `US`, or `USA` alone after the show title no longer matches ([how a series recording works](/guide/series#how-a-series-recording-works)). A series recording of `Say Yes To The Dress` then stops recording `Say Yes To The Dress: UK`. It changes only rules whose comment is `freetvarr`, whose title is the show name, and that do not use **Merge-text**; it deletes no rule. What changes in TVHeadend:
+  - TVHeadend drops the scheduled timers of foreign editions. The Freetvarr log names each one (`[rules] timer ... stops matching`). To record one, press **Record** on the airing in the TV guide.
+  - TVHeadend makes the other timers of each changed rule again. A padding change you made on one episode goes back to the padding of the rule.
+  - Going back to an older version keeps the new titles in TVHeadend. The older version then shows the title as a long pattern that starts `^The Chase( ?[:(-]` in Series rules, and **Record series** on that show makes a second rule. To avoid this, cancel each series in Series rules before you go back, then record it again on the older version.
+
 ### 2.8.0
 
 [Release notes for `2.8.0`](https://github.com/furey/freetvarr/releases/tag/2.8.0)
@@ -199,6 +209,7 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
+   - To go back from `2.10.0` to `2.9.0` or older (down to `2.7.0`), undo `0043`.
    - To go back from `2.7.0` to `2.6.4`, undo `0042`, then `0041`.
    - To go back from `2.7.0` to `2.6.3` or older, undo `0042`, `0041`, then `0040`.
    - To go back from `2.6.4` to `2.6.3` or older, undo `0040`.

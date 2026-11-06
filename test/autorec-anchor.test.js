@@ -14,8 +14,10 @@ const {
   readAnchorFailures,
   runAutorecAnchorOnce,
 } = await import('../src/autorec-anchor.js')
-const { autorecMatchFieldsOf, autorecMatchesAiring } = await import('../src/autorec-match.js')
+const { SAME_SHOW_SUFFIX, anchorAutorecTitle, autorecMatchFieldsOf, autorecMatchesAiring } = await import('../src/autorec-match.js')
 const { db, getSetting } = await import('../src/db.js')
+
+const LEGACY_SUFFIX = '( ?[:(-].*)?$'
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/tvh/${name}.json`, import.meta.url), 'utf8'))
 const LIVE_RULES = fixture('live-autorec-grid')
@@ -54,10 +56,10 @@ after(async () => {
 test('anchorPlanOf: the live rules gain anchored titles and the Big Brother Australia timers drop', () => {
   const plan = anchorPlanOf({ autorecs: LIVE_RULES.entries, upcoming: LIVE_TIMERS.entries })
   assert.deepEqual(plan.map((change) => [change.name, change.oldTitle, change.newTitle]), [
-    ['Big Brother', 'Big Brother', '^Big Brother( ?[:(-].*)?$'],
-    ['1 Euro House', '1 Euro House', '^1 Euro House( ?[:(-].*)?$'],
-    ['Chefs Ahoy', 'Chefs Ahoy', '^Chefs Ahoy( ?[:(-].*)?$'],
-    ['My Kitchen Rules', 'My Kitchen Rules', '^My Kitchen Rules( ?[:(-].*)?$'],
+    ['Big Brother', 'Big Brother', `^Big Brother${SAME_SHOW_SUFFIX}`],
+    ['1 Euro House', '1 Euro House', `^1 Euro House${SAME_SHOW_SUFFIX}`],
+    ['Chefs Ahoy', 'Chefs Ahoy', `^Chefs Ahoy${SAME_SHOW_SUFFIX}`],
+    ['My Kitchen Rules', 'My Kitchen Rules', `^My Kitchen Rules${SAME_SHOW_SUFFIX}`],
   ])
   const dropped = plan.flatMap((change) => change.droppedTimers.map((timer) => [change.name, timer.title, timer.channelName, timer.start]))
   assert.deepEqual(dropped, [
@@ -78,19 +80,21 @@ test('anchorPlanOf: every live timer the plan keeps still matches its anchored r
   }
 })
 
-test('anchorPlanOf: leaves user rules, regex rules, edited rules, and anchored rules alone', () => {
+test('anchorPlanOf: leaves user rules, regex rules, edited rules, and current anchored rules alone', () => {
   const base = { comment: 'freetvarr', fulltext: false }
   const autorecs = [
     { ...base, uuid: 'user', name: 'Bluey', title: 'Bluey', comment: '' },
     { ...base, uuid: 'regex', name: 'Doctor Who', title: 'Doctor Who|Torchwood' },
     { ...base, uuid: 'edited', name: 'Hard Quiz', title: 'Hard Quiz Kids' },
-    { ...base, uuid: 'anchored', name: 'The Chase', title: '^The Chase( ?[:(-].*)?$' },
+    { ...base, uuid: 'anchored', name: 'The Chase', title: anchorAutorecTitle('The Chase') },
+    { ...base, uuid: 'user-anchored', name: 'Gruen', title: `^Gruen${LEGACY_SUFFIX}`, comment: '' },
+    { ...base, uuid: 'renamed', name: 'Survivor', title: `^Australian Survivor${LEGACY_SUFFIX}` },
     { ...base, uuid: 'fulltext', name: 'Gruen', title: 'Gruen', fulltext: true },
     { ...base, uuid: 'mergetext', name: 'Gogglebox', title: 'Gogglebox', mergetext: true },
     { ...base, uuid: 'escaped', name: 'Mr. Bean', title: 'Mr\\. Bean' },
   ]
   assert.deepEqual(anchorPlanOf({ autorecs }).map((change) => [change.uuid, change.newTitle]), [
-    ['escaped', '^Mr\\. Bean( ?[:(-].*)?$'],
+    ['escaped', `^Mr\\. Bean${SAME_SHOW_SUFFIX}`],
   ])
 })
 
@@ -104,9 +108,9 @@ test('anchorPlanOf: a rule from before titles were escaped gets its name escaped
   const upcoming = [{ uuid: 't1', autorec: 'old-bean', disp_title: 'MrX Bean' }, { uuid: 't2', autorec: 'old-bean', disp_title: 'Mr. Bean' }]
   const plan = anchorPlanOf({ autorecs, upcoming })
   assert.deepEqual(plan.map((change) => [change.uuid, change.newTitle]), [
-    ['old-bean', '^Mr\\. Bean( ?[:(-].*)?$'],
-    ['old-qa', '^Q\\+A( ?[:(-].*)?$'],
-    ['old-kids', '^Hard Quiz \\(Kids\\)( ?[:(-].*)?$'],
+    ['old-bean', `^Mr\\. Bean${SAME_SHOW_SUFFIX}`],
+    ['old-qa', `^Q\\+A${SAME_SHOW_SUFFIX}`],
+    ['old-kids', `^Hard Quiz \\(Kids\\)${SAME_SHOW_SUFFIX}`],
   ])
   assert.deepEqual(plan[0].droppedTimers.map((timer) => timer.uuid), ['t1'])
 })
@@ -152,7 +156,7 @@ test('runAutorecAnchorOnce: a failed save keeps the old rule, notes it for Healt
   assert.deepEqual(await readAnchorFailures(), result.failed)
   assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), null)
   const anchoredRules = {
-    entries: LIVE_RULES.entries.map((rule) => rule.name === 'Chefs Ahoy' ? rule : { ...rule, title: `^${rule.title}( ?[:(-].*)?$` }),
+    entries: LIVE_RULES.entries.map((rule) => rule.name === 'Chefs Ahoy' ? rule : { ...rule, title: anchorAutorecTitle(rule.title) }),
   }
   const retry = fakeTvh({ autorecs: anchoredRules })
   assert.deepEqual(await runAutorecAnchorOnce({ read: retry.read, write: retry.write, log: { log, warn } }), { changed: 1, failed: [] })
@@ -164,4 +168,51 @@ test('runAutorecAnchorOnce: an unreachable TVHeadend changes nothing and leaves 
   const read = async () => { throw new Error('connect ECONNREFUSED') }
   await assert.rejects(runAutorecAnchorOnce({ read, write: async () => assert.fail('no save'), log: quietLog() }), /ECONNREFUSED/)
   assert.equal(await getSetting(AUTOREC_ANCHOR_DONE_KEY), null)
+})
+
+test('anchorPlanOf: a rule anchored before foreign editions were left out gets the new suffix and drops those timers', () => {
+  const base = { comment: 'freetvarr', fulltext: false }
+  const autorecs = [{ ...base, uuid: 'dress', name: 'Say Yes To The Dress', title: `^Say Yes To The Dress${LEGACY_SUFFIX}` }]
+  const upcoming = [
+    { uuid: 't1', autorec: 'dress', disp_title: 'Say Yes To The Dress: UK' },
+    { uuid: 't2', autorec: 'dress', disp_title: 'Say Yes To The Dress' },
+    { uuid: 't3', autorec: 'dress', disp_title: 'Say Yes To The Dress (US)' },
+    { uuid: 't4', autorec: 'dress', disp_title: 'Say Yes To The Dress: Atlanta' },
+  ]
+  const [change] = anchorPlanOf({ autorecs, upcoming })
+  assert.equal(change.newTitle, anchorAutorecTitle('Say Yes To The Dress'))
+  assert.deepEqual(change.droppedTimers.map((timer) => timer.uuid), ['t1', 't3'])
+})
+
+test('anchorPlanOf: adds the saved title variants, and leaves an old-form alternation rule alone', () => {
+  const base = { comment: 'freetvarr', fulltext: false }
+  const autorecs = [
+    { ...base, uuid: 'foo', name: 'Foo', title: `^(Foo|Bar)${LEGACY_SUFFIX}` },
+    { ...base, uuid: 'mkr', name: 'My Kitchen Rules', title: 'My Kitchen Rules' },
+  ]
+  const variants = new Map([['my-kitchen-rules', ['My Kitchen Rules NZ']]])
+  const plan = anchorPlanOf({ autorecs, variants })
+  assert.deepEqual(plan.map((change) => [change.uuid, change.newTitle]), [
+    ['mkr', anchorAutorecTitle('My Kitchen Rules', ['My Kitchen Rules NZ'])],
+  ])
+})
+
+test('runAutorecAnchorOnce: logs an old-form alternation rule and leaves its title as it is', async () => {
+  const title = `^(Foo|Bar)${LEGACY_SUFFIX}`
+  const tvh = fakeTvh({ autorecs: { entries: [{ uuid: 'foo', name: 'Foo', title, comment: 'freetvarr' }] }, upcoming: { entries: [] } })
+  const { lines, ...log } = quietLog()
+  assert.deepEqual(await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log }), { changed: 0, failed: [] })
+  assert.deepEqual(tvh.saves, [])
+  assert.ok(lines.some((line) => line.includes(`keeps its title "${title}"`)))
+})
+
+test('runAutorecAnchorOnce: re-anchors rules from 2.9.0 once, then a second run changes nothing', async () => {
+  const autorecs = { entries: [{ uuid: 'chase', name: 'The Chase', title: `^The Chase${LEGACY_SUFFIX}`, comment: 'freetvarr' }] }
+  const tvh = fakeTvh({ autorecs, upcoming: { entries: [] } })
+  const { log, warn } = quietLog()
+  assert.deepEqual(await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn } }), { changed: 1, failed: [] })
+  assert.deepEqual(tvh.saves.map(({ node }) => node.title), [anchorAutorecTitle('The Chase')])
+  await db('settings').del()
+  assert.deepEqual(await runAutorecAnchorOnce({ read: tvh.read, write: tvh.write, log: { log, warn } }), { changed: 0, failed: [] })
+  assert.equal(tvh.saves.length, 1)
 })

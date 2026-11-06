@@ -1,22 +1,25 @@
 import { getSetting, setSetting, deleteSetting } from './db.js'
-import { anchorAutorecTitle, anchoredLiteralOf, isSameShowTitle, literalTitleOf } from './autorec-match.js'
+import { anchorAutorecTitle, anchoredTitlesOf, isCurrentAnchor, isSameShowTitle, literalTitleOf } from './autorec-match.js'
+import { chosenVariantsOf, loadTitleVariants } from './title-variants.js'
 import { tvhRead, tvhWrite } from './tvheadend.js'
 import { isTvheadendUnconfigured } from './tvheadend-unconfigured.js'
 
-export const anchorPlanOf = ({ autorecs = [], upcoming = [] }) => autorecs
+export const anchorPlanOf = ({ autorecs = [], upcoming = [], variants = new Map() }) => autorecs
   .filter(isAnchorable)
   .map((rule) => {
-    const title = rule.name
+    const titles = [rule.name, ...titleVariantsOf(rule), ...chosenVariantsOf({ variants, title: rule.name })]
     return {
       uuid: rule.uuid,
       name: rule.name,
       oldTitle: rule.title,
-      newTitle: anchorAutorecTitle(title),
+      newTitle: anchorAutorecTitle(rule.name, titles.slice(1)),
       droppedTimers: upcoming
-        .filter((entry) => entry.autorec === rule.uuid && !isSameShowTitle({ title: entry.disp_title, show: title }))
+        .filter((entry) => entry.autorec === rule.uuid && !titles.some((show) => isSameShowTitle({ title: entry.disp_title, show })))
         .map(timerSummaryOf),
     }
   })
+
+const titleVariantsOf = (rule) => anchoredTitlesOf(rule.title)?.titles.slice(1) ?? []
 
 export const runAutorecAnchorOnce = (deps = {}) => {
   running ??= anchorRules(deps).finally(() => { running = null })
@@ -28,14 +31,15 @@ export const anchorSeriesRulesQuietly = (deps = {}) => runAutorecAnchorOnce(deps
   return null
 })
 
-const anchorRules = async ({ read = tvhRead, write = tvhWrite, log = console }) => {
+const anchorRules = async ({ read = tvhRead, write = tvhWrite, log = console, loadVariants = loadTitleVariants }) => {
   if (await getSetting(AUTOREC_ANCHOR_DONE_KEY)) return null
-  const [autorecs, upcoming] = await Promise.all([
+  const [autorecs, upcoming, variants] = await Promise.all([
     read('dvr/autorec/grid', { limit: GRID_LIMIT }),
     read('dvr/entry/grid_upcoming', { limit: GRID_LIMIT }),
+    loadVariants(),
   ])
   const rules = autorecs?.entries || []
-  const plan = anchorPlanOf({ autorecs: rules, upcoming: upcoming?.entries || [] })
+  const plan = anchorPlanOf({ autorecs: rules, upcoming: upcoming?.entries || [], variants })
   for (const rule of rules.filter(isLeftAsItIs)) {
     log.log(`[rules] series rule "${rule.name}" (${rule.uuid}) keeps its title "${rule.title}": it is a pattern or was changed in TVHeadend`)
   }
@@ -79,11 +83,11 @@ export const readAnchorFailures = async () => {
 
 const isAnchorable = (rule) => {
   if (rule?.comment !== CREATOR_COMMENT || rule.fulltext || rule.mergetext) return false
-  if (!rule.name || anchoredLiteralOf(rule.title)) return false
+  if (!rule.name || isCurrentAnchor(rule.title)) return false
   return rule.title === rule.name || literalTitleOf(rule.title) === rule.name
 }
 
-const isLeftAsItIs = (rule) => rule?.comment === CREATOR_COMMENT && !anchoredLiteralOf(rule.title) && !isAnchorable(rule)
+const isLeftAsItIs = (rule) => rule?.comment === CREATOR_COMMENT && !isCurrentAnchor(rule.title) && !isAnchorable(rule)
 
 const timerSummaryOf = (entry) => ({
   uuid: entry.uuid,
@@ -110,7 +114,7 @@ const recordOutcome = async (failed) => {
 
 let running = null
 
-export const AUTOREC_ANCHOR_DONE_KEY = 'autorec_titles_anchored_at'
+export const AUTOREC_ANCHOR_DONE_KEY = 'autorec_titles_reanchored_at'
 export const AUTOREC_ANCHOR_FAILED_KEY = 'autorec_anchor_failed'
 const CREATOR_COMMENT = 'freetvarr'
 const GRID_LIMIT = 1000

@@ -114,7 +114,8 @@ export const SeriesView = {
                           <series-drawer class="drawer-card" :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
                             :import-unmatched="importUnmatched" :busy="busyKey === s.key"
                             @saved="onSaved" @close="editingKey = ''" @assign="openAssign(s)"
-                            @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)" />
+                            @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)"
+                            :saving-variant="savingVariant" @title-variant="(choice) => setTitleVariant(s, choice)" />
                         </td>
                       </tr>
                     </template>
@@ -139,7 +140,8 @@ export const SeriesView = {
                     <series-drawer v-if="isEditing(s)" class="drawer-card" @click.stop @keydown.stop :series="s" :folders="folders" :media-root="mediaRoot" :ad-removal-enabled="adRemovalEnabled"
                       :import-unmatched="importUnmatched" :busy="busyKey === s.key"
                       @saved="onSaved" @close="editingKey = ''" @assign="openAssign(s)"
-                      @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)" />
+                      @pause="pauseSeries(s, s.recording)" @cancel-series="openCancelSeries(s)"
+                            :saving-variant="savingVariant" @title-variant="(choice) => setTitleVariant(s, choice)" />
                   </article>
                 </div>
               </div>
@@ -556,6 +558,33 @@ export const SeriesView = {
       }
     }
 
+    const savingVariant = ref('')
+
+    const setTitleVariant = async (s, { title, enabled }) => {
+      if (savingVariant.value) {
+        flash({ msg: `Still saving "${savingVariant.value}". Try again in a moment.`, kind: 'info' })
+        return
+      }
+      const variant = s.titleVariants.find((v) => v.title === title)
+      if (variant) variant.enabled = enabled
+      savingVariant.value = title
+      try {
+        await api('POST', '/api/epg/series-title-variant', {
+          series_link_ids: s.autorecs.map((a) => a.seriesLinkId),
+          variant: title,
+          enabled,
+        })
+        refreshAfterRecordingChange()
+        await refresh()
+        flash({ msg: enabled ? `"${s.title}" also records "${title}".` : `"${s.title}" no longer records "${title}".` })
+      } catch (err) {
+        if (variant) variant.enabled = !enabled
+        flash({ msg: `Could not change the titles: ${err.message}`, kind: 'error' })
+      } finally {
+        savingVariant.value = ''
+      }
+    }
+
     const add = async () => {
       if (!newPattern.value.trim() || !newFolder.value.trim()) {
         setFormStatus('Enter the title and where to save.', 'err', 5000)
@@ -623,7 +652,7 @@ export const SeriesView = {
       newPattern, newFolder, newTemplate, newDeleteAfter, newAdRemoval,
       suggestion, suggestionIsNew, adding, loadingShows, syncingId,
       channelsOf, nextAiringLabel, edit, isEditing, isEditingTitleMatch, toggleEdit, onSaved, onDeleted, pauseSeries,
-      cancelling, openCancelSeries, closeCancelSeries, cancelSeries,
+      cancelling, openCancelSeries, closeCancelSeries, cancelSeries, savingVariant, setTitleVariant,
       add, loadTvhShows, syncOne,
       formStatusText, formStatusKind,
     }

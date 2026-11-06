@@ -1,19 +1,65 @@
 export const escapeAutorecTitle = (title) => String(title ?? '').replace(REGEX_SYNTAX, '\\$&')
 
-export const anchorAutorecTitle = (title) => `^${escapeAutorecTitle(title)}${SAME_SHOW_SUFFIX}`
+export const anchorAutorecTitle = (title, variants = []) => {
+  const titles = distinctTitlesOf([title, ...variants])
+  const body = titles.length === 1 ? escapeAutorecTitle(titles[0]) : `(${titles.map(escapeAutorecTitle).join('|')})`
+  return `^${body}${SAME_SHOW_SUFFIX}`
+}
 
 export const literalTitleOf = (pattern) => anchoredLiteralOf(pattern) ?? plainLiteralOf(pattern)
 
-export const anchoredLiteralOf = (pattern) => {
+export const anchoredLiteralOf = (pattern) => anchoredTitlesOf(pattern)?.titles[0] ?? null
+
+export const anchoredTitlesOf = (pattern) => {
   const source = String(pattern ?? '')
-  if (!source.startsWith('^') || !source.endsWith(SAME_SHOW_SUFFIX)) return null
-  return plainLiteralOf(source.slice(1, -SAME_SHOW_SUFFIX.length)) || null
+  const suffix = [SAME_SHOW_SUFFIX, FOREIGN_EDITIONS_SUFFIX].find((candidate) => source.endsWith(candidate))
+  if (!source.startsWith('^') || !suffix) return null
+  const foreignEditions = suffix === FOREIGN_EDITIONS_SUFFIX
+  const titles = titlesOfBody({ body: source.slice(1, -suffix.length), variantsAllowed: !foreignEditions })
+  return titles ? { titles, foreignEditions } : null
 }
 
-export const isSameShowTitle = ({ title, show }) => {
+export const isCurrentAnchor = (pattern) => anchoredTitlesOf(pattern)?.foreignEditions === false
+
+export const isSameShowTitle = ({ title, show, foreignEditions = false }) => {
   const text = String(title ?? '').toLowerCase()
   const wanted = String(show ?? '').toLowerCase()
-  return Boolean(wanted) && text.startsWith(wanted) && SAME_SHOW_REST.test(text.slice(wanted.length))
+  if (!wanted || !text.startsWith(wanted)) return false
+  const rest = SAME_SHOW_REST.exec(text.slice(wanted.length))
+  if (!rest) return false
+  return foreignEditions || rest[1] == null || !FOREIGN_EDITION_REST.test(rest[1])
+}
+
+const distinctTitlesOf = (titles) => {
+  const seen = new Set()
+  return titles.map((title) => String(title ?? '').trim()).filter((title) => {
+    const key = title.toLowerCase()
+    if (!title || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const titlesOfBody = ({ body, variantsAllowed }) => {
+  const single = plainLiteralOf(body)
+  if (single) return [single]
+  if (!variantsAllowed || !body.startsWith('(') || !body.endsWith(')') || isEscapedAt(body, body.length - 1)) return null
+  const titles = unescapedPartsOf(body.slice(1, -1)).map(plainLiteralOf)
+  return titles.length > 1 && titles.every(Boolean) ? titles : null
+}
+
+const unescapedPartsOf = (source) => {
+  const parts = ['']
+  for (let at = 0; at < source.length; at++) {
+    const char = source[at]
+    if (char === '|') {
+      parts.push('')
+      continue
+    }
+    parts[parts.length - 1] += char
+    if (char === '\\' && at + 1 < source.length) parts[parts.length - 1] += source[++at]
+  }
+  return parts
 }
 
 const plainLiteralOf = (pattern) => {
@@ -76,8 +122,11 @@ const matcherOf = (title) => {
 }
 
 const buildMatcher = (title) => {
-  const anchored = anchoredLiteralOf(title)
-  if (anchored) return (text) => isSameShowTitle({ title: text, show: anchored })
+  const anchored = anchoredTitlesOf(title)
+  if (anchored) {
+    const { titles, foreignEditions } = anchored
+    return (text) => titles.some((show) => isSameShowTitle({ title: text, show, foreignEditions }))
+  }
   const literal = plainLiteralOf(title)
   if (literal != null) {
     const wanted = literal.toLowerCase()
@@ -202,10 +251,41 @@ const isSet = (value) => Array.isArray(value) ? value.length > 0 : Boolean(value
 
 const compiled = new Map()
 
-const SAME_SHOW_SUFFIX = '( ?[:(-].*)?$'
-const SAME_SHOW_REST = /^(?: ?[:(-].*)?$/
+const notAnyOfPattern = (words) => {
+  const root = { children: new Map(), terminal: false }
+  for (const word of words) {
+    let node = root
+    for (const char of word.toUpperCase()) {
+      if (!node.children.has(char)) node.children.set(char, { children: new Map(), terminal: false })
+      node = node.children.get(char)
+    }
+    node.terminal = true
+  }
+  return trieComplementOf(root)
+}
+
+const trieComplementOf = (node) => {
+  const chars = [...node.children.keys()]
+  const branches = [
+    chars.length ? `[^${chars.map(bothCasesOf).join('')}].*` : '.+',
+    ...[...node.children].map(([char, child]) => `${literalOf(char)}${trieComplementOf(child)}`),
+  ]
+  if (branches.length === 1) return branches[0]
+  return node.terminal ? `(${branches.join('|')})` : `(${branches.join('|')})?`
+}
+
+const bothCasesOf = (char) => (char.toLowerCase() === char ? char : `${char}${char.toLowerCase()}`)
+
+const literalOf = (char) => (REGEX_SYNTAX_CHARS.includes(char) ? `\\${char}` : char)
+
+const FOREIGN_EDITION_TAGS = ['UK', 'US', 'USA']
+const FOREIGN_EDITION_FORMS = FOREIGN_EDITION_TAGS.flatMap((tag) => [tag, `${tag})`, ` ${tag}`, ` ${tag})`])
+const FOREIGN_EDITION_REST = new RegExp(`^ ?(${FOREIGN_EDITION_TAGS.join('|')})\\)?$`, 'i')
+const FOREIGN_EDITIONS_SUFFIX = '( ?[:(-].*)?$'
+const SAME_SHOW_REST = /^(?: ?[:(-](.*))?$/s
 const REGEX_SYNTAX_CHARS = '.*+?^${}()|[]\\'
 const REGEX_SYNTAX = /[.*+?^${}()|[\]\\]/g
+export const SAME_SHOW_SUFFIX = `( ?[:(-]${notAnyOfPattern(FOREIGN_EDITION_FORMS)})?$`
 const MAX_PATTERN_LENGTH = 200
 const MAX_MATCHED_TEXT_LENGTH = 500
 const MAX_MATCH_STEPS = 1_000_000
