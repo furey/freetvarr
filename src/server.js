@@ -1765,6 +1765,7 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     await setSetting('time_zone', timeZone)
     process.env.TZ = timeZone
     clearGuideCache()
+    anchorSeriesRulesQuietly()
   }
   if (body.sync_cron !== undefined) await setSetting('sync_cron', String(body.sync_cron))
   if (body.sync_cron !== undefined || timeZone !== undefined) await startScheduler()

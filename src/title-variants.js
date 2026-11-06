@@ -1,6 +1,7 @@
 import { db } from './db.js'
 import { isSameShowTitle } from './autorec-match.js'
 import { showKeyOf } from './web/show-key.js'
+import { countryTitleWordsOf, excludedEditionTagsOf, installCountry } from './title-countries.js'
 
 export const variantTitlesOf = ({ title, titleIndex = new Map(), chosen = [], inScope = () => true }) => {
   const byKey = new Map()
@@ -31,11 +32,14 @@ export const guideTitleIndexOf = ({ airings = [], nowMs = Date.now() }) => {
   return index
 }
 
-export const isVariantTitle = ({ title, candidate }) => {
-  const series = String(title ?? '').trim().toLowerCase()
-  const other = String(candidate ?? '').trim().toLowerCase()
-  if (!series || !other || series === other || isSameShowTitle({ title: other, show: series })) return false
-  return endsWithVariantWord({ longer: other, shorter: series }) || endsWithVariantWord({ longer: series, shorter: other })
+export const isVariantTitle = ({ title, candidate, country = installCountry() }) => {
+  const series = String(title ?? '').trim()
+  const other = String(candidate ?? '').trim()
+  if (!series || !other || series.toLowerCase() === other.toLowerCase()) return false
+  if (isSameShowTitle({ title: other, show: series, excludedTags: excludedEditionTagsOf(country) })) return false
+  const isVariantWord = variantWordTestOf(country)
+  return endsWithVariantWord({ longer: other, shorter: series, isVariantWord })
+    || endsWithVariantWord({ longer: series, shorter: other, isVariantWord })
 }
 
 export const loadTitleVariants = async () => {
@@ -70,7 +74,24 @@ export const saveTitleVariants = async ({ title, variants }) => {
   return variants
 }
 
-const endsWithVariantWord = ({ longer, shorter }) =>
-  longer.startsWith(`${shorter} `) && VARIANT_WORD.test(longer.slice(shorter.length + 1))
+const endsWithVariantWord = ({ longer, shorter, isVariantWord }) =>
+  longer.toLowerCase().startsWith(`${shorter.toLowerCase()} `) && isVariantWord(longer.slice(shorter.length + 1))
 
-const VARIANT_WORD = /^(australia|au|aus|nz|new zealand|aotearoa|encore|(19|20)\d{2})$/
+const variantWordTestOf = (country) => {
+  if (!variantWords.has(country)) variantWords.set(country, newVariantWordTest(country))
+  return variantWords.get(country)
+}
+
+const newVariantWordTest = (country) => {
+  const words = countryTitleWordsOf(country)
+  const codes = new Set(words.filter(isCountryCode))
+  const names = [...words.filter((word) => !isCountryCode(word)).map(escapedWordOf), 'encore', '(19|20)\\d{2}']
+  const namePattern = new RegExp(`^(${names.join('|')})$`, 'i')
+  return (word) => codes.has(word) || namePattern.test(word)
+}
+
+const isCountryCode = (word) => /^[A-Z]{2,3}$/.test(word)
+
+const escapedWordOf = (word) => word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const variantWords = new Map()

@@ -110,6 +110,16 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.10.2
+
+[Release notes for `2.10.2`](https://github.com/furey/freetvarr/releases/tag/2.10.2)
+
+- **Series recordings follow the country of your time zone**: the country tags that a series recording leaves out, and the words for [other titles in the guide](/guide/series#other-titles-in-the-guide), now come from the country of your time zone ([how a series recording works](/guide/series#how-a-series-recording-works)). Australian and New Zealand installs see no change: the titles in TVHeadend stay as they are. On the first start or sync that reaches TVHeadend, and after a new time zone is saved, an install in another country changes the title of each series recording it made to the form for its country. A series recording of `Say Yes To The Dress` in the UK then records `Say Yes To The Dress: UK` and leaves out `Say Yes To The Dress (US)`. It changes only rules whose comment is `freetvarr`, whose title is the show name, and that use neither **Merge-text** nor full-text search; it deletes no rule. What changes in TVHeadend:
+  - TVHeadend drops the scheduled timers of the editions that the new title leaves out, and makes timers for the editions it now records. The Freetvarr log names each dropped timer (`[rules] timer ... stops matching`).
+  - TVHeadend makes the other timers of each changed rule again. A padding change you made on one episode goes back to the padding of the rule.
+  - When Freetvarr does not know the country of your time zone, it changes no title. Choose your time zone in Settings → SYSTEM → Schedule; Freetvarr then changes the titles for that country.
+  - A later change of time zone to another country changes the titles again, once.
+
 ### 2.10.0
 
 [Release notes for `2.10.0`](https://github.com/furey/freetvarr/releases/tag/2.10.0)
