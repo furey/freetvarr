@@ -1424,7 +1424,7 @@ Two indexes share one matching module, `src/web/search-index.js`.
 
 An entry matches on its title and on extra names: curated nicknames (`src/data/show-aliases.json`), user names (`show_nicknames`, routes under `/api/show-nicknames/:key`), and learned names (`title_known_as`, from TVmaze AKAs and Wikidata aliases).
 
-`normaliseSearchText` folds case and accents, removes apostrophes, and turns `&` and `+` into `and`. A query under `2` characters returns nothing.
+`normaliseSearchText` folds case and accents, removes apostrophes, and turns `&` and `+` into `and`. A query under `2` characters returns nothing. When the query starts with `the` and `2` or more characters follow, `searchIndex` also matches the rest of the query. Those extra hits score `20` below their normal score, so a full-query hit ranks first.
 
 | Reason           | Score              | Rule                                                                                                           |
 | ---------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
@@ -1436,6 +1436,21 @@ An entry matches on its title and on extra names: curated nicknames (`src/data/s
 | `fuzzy`          | `60 × containment` | Trigram match with a typo allowance; only when nothing else matches; at most `3`                               |
 
 Ties sort by the next air time, then recording count. `searchGuideListings` adds episode-title matches (score `50`) for airings that have not ended, and stops at `100` results (`GUIDE_RESULT_CAP`).
+
+### Search: Result groups
+
+`guideGroupOf` in `src/guide-search.js` tags each guide result with one group, using the first rule that fits:
+
+| Group       | Rule                                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `scheduled` | The `program_id` is in `futureRecordings` or `activeRecordingIds` of the live recording state (`scheduledIdsOf` in `src/epg.js`) |
+| `series`    | `series_link` matches a series rule from the recording state (`seriesLinkOfProgramme`)                                           |
+| `for-you`   | The airing `program_id` is in the cached For you result (`cachedForYouIds` in `src/for-you-service.js`)                          |
+| `guide`     | Any other airing                                                                                                                 |
+
+`searchGuideListings` sorts by group (`GUIDE_GROUP_RANK`), then score, then start, and applies the cap after the sort. `GET /api/epg/search` returns each result with its `group`. The For you ids come from the cache only; the search never computes For you.
+
+The overlay (`searchGroupsOf` in `src/web/search-results.js`) adds a `recordings` group from the overlay index. It shows the groups in this order: `scheduled`, `series`, `recordings`, `for-you`, `guide`. Each group shows `5` rows (`GROUP_ROW_LIMIT`) until its **Show all** row expands it and moves focus to the sixth row. A new query collapses every group. The row shows the group total only when the source list is under its cap (`MAX_SHOW_RESULTS` `8`, `MAX_GUIDE_RESULTS` `30`). `Enter` opens the first result only when no search is running. The overlay keeps the previous results until new ones arrive, and shows the Searching state for at least `800` ms (`remainingBusyMs`). The guide view lists the server order, so `scheduled` results come first there too.
 
 ## Jobs and health
 

@@ -39,6 +39,12 @@ export const getForYou = async ({ nowMs = Date.now() } = {}) => {
   return forYouCache.get({ nowMs })
 }
 
+export const cachedForYouIds = () => forYouIdsOf(forYouCache.peek())
+
+export const forYouIdsOf = (result) => new Set([result?.topPick, ...(result?.sections || []).flatMap((section) => section.items)]
+  .filter(Boolean)
+  .map((item) => String(item.id)))
+
 export const warmForYou = async ({ nowMs = Date.now() } = {}) => {
   if (!(await isForYouEnabled())) return null
   return forYouCache.warm({ nowMs })
@@ -123,12 +129,14 @@ export const createForYouCache = ({ loadSnapshot, compute, onRefreshError = logR
     return refreshInBackground({ nowMs })
   }
 
+  const peek = () => cached?.result ?? null
+
   const forget = () => {
     cached = null
     generation += 1
   }
 
-  return { get, warm, forget }
+  return { get, warm, peek, forget }
 }
 
 export const resultFingerprintOf = (result) => {

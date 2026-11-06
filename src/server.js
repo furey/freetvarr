@@ -195,7 +195,7 @@ import { plexItemPlaybackRow, saveItemPosition } from './plex-library-store.js'
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, createSnapshotSaver, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
-import { forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
+import { cachedForYouIds, forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -630,7 +630,7 @@ app.get('/api/epg/guide', async (req, res) => {
 
 app.get('/api/epg/search', async (req, res) => {
   try {
-    res.json(await searchGuide({ q: String(req.query.q || '') }))
+    res.json(await searchGuide({ q: String(req.query.q || ''), forYouIds: cachedForYouIds }))
   } catch (err) {
     epgError(res, err, 'search')
   }

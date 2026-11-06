@@ -1,4 +1,4 @@
-import { foldText, normaliseSearchText, withoutAccents, withoutRegionWords } from './search-text.js'
+import { foldText, normaliseSearchText, withoutAccents, withoutLeadingThe, withoutRegionWords } from './search-text.js'
 
 export const SEARCH_SCORES = { title: 100, contains: 90, alias: 85, yours: 85, 'known-as': 80, initials: 70, fuzzy: 60 }
 
@@ -24,15 +24,29 @@ export const buildSearchIndex = ({ entries = [], curated = [], aliases = [] }) =
 export const searchIndex = ({ index, query, limit = Infinity }) => {
   const needle = normaliseSearchText(query)
   if (needle.length < MIN_SEARCH_LENGTH) return []
+  const full = searchNeedle({ index, query, needle })
+  const stripped = withoutLeadingThe(needle)
+  if (stripped === needle || stripped.length < MIN_SEARCH_LENGTH) return full.slice(0, limit)
+  const withoutThe = searchNeedle({ index, query, needle: stripped })
+  const hasDirectStripped = withoutThe.some((match) => match.reason !== 'fuzzy')
+  const kept = hasDirectStripped ? full.filter((match) => match.reason !== 'fuzzy') : full
+  const keptKeys = new Set(kept.map((match) => match.entry.key))
+  const strippedOnly = withoutThe
+    .filter((match) => !keptKeys.has(match.entry.key))
+    .map((match) => ({ ...match, score: match.score - LEADING_THE_PENALTY }))
+  return rankMatches([...kept, ...strippedOnly]).slice(0, limit)
+}
+
+const searchNeedle = ({ index, query, needle }) => {
   const regionless = withoutRegionWords(needle)
   const probe = probeOf({ needle, regionless })
   const direct = index.items.map((item) => directMatchOf({ item, probe })).filter(Boolean)
-  if (direct.length >= INITIALS_BELOW) return rankMatches(direct).slice(0, limit)
+  if (direct.length >= INITIALS_BELOW) return rankMatches(direct)
   const matchedKeys = new Set(direct.map((match) => match.entry.key))
   const initials = initialsMatchesOf({ index, query }).filter((match) => !matchedKeys.has(match.entry.key))
   const found = [...rankMatches(direct), ...rankMatches(initials).slice(0, MAX_INITIALS)]
-  if (found.length) return rankMatches(found).slice(0, limit)
-  return fuzzyMatchesOf({ index, needle: regionless || needle }).slice(0, limit)
+  if (found.length) return rankMatches(found)
+  return fuzzyMatchesOf({ index, needle: regionless || needle })
 }
 
 export const rankMatches = (matches) => [...matches].sort(compareMatches)
@@ -225,6 +239,7 @@ const KEPT_TOKEN = /^(?:[0-9]+|[A-Z0-9]{2,})$/
 const EXACT_NICKNAME_BONUS = 1
 const INITIALS_BELOW = 3
 const MAX_INITIALS = 3
+const LEADING_THE_PENALTY = 20
 const MIN_INITIALS_LETTERS = 3
 const MIN_CONTAINMENT = 0.6
 const FUZZY_SHORTLIST = 50
