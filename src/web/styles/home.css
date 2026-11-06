@@ -451,6 +451,7 @@
 .ui-poster .for-you-reason {
   display: -webkit-box;
   white-space: normal;
+  text-wrap: balance;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }

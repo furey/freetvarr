@@ -5,6 +5,11 @@ export const OTHER_LANGUAGE_CHOICES = ['all', 'few', 'none']
 export const DEFAULT_OTHER_LANGUAGE_CHOICE = 'few'
 export const OTHER_LANGUAGE_LIMITS = { all: Infinity, few: 2, none: 0 }
 export const FILM_RATINGS_PREFIX = 'tmdb:movie:'
+export const SERIES_RATINGS_PREFIX = 'tvmaze:series:'
+export const MIN_SERIES_SCORE = 7
+export const MIN_SERIES_WEIGHT = 50
+export const MIN_DOMINANT_WEIGHT = 50
+export const DOMINANT_WEIGHT_RATIO = 3
 
 export const otherLanguageChoiceFrom = (value) => (OTHER_LANGUAGE_CHOICES.includes(value)
   ? value
@@ -29,6 +34,40 @@ export const withinLanguageLimit = ({ entries, isOther, limit }) => {
     return others <= limit
   })
 }
+
+export const isCinematicSeries = ({ tvmazeType = null, tmdbType = null }) => (tvmazeType
+  ? TVMAZE_CINEMATIC_TYPES.has(tvmazeType)
+  : TMDB_CINEMATIC_TYPES.has(tmdbType))
+
+export const isTopRatedSeries = (facts) => Number(facts?.score) >= MIN_SERIES_SCORE
+  && Number(facts?.weight) >= MIN_SERIES_WEIGHT
+  && isCinematicSeries({ tvmazeType: facts?.type || 'unknown' })
+
+export const dominantShowOf = (shows = []) => {
+  const [top, next] = [...shows].sort((a, b) => (b.weight || 0) - (a.weight || 0))
+  if (!top || (top.weight || 0) < MIN_DOMINANT_WEIGHT) return null
+  return !next || top.weight >= (next.weight || 0) * DOMINANT_WEIGHT_RATIO ? top : null
+}
+
+export const tvmazeIdOf = (record) => String(record?.source || '').match(/^tvmaze:(\d+)$/)?.[1] ?? null
+
+export const seriesFactsByKeyOf = (rows = []) => {
+  const facts = new Map()
+  for (const row of rows) {
+    const key = String(row.lookup_key || '').startsWith(SERIES_RATINGS_PREFIX) ? row.lookup_key.slice(SERIES_RATINGS_PREFIX.length) : null
+    const found = parseFound(row.found_json)
+    if (key && found) facts.set(key, seriesFactsOf(found))
+  }
+  return facts
+}
+
+export const seriesFactsOf = (found) => ({
+  score: Number(found.score) || null,
+  weight: Number(found.weight) || 0,
+  type: found.type ?? null,
+  runtime: Number(found.runtime) || null,
+  url: found.url ?? null,
+})
 
 export const filmFactsByKeyOf = (rows = []) => {
   const facts = new Map()
@@ -74,3 +113,6 @@ const factsOf = (found) => ({
   votes: found.votes ?? null,
   originalLanguage: found.originalLanguage ?? null,
 })
+
+const TVMAZE_CINEMATIC_TYPES = new Set(['Scripted', 'Animation', 'Documentary'])
+const TMDB_CINEMATIC_TYPES = new Set(['Scripted', 'Documentary', 'Miniseries'])

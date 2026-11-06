@@ -19,8 +19,12 @@ export const HOME_OTHER_LANGUAGE_LIMITS = { all: Infinity, few: 2, none: 0 }
 export const CHOOSER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 export const MAX_SHOWN_EVENTS = 50
 
-export const SECTION_ORDER = ['coming-up', 'new-seasons', 'might-like', 'top-rated', 'movies', 'premieres']
+export const SECTION_ORDER = [
+  'ready-to-watch', 'last-chance', 'finish-started', 'coming-up', 'new-seasons', 'tonight-movies',
+  'might-like', 'top-rated-series', 'top-rated', 'movies', 'premieres',
+]
 export const TOP_RATED_SECTION = 'top-rated'
+export const READY_SECTION = 'ready-to-watch'
 export const OTHER_LANGUAGE_OPTIONS = [
   { key: 'all', label: 'All' },
   { key: 'few', label: 'A few' },
@@ -28,9 +32,14 @@ export const OTHER_LANGUAGE_OPTIONS = [
 ]
 
 export const SECTION_TITLES = {
+  'ready-to-watch': 'Ready to watch',
+  'last-chance': 'Last chance',
+  'finish-started': 'Finish what you started',
   'coming-up': 'Coming up this week for you',
   'new-seasons': 'New seasons and returning',
   'might-like': 'You might like',
+  'tonight-movies': 'Movies worth recording tonight',
+  'top-rated-series': 'Top rated series this week',
   'top-rated': 'Top rated movies this week',
   movies: 'Movies for you',
   premieres: 'Premieres and movies this week',
@@ -69,9 +78,11 @@ export const isScheduled = ({ item, scheduledKeys }) => Boolean(scheduledKeys?.h
 })))
 
 export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set() }) => {
-  const seen = new Set()
+  const seenAirings = new Set()
+  const seenRecordings = new Set()
   return orderedSections(payload?.sections)
     .map((section) => {
+      const seen = section.key === READY_SECTION ? seenRecordings : seenAirings
       const items = (section.items ?? []).filter((item) => {
         const identity = identityOf(item)
         if (hiddenKeys.has(identity) || seen.has(identity)) return false
@@ -82,6 +93,7 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
         key: section.key,
         title: section.title || SECTION_TITLES[section.key] || 'For you',
         sortedByAirTime: section.key === 'coming-up',
+        credit: creditOf(section.credit),
         rows: rowsOf(scheduledLast({ items, scheduledKeys })),
       }
     })
@@ -110,6 +122,8 @@ export const homeRowOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new
   return { title: payload.coldStart ? 'New this week' : 'For you', items }
 }
 
+export const isReadyItem = (item) => kindOf(item) === 'ready'
+
 export const badgeOf = ({ item, scheduled = false }) => {
   if (scheduled) return { label: 'Recording', tone: 'rec' }
   if (item.onNow) return { label: 'LIVE', tone: 'live' }
@@ -118,6 +132,7 @@ export const badgeOf = ({ item, scheduled = false }) => {
 }
 
 export const cardMetaOf = ({ item, nowMs, timeZone, withLead = false }) => {
+  if (isReadyItem(item)) return joinMeta([item.episodeLabel, item.episodeTitle || (item.durationS && durationText(item.durationS))])
   const start = msOf(item.start)
   const stop = msOf(item.stop)
   if (item.onNow && stop) {
@@ -153,6 +168,7 @@ export const cardLabelOf = ({ item, meta, reason, badge, rating = null }) =>
   [item.title, badge?.tone === 'live' ? 'on now' : badge?.label, rating?.spoken, meta, reason].filter(Boolean).join(', ')
 
 export const tapActionOf = ({ item, scheduled = false }) => {
+  if (isReadyItem(item)) return 'play-recording'
   if (scheduled) return 'show'
   if (item.onNow) return 'watch-live'
   const kind = kindOf(item)
@@ -164,6 +180,7 @@ export const tapActionOf = ({ item, scheduled = false }) => {
 export const sheetFocusOf = (action) => SHEET_FOCUS[action] ?? ''
 
 export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
+  if (isReadyItem(item)) return readyMenuOf(item)
   const start = msOf(item.start)
   const actions = [
     item.onNow && { key: 'watch-live', label: 'Watch live', icon: 'play', detail: item.channelName || '' },
@@ -184,6 +201,17 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   return { actions, more }
 }
+
+const readyMenuOf = (item) => ({
+  actions: [
+    { key: 'play-recording', label: 'Play', icon: 'play', detail: item.episodeLabel || '' },
+    { key: 'show', label: 'Go to show', icon: 'options' },
+  ],
+  more: [
+    { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
+    { key: 'why', label: 'Why this?', icon: 'why' },
+  ],
+})
 
 export const menuMetaOf = ({ item, nowMs, timeZone }) => cardMetaOf({ item, nowMs, timeZone, withLead: true })
 
@@ -248,7 +276,7 @@ export const shownBatchesOf = ({ items, source, size = MAX_SHOWN_EVENTS }) => {
 export const forYouSlideOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = new Set(), nowMs, timeZone, stampUrl = artworkStamps.stampUrl }) => {
   if (!payload || payload.enabled === false || payload.coldStart) return null
   const item = sectionsOf({ payload, scheduledKeys, hiddenKeys })
-    .filter((section) => section.key !== TOP_RATED_SECTION)
+    .filter((section) => section.key !== TOP_RATED_SECTION && section.key !== READY_SECTION)
     .flatMap((section) => section.rows.flatMap((row) => row.items))
     .find((candidate) => !isScheduled({ item: candidate, scheduledKeys }) && msOf(candidate.stop) > nowMs)
   return item ? forYouItemSlideOf({ item, nowMs, timeZone, stampUrl }) : null
@@ -428,7 +456,7 @@ const topRatedItemsOf = (sections) => {
 }
 
 const spreadLanesOf = (sections) => sections
-  .filter((section) => section.key !== TOP_RATED_SECTION)
+  .filter((section) => section.key !== TOP_RATED_SECTION && section.key !== READY_SECTION)
   .map(sectionItemsOf)
 
 const interleaved = (lanes) => {
@@ -462,6 +490,8 @@ const rowsOf = (items) => [
 ].filter((row) => row.items.length)
 
 const joinMeta = (parts) => parts.filter(Boolean).join(' · ')
+
+const creditOf = (credit) => (credit?.source && /^https:\/\//.test(credit.href || '') ? { source: credit.source, href: credit.href } : null)
 
 const joinParts = (parts) => parts.filter(Boolean).join(', ')
 

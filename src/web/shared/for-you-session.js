@@ -6,7 +6,9 @@ import { now, tz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
 import { twinkleGateOf } from '/for-you-twinkle.js'
 import { changeProgrammeKind, kindPendingKeys, reloadOnProgrammeKindChange } from '/shared/programme-kind-session.js'
-import { showHrefOf } from '/show-key.js'
+import { showHrefOf, showKeyOf } from '/show-key.js'
+import { playRecording } from '/shared/playback-session.js'
+import { episodeById, recordingRowOf } from '/show-page.js'
 import {
   feedbackOf,
   sheetRequestOf,
@@ -148,6 +150,10 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     },
     'programme-info': (item) => openSheet(item, 'programme-info'),
     show: (item) => { window.location.hash = showHrefOf(item.title) },
+    'play-recording': (item) => {
+      accept(item)
+      return playReady(item)
+    },
     'thumb-up': (item) => toggleThumb(item, 'up'),
     'thumb-down': (item) => toggleThumb(item, 'down'),
     'not-interested': (item) => hide(item),
@@ -233,6 +239,14 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
   }
 
   return { menuItem, why, openItem, openMenu, closeMenu, choose, thumbOf, closeWhy, undoHide, isScheduled }
+}
+
+const playReady = async (item) => {
+  const episode = await api('GET', `/api/library/shows/${encodeURIComponent(showKeyOf(item.title))}`)
+    .then((show) => episodeById({ show, recordingId: item.recordingId }))
+    .catch(() => null)
+  if (episode?.playable) return playRecording(recordingRowOf(episode))
+  window.location.hash = showHrefOf(item.title)
 }
 
 const KEEPS_MENU_OPEN = new Set(['thumb-up', 'thumb-down'])

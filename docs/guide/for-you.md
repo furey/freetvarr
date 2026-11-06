@@ -24,12 +24,17 @@ Suggestions show in three places:
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-The page groups its suggestions under these headings, and leaves out any heading with nothing in it:
+The page groups its suggestions under these headings, in this order, and leaves out any heading with nothing in it. Each heading shows up to 12 cards. A show appears under the first heading that fits it only.
 
+- **Ready to watch**: one card for each show with recordings you have not watched yet. The card shows the oldest of those episodes. A recording counts as watched when you finish it in Freetvarr, or when [Plex](https://www.plex.tv) marks it watched.
+- **Last chance**: for shows you watch, record, or have on your watchlist, episodes this week that the TV guide calls a finale or a final episode. It also lists the last episode of a run that airs most nights, when that channel's TV guide goes on for at least 4 more days with no more episodes.
+- **Finish what you started**: shows you watched 1 to 3 episodes of in the last 60 days, with the next episode this week.
 - **Coming up this week for you**, sorted by air time.
 - **New seasons and returning**.
+- **Movies worth recording tonight**: films that start between 5pm and 3am, ranked by how well they fit what you watch and, with a [TMDB key](/guide/tv-guide#tmdb-key), by their user score on [TMDB](https://www.themoviedb.org) (The Movie Database, an online film database).
 - **You might like**.
-- **Top rated movies this week**: up to 10 films from the next 7 days with the best user scores on [TMDB](https://www.themoviedb.org) (The Movie Database, an online film database), weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**. Each card shows its TMDB score.
+- **Top rated series this week**: drama, comedy, animation, and documentary series in the next 7 days with a user score of 7 or more out of 10 on [TVmaze](https://www.tvmaze.com), a free online database of TV shows. A show must be popular enough on TVmaze for the score to count, and Freetvarr must be sure it found the right show: when two shows share a title, such as the US and UK versions of *Ghosts*, it shows no score. It needs no key. With **Ratings** or **Genres** off, the row is left out. Each card shows its TVmaze score, and the **TVmaze** link beside the heading opens TVmaze.
+- **Top rated movies this week**: up to 10 films from the next 7 days with the best user scores on TMDB, weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**. Each card shows its TMDB score.
 - **Movies for you**.
 - **Premieres and movies this week**.
 
@@ -37,6 +42,7 @@ A suggestion you have already scheduled carries a `Recording` badge and goes to 
 
 Press a card to act on it. What happens depends on the suggestion:
 
+- **Ready to watch**: plays the episode. If the file does not play, it opens the [show page](/guide/recordings#show-pages).
 - On now: plays the channel live.
 - Already scheduled: opens the [show page](/guide/recordings#show-pages).
 - A new season or a returning show: opens the [programme sheet](/guide/tv-guide#recording-a-programme) with **Every episode** picked.
@@ -45,7 +51,7 @@ Press a card to act on it. What happens depends on the suggestion:
 
 Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
-- **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
+- **Play**, **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
 - **More like this** and **Fewer like this**: tell Freetvarr what you think of the show. **Fewer like this** also hides the show from For you, until you press it again on the same card or press **Show again** in **Hidden shows**.
 - **Not interested in** the show: hides it from For you for 90 days.
 - **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
@@ -73,13 +79,13 @@ Freetvarr needs to know about at least five shows before it makes personal sugge
 
 Freetvarr scores each programme in the next 7 days of the TV guide against what you have recorded and watched. It looks at:
 
-- The genres of the shows you like. Freetvarr looks up the genres of each show on [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org), two free online databases.
+- The genres of the shows you like. Freetvarr looks up the genres of each show on TVmaze and on [Wikidata](https://www.wikidata.org), a free online database.
 - The channels and times of day you usually watch.
 - Shows you watched part of and gave up on, which drop down the list.
 - New seasons, returning shows, and premieres.
 - At the Standard and Plus levels, what the programme descriptions say, compared with the descriptions of shows you like. See [Suggestion level](#suggestion-level).
 
-Freetvarr updates the genres and the description data once a night, between 2am and 6am, and soon after it starts if the last update is more than a day and a half old.
+Freetvarr updates the genres, the TVmaze series scores, and the description data once a night, between 2am and 6am, and soon after it starts if the last update is more than a day and a half old. The first start with no series scores saved also updates the series scores after a minute.
 
 ## For you settings
 
@@ -95,7 +101,7 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 | **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Not interested** still count.             |
 | **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.              |
 
-**Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
+**Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres, and, with **Ratings** on, asks TVmaze for the scores of the series it found. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 
 ## Suggestion level
 
@@ -113,4 +119,4 @@ The first time it uses Standard or Plus, Freetvarr downloads the language model 
 
 Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → WATCHING → **For you** control it. **Pause history** still keeps your **More like this**, **Fewer like this**, and **Not interested** choices. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
 
-Your viewing history never leaves that computer: the genre lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.
+Your viewing history never leaves that computer: the lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.

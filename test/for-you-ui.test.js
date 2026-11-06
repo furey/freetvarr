@@ -374,3 +374,47 @@ test('turning a thumb off sends a clear, and switching sides sends the new thumb
   assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'up' }), { next: 'up', kind: 'thumb_up' })
   assert.deepEqual(thumbToggleOf({ current: 'up', direction: 'up' }), { next: null, kind: 'thumb_clear' })
 })
+
+const readyItem = (over) => item({
+  id: 'rec:r1', recordingId: 'r1', seriesKey: 'rosehaven', title: 'Rosehaven', episodeTitle: null, episodeLabel: 'S2 E1',
+  channelId: null, channelName: null, start: null, stop: null, kind: 'ready', reason: '2 episodes to watch', durationS: 1680,
+  canRecordSeries: false, ...over,
+})
+
+test('ready to watch cards: episode and length, Play on tap, Play and Go to show in the menu', () => {
+  assert.equal(cardMetaOf({ item: readyItem(), nowMs, timeZone }), 'S2 E1 · 28 min')
+  assert.equal(cardMetaOf({ item: readyItem({ episodeTitle: 'The Fete' }), nowMs, timeZone }), 'S2 E1 · The Fete')
+  assert.equal(badgeOf({ item: readyItem() }), null)
+  assert.equal(reasonOf(readyItem()), '2 episodes to watch')
+  assert.equal(tapActionOf({ item: readyItem() }), 'play-recording')
+  const menu = menuOf({ item: readyItem(), nowMs, timeZone })
+  assert.deepEqual(menu.actions.map((entry) => entry.key), ['play-recording', 'show'])
+  assert.deepEqual(menu.more.map((entry) => entry.key), ['not-interested', 'why'])
+})
+
+test('new rows: page order, the TVmaze credit link, and recordings kept off the Home row and hero', () => {
+  const page = payload({
+    sections: [
+      { key: 'top-rated-series', title: 'Top rated series this week', credit: { source: 'TVmaze', href: 'https://www.tvmaze.com' }, items: [item({ id: 's1', seriesKey: 'the-newsreader', title: 'The Newsreader', kind: 'rated', reason: '', rating: { score: 8.1, votes: null } })] },
+      { key: 'ready-to-watch', title: 'Ready to watch', items: [readyItem()] },
+      { key: 'last-chance', title: 'Last chance', credit: { source: 'Elsewhere', href: 'javascript:alert(1)' }, items: [item({ id: 'l1', seriesKey: 'utopia', title: 'Utopia', kind: 'last-chance', reason: 'Series finale' })] },
+    ],
+  })
+  const sections = sectionsOf({ payload: page })
+  assert.deepEqual(sections.map((s) => s.key), ['ready-to-watch', 'last-chance', 'top-rated-series'])
+  assert.deepEqual(sections[2].credit, { source: 'TVmaze', href: 'https://www.tvmaze.com' })
+  assert.equal(sections[1].credit, null)
+  assert.ok(!homeRowOf({ payload: page }).items.some((entry) => entry.kind === 'ready'))
+  assert.equal(forYouSlideOf({ payload: page, nowMs, timeZone }).title, 'Utopia')
+})
+
+test('sectionsOf: a show in Ready to watch still shows in airing rows such as Coming up', () => {
+  const page = payload({
+    sections: [
+      { key: 'ready-to-watch', title: 'Ready to watch', items: [readyItem({ seriesKey: 'grand-designs-australia', title: 'Grand Designs Australia' })] },
+      { key: 'coming-up', title: 'Coming up', items: [item()] },
+      { key: 'might-like', title: 'You might like', items: [item({ id: 'dup2' })] },
+    ],
+  })
+  assert.deepEqual(sectionsOf({ payload: page }).map((s) => s.key), ['ready-to-watch', 'coming-up'])
+})

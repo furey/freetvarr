@@ -218,7 +218,7 @@ const passThrough = (req, res, next) => next()
 
 let versionPromise = null
 
-const DEFAULT_LIMIT = 10
+const DEFAULT_LIMIT = 12
 const MAX_LIMIT = 20
 const MAX_PICKS = 30
 const SERIES_KEY = /^[a-z0-9-]{1,200}$/
