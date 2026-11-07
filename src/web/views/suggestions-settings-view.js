@@ -124,7 +124,7 @@ export const SuggestionsSettingsView = {
         <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or Fewer like this on a For you card to hide a show.</p>
       </ui-sheet>
 
-      <ui-sheet :open="themesOpen" title="Themes" subtitle="For you shows a theme row when you record and watch a lot of that kind of programme." @close="themesOpen = false">
+      <ui-sheet :open="themesOpen" title="Themes" subtitle="For you shows a theme row when you record and watch a lot of that kind of programme, and a seasonal row in the days around an occasion." @close="themesOpen = false">
         <div v-for="group in themeGroups" :key="group.label" class="settings-group suggestions-themes">
           <h3 class="ui-group-label">{{ group.label }}</h3>
           <div class="ui-group">

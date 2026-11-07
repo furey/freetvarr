@@ -25,6 +25,7 @@ import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLangu
 import { createSeriesRatings, loadSeriesRatings, seriesRatingStamp, warmSeriesRatingsIfEmpty } from './series-ratings.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { SPORT_ROW_KEY, SPORT_ROW_TITLE, THEME_KINDS, createThemeIndex, hiddenThemesOf, themeChoicesOf, themeMuteKeyOf, themeSettingsOf } from './for-you-themes.js'
+import { hiddenOccasionsOf, isSeasonalKey, occasionOf, seasonalSettingsOf } from './for-you-occasions.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { eventRowOf } from './user-events.js'
@@ -34,7 +35,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 7
+export const SCORING_VERSION = 8
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -226,24 +227,30 @@ export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
     db('user_events').whereIn('kind', HIDING_KINDS).orderBy('ts'),
     db('user_events').whereIn('kind', [...THEME_KINDS]).orderBy('ts'),
   ])
-  const themes = hiddenThemesOf({ index: currentThemeIndex(), mutes: themeChoicesOf(themeEvents).mutes, nowMs })
-  return [...themes, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
+  const { mutes } = themeChoicesOf(themeEvents)
+  const themes = hiddenThemesOf({ index: currentThemeIndex(), mutes, nowMs })
+  const occasions = hiddenOccasionsOf({ ...installPlace(), mutes, nowMs })
+  return [...themes, ...occasions, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
 }
 
 export const getThemeSettings = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
   const [events, off] = await Promise.all([db('user_events').whereIn('kind', [...THEME_KINDS]).orderBy('ts'), themesOffSetting()])
-  return themeSettingsOf({ index: currentThemeIndex(), mutes: themeChoicesOf(events).mutes, off: new Set(off), nowMs })
+  const { mutes } = themeChoicesOf(events)
+  return [
+    ...themeSettingsOf({ index: currentThemeIndex(), mutes, off: new Set(off), nowMs }),
+    ...seasonalSettingsOf({ ...installPlace(), mutes, off: new Set(off), nowMs }),
+  ]
 }
 
 export const setThemeOn = async ({ key, on, nowMs = Date.now() }) => {
   const index = currentThemeIndex()
-  if (!index.groups.has(key)) return { error: 'That theme is not in the catalogue' }
+  if (!isThemeKey({ index, key, sportRow: false })) return { error: 'That theme is not in the catalogue' }
   const off = new Set(await themesOffSetting())
   if (on) off.delete(key)
   else off.add(key)
   await setSetting(SETTINGS.themesOff, JSON.stringify([...off].sort()))
-  const sport = index.groups.get(key).row === 'sport'
+  const sport = index.groups.get(key)?.row === 'sport'
   if (on) await insertUnmutes({ index, keys: sport ? [key, SPORT_ROW_KEY] : [key], nowMs, source: 'settings' })
   forgetForYouCache()
   return { themes: await getThemeSettings({ nowMs }) }
@@ -259,6 +266,8 @@ const themesOffSetting = async () => {
 }
 
 const currentThemeIndex = () => createThemeIndex({ country: countryForTimeZone(currentTimeZone()) })
+
+const installPlace = () => ({ country: countryForTimeZone(currentTimeZone()), timeZone: currentTimeZone() })
 
 export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   await flushUserEvents().catch(() => {})
@@ -283,10 +292,12 @@ export const unmuteTheme = async ({ key, nowMs = Date.now() }) => {
   return { ok: true }
 }
 
-const isThemeKey = ({ index, key }) => index.groups.has(key) || key === SPORT_ROW_KEY
+const isThemeKey = ({ index, key, sportRow = true }) => index.groups.has(key)
+  || (sportRow && key === SPORT_ROW_KEY)
+  || (isSeasonalKey(key) && Boolean(occasionOf({ key, country: index.country })))
 
 const insertUnmutes = ({ index, keys, nowMs, source }) => db('user_events').insert(keys.map((key) => eventRowOf({
-  event: { kind: 'theme_unmuted', series_key: themeMuteKeyOf(key), title: index.groups.get(key)?.title ?? SPORT_ROW_TITLE, source, ts: nowMs },
+  event: { kind: 'theme_unmuted', series_key: themeMuteKeyOf(key), title: index.groups.get(key)?.title ?? occasionOf({ key, country: index.country })?.title ?? SPORT_ROW_TITLE, source, ts: nowMs },
   nowMs,
 })))
 
