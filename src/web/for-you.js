@@ -87,7 +87,7 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
   return orderedSections(payload?.sections)
     .map((section) => {
       const seen = section.key === READY_SECTION ? seenRecordings : seenAirings
-      const perAiring = Boolean(section.theme?.sport)
+      const perAiring = Boolean(section.theme?.sport || section.theme?.seasonal)
       const items = (section.items ?? []).filter((item) => {
         const identity = perAiring ? `airing:${item.id}` : identityOf(item)
         if (isHiddenSuggestion({ item, hiddenKeys }) || seen.has(identity)) return false
@@ -379,11 +379,14 @@ export const hiddenToastOf = (title) => `${title} is hidden from For you`
 
 export const hideThemeLabelOf = (theme) => `Hide ${theme.title}`
 
-export const themeMutedToastOf = (theme) => `The ${theme.title} row is hidden for 90 days`
+export const themeMutedToastOf = (theme) => (theme.seasonal
+  ? `The ${theme.title} row is hidden until next ${theme.title}`
+  : `The ${theme.title} row is hidden for 90 days`)
 
 export const themeGroupsOf = (themes = []) => [
-  { label: 'Themes', themes: themes.filter((theme) => !theme.sport) },
+  { label: 'Themes', themes: themes.filter((theme) => !theme.sport && !theme.seasonal) },
   { label: 'Sport', themes: themes.filter((theme) => theme.sport) },
+  { label: 'Seasonal', themes: themes.filter((theme) => theme.seasonal) },
 ].filter((group) => group.themes.length)
 
 export const themesOnCountOf = (themes = []) => `${themes.filter((theme) => theme.on).length} of ${themes.length}`
@@ -391,9 +394,9 @@ export const themesOnCountOf = (themes = []) => `${themes.filter((theme) => them
 export const themeBoostedToastOf = (theme) => `More ${theme.title} suggestions from now on`
 
 export const rowMenuOf = (theme) => [
-  { key: 'boost-theme', label: `More ${theme.title}`, icon: 'more' },
+  !theme.seasonal && { key: 'boost-theme', label: `More ${theme.title}`, icon: 'more' },
   { key: 'mute-theme', label: hideThemeLabelOf(theme), icon: 'hide' },
-]
+].filter(Boolean)
 
 export const themeFeedbackOf = ({ kind, theme, source }) => ({
   kind,
@@ -471,16 +474,29 @@ export const picksErrorOf = (err) => ({
 const orderedSections = (sections = []) => [...sections].sort((a, b) => rankOf(a.key) - rankOf(b.key))
 
 const rankOf = (key) => {
+  if (isSeasonalSection(key)) return SECTION_ORDER.indexOf(SEASONAL_AFTER) + 0.5
   if (isThemeSection(key)) return SECTION_ORDER.indexOf(THEMES_AFTER) + 0.5
   const index = SECTION_ORDER.indexOf(key)
   return index < 0 ? SECTION_ORDER.length : index
 }
 
-const themeOf = (theme) => (theme?.key ? { key: theme.key, title: theme.title, phrase: theme.phrase, ...(theme.sport && { sport: true }) } : null)
+const themeOf = (theme) => (theme?.key
+  ? {
+    key: theme.key,
+    title: theme.title,
+    phrase: theme.phrase,
+    ...(theme.sport && { sport: true }),
+    ...(theme.seasonal && { seasonal: true }),
+    ...(theme.commemoration && { commemoration: true }),
+  }
+  : null)
 
 const isThemeSection = (key) => String(key).startsWith('theme-') || key === 'sport'
 
+const isSeasonalSection = (key) => String(key).startsWith('seasonal-')
+
 const THEMES_AFTER = 'might-like'
+const SEASONAL_AFTER = 'coming-up'
 
 const scheduledLast = ({ items, scheduledKeys }) => [
   ...items.filter((item) => !isScheduled({ item, scheduledKeys })),

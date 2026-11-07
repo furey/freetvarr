@@ -18,6 +18,7 @@ import {
 } from './for-you-capability.js'
 import { distinctTextsOf, vectorFromBuffer, vectorToBuffer } from './for-you-texts.js'
 import { prototypeTextsOf, themeCatalogueOf } from './for-you-theme-catalogue.js'
+import { occasionPrototypeTextsOf } from './for-you-occasions.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 
@@ -213,7 +214,7 @@ const textsToEmbed = async ({ modelId, nowMs }) => {
   return distinct.filter((item) => !known.has(item.hash))
 }
 
-export const themeTextItems = ({ country = countryForTimeZone(currentTimeZone()) } = {}) => prototypeTextsOf(themeCatalogueOf({ country }))
+export const themeTextItems = ({ country = countryForTimeZone(currentTimeZone()) } = {}) => [...prototypeTextsOf(themeCatalogueOf({ country })), ...occasionPrototypeTextsOf(country)]
   .map((text) => ({ title: text }))
 
 const keepThemeVectors = async ({ modelId, nowMs }) => {

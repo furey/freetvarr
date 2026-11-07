@@ -29,6 +29,7 @@ The page groups its suggestions under these headings, in this order, and leaves 
 - **Ready to watch**: one card for each show with recordings you have not watched yet. The card shows the oldest of those episodes. A recording counts as watched when you finish it in Freetvarr, or when [Plex](https://www.plex.tv) marks it watched.
 - **Finish what you started**: shows you watched 1 to 3 episodes of in the last 60 days, with the next episode this week.
 - **Coming up this week for you**, sorted by air time.
+- One seasonal row in the days around an occasion, such as **Christmas** or **Anzac Day**. See [Seasonal rows](#seasonal-rows).
 - **New seasons and returning**.
 - **Movies worth recording tonight**: films that start between 5pm and 3am, ranked by how well they fit what you watch and, with a [TMDB key](/guide/tv-guide#tmdb-key), by their user score on [TMDB](https://www.themoviedb.org) (The Movie Database, an online film database).
 - **You might like**.
@@ -54,7 +55,7 @@ Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 - **Play**, **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
 - **More like this** and **Fewer like this**: tell Freetvarr what you think of the show. **Fewer like this** also hides the show from For you, until you press it again on the same card or press **Show again** in **Hidden shows**.
 - **Not interested in** the show: hides it from For you for 90 days.
-- **Hide** and the theme of the row, such as **Hide Cooking**: on cards in a theme row only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows).
+- **Hide** and the theme of the row, such as **Hide Cooking** or **Hide Christmas**: on cards in a theme row or a seasonal row only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows) and [Seasonal rows](#seasonal-rows).
 - **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
 
@@ -95,6 +96,51 @@ To turn a theme off before it ever shows, or to turn a hidden theme back on, ope
 
 At the Basic [suggestion level](#suggestion-level), Freetvarr files shows by their titles and genres only, so you can get fewer theme rows.
 
+## Seasonal rows
+
+A seasonal row collects the programmes about an occasion in the days around it, such as Christmas specials in December. It does not depend on what you record and watch, so a new household gets it too. For you shows one seasonal row at most, under **Coming up this week for you**.
+
+The occasions depend on the country of the time zone in Settings → SYSTEM → **Schedule**. With no known country, you get the occasions for all countries only.
+
+| Occasion            | Countries                                                         | The row shows                                                                                                                 |
+| ------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Lunar New Year**  | All                                                               | From 5 days before to the day after                                                                                           |
+| **Waitangi Day**    | New Zealand                                                       | From 3 days before to 6 February                                                                                              |
+| **Eid al-Fitr**     | All                                                               | From 5 days before to the second day of Eid                                                                                   |
+| **Easter**          | All                                                               | From Palm Sunday to Easter Monday                                                                                             |
+| **Anzac Day**       | Australia and New Zealand                                         | From 22 to 25 April                                                                                                           |
+| **Mother's Day**    | Australia, New Zealand, the United Kingdom, and the United States | From 3 days before to the day. In the United Kingdom, the day is Mothering Sunday, three weeks before Easter Sunday           |
+| **Father's Day**    | Australia, New Zealand, the United Kingdom, and the United States | From 3 days before to the day: the first Sunday in September in Australia and New Zealand, the third Sunday in June elsewhere |
+| **Fourth of July**  | The United States                                                 | From 1 to 4 July                                                                                                              |
+| **NAIDOC Week**     | Australia                                                         | From the first Sunday in July to the next Sunday                                                                              |
+| **Matariki**        | New Zealand                                                       | From 7 days before to the public holiday                                                                                      |
+| **Halloween**       | Australia, New Zealand, the United Kingdom, and the United States | From 24 to 31 October                                                                                                         |
+| **Diwali**          | All                                                               | From 5 days before to the day after                                                                                           |
+| **Bonfire Night**   | The United Kingdom                                                | From 1 to 5 November                                                                                                          |
+| **Remembrance Day** | Australia, New Zealand, and the United Kingdom                    | From 3 days before to 11 November. In the United Kingdom, the day is Remembrance Sunday, the second Sunday in November        |
+| **Thanksgiving**    | The United States                                                 | From 7 days before to the fourth Thursday in November                                                                         |
+| **Hanukkah**        | All                                                               | The 8 days of Hanukkah                                                                                                        |
+| **Christmas**       | All                                                               | From 1 to 26 December                                                                                                         |
+| **New Year's Eve**  | All                                                               | From 27 December to 1 January                                                                                                 |
+
+Freetvarr works out most dates itself. The dates of Lunar New Year, Eid al-Fitr, Hanukkah, Diwali, and Matariki come from a table for 2026 to 2040.
+
+Freetvarr checks each airing on its own, so a Christmas episode of a series counts and the other episodes do not. An airing counts when its title or episode title names the occasion, such as `Christmas` or `Santa`. An airing also counts when its description names the occasion with two different words, such as `Diwali` and `festival of lights`. At the Standard and Plus [suggestion levels](#suggestion-level), a description match must also be close in meaning to a short description of the occasion.
+
+These never count:
+
+- Programmes on shopping channels.
+- Sport.
+- News programmes whose description names the occasion.
+- `Christmas in June`, `Christmas in July`, and `Easter Island`.
+- Kids' programmes, for **Anzac Day**, **NAIDOC Week**, and **Remembrance Day** only.
+
+The row needs at least four programmes from at least three shows, all on before the last day of the row. It shows up to two airings of one show. It leaves out the shows in the rows above it, and the rows below it leave out its shows. When two occasions overlap, such as Hanukkah and Christmas, the row is for the occasion with the nearest date. If that occasion has too few programmes, the row is for the other.
+
+Press **⋯** beside the title of a seasonal row for **Hide** and the occasion, such as **Hide Christmas**. The row then stays hidden until the next time the occasion comes round. Press **Undo** on the message to bring the row back.
+
+To turn an occasion off, or to turn a hidden occasion back on, open **Themes** in the [For you settings](#for-you-settings) and use the **Seasonal** group.
+
 ## Getting started
 
 Freetvarr needs to know about at least five shows before it makes personal suggestions. A show counts once you have recorded it, watched at least `10` minutes of an episode, asked to record it, or pressed **More like this** on it. Until then:
@@ -118,16 +164,16 @@ Freetvarr updates the genres, the TVmaze series scores, and the description data
 
 Open Settings → WATCHING → **For you**, or press the settings button at the top of the For you page.
 
-| Setting                      | What it does                                                                                                                                                                                               |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                                                                                |
-| **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                                                                             |
-| **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English.                                                     |
-| **Themes**                   | Lists every theme and sport, each with a switch, on by default. Turn one off to stop its row, and its shows stop counting towards the rows. A hidden theme shows as off; turn it on to bring the row back. |
-| **Hidden shows**             | Lists the shows you marked **Not interested** or **Fewer like this**, and the themes you hid. Press **Show again** to get suggestions for a show or a theme again.                                         |
-| **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                                                                                 |
-| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Not interested** still count.                                                                 |
-| **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.                                                                  |
+| Setting                      | What it does                                                                                                                                                                                                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                                                                                                                                                                |
+| **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                                                                                                                                                             |
+| **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English.                                                                                                                                     |
+| **Themes**                   | Lists every theme and sport, and in the **Seasonal** group the occasions of your country, each with a switch, on by default. Turn one off to stop its row; a theme's shows also stop counting towards the rows. A hidden theme or occasion shows as off; turn it on to bring the row back. |
+| **Hidden shows**             | Lists the shows you marked **Not interested** or **Fewer like this**, and the themes and occasions you hid. Press **Show again** to get suggestions for a show, a theme, or an occasion again.                                                                                             |
+| **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                                                                                                                                                                 |
+| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Not interested** still count.                                                                                                                                                 |
+| **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.                                                                                                                                                  |
 
 **Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres, and, with **Ratings** on, asks TVmaze for the scores of the series it found. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 

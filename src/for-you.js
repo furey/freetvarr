@@ -48,7 +48,19 @@ import {
   themeChoicesOf,
   themeSectionKeyOf,
   titleFactsOf,
+  titleKindOf,
 } from './for-you-themes.js'
+import {
+  SEASONAL_MIN_ITEMS,
+  SEASONAL_MIN_TITLES,
+  SEASONAL_PER_TITLE,
+  activeOccasionsOf,
+  isOccasionMuted,
+  localDayOf,
+  localMidnightMsOf,
+  occasionMatchOf,
+  seasonalKeyOf,
+} from './for-you-occasions.js'
 import { classificationTitleKey } from './classification-labels.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { msOf } from './user-events.js'
@@ -156,10 +168,15 @@ export const buildForYou = ({
   const baseSections = coldStart
     ? coldStartSections({ items: best, topRated, rows, limit, otherLimit })
     : sectionsOf({ items: best, topRated, rows, limit, nowMs, genreShares: context.genreShares, otherLimit })
+  const seasonal = seasonalSectionOf({
+    allowed, upcoming, keyOf, records, context, vectorsByHash: tier === 'basic' ? null : vectorsByHash, guideCategories, themesOff, events, scored: best, limit,
+    used: usedKeysOf(baseSections.filter((section) => SEASONAL_AFTER.includes(section.key))),
+  })
+  const withSeasonal = withSeasonalSection({ sections: baseSections, seasonal })
   const themes = coldStart
     ? { sections: [] }
-    : themeSectionsOf({ allowed, upcoming, history, recordings, events, keyOf, records, scored: best, context, vectorsByHash, tier, guideCategories, themesOff, limit, used: usedKeysOf(baseSections), usedIds: usedIdsOf(baseSections) })
-  const sections = withThemeSections({ sections: baseSections, themeSections: themes.sections })
+    : themeSectionsOf({ allowed, upcoming, history, recordings, events, keyOf, records, scored: best, context, vectorsByHash, tier, guideCategories, themesOff, limit, used: usedKeysOf(withSeasonal), usedIds: usedIdsOf(withSeasonal) })
+  const sections = withThemeSections({ sections: withSeasonal, themeSections: themes.sections })
   const explanations = new Map(scored.map((entry) => [entry.item.id, explanationOf({ entry, context })]))
   for (const section of sections) {
     const explain = ROW_EXPLANATIONS[section.key] || section.explain
@@ -227,6 +244,46 @@ export const themeSectionsOf = ({ allowed, upcoming, history = [], recordings = 
     if (picked.length) sections.push(themeSectionOf({ group, info, picked, share, index, context, sport: true }))
   }
   return { sections, household, tagsByKey }
+}
+
+export const seasonalSectionOf = ({ allowed, upcoming = allowed, keyOf: resolveKey = showKeyOf, records = new Map(), context, vectorsByHash = null, guideCategories = new Map(), themesOff = [], events = [], scored = [], limit = DEFAULT_LIMIT, used = new Set() }) => {
+  const { nowMs, timeZone } = context
+  const country = countryForTimeZone(timeZone)
+  const off = new Set(themesOff)
+  const { mutes } = themeChoicesOf(events)
+  const active = activeOccasionsOf({ country, today: localDayOf({ ms: nowMs, timeZone }) }).filter(({ occasion }) => {
+    const key = seasonalKeyOf(occasion.key)
+    return !off.has(key) && !isOccasionMuted({ occasion, country, mutedAt: mutes.get(key), nowMs, timeZone })
+  })
+  if (!active.length) return null
+  const keyOf = rememberedKeys(resolveKey)
+  const isFilm = (programme) => programme.kind === 'movie' || context.categoriesOf(programme).includes('movie')
+  for (const window of active) {
+    const endMs = localMidnightMsOf({ day: window.end + 1, timeZone })
+    const mentions = allowed.filter((programme) => Number(programme.start) < endMs && window.occasion.words.test(occasionTextOf(programme)))
+    if (!mentions.length) continue
+    const kinds = titleKindsOf({ programmes: upcoming, keys: new Set(mentions.map((programme) => keyOf(programme.title))), keyOf, records, context, guideCategories, isFilm })
+    const prototypes = window.occasion.prototypes.map((text) => vectorsByHash?.get(textHashOf(text))).filter(Boolean)
+    const matches = mentions
+      .map((programme) => ({
+        programme,
+        field: occasionMatchOf({
+          occasion: window.occasion,
+          programme,
+          channelName: context.channelNames.get(String(programme.channel_id)) || '',
+          kind: kinds.get(keyOf(programme.title)) ?? 'unknown',
+          news: context.categoriesOf(programme).includes('news'),
+          vector: vectorsByHash?.get(textHashOf(embedTextOf(programme))) ?? null,
+          prototypes,
+        }),
+      }))
+      .filter((match) => match.field)
+    const picked = seasonalPicksOf({ matches, scored, used, limit: Math.min(limit, ROW_LIMIT) })
+    if (picked.length >= SEASONAL_MIN_ITEMS && new Set(picked.map((candidate) => candidate.key)).size >= SEASONAL_MIN_TITLES) {
+      return seasonalSectionFrom({ window, picked, context, isFilm })
+    }
+  }
+  return null
 }
 
 export const isInfomercial = ({ title = '', synopsis = '' }) => INFOMERCIAL_TITLE.test(String(title).trim())
@@ -938,6 +995,81 @@ const usedIdsOf = (sections) => new Set(sections.flatMap((section) => section.en
 
 const usedKeysOf = (sections) => new Set(sections.flatMap((section) => section.entries.map((entry) => entry.key)))
 
+const occasionTextOf = (programme) => `${programme.title || ''}\n${programme.episode_title || ''}\n${programme.synopsis || ''}`
+
+const titleKindsOf = ({ programmes, keys, keyOf, records, context, guideCategories, isFilm }) => {
+  const titles = titleFactsOf({
+    programmes: programmes.filter((programme) => keys.has(keyOf(programme.title))),
+    keyOf,
+    categoriesOf: context.categoriesOf,
+    recordOf: (key) => records.get(key),
+    channelNames: context.channelNames,
+    guideCategoriesOf: (title) => guideCategories.get(classificationTitleKey(title)) || [],
+    isFilm,
+    hourOf: context.hourOf,
+  })
+  return new Map([...titles.values()].map((facts) => [facts.key, titleKindOf(facts)]))
+}
+
+const seasonalPicksOf = ({ matches, scored, used, limit }) => {
+  const preferred = new Map(scored.map((entry) => [entry.key, entry]))
+  const episodes = new Set()
+  const perTitle = new Map()
+  return matches
+    .map(({ programme, field }) => {
+      const key = showKeyOf(programme.title)
+      return { key, programme, field, start: Number(programme.start), score: preferred.get(key)?.score || 0, kind: preferred.get(key)?.item.kind }
+    })
+    .filter((candidate) => !used.has(candidate.key))
+    .sort((a, b) => SEASONAL_FIELD_RANKS[a.field] - SEASONAL_FIELD_RANKS[b.field] || b.score - a.score || Number(Boolean(b.programme.image)) - Number(Boolean(a.programme.image)) || a.start - b.start)
+    .filter((candidate) => {
+      const episode = `${candidate.key}|${String(candidate.programme.episode_title || candidate.programme.synopsis || candidate.start).trim().toLowerCase()}`
+      if (episodes.has(episode)) return false
+      episodes.add(episode)
+      perTitle.set(candidate.key, (perTitle.get(candidate.key) || 0) + 1)
+      return perTitle.get(candidate.key) <= SEASONAL_PER_TITLE
+    })
+    .slice(0, limit)
+}
+
+const seasonalSectionFrom = ({ window, picked, context, isFilm }) => {
+  const { occasion } = window
+  const key = seasonalKeyOf(occasion.key)
+  const theme = { key, title: occasion.title, phrase: occasion.title, seasonal: true, ...(occasion.commemoration && { commemoration: true }) }
+  const dateSignal = `${occasion.title} ${occasion.before === 0 ? 'starts' : 'is'} on ${OCCASION_DATE.format(new Date(window.day * DAY_MS))}`
+  return {
+    key,
+    title: occasion.title,
+    theme,
+    explain: ({ entry }) => ({
+      title: entry.item.title,
+      reasons: [{ text: `About ${occasion.title}`, weight: 1 }],
+      signals: [SEASONAL_FIELD_SIGNALS[entry.field](occasion.title), dateSignal],
+    }),
+    entries: picked.map((candidate) => {
+      const movie = isFilm(candidate.programme)
+      return {
+        key: candidate.key,
+        field: candidate.field,
+        item: {
+          ...airingItemOf({ programme: candidate.programme, context, movie, categories: context.categoriesOf(candidate.programme), kind: movie ? 'movie' : candidate.kind || 'seasonal', reason: '', score: candidate.score }),
+          theme,
+        },
+      }
+    }),
+  }
+}
+
+const withSeasonalSection = ({ sections, seasonal }) => {
+  if (!seasonal) return sections
+  const index = sections.findLastIndex((section) => SEASONAL_AFTER.includes(section.key)) + 1
+  const seasonalKeys = new Set(seasonal.entries.map((entry) => entry.key))
+  const later = sections.slice(index)
+    .map((section) => ({ ...section, entries: section.entries.filter((entry) => !seasonalKeys.has(entry.key)) }))
+    .filter((section) => section.entries.length)
+  return [...sections.slice(0, index), seasonal, ...later]
+}
+
 const withThemeSections = ({ sections, themeSections }) => {
   if (!themeSections.length) return sections
   const index = sections.findLastIndex((section) => THEMES_AFTER.includes(section.key)) + 1
@@ -1133,6 +1265,14 @@ const W = {
 }
 
 const SIMILAR_REASON_RATIO = 0.5
+const SEASONAL_AFTER = ['ready-to-watch', 'finish-started', 'coming-up']
+const SEASONAL_FIELD_RANKS = { title: 0, episode: 1, synopsis: 2 }
+const SEASONAL_FIELD_SIGNALS = {
+  title: (title) => `Its title matches ${title}`,
+  episode: (title) => `Its episode title matches ${title}`,
+  synopsis: (title) => `Its description mentions ${title}`,
+}
+const OCCASION_DATE = new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' })
 const THEMES_AFTER = ['ready-to-watch', 'finish-started', 'coming-up', 'new-seasons', 'tonight-movies', 'might-like']
 const LEADING_FEATURES = new Set(['new-season', 'back'])
 const REASON_FEATURES = new Set(['affinity', 'new-season', 'back', 'premiere', 'habit', 'genre', 'similar', 'pinned', 'prime'])
