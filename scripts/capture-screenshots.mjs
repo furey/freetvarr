@@ -29,7 +29,9 @@ const DESKTOP_SHOTS = [
   { hash: '#/live', file: 'screenshot-player.png', wait: '.live-row, .live-list', prepare: (page, picks) => playLive(page, picks) },
   { hash: '#/home', file: 'screenshot-search.png', wait: '.home-hero, .home-row', prepare: (page) => openSearch(page, SEARCH_QUERY) },
   { hash: '#/settings/system/series', file: 'screenshot-series-drawer.png', wait: '.settings-page', prepare: (page) => openSeriesDrawer(page, SERIES_WITH_OTHER_TITLES) },
-  { hash: '#/for-you', file: 'screenshot-for-you.png', wait: '.for-you-view, .fy-rail' },
+  { hash: '#/for-you', file: 'screenshot-for-you.png', wait: '.for-you-view, .fy-rail', finish: (page) => scrollToThemeRow(page) },
+  { hash: '#/for-you', file: 'screenshot-for-you-row-menu.png', wait: '.for-you-view, .fy-rail', prepare: (page) => openThemeRowMenu(page) },
+  { hash: '#/settings/for-you', file: 'screenshot-for-you-themes.png', wait: '.settings-page', prepare: (page) => openThemesSheet(page) },
   { hash: '#/recordings/scheduled', file: 'screenshot-scheduled.png', wait: '.scheduled-view, .ui-empty' },
   { hash: '#/recordings/show/:showcase', file: 'screenshot-show.png', wait: '.show-view, .show-hero' },
   { hash: '#/recordings/show/:scheduledOnly', file: 'screenshot-show-scheduled.png', wait: '.show-hero' },
@@ -75,6 +77,33 @@ const showPlexLibraryNames = async (page) => {
   await page.getByRole('button', { name: 'Load libraries' }).first().click()
   await page.locator('#settings-plex-oneoff option', { hasText: 'One-offs' }).first().waitFor({ state: 'attached', timeout: 10_000 })
   await scrollToText(page, 'Watched state')
+}
+
+const THEME_ROW_TITLE = 'Cooking'
+
+const scrollToThemeRow = async (page) => {
+  await page.addStyleTag({ content: HIDE_SCROLLBARS })
+  await page.waitForTimeout(500)
+  const heading = page.locator('.ui-section-title', { hasText: THEME_ROW_TITLE }).first()
+  await heading.waitFor({ timeout: 10_000 })
+  await heading.evaluate((el) => {
+    el.style.scrollMarginTop = '140px'
+    el.scrollIntoView({ block: 'start', behavior: 'instant' })
+  })
+  await page.waitForTimeout(800)
+}
+
+const openThemeRowMenu = async (page) => {
+  await scrollToThemeRow(page)
+  await page.getByRole('button', { name: /row options/ }).first().click()
+  await page.waitForTimeout(800)
+}
+
+const openThemesSheet = async (page) => {
+  await page.locator('[data-setting="themes"]').click()
+  await page.locator('.ui-sheet .settings-row[data-theme]').first().waitFor({ timeout: 10_000 })
+  await page.getByText('Seasonal', { exact: true }).first().scrollIntoViewIfNeeded()
+  await page.waitForTimeout(800)
 }
 
 const SEARCH_QUERY = 'young'
@@ -231,6 +260,8 @@ const captureAll = async (shots, viewport, { mobile = false } = {}) => {
     await waitForProgrammeImages(page)
     await page.waitForTimeout(800)
     await waitForAnimationsToSettle(page)
+    if (shot.finish) await shot.finish(page, picks)
+    await waitForProgrammeImages(page)
     await page.screenshot({
       path: `${OUT}/${shot.file}`,
       clip: { x: 0, y: 0, width: viewport.width, height: viewport.height },

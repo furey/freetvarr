@@ -20,7 +20,7 @@ Suggestions show in three places:
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/for-you">
-  <img src="../img/screenshot-for-you.png" alt="The For you page, with suggestions grouped under headings" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you.png" alt="The For you page, with the Cooking and Comedy theme rows between the suggestion headings" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -91,6 +91,12 @@ Press **⋯** beside the title of a theme row or the sport row for these choices
 
 - **More** and the theme, such as **More Cooking**: makes the theme count half as much again towards its row. Press **Undo** on the message to take it back.
 - **Hide** and the theme, such as **Hide Cooking**: hides the row for 90 days. After that, the theme counts as before. Press **Undo** on the message to bring the row back, with any **More** you chose before. Pressing **More** later also brings the row back.
+
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/for-you">
+  <img src="../img/screenshot-for-you-row-menu.png" alt="The menu of the Cooking theme row, with More Cooking and Hide Cooking" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 To turn a theme off before it ever shows, or to turn a hidden theme back on, open **Themes** in the [For you settings](#for-you-settings).
 
@@ -163,6 +169,12 @@ Freetvarr updates the genres, the TVmaze series scores, and the description data
 ## For you settings
 
 Open Settings → WATCHING → **For you**, or press the settings button at the top of the For you page.
+
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/settings/for-you">
+  <img src="../img/screenshot-for-you-themes.png" alt="The Themes sheet in the For you settings, with a switch for each sport and, under Seasonal, for each occasion" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
 
 | Setting                      | What it does                                                                                                                                                                                                                                                                               |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
