@@ -77,8 +77,7 @@ export const mutedUntilOf = ({ occasion, country = '', mutedDay }) => {
 
 export const isOccasionMuted = ({ occasion, country = '', mutedAt, nowMs, timeZone }) => {
   if (mutedAt == null) return false
-  const until = mutedUntilOf({ occasion, country, mutedDay: localDayOf({ ms: mutedAt, timeZone }) })
-  return until == null || localDayOf({ ms: nowMs, timeZone }) < until
+  return localDayOf({ ms: nowMs, timeZone }) < muteEndDayOf({ occasion, country, mutedAt, timeZone })
 }
 
 export const localDayOf = ({ ms, timeZone }) => {
@@ -91,7 +90,9 @@ export const localDayOf = ({ ms, timeZone }) => {
 export const localMidnightMsOf = ({ day, timeZone }) => {
   const wall = day * DAY_MS
   const guess = wall - offsetAt({ ms: wall, timeZone })
-  return wall - offsetAt({ ms: guess, timeZone })
+  let ms = wall - offsetAt({ ms: guess, timeZone })
+  while (localDayOf({ ms, timeZone }) < day) ms += DST_STEP_MS
+  return ms
 }
 
 export const occasionMatchOf = ({ occasion, programme, channelName = '', kind = 'unknown', news = false, vector = null, prototypes = [] }) => {
@@ -103,7 +104,7 @@ export const occasionMatchOf = ({ occasion, programme, channelName = '', kind = 
   const describes = isDescription(episode)
   if (!describes && occasion.words.test(episode)) return 'episode'
   const synopsis = describes ? `${episode} ${clean(programme.synopsis)}` : clean(programme.synopsis)
-  if (news || !occasion.words.test(synopsis) || distinctTermsOf({ text: synopsis, occasion }) < SYNOPSIS_TERMS) return null
+  if (news || !occasion.words.test(synopsis) || distinctTermsOf({ text: synopsis, occasion }) + supportingTermsOf({ text: synopsis, occasion }) < SYNOPSIS_TERMS) return null
   if (!vector || !prototypes.length) return 'synopsis'
   return Math.max(...prototypes.map((prototype) => dotOf(vector, prototype))) >= OCCASION_PROTOTYPE_FLOOR ? 'synopsis' : null
 }
@@ -122,11 +123,16 @@ export const hiddenOccasionsOf = ({ country = '', mutes = new Map(), nowMs, time
   .map((occasion) => {
     const key = seasonalKeyOf(occasion.key)
     const hiddenAt = mutes.get(key)
-    const until = mutedUntilOf({ occasion, country, mutedDay: localDayOf({ ms: hiddenAt, timeZone }) })
-    return { seriesKey: `theme:${key}`, themeKey: key, title: occasion.title, theme: true, seasonal: true, hiddenAt, until: until == null ? null : until * DAY_MS }
+    const until = muteEndDayOf({ occasion, country, mutedAt: hiddenAt, timeZone })
+    return { seriesKey: `theme:${key}`, themeKey: key, title: occasion.title, theme: true, seasonal: true, hiddenAt, until: until * DAY_MS }
   })
 
 const isDescription = (text) => text.length > DESCRIPTION_LENGTH || /[a-z]{2}[.!?]\s+[A-Z]/.test(text)
+
+const muteEndDayOf = ({ occasion, country, mutedAt, timeZone }) => {
+  const mutedDay = localDayOf({ ms: mutedAt, timeZone })
+  return mutedUntilOf({ occasion, country, mutedDay }) ?? mutedDay + UNDATED_MUTE_DAYS
+}
 
 const weekdayOf = (dayNumber) => (dayNumber + 4) % 7
 
@@ -135,6 +141,8 @@ const fixed = (month, day) => ({ year }) => dayNumberOf({ year, month, day })
 const byCountry = (rules) => ({ year, country }) => rules[country]?.(year) ?? null
 
 const distinctTermsOf = ({ text, occasion }) => new Set([...String(text).matchAll(globalWordsOf(occasion))].map((match) => match[0].toLowerCase().replace(/[’']/g, ''))).size
+
+const supportingTermsOf = ({ text, occasion }) => (occasion.supporting?.test(text) ? 1 : 0)
 
 const globalWordsOf = (occasion) => {
   if (!globalWords.has(occasion.key)) globalWords.set(occasion.key, new RegExp(occasion.words.source, 'gi'))
@@ -180,6 +188,8 @@ const SUNDAY = 0
 const THURSDAY = 4
 const DAY_MS = 24 * 60 * 60 * 1000
 const SYNOPSIS_TERMS = 2
+const UNDATED_MUTE_DAYS = 365
+const DST_STEP_MS = 15 * 60 * 1000
 const DESCRIPTION_LENGTH = 80
 const NO_MATCH = /$^/g
 const SHOPPING_CHANNEL = /shop|tvsn|qvc|\bhsn\b|gemporia|jewel(le)?ry|ideal world|gems? tv|shopping/i
@@ -313,7 +323,8 @@ const OCCASIONS = [
     dayOf: ({ year }) => tableDatesOf({ key: 'diwali', year }),
     before: 5,
     after: 1,
-    words: /\b(diwali|deepavali|divali|festival of lights?)\b/i,
+    words: /\b(diwali|deepavali|divali)\b/i,
+    supporting: /\bfestival of lights?\b/i,
     prototypes: ['Diwali, the Hindu festival of lights, celebrated with lamps, sweets, fireworks and family feasts.'],
   },
   {
@@ -355,9 +366,10 @@ const OCCASIONS = [
     key: 'hanukkah',
     title: 'Hanukkah',
     dayOf: ({ year }) => tableDatesOf({ key: 'hanukkah', year }),
-    before: 0,
+    before: 1,
     after: 7,
-    words: /\b(hanukkah|chanukah|hanukah|chanukkah|menorah|dreidels?|festival of lights)\b/i,
+    words: /\b(hanukkah|chanukah|hanukah|chanukkah|menorah|dreidels?)\b/i,
+    supporting: /\bfestival of lights?\b/i,
     prototypes: ['Hanukkah, the Jewish festival of lights, with the menorah, dreidels, latkes and eight nights of candles.'],
   },
   {

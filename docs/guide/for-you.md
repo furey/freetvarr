@@ -119,13 +119,13 @@ The occasions depend on the country of the time zone in Settings → SYSTEM → 
 | **Bonfire Night**   | The United Kingdom                                                | From 1 to 5 November                                                                                                          |
 | **Remembrance Day** | Australia, New Zealand, and the United Kingdom                    | From 3 days before to 11 November. In the United Kingdom, the day is Remembrance Sunday, the second Sunday in November        |
 | **Thanksgiving**    | The United States                                                 | From 7 days before to the fourth Thursday in November                                                                         |
-| **Hanukkah**        | All                                                               | The 8 days of Hanukkah                                                                                                        |
+| **Hanukkah**        | All                                                               | From the evening before the first day, through the 8 days                                                                     |
 | **Christmas**       | All                                                               | From 1 to 26 December                                                                                                         |
 | **New Year's Eve**  | All                                                               | From 27 December to 1 January                                                                                                 |
 
 Freetvarr works out most dates itself. The dates of Lunar New Year, Eid al-Fitr, Hanukkah, Diwali, and Matariki come from a table for 2026 to 2040.
 
-Freetvarr checks each airing on its own, so a Christmas episode of a series counts and the other episodes do not. An airing counts when its title or episode title names the occasion, such as `Christmas` or `Santa`. An airing also counts when its description names the occasion with two different words, such as `Diwali` and `festival of lights`. At the Standard and Plus [suggestion levels](#suggestion-level), a description match must also be close in meaning to a short description of the occasion.
+Freetvarr checks each airing on its own, so a Christmas episode of a series counts and the other episodes do not. An airing counts when its title or episode title names the occasion, such as `Christmas` or `Santa`. An airing also counts when its description names the occasion with two different words, such as `Diwali` and `Deepavali`. The words `festival of lights` count as a second word for Diwali or Hanukkah, never on their own. At the Standard and Plus [suggestion levels](#suggestion-level), a description match must also be close in meaning to a short description of the occasion.
 
 These never count:
 
@@ -135,7 +135,7 @@ These never count:
 - `Christmas in June`, `Christmas in July`, and `Easter Island`.
 - Kids' programmes, for **Anzac Day**, **NAIDOC Week**, and **Remembrance Day** only.
 
-The row needs at least four programmes from at least three shows, all on before the last day of the row. It shows up to two airings of one show. It leaves out the shows in the rows above it, and the rows below it leave out its shows. When two occasions overlap, such as Hanukkah and Christmas, the row is for the occasion with the nearest date. If that occasion has too few programmes, the row is for the other.
+The row needs at least four programmes from at least three shows, all on or before the last day of the row. It shows up to two airings of one show. It leaves out the shows in the rows above it, and the rows below it leave out its shows. When two occasions overlap, such as Hanukkah and Christmas, the row is for the occasion with the nearest date. If that occasion has too few programmes, the row is for the other.
 
 Press **⋯** beside the title of a seasonal row for **Hide** and the occasion, such as **Hide Christmas**. The row then stays hidden until the next time the occasion comes round. Press **Undo** on the message to bring the row back.
 

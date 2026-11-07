@@ -28,7 +28,7 @@ const {
   tableDatesOf,
   windowsOf,
 } = await import('../src/for-you-occasions.js')
-const { buildOccasionDates, diwaliOf } = await import('../scripts/build-occasion-dates.mjs')
+const { MATARIKI_OBSERVANCE_DAYS, buildOccasionDates, diwaliOf } = await import('../scripts/build-occasion-dates.mjs')
 const { rowMenuOf, sectionsOf, themeGroupsOf, themeMutedToastOf } = await import('../src/web/for-you.js')
 const table = JSON.parse(await fs.readFile(new URL('../src/data/occasion-dates.json', import.meta.url), 'utf8'))
 
@@ -93,6 +93,18 @@ test('dates: the table covers 2026 to 2040, and its Diwali dates match the new m
   assert.deepEqual(buildOccasionDates({ Holidays, firstYear: 2026, lastYear: 2027 }).dates.diwali, ['2026-11-08', '2027-10-29'])
 })
 
+test('dates: the lunar table is regenerated at least 3 years before it runs out', () => {
+  assert.ok(new Date().getUTCFullYear() < table.years[1] - 3, `regenerate src/data/occasion-dates.json with scripts/build-occasion-dates.mjs; it ends in ${table.years[1]}`)
+})
+
+test('dates: Matariki comes from Schedule 1 of the Act, and the credit names no CC BY-SA data', () => {
+  assert.deepEqual(MATARIKI_OBSERVANCE_DAYS.slice(0, 5), ['2022-06-24', '2023-07-14', '2024-06-28', '2025-06-20', '2026-07-10'])
+  assert.equal(MATARIKI_OBSERVANCE_DAYS.at(-1), '2052-06-21')
+  assert.deepEqual(table.dates.matariki, MATARIKI_OBSERVANCE_DAYS.filter((iso) => iso >= '2026' && iso < '2041'))
+  assert.doesNotMatch(table.credit, /CC BY-SA/)
+  assert.match(table.credit, /Te Kāhui o Matariki Public Holiday Act 2022/)
+})
+
 test('countries: each install country gets its own list, and an unknown country gets only the all-country rows', () => {
   const keysOf = (country) => occasionsFor(country).map((occasion) => occasion.key)
   const everywhere = ['lunar-new-year', 'eid-al-fitr', 'easter', 'diwali', 'hanukkah', 'christmas', 'new-years-eve']
@@ -125,7 +137,7 @@ test('windows: each occasion opens and closes on its own days', () => {
   assert.equal(windowOf({ key: 'thanksgiving', country: 'us' }), '2026-11-19..2026-11-26')
   assert.equal(windowOf({ key: 'fourth-of-july', country: 'us' }), '2026-07-01..2026-07-04')
   assert.equal(windowOf({ key: 'eid-al-fitr' }), '2026-03-15..2026-03-21')
-  assert.equal(windowOf({ key: 'hanukkah' }), '2026-12-05..2026-12-12')
+  assert.equal(windowOf({ key: 'hanukkah' }), '2026-12-04..2026-12-12')
   assert.equal(windowOf({ key: 'diwali' }), '2026-11-03..2026-11-09')
   assert.equal(windowOf({ key: 'lunar-new-year' }), '2026-02-12..2026-02-18')
 })
@@ -133,6 +145,8 @@ test('windows: each occasion opens and closes on its own days', () => {
 test('windows: overlapping occasions come nearest date first', () => {
   const activeOn = ({ iso, country = 'au' }) => activeOccasionsOf({ country, today: dayOf(iso) }).map((window) => window.occasion.key)
   assert.deepEqual(activeOn({ iso: '2026-12-05' }), ['hanukkah', 'christmas'])
+  assert.deepEqual(activeOn({ iso: '2026-12-04' }), ['hanukkah', 'christmas'])
+  assert.deepEqual(activeOn({ iso: '2026-12-03' }), ['christmas'])
   assert.deepEqual(activeOn({ iso: '2026-12-20' }), ['christmas'])
   assert.deepEqual(activeOn({ iso: '2026-11-08' }), ['diwali', 'remembrance-day'])
   assert.deepEqual(activeOn({ iso: '2026-11-10' }), ['remembrance-day'])
@@ -141,6 +155,15 @@ test('windows: overlapping occasions come nearest date first', () => {
   assert.deepEqual(activeOn({ iso: '2026-04-24', country: '' }), [])
   assert.deepEqual(activeOn({ iso: '2026-04-24' }), ['anzac-day'])
   assert.deepEqual(activeOn({ iso: '2026-06-01' }), [])
+})
+
+test('windows: a day that starts with a daylight saving jump starts at its first real instant', () => {
+  const day = dayOf('2026-09-06')
+  const start = localMidnightMsOf({ day, timeZone: 'America/Santiago' })
+  assert.equal(start, Date.UTC(2026, 8, 6, 4))
+  assert.equal(isoOf(localDayOf({ ms: start, timeZone: 'America/Santiago' })), '2026-09-06')
+  assert.equal(isoOf(localDayOf({ ms: start - 1, timeZone: 'America/Santiago' })), '2026-09-05')
+  assert.equal(localMidnightMsOf({ day: dayOf('2026-09-07'), timeZone: 'America/Santiago' }), Date.UTC(2026, 8, 7, 3))
 })
 
 test('windows: local days follow the install time zone', () => {
@@ -156,7 +179,7 @@ test('tagging: a title or episode title hit is enough, and a description needs t
   assert.equal(match({ occasion: christmas, title: 'Christmas House Wars', synopsis: 'Three Christmas-obsessed families begin their battle.' }), 'title')
   assert.equal(match({ occasion: christmas, title: 'SpongeBob SquarePants', episode: "Sandy's Country Christmas", kind: 'kids' }), 'episode')
   assert.equal(match({ occasion: christmas, title: 'Rubble & Crew', episode: 'The Crew Builds A North Pole Village', kind: 'kids' }), 'episode')
-  assert.equal(match({ occasion: occasionOf({ key: 'diwali' }), title: 'The Cook Up With Adam Liaw', episode: 'Festival Of Lights' }), 'episode')
+  assert.equal(match({ occasion: occasionOf({ key: 'diwali' }), title: 'Luke Nguyen\'s India', episode: 'Pondicherry, Chennai & Diwali' }), 'episode')
   assert.equal(match({ occasion: occasionOf({ key: 'diwali' }), title: "Paul O'Grady For The Love Of Dogs: India", episode: 'Episode 4', synopsis: "Paul O'Grady celebrates Diwali, the festival of light, with the people and the animals of one of Delhi's oldest dog shelters." }), 'synopsis')
   assert.equal(match({ occasion: occasionOf({ key: 'remembrance-day' }), title: 'National Memorial Day Concert 2026', episode: 'Wednesday 11 November 2026', synopsis: 'At 11am on the 11th day of the 11th month, we pause to reflect and remember all those who have served our nation. The National Remembrance Day Ceremony from the Australian War Memorial.' }), 'synopsis')
   assert.equal(match({ occasion: occasionOf({ key: 'remembrance-day' }), title: 'The Art Of Remembrance' }), 'title')
@@ -180,6 +203,22 @@ test('tagging: the false positives from the guide stay out', () => {
   assert.equal(match({ occasion: christmas, title: 'Better Homes And Gardens', episode: "Joh and Charlie head to Sydney's Northern Beaches. Dr Harry visits WIRES. Juliet helps add some Christmas twinkle to your home." }), null)
   assert.equal(match({ occasion: christmas, title: 'Not Going Out', episode: "Christmas just wouldn't be Christmas without a giant inflatable Santa. Lee and Lucy go on a Christmas Eve mission." }), 'synopsis')
   assert.equal(match({ occasion: christmas, title: 'Kamp Koral', episode: 'The Ho! Ho! Christmas!' }), 'episode')
+})
+
+test('tagging: festival of lights never matches alone, and backs up Diwali or Hanukkah only in a description', () => {
+  const diwali = occasionOf({ key: 'diwali' })
+  const hanukkah = occasionOf({ key: 'hanukkah' })
+  const cookUp = { title: 'The Cook Up With Adam Liaw', episode: 'Festival Of Lights', synopsis: 'Adam is celebrating Diwali, the festival of lights, with chefs Gunjan Aylawadi and Nagesh Seethiah.' }
+  assert.equal(match({ occasion: diwali, ...cookUp }), 'synopsis')
+  assert.equal(match({ occasion: hanukkah, ...cookUp }), null)
+  const candles = { title: 'Kitchen Nights', episode: 'Festival Of Lights', synopsis: 'Latkes and doughnuts for Hanukkah, the festival of lights.' }
+  assert.equal(match({ occasion: hanukkah, ...candles }), 'synopsis')
+  assert.equal(match({ occasion: diwali, ...candles }), null)
+  for (const occasion of [diwali, hanukkah]) {
+    assert.equal(match({ occasion, title: 'Festival Of Lights' }), null)
+    assert.equal(match({ occasion, title: 'City Nights', synopsis: 'The festival of lights fills the harbour with lasers.' }), null)
+  }
+  assert.equal(match({ occasion: diwali, title: 'Bollywed', synopsis: 'The clock ticks down to Diwali.' }), null)
 })
 
 test('tagging: commemorations leave out kids programmes, every occasion leaves out sport and news descriptions', () => {
@@ -217,6 +256,21 @@ test('row: Christmas shows below the top rows with at most 2 airings a title, as
   assert.ok(why.signals.includes('Christmas is on Friday 25 December'))
 })
 
+test('row: keys match the other rows, so a show you like stays in Coming up and the seasonal row skips it', () => {
+  const liked = 'Carols In The Domain'
+  const events = [...EVENTS, ...[1, 2, 3].flatMap((i) => [
+    { id: 700 + i * 2, kind: 'record_request', title: liked, channel_id: 'seven', programme_start: NOW - i * DAY, ts: NOW - i * DAY, meta_json: '{"type":"episode"}' },
+    { id: 701 + i * 2, kind: 'watch_start', title: liked, channel_id: 'seven', programme_start: NOW - i * DAY, ts: NOW - i * DAY },
+  ])]
+  const programmes = [...christmasGuide(), airing({ title: 'Christmas Lights Live', start: NOW + 10 * HOUR })]
+  const result = run({ programmes, events })
+  const comingUp = result.sections.find((section) => section.key === 'coming-up')
+  const row = seasonalOf(result)
+  assert.ok(comingUp.items.some((item) => item.title === liked))
+  assert.ok(row.items.every((item) => item.title !== liked))
+  assert.ok(row.items.every((item) => !comingUp.items.some((other) => other.seriesKey === item.seriesKey)))
+})
+
 test('row: fewer than 4 items or 3 titles shows no seasonal row', () => {
   const guide = christmasGuide()
   const threeItems = guide.filter((programme) => !/carols|santa|christmas/i.test(programme.title) || ['Christmas House Wars', 'The Christmas Movie', 'Santa Claus Lane'].includes(programme.title))
@@ -250,7 +304,10 @@ test('row: overlapping windows take the nearest date, then fall back to the next
   const nowMs = Date.UTC(2026, 11, 5, 1)
   const hanukkah = ['Hanukkah Lights', 'Chanukah Kitchen', 'The Menorah Story', 'Hanukkah Concert'].map((title, i) => airing({ title, start: nowMs + (i + 2) * HOUR }))
   const christmas = christmasGuide({ nowMs })
-  assert.equal(seasonalOf(run({ programmes: [...hanukkah, ...christmas], nowMs }))?.title, 'Hanukkah')
+  const hanukkahResult = run({ programmes: [...hanukkah, ...christmas], nowMs })
+  const hanukkahRow = seasonalOf(hanukkahResult)
+  assert.equal(hanukkahRow?.title, 'Hanukkah')
+  assert.ok(hanukkahResult.explanations.get(hanukkahRow.items[0].id).signals.includes('Hanukkah runs from Friday 4 December to Saturday 12 December'))
   assert.equal(seasonalOf(run({ programmes: [...hanukkah.slice(0, 2), ...christmas], nowMs }))?.title, 'Christmas')
 })
 
@@ -273,6 +330,11 @@ test('mute: a hidden occasion stays hidden until its next window opens', () => {
   const [hidden] = hiddenOccasionsOf({ country: 'au', mutes, nowMs: Date.UTC(2026, 11, 24), timeZone: SYDNEY })
   assert.deepEqual({ ...hidden, until: isoOf(hidden.until / DAY) }, { seriesKey: 'theme:seasonal-christmas', themeKey: 'seasonal-christmas', title: 'Christmas', theme: true, seasonal: true, hiddenAt: mutedAt, until: '2027-12-01' })
   assert.deepEqual(hiddenOccasionsOf({ country: 'au', mutes, nowMs: Date.UTC(2027, 11, 2), timeZone: SYDNEY }), [])
+  const diwali = occasionOf({ key: 'diwali' })
+  const lastTableMute = Date.UTC(2040, 10, 3)
+  assert.equal(mutedUntilOf({ occasion: diwali, country: 'au', mutedDay: dayOf('2040-11-03') }), null)
+  assert.equal(isOccasionMuted({ occasion: diwali, country: 'au', mutedAt: lastTableMute, nowMs: Date.UTC(2041, 5, 1), timeZone: SYDNEY }), true)
+  assert.equal(isOccasionMuted({ occasion: diwali, country: 'au', mutedAt: lastTableMute, nowMs: Date.UTC(2041, 10, 4), timeZone: SYDNEY }), false)
   const settings = seasonalSettingsOf({ country: 'au', mutes, off: new Set(['seasonal-easter']), nowMs: Date.UTC(2026, 11, 24), timeZone: SYDNEY })
   assert.equal(settings.find((entry) => entry.key === 'seasonal-christmas').on, false)
   assert.equal(settings.find((entry) => entry.key === 'seasonal-easter').on, false)

@@ -1036,7 +1036,9 @@ const seasonalSectionFrom = ({ window, picked, context, isFilm }) => {
   const { occasion } = window
   const key = seasonalKeyOf(occasion.key)
   const theme = { key, title: occasion.title, phrase: occasion.title, seasonal: true, ...(occasion.commemoration && { commemoration: true }) }
-  const dateSignal = `${occasion.title} ${occasion.before === 0 ? 'starts' : 'is'} on ${OCCASION_DATE.format(new Date(window.day * DAY_MS))}`
+  const dateSignal = occasion.after > 1
+    ? `${occasion.title} runs from ${OCCASION_DATE.format(new Date(window.start * DAY_MS))} to ${OCCASION_DATE.format(new Date(window.end * DAY_MS))}`
+    : `${occasion.title} is on ${OCCASION_DATE.format(new Date(window.day * DAY_MS))}`
   return {
     key,
     title: occasion.title,

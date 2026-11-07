@@ -11,17 +11,16 @@ const LAST_YEAR = 2040
 export const buildOccasionDates = ({ Holidays, firstYear = FIRST_YEAR, lastYear = LAST_YEAR }) => {
   const years = Array.from({ length: lastYear - firstYear + 1 }, (_, offset) => firstYear + offset)
   const calendar = calendarHolidaysOf(Holidays)
-  const newZealand = new Holidays('NZ')
   return {
     source: 'scripts/build-occasion-dates.mjs',
-    credit: 'Lunar New Year, Eid al-Fitr, Hanukkah, and Matariki dates from date-holidays (https://github.com/commenthol/date-holidays), data CC BY-SA 3.0. Diwali dates from the new moon (Meeus, Astronomical Algorithms, chapter 49) in India Standard Time.',
+    credit: 'Lunar New Year, Eid al-Fitr, and Hanukkah dates from the calendar code of date-holidays (https://github.com/commenthol/date-holidays, ISC), with the rules in this script. Matariki dates from Schedule 1 of the Te Kāhui o Matariki Public Holiday Act 2022. Diwali dates from the new moon (Meeus, Astronomical Algorithms, chapter 49) in India Standard Time.',
     years: [firstYear, lastYear],
     dates: {
       'lunar-new-year': years.flatMap((year) => datesNamed({ holidays: calendar, year, name: 'lunar-new-year' })),
       'eid-al-fitr': years.flatMap((year) => datesNamed({ holidays: calendar, year, name: 'eid-al-fitr' })),
       hanukkah: years.flatMap((year) => datesNamed({ holidays: calendar, year, name: 'hanukkah' })),
       diwali: years.map(diwaliOf),
-      matariki: years.flatMap((year) => newZealand.getHolidays(year).filter((holiday) => holiday.name === 'Matariki').map(isoDateOf)),
+      matariki: MATARIKI_OBSERVANCE_DAYS.filter((iso) => years.includes(Number(iso.slice(0, 4)))),
     },
   }
 }
@@ -75,6 +74,13 @@ const datesNamed = ({ holidays, year, name }) => holidays.getHolidays(year).filt
 const isoDateOf = (holiday) => (typeof holiday.date === 'string' ? holiday.date.slice(0, 10) : holiday.date.toISOString().slice(0, 10))
 
 const radiansOf = (degrees) => (degrees % 360) * Math.PI / 180
+
+export const MATARIKI_OBSERVANCE_DAYS = [
+  '2022-06-24', '2023-07-14', '2024-06-28', '2025-06-20', '2026-07-10', '2027-06-25', '2028-07-14', '2029-07-06',
+  '2030-06-21', '2031-07-11', '2032-07-02', '2033-06-24', '2034-07-07', '2035-06-29', '2036-07-18', '2037-07-10',
+  '2038-06-25', '2039-07-15', '2040-07-06', '2041-07-19', '2042-07-11', '2043-07-03', '2044-06-24', '2045-07-07',
+  '2046-06-29', '2047-07-19', '2048-07-03', '2049-06-25', '2050-07-15', '2051-06-30', '2052-06-21',
+]
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const UNIX_EPOCH_JD = 2440587.5

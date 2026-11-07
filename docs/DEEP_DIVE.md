@@ -1518,8 +1518,8 @@ A seasonal row is a For you section for an occasion, such as `Christmas` or `Anz
 Dates:
 
 - `easterOf` uses the anonymous Gregorian algorithm ([Computus](https://en.wikipedia.org/wiki/Date_of_Easter#Anonymous_Gregorian_algorithm)). `nthWeekdayOf` gives days such as the second Sunday in May.
-- `src/data/occasion-dates.json` holds the dates of Lunar New Year, Eid al-Fitr, Hanukkah, Diwali, and Matariki for `2026–2040`. `scripts/build-occasion-dates.mjs` writes it. The script takes the path of a folder with [`date-holidays`](https://github.com/commenthol/date-holidays) installed (`npm install --no-save date-holidays`). It reads Lunar New Year (`chinese 01-0-01`), Eid al-Fitr (`1 Shawwal`), Hanukkah (`25 Kislev`), and Matariki (New Zealand) from `date-holidays`. It calculates Diwali from the new moon (Meeus, *Astronomical Algorithms*, chapter 49) in India Standard Time. The `date-holidays` data is CC BY-SA 3.0, and Settings → **Licences** credits it. Freetvarr has no runtime date dependency.
-- The days are calendar days in the install time zone (`localDayOf`). A window runs from `before` days before the occasion day to `after` days after it.
+- `src/data/occasion-dates.json` holds the dates of Lunar New Year, Eid al-Fitr, Hanukkah, Diwali, and Matariki for `2026–2040`. `scripts/build-occasion-dates.mjs` writes it. The script takes the path of a folder with [`date-holidays`](https://github.com/commenthol/date-holidays) installed (`npm install --no-save date-holidays`). It gives the calendar code of `date-holidays` (ISC licence) its own rules for Lunar New Year (`chinese 01-0-01`), Eid al-Fitr (`1 Shawwal`), and Hanukkah (`25 Kislev`), and uses no `date-holidays` data. The Matariki dates are the list in Schedule 1 of the [Te Kāhui o Matariki Public Holiday Act 2022](https://www.legislation.govt.nz/act/public/2022/0014/latest/whole.html) (`MATARIKI_OBSERVANCE_DAYS`, `2022–2052`). It calculates Diwali from the new moon (Meeus, *Astronomical Algorithms*, chapter 49) in India Standard Time. Settings → **Licences** credits `date-holidays` and the Act. Freetvarr has no runtime date dependency. A test fails when the current year is within `3` years of the last year of the table.
+- The days are calendar days in the install time zone (`localDayOf`). A window runs from `before` days before the occasion day to `after` days after it. The first day of a day that starts with a daylight saving jump is its first real instant (`localMidnightMsOf`).
 
 | Occasion          | Key               | Countries              | Day                                                               | Window                 |
 | ----------------- | ----------------- | ---------------------- | ----------------------------------------------------------------- | ---------------------- |
@@ -1538,7 +1538,7 @@ Dates:
 | `Bonfire Night`   | `bonfire-night`   | `uk`                   | `5 November`                                                      | `4` before             |
 | `Remembrance Day` | `remembrance-day` | `au`, `nz`, `uk`       | `11 November`; in `uk`, the second Sunday in November             | `3` before             |
 | `Thanksgiving`    | `thanksgiving`    | `us`                   | Fourth Thursday in November                                       | `7` before             |
-| `Hanukkah`        | `hanukkah`        | All                    | Table                                                             | `7` after              |
+| `Hanukkah`        | `hanukkah`        | All                    | Table (`25 Kislev`)                                               | `1` before, `7` after  |
 | `Christmas`       | `christmas`       | All                    | `25 December`                                                     | `24` before, `1` after |
 | `New Year's Eve`  | `new-years-eve`   | All                    | `31 December`                                                     | `4` before, `1` after  |
 
@@ -1550,7 +1550,7 @@ Tagging (`occasionMatchOf`), for each airing:
 1. An airing on a channel whose name matches `SHOPPING_CHANNEL` (such as `shop`, `TVSN`, `QVC`, `Gemporia`, or `jewellery`) never matches. A `sport` title never matches. A `kids` title never matches a commemoration. `titleKindOf` gives the kind.
 2. The occasion `negatives` are removed from the texts first: `Easter Island`, `Christmas in June`, `Christmas in July`, and `Christmas Island`.
 3. A word of the occasion in the title gives `title`. A word in the episode title gives `episode`. An episode title over `80` characters, or with a sentence break, counts as description text.
-4. Else the description needs `2` different words of the occasion (`SYNOPSIS_TERMS`) and gives `synopsis`. An airing with a `news` category never matches by description.
+4. Else the description needs `2` different words of the occasion (`SYNOPSIS_TERMS`) and gives `synopsis`. The `supporting` words (`festival of lights` for Diwali and Hanukkah) count as the second word only, and never in a title or episode title. An airing with a `news` category never matches by description.
 5. When the prototypes and the airing text have vectors, a `synopsis` match also needs a dot product of `0.35` or more with a prototype (`OCCASION_PROTOTYPE_FLOOR`).
 
 Row (`seasonalSectionOf`):
@@ -1560,12 +1560,12 @@ Row (`seasonalSectionOf`):
 3. The items skip the shows in `ready-to-watch`, `finish-started`, and `coming-up`. They rank `title` matches first, then `episode`, then `synopsis`, then by score, picture, and start time. One episode (title and episode title, else description) shows once. A title has at most `2` airings (`SEASONAL_PER_TITLE`). The row has up to `12` items.
 4. The first occasion with `4` or more items (`SEASONAL_MIN_ITEMS`) from `3` or more titles (`SEASONAL_MIN_TITLES`) gives the row. Else there is no seasonal row.
 5. The row goes after the last of `ready-to-watch`, `finish-started`, and `coming-up`. The sections after it drop the shows in the row. Theme rows treat the row as an earlier section.
-6. The section key is `seasonal-<occasion>` and the title is the occasion title. Each item carries `theme` (`key`, `title`, `phrase`, `seasonal: true`, and `commemoration: true` for a commemoration). **Why this?** gives the reason `About <occasion>`, the field that matched, and the occasion date. The client keeps every airing in the row (`perAiring`, as for the sport row).
+6. The section key is `seasonal-<occasion>` and the title is the occasion title. Each item carries `theme` (`key`, `title`, `phrase`, `seasonal: true`, and `commemoration: true` for a commemoration). **Why this?** gives the reason `About <occasion>`, the field that matched, and the occasion date (the first and last day of the window when it runs `2` or more days after the occasion day). The client keeps every airing in the row (`perAiring`, as for the sport row).
 
 Choices:
 
 - The row menu has **Hide &lt;occasion&gt;** only. It sends `theme_muted` with the series key `theme-seasonal-<occasion>`. **Undo** and **Show again** send `theme_unmuted`.
-- A mute lasts until the start of the next window of the occasion after the mute day (`mutedUntilOf`).
+- A mute lasts until the start of the next window of the occasion after the mute day (`mutedUntilOf`). When the table has no later date, the mute lasts `365` days.
 - `GET /api/for-you/themes` adds one entry per occasion of the install country (`seasonalSettingsOf`) with `seasonal: true`. The client lists them in the `Seasonal` group. `PUT /api/for-you/themes/seasonal-<occasion>` with `{ on }` updates `for_you_themes_off`. An occasion of another country returns `404`.
 - `GET /api/for-you/hidden` lists a muted occasion (`hiddenOccasionsOf`) with `seasonal: true` and `until`.
 
