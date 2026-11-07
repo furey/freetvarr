@@ -1405,7 +1405,7 @@ With `remove_series: true`, Freetvarr also calls `DELETE /api/v3/series/<id>` wi
 - The setting `viewing_history_enabled` stops writes when `false`, except the choices in `CHOICE_KINDS` (`not_interested`, `thumb_up`, `thumb_down`, `thumb_clear`, `theme_muted`, `theme_unmuted`, `theme_boosted`, `theme_unboosted`). A feedback post with a choice flushes the events, forgets the cached For you result, and rebuilds the Home hero. `DELETE /api/events` clears the history. Rows older than `730` days, and `suggestion_shown` rows older than `30` days, are deleted on the cron tick.
 - `profileOf` decays each event with a half-life of `60` days. A show with `3` or more starts, under `15%` finished, and no thumbs up is abandoned and keeps `0.3` of its affinity.
 - Fewer than `5` engaged shows (`COLD_START_SHOWS`) give a cold start: sections `ready-to-watch`, `finish-started`, `tonight-movies`, `top-rated-series`, `premieres`, `top-rated`, and `movies`. A warm response adds `coming-up`, `new-seasons`, and `might-like`.
-- The page order is `ready-to-watch`, `finish-started`, `coming-up`, `new-seasons`, `tonight-movies`, `might-like`, the theme rows, `top-rated-series`, `top-rated`, `movies`, `premieres` (`SECTION_ORDER` in `src/web/for-you.js`; see [Theme rows](#theme-rows)). Airing sections share one list of taken shows: a show goes into the first airing section that takes it, and the airing sections after it skip the show. `ready-to-watch` lists recordings and takes no show from the airing sections, except `finish-started`, which skips a show that has a `ready-to-watch` item. A section with no items is left out.
+- The page order is `ready-to-watch`, `finish-started`, `coming-up`, the seasonal row, `new-seasons`, `tonight-movies`, `might-like`, the theme rows, `top-rated-series`, `top-rated`, `movies`, `premieres` (`SECTION_ORDER` in `src/web/for-you.js`; see [Seasonal rows](#seasonal-rows) and [Theme rows](#theme-rows)). A cold start also gets the seasonal row. Airing sections share one list of taken shows: a show goes into the first airing section that takes it, and the airing sections after it skip the show. `ready-to-watch` lists recordings and takes no show from the airing sections, except `finish-started`, which skips a show that has a `ready-to-watch` item. A section with no items is left out.
 - The new sections hold up to `12` items (`ROW_LIMIT`). `GET /api/for-you` returns up to `12` items per section by default and up to `20` with `limit`.
 
 | Section            | Selection                                                                                                                                                                                                          | Order                                                      |
@@ -1502,6 +1502,72 @@ Choices:
 - `GET /api/for-you/themes` lists every theme and sport (`themeSettingsOf`) with `on`: off when in the list or muted in the last `90` days. A muted `Sport this week` row shows every sport off. `PUT /api/for-you/themes/:key` with `{ on }` updates the list; turning a theme on also sends `theme_unmuted`, and for a sport also unmutes `sport`.
 - `GET /api/for-you/hidden` lists the muted themes of the last `90` days (`hiddenThemesOf`) with the hidden shows; a theme entry has the series key `theme:<key>` and a `themeKey`. `DELETE /api/for-you/themes/:key/mute` unmutes a theme in the catalogue, or `sport`; any other key returns `404`. `DELETE /api/for-you/hidden/:seriesKey` only handles shows, so a show such as `theme-park-secrets` unhides as a show.
 - The client hides the cards of a muted row at once (`forYouMutedThemes` in `src/web/shared/for-you-session.js`).
+
+### Seasonal rows
+
+A seasonal row is a For you section for an occasion, such as `Christmas` or `Anzac Day`. `seasonalSectionOf` in `src/for-you.js` builds it in the For you worker, in the same build as the other sections. The household share does not count. One build has at most `1` seasonal row.
+
+| Part      | Module                                                     | Mechanism                                                                         |
+| --------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Occasions | `src/for-you-occasions.js`                                 | The occasions, with countries, dates, windows, words, and prototype sentences     |
+| Dates     | `src/for-you-occasions.js`, `src/data/occasion-dates.json` | Code rules for fixed dates, nth weekdays, and Easter; a table for the lunar dates |
+| Tagging   | `occasionMatchOf` in `src/for-you-occasions.js`            | Checks each airing against the words of one occasion                              |
+| Row       | `seasonalSectionOf` in `src/for-you.js`                    | Picks the occasion, collects and ranks the airings, and checks the row size       |
+| Vectors   | `themeTextItems` in `src/for-you-engine.js`                | Embeds the occasion prototype sentences with the theme prototypes                 |
+
+Dates:
+
+- `easterOf` uses the anonymous Gregorian algorithm ([Computus](https://en.wikipedia.org/wiki/Date_of_Easter#Anonymous_Gregorian_algorithm)). `nthWeekdayOf` gives days such as the second Sunday in May.
+- `src/data/occasion-dates.json` holds the dates of Lunar New Year, Eid al-Fitr, Hanukkah, Diwali, and Matariki for `2026–2040`. `scripts/build-occasion-dates.mjs` writes it. The script takes the path of a folder with [`date-holidays`](https://github.com/commenthol/date-holidays) installed (`npm install --no-save date-holidays`). It gives the calendar code of `date-holidays` (ISC licence) its own rules for Lunar New Year (`chinese 01-0-01`), Eid al-Fitr (`1 Shawwal`), and Hanukkah (`25 Kislev`), and uses no `date-holidays` data. The Matariki dates are the list in Schedule 1 of the [Te Kāhui o Matariki Public Holiday Act 2022](https://www.legislation.govt.nz/act/public/2022/0014/latest/whole.html) (`MATARIKI_OBSERVANCE_DAYS`, `2022–2052`). It calculates Diwali from the new moon (Meeus, *Astronomical Algorithms*, chapter 49) in India Standard Time. Settings → **Licences** credits `date-holidays` and the Act. Freetvarr has no runtime date dependency. A test fails when the current year is within `3` years of the last year of the table.
+- The days are calendar days in the install time zone (`localDayOf`). A window runs from `before` days before the occasion day to `after` days after it. The first day of a day that starts with a daylight saving jump is its first real instant (`localMidnightMsOf`).
+
+| Occasion          | Key               | Countries              | Day                                                               | Window                 |
+| ----------------- | ----------------- | ---------------------- | ----------------------------------------------------------------- | ---------------------- |
+| `Lunar New Year`  | `lunar-new-year`  | All                    | Table                                                             | `5` before, `1` after  |
+| `Waitangi Day`    | `waitangi-day`    | `nz`                   | `6 February`                                                      | `3` before             |
+| `Eid al-Fitr`     | `eid-al-fitr`     | All                    | Table                                                             | `5` before, `1` after  |
+| `Easter`          | `easter`          | All                    | Easter Sunday                                                     | `7` before, `1` after  |
+| `Anzac Day`       | `anzac-day`       | `au`, `nz`             | `25 April`                                                        | `3` before             |
+| `Mother's Day`    | `mothers-day`     | `au`, `nz`, `uk`, `us` | Second Sunday in May; in `uk`, `21` days before Easter Sunday     | `3` before             |
+| `Father's Day`    | `fathers-day`     | `au`, `nz`, `uk`, `us` | First Sunday in September; in `uk` and `us`, third Sunday in June | `3` before             |
+| `Fourth of July`  | `fourth-of-july`  | `us`                   | `4 July`                                                          | `3` before             |
+| `NAIDOC Week`     | `naidoc-week`     | `au`                   | First Sunday in July                                              | `7` after              |
+| `Matariki`        | `matariki`        | `nz`                   | Table                                                             | `7` before             |
+| `Halloween`       | `halloween`       | `au`, `nz`, `uk`, `us` | `31 October`                                                      | `7` before             |
+| `Diwali`          | `diwali`          | All                    | Table                                                             | `5` before, `1` after  |
+| `Bonfire Night`   | `bonfire-night`   | `uk`                   | `5 November`                                                      | `4` before             |
+| `Remembrance Day` | `remembrance-day` | `au`, `nz`, `uk`       | `11 November`; in `uk`, the second Sunday in November             | `3` before             |
+| `Thanksgiving`    | `thanksgiving`    | `us`                   | Fourth Thursday in November                                       | `7` before             |
+| `Hanukkah`        | `hanukkah`        | All                    | Table (`25 Kislev`)                                               | `1` before, `7` after  |
+| `Christmas`       | `christmas`       | All                    | `25 December`                                                     | `24` before, `1` after |
+| `New Year's Eve`  | `new-years-eve`   | All                    | `31 December`                                                     | `4` before, `1` after  |
+
+- The country comes from `countryForTimeZone`. With no known country, only the occasions for all countries show.
+- `Anzac Day`, `NAIDOC Week`, and `Remembrance Day` are commemorations (`commemoration: true`).
+
+Tagging (`occasionMatchOf`), for each airing:
+
+1. An airing on a channel whose name matches `SHOPPING_CHANNEL` (such as `shop`, `TVSN`, `QVC`, `Gemporia`, or `jewellery`) never matches. A `sport` title never matches. A `kids` title never matches a commemoration. `titleKindOf` gives the kind.
+2. The occasion `negatives` are removed from the texts first: `Easter Island`, `Christmas in June`, `Christmas in July`, and `Christmas Island`.
+3. A word of the occasion in the title gives `title`. A word in the episode title gives `episode`. An episode title over `80` characters, or with a sentence break, counts as description text.
+4. Else the description needs `2` different words of the occasion (`SYNOPSIS_TERMS`) and gives `synopsis`. The `supporting` words (`festival of lights` for Diwali and Hanukkah) count as the second word only, and never in a title or episode title. An airing with a `news` category never matches by description.
+5. When the prototypes and the airing text have vectors, a `synopsis` match also needs a dot product of `0.35` or more with a prototype (`OCCASION_PROTOTYPE_FLOOR`).
+
+Row (`seasonalSectionOf`):
+
+1. `activeOccasionsOf` lists the occasions whose window holds today, nearest occasion day first. An occasion turned off or muted is left out.
+2. For each occasion in that order, the row takes the allowed airings that match and start before the end of the last day of the window.
+3. The items skip the shows in `ready-to-watch`, `finish-started`, and `coming-up`. They rank `title` matches first, then `episode`, then `synopsis`, then by score, picture, and start time. One episode (title and episode title, else description) shows once. A title has at most `2` airings (`SEASONAL_PER_TITLE`). The row has up to `12` items.
+4. The first occasion with `4` or more items (`SEASONAL_MIN_ITEMS`) from `3` or more titles (`SEASONAL_MIN_TITLES`) gives the row. Else there is no seasonal row.
+5. The row goes after the last of `ready-to-watch`, `finish-started`, and `coming-up`. The sections after it drop the shows in the row. Theme rows treat the row as an earlier section.
+6. The section key is `seasonal-<occasion>` and the title is the occasion title. Each item carries `theme` (`key`, `title`, `phrase`, `seasonal: true`, and `commemoration: true` for a commemoration). **Why this?** gives the reason `About <occasion>`, the field that matched, and the occasion date (the first and last day of the window when it runs `2` or more days after the occasion day). The client keeps every airing in the row (`perAiring`, as for the sport row).
+
+Choices:
+
+- The row menu has **Hide &lt;occasion&gt;** only. It sends `theme_muted` with the series key `theme-seasonal-<occasion>`. **Undo** and **Show again** send `theme_unmuted`.
+- A mute lasts until the start of the next window of the occasion after the mute day (`mutedUntilOf`). When the table has no later date, the mute lasts `365` days.
+- `GET /api/for-you/themes` adds one entry per occasion of the install country (`seasonalSettingsOf`) with `seasonal: true`. The client lists them in the `Seasonal` group. `PUT /api/for-you/themes/seasonal-<occasion>` with `{ on }` updates `for_you_themes_off`. An occasion of another country returns `404`.
+- `GET /api/for-you/hidden` lists a muted occasion (`hiddenOccasionsOf`) with `seasonal: true` and `until`.
 
 ### Home hero
 
