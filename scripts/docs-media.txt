@@ -35,6 +35,8 @@ img screenshot-wizard-secure.png
 img freetvarr-logo-dark.gif
 img freetvarr-logo-light.gif
 img screenshot-for-you.png
+img screenshot-for-you-row-menu.png
+img screenshot-for-you-themes.png
 img screenshot-scheduled.png
 img screenshot-show.png
 img screenshot-show-scheduled.png
