@@ -11,6 +11,7 @@ import {
   freeviewRegionOf,
   isFreeviewImageSource,
   listingImageOf,
+  listingImagesOf,
   matchListing,
   placeholderImagesOf,
   slimListingOf,
@@ -126,7 +127,7 @@ test('matchAirings matches an airing by DVB triplet and start, reading each six-
     { key: '2', title: 'Seven News', start: START + 2 * MINUTE, triplets: ['ffff:ffff:ffff', TRIPLET] },
   ]
   const matches = await freeview.matchAirings(airings)
-  assert.deepEqual([...matches], [['1', 'https://img-store-prod.switch.tv/images/news.jpg'], ['2', 'https://img-store-prod.switch.tv/images/news.jpg']])
+  assert.deepEqual([...matches], [['1', { episode: null, show: 'https://img-store-prod.switch.tv/images/news.jpg' }], ['2', { episode: null, show: 'https://img-store-prod.switch.tv/images/news.jpg' }]])
   const epgCalls = client.calls.filter((call) => call.url.includes('/epgs/'))
   assert.equal(epgCalls.length, 1)
   assert.equal(epgCalls[0].url, `https://fvau-api-prod.switch.tv/content/v1/epgs/${TRIPLET}`)
@@ -203,7 +204,7 @@ test('outside Australia the Freeview step is off and makes no request', async ()
   assert.equal(client.calls.length, 0)
 })
 
-test('freeviewAiringsOf takes the next two airings of each wanted title on a channel with a triplet', () => {
+test('freeviewAiringsOf takes every coming airing on a channel with a triplet and fetches windows for the next two per title', () => {
   const programmes = [
     { program_id: 1, channel_id: 'ch-a', title: 'Gruen', start: START },
     { program_id: 2, channel_id: 'ch-a', title: 'Gruen', start: START + 60 * MINUTE },
@@ -217,9 +218,42 @@ test('freeviewAiringsOf takes the next two airings of each wanted title on a cha
     triplets: new Map([['ch-a', [TRIPLET]]]),
     nowMs: START,
   })
-  assert.deepEqual(airings.map((airing) => airing.key), ['1', '2'])
-  const candidates = freeviewCandidatesOf({ airings, matches: new Map([['2', 'https://img-store-prod.switch.tv/images/g.jpg']]) })
-  assert.deepEqual(candidates.get('gruen').sources, ['https://img-store-prod.switch.tv/images/g.jpg'])
+  assert.deepEqual(airings.map((airing) => [airing.key, airing.fetch]), [['1', true], ['2', true], ['3', false]])
+  const matches = new Map([
+    ['2', { episode: 'https://img-store-prod.switch.tv/images/g-ep.jpg', show: 'https://img-store-prod.switch.tv/images/g.jpg' }],
+    ['3', { episode: 'https://img-store-prod.switch.tv/images/g-ep3.jpg', show: null }],
+  ])
+  assert.deepEqual(freeviewCandidatesOf({ airings, matches }).get('gruen').sources, ['https://img-store-prod.switch.tv/images/g.jpg'])
+})
+
+test('matchAirings matches later airings only from windows already read, so they add no request', async () => {
+  const client = fakeClient(({ url }) => (url.includes('/channels/')
+    ? channelsBody
+    : { data: [
+      listing({ title: 'Gruen', start: START, show: 'g.jpg', episode: 'g1.jpg' }),
+      listing({ title: 'Gruen', start: START + 60 * MINUTE, show: 'g.jpg', episode: 'g2.jpg' }),
+    ], meta: { pagination: { more: false } } }))
+  const freeview = createFreeviewAu({ client, timeZone: () => 'Australia/Sydney' })
+  const airings = [
+    { key: 'late', title: 'Gruen', start: START + 60 * MINUTE, triplets: [TRIPLET], fetch: false },
+    { key: 'far', title: 'Gruen', start: START + 3 * 24 * 60 * MINUTE, triplets: [TRIPLET], fetch: false },
+    { key: 'next', title: 'Gruen', start: START, triplets: [TRIPLET], fetch: true },
+  ]
+  const matches = await freeview.matchAirings(airings)
+  assert.deepEqual(matches.get('next'), { episode: 'https://img-store-prod.switch.tv/images/g1.jpg', show: 'https://img-store-prod.switch.tv/images/g.jpg' })
+  assert.deepEqual(matches.get('late'), { episode: 'https://img-store-prod.switch.tv/images/g2.jpg', show: 'https://img-store-prod.switch.tv/images/g.jpg' })
+  assert.equal(matches.has('far'), false)
+  assert.equal(client.calls.filter((call) => call.url.includes('/epgs/')).length, 1)
+})
+
+test('listingImagesOf gives the episode picture and the show picture, and skips a shared episode placeholder', () => {
+  const shared = listing({ title: 'B', episode: 'slate.jpg' })
+  const placeholders = placeholderImagesOf([shared, listing({ title: 'C', episode: 'slate.jpg' })])
+  assert.deepEqual(listingImagesOf({ listing: listing({ title: 'A', show: 'show.jpg', episode: 'ep.jpg' }) }), {
+    episode: 'https://img-store-prod.switch.tv/images/ep.jpg',
+    show: 'https://img-store-prod.switch.tv/images/show.jpg',
+  })
+  assert.deepEqual(listingImagesOf({ listing: shared, placeholders }), { episode: null, show: null })
 })
 
 const setupFixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/tvh-setup/${name}.json`, import.meta.url), 'utf8'))

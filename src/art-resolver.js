@@ -38,7 +38,18 @@ const EPISODE_CHAINS_BY_ORDER = {
 }
 
 export const GUIDE_ONLY_CHAIN = ['own', 'saved', 'same-title', 'freeview', 'title', FINAL_STAGE]
-export const FREEVIEW_FIRST_GUIDE_CHAIN = ['freeview', 'own', 'saved', 'same-title', 'title', FINAL_STAGE]
+export const FREEVIEW_FIRST_GUIDE_CHAIN = ['freeview', 'freeview-title', 'own', 'saved', 'same-title', 'title', FINAL_STAGE]
+
+export const freeviewAiringOriginsOf = ({ episode = [], show = [] }) => [...new Set([...episode, ...show].filter(Boolean))]
+
+export const recordingPictureOrderOf = ({ freeviewEpisode = [], own = null, freeviewShow = [], freeviewTitle = null, sameTitle = [] }) =>
+  [...new Set([...freeviewEpisode, own, ...freeviewShow, freeviewTitle, ...sameTitle].filter(Boolean))]
+
+export const programmeWarmOriginsOf = ({ freeview = [], freeviewTitle = null, own = null, ownCopy = null, titleCopy = null, sameTitle = [] }) => {
+  const guide = own ? [own, ownCopy] : [titleCopy, ...sameTitle]
+  const fallbacks = freeview.length || freeviewTitle ? [own, ownCopy, titleCopy, ...sameTitle] : guide
+  return [...new Set([...freeview, freeviewTitle, ...fallbacks].filter(Boolean))]
+}
 
 export const guideSourcesOf = ({ saved = [], live = [] }) => [...new Set([saved, live].flat().filter(Boolean))]
 

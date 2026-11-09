@@ -15,8 +15,11 @@ import {
   onlineArtworkOf,
   createArtResolver,
   guideKindsOf,
+  freeviewAiringOriginsOf,
   guideSourcesOf,
   pictureChangeOf,
+  programmeWarmOriginsOf,
+  recordingPictureOrderOf,
   pictureStampOf,
 } from '../src/art-resolver.js'
 import { imageRouteOf, serveImageRoute } from '../src/image-routes.js'
@@ -80,7 +83,7 @@ test('chainOf: each kind runs its own chain, from the owner choice to no picture
     [{ kind: 'series', recordingId: 'r1', episodeOrder: 'frame' }, ['episode', 'frame', 'title', 'none']],
     [{ kind: 'movie', eventId: 'e1' }, ['own', 'saved', 'same-title', 'freeview', 'title', 'none']],
     [{ kind: 'movie', eventId: 'e1', freeviewFirst: false }, ['own', 'saved', 'same-title', 'freeview', 'title', 'none']],
-    [{ kind: 'movie', eventId: 'e1', freeviewFirst: true }, ['freeview', 'own', 'saved', 'same-title', 'title', 'none']],
+    [{ kind: 'movie', eventId: 'e1', freeviewFirst: true }, ['freeview', 'freeview-title', 'own', 'saved', 'same-title', 'title', 'none']],
     [{ kind: 'series', freeviewFirst: true }, TITLE_CHAINS.series],
     [{ kind: 'unknown' }, TITLE_CHAINS.series],
   ]
@@ -709,6 +712,49 @@ test('guide airing chain in Australia: Freeview first, then the airing picture, 
   assert.deepEqual((await run({ sizes: { [ownCopy]: WIDE, [titleCopy]: WIDE }, freeview: matched })).picked, ['own', ownCopy])
   assert.deepEqual((await run({ sizes: { [titleCopy]: WIDE, [sameTitle]: WIDE } })).picked, ['saved', titleCopy])
   assert.deepEqual((await run({ sizes: { [sameTitle]: WIDE } })).picked, ['same-title', sameTitle])
+})
+
+test('guide airing chain in Australia: an airing with no Freeview match takes the Freeview title copy before its own picture', async () => {
+  const freeviewTitle = 'guide-picture:dddddddddddddddddddddddd-v4'
+  const own = 'https://images.example.com/episode-9.jpg'
+  const run = async ({ titleCopy }) => {
+    const { resolver } = resolverWith({
+      stages: {
+        freeview: async () => ({ sources: [] }),
+        'freeview-title': async () => ({ sources: [titleCopy].filter(Boolean) }),
+        own: async ({ ownSource }) => ({ sources: [ownSource] }),
+      },
+      sizes: { [freeviewTitle]: WIDE, [own]: WIDE },
+    })
+    const found = await resolver.resolve({ title: 'Gruen', eventId: '9', ownSource: own, freeviewFirst: true })
+    return [found.stage, found.origin]
+  }
+  assert.deepEqual(await run({ titleCopy: freeviewTitle }), ['freeview-title', freeviewTitle])
+  assert.deepEqual(await run({ titleCopy: null }), ['own', own])
+})
+
+test('Freeview airing pictures: the episode picture comes before the show picture', () => {
+  assert.deepEqual(freeviewAiringOriginsOf({ episode: ['guide-picture:e', 'https://fv/e.jpg'], show: ['https://fv/s.jpg'] }), ['guide-picture:e', 'https://fv/e.jpg', 'https://fv/s.jpg'])
+  assert.deepEqual(freeviewAiringOriginsOf({}), [])
+})
+
+test('recordingPictureOrderOf: the Freeview episode picture, the airing picture, Freeview show art, the Freeview title copy, other airings', () => {
+  assert.deepEqual(recordingPictureOrderOf({
+    freeviewEpisode: ['https://fv/e.jpg'],
+    own: 'https://guide/own.jpg',
+    freeviewShow: ['https://fv/s.jpg'],
+    freeviewTitle: 'guide-picture:t',
+    sameTitle: ['https://guide/other.jpg'],
+  }), ['https://fv/e.jpg', 'https://guide/own.jpg', 'https://fv/s.jpg', 'guide-picture:t', 'https://guide/other.jpg'])
+  assert.deepEqual(recordingPictureOrderOf({ own: 'https://guide/own.jpg', sameTitle: ['https://guide/other.jpg'] }), ['https://guide/own.jpg', 'https://guide/other.jpg'])
+})
+
+test('programmeWarmOriginsOf: every origin the chain can serve with Freeview, the old set without it', () => {
+  const base = { own: 'own', ownCopy: 'own-copy', titleCopy: 'title-copy', sameTitle: ['other'] }
+  assert.deepEqual(programmeWarmOriginsOf({ ...base, freeview: ['fv-e', 'fv-s'], freeviewTitle: 'fv-t' }), ['fv-e', 'fv-s', 'fv-t', 'own', 'own-copy', 'title-copy', 'other'])
+  assert.deepEqual(programmeWarmOriginsOf({ ...base, freeviewTitle: 'fv-t' }), ['fv-t', 'own', 'own-copy', 'title-copy', 'other'])
+  assert.deepEqual(programmeWarmOriginsOf(base), ['own', 'own-copy'])
+  assert.deepEqual(programmeWarmOriginsOf({ ...base, own: null, ownCopy: null }), ['title-copy', 'other'])
 })
 
 test('guide step: a Freeview title copy comes first, then the copy from the guide host, then the live addresses', async () => {

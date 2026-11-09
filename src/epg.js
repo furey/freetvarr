@@ -41,7 +41,10 @@ import {
   createArtResolver,
   episodePictureOrderFrom,
   guideKindsOf,
+  freeviewAiringOriginsOf,
   guideSourcesOf,
+  programmeWarmOriginsOf,
+  recordingPictureOrderOf,
   stillsAllowed,
   isGuessedFilmKind,
   kindHintFrom,
@@ -809,8 +812,9 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
 
 export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
   const { own, sameTitle, title, kind } = await programmeImageSources({ eventId, fallbackSource })
-  return await firstImageOf({ sources: await freeviewOriginsOf(eventId), load: rawImageOfOrigin })
-    || await firstImageOf({ sources: [own, ...sameTitle].filter(Boolean), load: (source) => programmeImages.imageFor(source) })
+  const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title }) : NO_FREEVIEW_IMAGES
+  const sources = recordingPictureOrderOf({ freeviewEpisode: freeview.episode, own, freeviewShow: freeview.show, freeviewTitle: freeview.title, sameTitle })
+  return await firstImageOf({ sources, load: rawImageOfOrigin })
     || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
 }
 
@@ -892,11 +896,15 @@ export const isShowArtWarm = async ({ title, kind = null, shape = null, width })
 export const isProgrammeArtWarm = async ({ eventId, width }) => {
   const programme = await programmeImageSources({ eventId, fallbackSource: null })
   if (!programme.title && !programme.own) return true
-  const freeviewOrigins = freeviewAu.isOn() ? await freeviewOriginsOf(eventId) : []
-  if (freeviewOrigins.length) return isAnyOriginWarm({ origins: freeviewOrigins, width })
-  const ownOrigins = programme.own ? [programme.own, await guidePictures.originForSource(programme.own)] : []
-  const titleOrigins = programme.own ? [] : [await guidePictures.originFor(programme.title), ...programme.sameTitle]
-  const origins = [...ownOrigins, ...titleOrigins].filter(Boolean)
+  const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title: programme.title }) : NO_FREEVIEW_IMAGES
+  const origins = programmeWarmOriginsOf({
+    freeview: freeviewAiringOriginsOf(freeview),
+    freeviewTitle: freeview.title,
+    own: programme.own,
+    ownCopy: programme.own ? await guidePictures.originForSource(programme.own) : null,
+    titleCopy: await guidePictures.originFor(programme.title),
+    sameTitle: programme.sameTitle,
+  })
   if (isAnyOriginWarm({ origins, width })) return true
   return origins.length ? false : isShowArtWarm({ title: programme.title, kind: programme.kind, width })
 }
@@ -904,10 +912,18 @@ export const isProgrammeArtWarm = async ({ eventId, width }) => {
 const isAnyOriginWarm = ({ origins, width }) =>
   origins.some((origin) => thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }))
 
-const freeviewOriginsOf = async (eventId) => {
-  const source = freeviewByEvent.get(String(eventId))
-  return source ? [await guidePictures.originForSource(source), source].filter(Boolean) : []
+const freeviewImagesOf = async ({ eventId, title }) => {
+  const match = freeviewByEvent.get(String(eventId))
+  return {
+    episode: await copyThenSourceOf(match?.episode),
+    show: await copyThenSourceOf(match?.show),
+    title: title ? await guidePictures.preferredOriginFor(title) : null,
+  }
 }
+
+const copyThenSourceOf = async (source) => (source ? [await guidePictures.originForSource(source), source].filter(Boolean) : [])
+
+const NO_FREEVIEW_IMAGES = { episode: [], show: [], title: null }
 
 export const isEpisodeArtWarm = async ({ recordingId, width, loadRow = recordingRowOf, episodeOrder = episodePictureOrder }) => {
   const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
@@ -1392,7 +1408,9 @@ const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
   const before = await titleCopiesOf(candidates)
   const { saved } = await guidePictures.saveAll({ candidates })
   const after = await titleCopiesOf(candidates)
-  for (const [titleKey, origin] of after) if (origin !== before.get(titleKey)) publishTitleArtChange(candidates.get(titleKey).title)
+  const changed = [...after].filter(([titleKey, origin]) => origin !== before.get(titleKey)).map(([titleKey]) => candidates.get(titleKey).title)
+  if (changed.length > MAX_TITLE_ART_EVENTS) artFeed.reset()
+  else changed.forEach(publishTitleArtChange)
   return saved
 }
 
@@ -1538,7 +1556,8 @@ const artResolver = createArtResolver({
       sources: guideSourcesOf({ saved: await guidePictures.titleOriginsFor(title), live: await guideImagesFor(title) }).slice(0, MAX_IMAGE_SOURCES),
     }),
     saved: async ({ title }) => ({ sources: [await guidePictures.originFor(title)].filter(Boolean) }),
-    freeview: async ({ eventId }) => ({ sources: await freeviewOriginsOf(eventId) }),
+    freeview: async ({ eventId }) => ({ sources: freeviewAiringOriginsOf(await freeviewImagesOf({ eventId })) }),
+    'freeview-title': async ({ title }) => ({ sources: [await guidePictures.preferredOriginFor(title)].filter(Boolean) }),
     online: onlineStage,
     own: async ({ ownSource }) => ({ sources: [ownSource, await guidePictures.originForSource(ownSource)].filter(Boolean) }),
     'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
@@ -1562,6 +1581,7 @@ const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
 const MAX_FREEVIEW_EVENTS = 20_000
+const MAX_TITLE_ART_EVENTS = 200
 let guidePictureRun = null
 let freeviewProblem = null
 const SHOW_IMAGE_BUDGET_MS = 3000

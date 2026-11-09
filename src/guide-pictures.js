@@ -104,6 +104,12 @@ export const createGuidePictures = ({
     return [best, fallback].filter(Boolean).map(guidePictureOriginOf)
   }
 
+  const preferredOriginFor = async (title) => {
+    const titleKey = showTitleKey(title)
+    const best = titleKey ? (await load()).byTitle.get(titleKey) : null
+    return best && preferred.has(hostOfRow(best)) ? guidePictureOriginOf(best) : null
+  }
+
   const originForSource = async (source) => {
     const row = source ? (await load()).bySource.get(source) : null
     return row ? guidePictureOriginOf(row) : null
@@ -238,7 +244,7 @@ export const createGuidePictures = ({
 
   const savedTitleKeys = async () => new Set((await load()).byTitle.keys())
 
-  return { saveAll, originFor, titleOriginsFor, originForSource, read, prune, savedTitleKeys }
+  return { saveAll, originFor, titleOriginsFor, preferredOriginFor, originForSource, read, prune, savedTitleKeys }
 }
 
 const isStrayFile = ({ name, kept }) => STRAY_FILE.test(name) && !kept.has(name)
