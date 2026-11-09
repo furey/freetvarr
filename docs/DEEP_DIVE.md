@@ -1454,7 +1454,7 @@ Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a t
 - `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Only a recording with a playable file (`done` or `partial`, no `library_state`) takes the Plex episode; a `failed` or `skipped` recording of that episode is dropped and the Plex episode stays. Any other item becomes a row with the id `plex-<ratingKey>`.
 - A watched mark or resume point on a `plex-` row sets `pending_push` (`scrobble`, `unscrobble`, or `progress`); the next scan sends it.
 
-`GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`.
+`GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`. Plex changes the path of a thumb when it refreshes the picture, so a saved `thumb` can answer `404` until the next scan. On a miss, `createItemImage` in `src/plex-library-routes.js` reads the item again (`GET /library/metadata/<ratingKey>`), at most once per item in `5` min. When `thumb` or `art` changed (`itemArtOf`, the same rules as the scan), it saves them in `library_items`, serves the new picture, and calls `artFeed.publish` for the show, poster and background, with no stamp.
 
 ## Sonarr and Radarr
 

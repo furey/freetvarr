@@ -11,6 +11,11 @@ export const ratingKeyOfItemId = (id) => (isPlexItemId(id) ? id.slice(PLEX_ITEM_
 
 export const isPlexRow = (row) => row?.source === 'plex'
 
+export const itemArtOf = (item) => ({
+  thumb: item?.thumb ?? item?.grandparentThumb ?? null,
+  art: item?.grandparentArt ?? item?.art ?? null,
+})
+
 export const libraryItemRowsOf = ({ items = [], section, recordingFiles = [], roots = [], seenAt }) => {
   const recordingIndex = createPathIndex(recordingFiles.map(({ recordingId, filePath }) => ({
     recordingId,
@@ -222,8 +227,7 @@ const itemRowOf = ({ item, media, part, section, recordingIndex, roots, seenAt }
     video_codec: media.videoCodec ?? null,
     resolution: media.videoResolution ?? null,
     audio_codec: media.audioCodec ?? null,
-    thumb: item.thumb ?? item.grandparentThumb ?? null,
-    art: item.grandparentArt ?? item.art ?? null,
+    ...itemArtOf(item),
     watched_at: viewed ? lastViewedMs ?? seenAt : null,
     view_offset_s: item.viewOffset ? Math.round(Number(item.viewOffset) / 1000) : 0,
     last_viewed_at: lastViewedMs,
