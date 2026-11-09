@@ -41,9 +41,11 @@ const LICENCES = [
 ]
 const GENRE_SOURCES = ['TVmaze', 'Wikidata']
 const EPISODE_PICTURE_CHOICES = [
-  { value: 'series', label: 'Series picture first' },
-  { value: 'frame', label: 'Episode frame first' },
+  { value: 'off', label: 'Off' },
+  { value: 'series', label: 'When nothing else' },
+  { value: 'frame', label: 'Before series picture' },
 ]
+const EPISODE_PICTURE_VALUES = EPISODE_PICTURE_CHOICES.map((choice) => choice.value)
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 
 const isCustomPlexPrefsPath = (path) => Boolean(path) && path !== DEFAULT_PLEX_PREFS_PATH
@@ -471,13 +473,13 @@ export const SettingsView = {
             </div>
           </div>
           <div class="settings-group" data-setting="episode-pictures">
-            <h3 class="ui-group-label">Episode pictures</h3>
+            <h3 class="ui-group-label">Stills from recordings</h3>
             <div class="ui-group">
               <div class="settings-row" data-setting="episode-picture-order">
-                <span id="episode-picture-order-label" class="field-label">Show first</span>
-                <ui-segmented class="episode-picture-choices" aria-labelledby="episode-picture-order-label" :model-value="episodePictureOrder"
+                <span id="episode-picture-order-label" class="field-label">Use stills</span>
+                <ui-segmented fill class="episode-picture-choices" aria-labelledby="episode-picture-order-label" :model-value="episodePictureOrder"
                   :options="episodePictureChoices" @update:model-value="episodePictureOrder = $event" />
-                <p class="settings-hint">For a recording with no picture of its own. An episode frame is a still from about a quarter of the way into the recording.</p>
+                <p class="settings-hint">A still is a frame from inside a recording, used when a series, film, or episode has no picture of its own. Stills can show moments from inside an episode, such as who wins. Off shows the title instead.</p>
               </div>
             </div>
           </div>
@@ -797,7 +799,7 @@ export const SettingsView = {
       importUnmatched.value = s.import_unmatched !== false
       loadRecordingDefaults()
       showArtworkLookup.value = s.show_artwork_lookup !== false
-      episodePictureOrder.value = s.episode_picture_order === 'frame' ? 'frame' : 'series'
+      episodePictureOrder.value = EPISODE_PICTURE_VALUES.includes(s.episode_picture_order) ? s.episode_picture_order : 'series'
       ratingsLookupEnabled.value = s.ratings_lookup_enabled !== false
       faceFocusEnabled.value = s.face_focus_enabled !== false
       reviewsLookupEnabled.value = s.reviews_lookup_enabled !== false

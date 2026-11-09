@@ -136,6 +136,7 @@ import {
   watchPendingSkips,
   getGuideSnapshot,
   episodePictureOrder,
+  publishStillsChange,
   pruneFrameGrabs,
 } from './epg.js'
 import {
@@ -206,7 +207,7 @@ import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWat
 import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
 import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
-import { episodePictureOrderFrom, kindHintFrom } from './art-resolver.js'
+import { episodePictureOrderFrom, kindHintFrom, stillsAllowed } from './art-resolver.js'
 import { artFeed } from './art-feed.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
@@ -1754,7 +1755,9 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
     await setSetting(FOCUS_SETTING, body.face_focus_enabled ? 'true' : 'false')
   }
   if (body.episode_picture_order !== undefined) {
+    const stillsBefore = stillsAllowed(await episodePictureOrder())
     await setSetting('episode_picture_order', episodePictureOrderFrom(body.episode_picture_order))
+    if (stillsAllowed(await episodePictureOrder()) !== stillsBefore) publishStillsChange().catch(() => 0)
   }
   if (body.import_unmatched !== undefined) {
     await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')

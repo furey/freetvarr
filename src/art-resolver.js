@@ -23,13 +23,24 @@ export const EPISODE_CHAIN = ['episode', 'title', 'frame', FINAL_STAGE]
 export const EPISODE_FRAME_FIRST_CHAIN = ['episode', 'frame', 'title', FINAL_STAGE]
 export const SERIES_PICTURE_FIRST = 'series'
 export const EPISODE_FRAME_FIRST = 'frame'
-export const EPISODE_PICTURE_ORDERS = [SERIES_PICTURE_FIRST, EPISODE_FRAME_FIRST]
+export const STILLS_OFF = 'off'
+export const EPISODE_PICTURE_ORDERS = [STILLS_OFF, SERIES_PICTURE_FIRST, EPISODE_FRAME_FIRST]
+export const EPISODE_NO_FRAME_CHAIN = ['episode', 'title', FINAL_STAGE]
 
-export const episodePictureOrderFrom = (value) => (value === EPISODE_FRAME_FIRST ? EPISODE_FRAME_FIRST : SERIES_PICTURE_FIRST)
+export const episodePictureOrderFrom = (value) => (EPISODE_PICTURE_ORDERS.includes(value) ? value : SERIES_PICTURE_FIRST)
+
+export const stillsAllowed = (order) => order !== STILLS_OFF
+
+const EPISODE_CHAINS_BY_ORDER = {
+  [STILLS_OFF]: EPISODE_NO_FRAME_CHAIN,
+  [SERIES_PICTURE_FIRST]: EPISODE_CHAIN,
+  [EPISODE_FRAME_FIRST]: EPISODE_FRAME_FIRST_CHAIN,
+}
+
 export const GUIDE_ONLY_CHAIN = ['own', 'same-title', 'title', FINAL_STAGE]
 
 export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST }) => {
-  if (recordingId != null) return episodeOrder === EPISODE_FRAME_FIRST ? EPISODE_FRAME_FIRST_CHAIN : EPISODE_CHAIN
+  if (recordingId != null) return EPISODE_CHAINS_BY_ORDER[episodeOrder] ?? EPISODE_CHAIN
   if (eventId != null) return GUIDE_ONLY_CHAIN
   return TITLE_CHAINS[kind] ?? TITLE_CHAINS[SERIES_KIND]
 }

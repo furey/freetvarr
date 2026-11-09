@@ -844,39 +844,6 @@ body.sheet-open .app-tabbar {
   right: 8px;
 }
 
-.home-on-now-logo.ui-art-logo {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-  margin-top: 0;
-}
-
-.ui-art-logo:has(.channel-logo-fallback) {
-  display: none;
-}
-
-.programme-image .ui-art-logo img {
-  object-fit: contain;
-  opacity: 1;
-  transition: none;
-}
-
-:is(.scheduled-thumb, .show-episode-thumb) .ui-art-logo {
-  top: 4px;
-  right: 4px;
-  width: 24px;
-  height: 24px;
-  padding: 3px;
-  border-radius: 6px;
-}
-
-@container (width < 9rem) {
-  .programme-title-card .ui-art-logo {
-    display: none;
-  }
-}
-
 .ui-art-bar {
   position: absolute;
   left: 8px;

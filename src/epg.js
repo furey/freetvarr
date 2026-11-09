@@ -38,11 +38,13 @@ import {
   createArtResolver,
   episodePictureOrderFrom,
   guideKindsOf,
+  stillsAllowed,
   isGuessedFilmKind,
   onlineArtworkOf,
   stampKindOf,
 } from './art-resolver.js'
-import { createFrameGrabs, isFrameOrigin } from './frame-grabs.js'
+import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, frameOriginOf, framePreferenceOrderOf, isFrameOrigin } from './frame-grabs.js'
+import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
 import { createLibraryTitles, isCompleteRow } from './library-titles.js'
@@ -842,7 +844,12 @@ export const pruneFrameGrabs = async ({ database = db } = {}) => {
     database('library_items').whereNotNull('file_path').select('file_path'),
   ])
   const { removed, removedOrigins } = await frameGrabs.prune({ keepPaths: [...recordings, ...items].map((row) => row.file_path) })
-  if (removedOrigins.length) await database('art_resolutions').whereIn('origin', removedOrigins).del().catch(() => 0)
+  if (removedOrigins.length) {
+    await database('art_resolutions')
+      .where((query) => removedOrigins.forEach((origin) => query.orWhere('origin', origin).orWhere('origin', 'like', `${origin}-v%`)))
+      .del()
+      .catch(() => 0)
+  }
   return removed
 }
 
@@ -1042,7 +1049,10 @@ const seriesOnlineArtwork = async ({ title, kind }) => {
   return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
 }
 
-const onlineSettingsKey = async () => `${await tvmazeLookupEnabled().catch(() => false)}|${Boolean(await storedTmdbKey().catch(() => null))}`
+const onlineSettingsKey = async () => {
+  const online = `${await tvmazeLookupEnabled().catch(() => false)}|${Boolean(await storedTmdbKey().catch(() => null))}`
+  return stillsAllowed(await episodePictureOrder().catch(() => undefined)) ? online : `${online}|stills-off`
+}
 
 const canonicalKindFor = async ({ title, hint }) => {
   const [libraryKinds, overrides, guideKind] = await Promise.all([
@@ -1072,19 +1082,77 @@ const recordingImagesFor = (title) => libraryTitles.recordingImagesFor(title).ca
 
 const recordingRowOf = (recordingId) => db('recordings').where({ recording_id: recordingId }).first()
 
-const frameStage = async ({ title, kind, recordingId = null, episodeFile = null }) => {
+export const frameStage = async ({ title, kind, recordingId = null, episodeFile = null }) => {
+  if (!stillsAllowed(await episodePictureOrder().catch(() => undefined))) return NO_ARTWORK
   const onReady = () => publishFrameReady(title)
-  if (recordingId != null) return frameGrabs.frameFor({ ...episodeFile, onReady })
+  if (recordingId != null) {
+    const plans = await adPlansFor([recordingId])
+    return frameGrabs.frameFor({ ...episodeFile, adPlan: plans.get(String(recordingId)) ?? UNKNOWN_AD_PLAN, onReady })
+  }
   const files = await libraryTitles.frameFilesFor(title, { kind }).catch(() => [])
-  for (const file of files) {
+  const plans = await adPlansFor(files.map((file) => file.recordingId).filter((id) => id != null))
+  const planned = files.map((file) => ({ ...file, adPlan: plans.get(String(file.recordingId)) ?? UNKNOWN_AD_PLAN }))
+  for (const file of framePreferenceOrderOf(planned)) {
     const found = await frameGrabs.frameFor({ ...file, onReady })
     if (found.sources.length || found.pending) return found
   }
   return NO_ARTWORK
 }
 
+const adPlansFor = async (recordingIds) => {
+  if (!recordingIds.length) return new Map()
+  const [rows, enabled] = await Promise.all([
+    db('recordings').leftJoin('shows', 'recordings.show_id', 'shows.id')
+      .whereIn('recordings.recording_id', recordingIds)
+      .select('recordings.recording_id', 'recordings.ad_status', 'recordings.ad_breaks_json', 'recordings.imported_at', 'shows.ad_removal as show_ad_removal')
+      .catch(() => []),
+    getSetting('ad_removal_enabled').catch(() => null),
+  ])
+  return new Map(rows.map((row) => [String(row.recording_id), adPlanOf({
+    adStatus: row.ad_status,
+    breaksJson: row.ad_breaks_json,
+    showMode: row.show_ad_removal,
+    adRemovalEnabled: enabled === 'true',
+    importedAt: row.imported_at,
+    scanning: isAdJobRunning(row.recording_id),
+  })]))
+}
+
+export const refreshFrameAfterAdScan = async ({ recordingId, filePath, breaks = [] }, { grabs = frameGrabs, loadRow = recordingRowOf, database = db } = {}) => {
+  const { stale, awaited } = await grabs.reconsider({ filePath, breaks })
+  if (stale) await database('art_resolutions').where('origin', 'like', `${frameOriginOf(filePath)}%`).update({ next_check_at: 0 }).catch(() => 0)
+  const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
+  const title = row?.show_title_override ?? row?.title
+  if (!title) return { stale, awaited, grabbing: false }
+  if (stale) publishFrameReady(title)
+  const allowed = stillsAllowed(await episodePictureOrder().catch(() => undefined))
+  if (!allowed || !(stale || awaited) || row.purged_at || !isCompleteRow(row)) return { stale, awaited, grabbing: false }
+  const plans = await adPlansFor([recordingId])
+  await grabs.frameFor({
+    filePath: row.file_path,
+    programmeDurationS: row.duration_s ?? null,
+    expectedBytes: row.size ?? null,
+    adPlan: plans.get(String(recordingId)) ?? UNKNOWN_AD_PLAN,
+    onReady: () => publishFrameReady(title),
+  })
+  return { stale, awaited, grabbing: true }
+}
+
 const publishFrameReady = (title) => {
   for (const kind of ['background', 'poster']) artFeed.publish({ key: showKeyOf(title), kind, stamp: null })
+}
+
+export const publishStillsChange = async ({ database = db, publish = artFeed.publish } = {}) => {
+  const [resolved, recordings] = await Promise.all([
+    database('art_resolutions').where('origin', 'like', `${FRAME_ORIGIN_LIKE}`).distinct('show_key').catch(() => []),
+    database('recordings').whereNull('purged_at').whereNull('image_path').select('title', 'show_title_override').catch(() => []),
+  ])
+  const keys = new Set([
+    ...resolved.map((row) => row.show_key),
+    ...recordings.map((row) => showKeyOf(row.show_title_override ?? row.title)),
+  ].filter(Boolean))
+  for (const key of keys) for (const kind of ['background', 'poster']) publish({ key, kind, stamp: null })
+  return keys.size
 }
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
@@ -1274,6 +1342,7 @@ const kindsByGuide = new WeakMap()
 const displayKindsByGuide = new WeakMap()
 const overridesCache = { value: new Map(), expiresAt: 0 }
 const frameGrabs = createFrameGrabs()
+onAdScanResult((result) => refreshFrameAfterAdScan(result))
 const artResolver = createArtResolver({
   stages: {
     choice: async (ctx) => ({ sources: [await chosenOriginOf(ctx)].filter(Boolean) }),
@@ -1309,6 +1378,7 @@ const TIMED_OUT = Symbol('timed out')
 const CHOICE_STAGE = 'choice'
 const SERIES_LOOKUP_KIND = 'series'
 const EPISODE_PICTURE_ORDER_SETTING = 'episode_picture_order'
+const FRAME_ORIGIN_LIKE = 'frame:%'
 const KIND_OVERRIDES_TTL_MS = 30 * 1000
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }

@@ -87,8 +87,8 @@ test('frameFilesOf: newest files first; Plex items of the other kind, purged rec
     ],
   })
   assert.deepEqual(frameFilesOf({ rows, kind: 'series' }), [
-    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600, expectedBytes: 900 },
-    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null, expectedBytes: null },
+    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600, expectedBytes: 900, recordingId: 'r1' },
+    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null, expectedBytes: null, recordingId: null },
   ])
   assert.deepEqual(frameFilesOf({ rows, kind: 'movie' }).map((file) => file.filePath), ['/rec/fargo-new.ts', '/m/fargo.mkv'])
 })

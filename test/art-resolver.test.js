@@ -9,6 +9,7 @@ import {
   canonicalKindOf,
   chainOf,
   episodePictureOrderFrom,
+  stillsAllowed,
   isGuessedFilmKind,
   onlineArtworkOf,
   createArtResolver,
@@ -497,11 +498,19 @@ test('a guide airing whose own image times out asks again in the background and 
   assert.deepEqual(resolved, [{ key: 'gruen', kind: 'background', stamp: null }])
 })
 
-test('episodePictureOrderFrom: series picture first unless the setting says frame', () => {
+test('episodePictureOrderFrom: stills when nothing else unless the setting says off or frame first; old values keep their meaning', () => {
   assert.equal(episodePictureOrderFrom(null), 'series')
   assert.equal(episodePictureOrderFrom('nonsense'), 'series')
   assert.equal(episodePictureOrderFrom('series'), 'series')
   assert.equal(episodePictureOrderFrom('frame'), 'frame')
+  assert.equal(episodePictureOrderFrom('off'), 'off')
+})
+
+test('stills off: the episode chain has no frame step', () => {
+  assert.deepEqual(chainOf({ kind: 'series', recordingId: 'r1', episodeOrder: 'off' }), ['episode', 'title', 'none'])
+  assert.equal(stillsAllowed('off'), false)
+  assert.equal(stillsAllowed('series'), true)
+  assert.equal(stillsAllowed('frame'), true)
 })
 
 test('isGuessedFilmKind: a film kind from the guide only, never from the library or the owner', () => {

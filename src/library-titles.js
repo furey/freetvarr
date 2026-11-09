@@ -62,7 +62,7 @@ export const recordingImageSourcesOf = (rows = []) => newestFirst(rows)
 
 export const frameFilesOf = ({ rows = [], kind = null }) => newestFirst(rows)
   .filter((row) => row.file_path && isCompleteRow(row) && (!kind || !row.library_kind || row.library_kind === kind))
-  .map((row) => ({ filePath: row.file_path, programmeDurationS: row.duration_s ?? null, expectedBytes: row.size ?? null }))
+  .map((row) => ({ filePath: row.file_path, programmeDurationS: row.duration_s ?? null, expectedBytes: row.size ?? null, recordingId: row.recording_id ?? null }))
   .slice(0, MAX_FRAME_FILES)
 
 export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
@@ -139,4 +139,4 @@ const uniqueOf = (values) => [...new Set(values)]
 
 const LIBRARY_TITLES_TTL_MS = 5 * 60 * 1000
 const MAX_ROWS_PER_TITLE = 20
-const MAX_FRAME_FILES = 3
+const MAX_FRAME_FILES = 6

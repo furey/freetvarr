@@ -41,17 +41,6 @@ export const ChannelLogo = {
 }
 
 
-export const ChannelCornerLogo = {
-  props: {
-    channelId: { type: [String, Number], default: null },
-  },
-  template: `
-    <span v-if="channelId != null" class="home-on-now-logo ui-art-logo" aria-hidden="true">
-      <channel-logo :channel-id="channelId" has-logo />
-    </span>
-  `,
-}
-
 const IMAGE_RETRY_DELAY_MS = 5000
 const FALLBACK_CELL_REQUEST_LIMIT = 4
 const FALLBACK_CELL_SLOT_MAX_MS = 3000
@@ -98,7 +87,6 @@ export const ProgrammeImage = {
     channelId: { type: [String, Number], default: null },
     hasLogo: Boolean,
     title: { type: String, default: null },
-    cornerChannelId: { type: [String, Number], default: null },
   },
   emits: ['settle'],
   setup(props, { emit }) {
@@ -216,7 +204,6 @@ export const ProgrammeImage = {
       <span v-if="title" :class="['programme-title-card', { 'is-shown': titleCardShown }]" :style="titleCardStyle" aria-hidden="true">
         <span class="programme-title-card-text">{{ title }}</span>
         <span class="programme-title-card-initials">{{ titleInitials }}</span>
-        <channel-corner-logo :channel-id="cornerChannelId" />
       </span>
       <img v-if="src != null && status !== 'failed'" ref="img" :loading="variant === 'hero' ? 'eager' : 'lazy'" decoding="async"
         :srcset="srcset" :src="src" alt="" @load="onLoad" @error="onError" />

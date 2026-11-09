@@ -55,7 +55,7 @@ import {
 import { AppNav, BrandMark } from '/components/app-shell.js'
 import { startBrandIntro } from '/components/brand-intro-overlay.js'
 import { BrandWordmark } from '/components/brand-wordmark.js'
-import { ChannelCornerLogo, ChannelLogo, GuideCellImage, ProgrammeImage } from '/components/images.js'
+import { ChannelLogo, GuideCellImage, ProgrammeImage } from '/components/images.js'
 import { InfoButton } from '/components/info-button.js'
 import { ListSkeleton } from '/components/list-skeleton.js'
 import { LivePlayer } from '/components/live-player.js'
@@ -277,7 +277,6 @@ app.component('progress-block', ProgressBlock)
 app.component('programme-image', ProgrammeImage)
 app.component('guide-cell-image', GuideCellImage)
 app.component('channel-logo', ChannelLogo)
-app.component('channel-corner-logo', ChannelCornerLogo)
 app.component('channel-twin-tag', ChannelTwinTag)
 app.component('toggle-switch', ToggleSwitch)
 app.component('cancel-series-step', CancelSeriesStep)

@@ -243,7 +243,7 @@ export const ScheduledView = {
                 <a :href="showHrefOf(row.title)" class="scheduled-row-link">
                   <span class="scheduled-time ui-tabular">{{ row.time }}<small>{{ row.day ? row.day + ' ' : '' }}{{ row.period }}</small></span>
                   <span class="scheduled-thumb">
-                    <title-art :title="row.title" :src="row.thumbSrc" :channel-id="row.channelId" />
+                    <title-art :title="row.title" :src="row.thumbSrc" />
                   </span>
                   <span class="ui-group-row-main">
                     <span class="ui-group-row-title">{{ row.title }}<span v-if="row.state === 'repeat'" class="ui-chip is-warn is-small scheduled-repeat-chip">Repeat</span><span v-if="row.repeatText" class="scheduled-repeat-reason">{{ row.repeatText }}</span></span>

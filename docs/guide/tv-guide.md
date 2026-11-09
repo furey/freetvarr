@@ -188,9 +188,17 @@ For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wi
 
 ### Episode frames
 
-Freetvarr takes a frame with [ffmpeg](https://ffmpeg.org/), which comes with the Docker image. It skips the padding at the start of the recording, then tries up to three points in the programme until it finds a frame that is not black, white, or a flat slate. It makes one frame at a time, at low priority, and deletes a frame when its recording is gone. An install without ffmpeg shows no frames. A frame can show a moment from the programme, such as a contestant or a scene.
+Freetvarr takes a frame with [ffmpeg](https://ffmpeg.org/), which comes with the Docker image. It skips the padding at the start and end of the recording, and tries up to three points in the programme until it finds a frame that is not black, white, or a flat slate. It makes one frame at a time, at low priority, and deletes a frame when its recording is gone. An install without ffmpeg shows no frames.
 
-A recording with no picture of its own shows the series picture first, then its own frame. To show the episode frame first, go to Settings → WATCHING → Film and TV info and, under **EPISODE PICTURES**, set **Show first** to **Episode frame first**.
+Freetvarr keeps frames out of ad breaks. When [Ad removal](/guide/ad-removal) has scanned a recording, the frame comes from the middle of the longest part of the programme, at least 20 seconds from any ad break. For a series, Freetvarr uses the newest episode with an ad scan, then older episodes. While an ad scan is still to come, Freetvarr waits for it before it takes the frame. When a later scan finds that a frame came from an ad break, Freetvarr takes a new frame.
+
+Without an ad scan, Freetvarr skips a frame that also shows at another point in the recording (the same ad in two breaks), and a frame that changes within 2 seconds. These checks do not catch every ad, so turn on Ad removal for series where an ad frame would matter.
+
+A frame can show a moment from inside an episode, such as a contestant or who wins. To choose when Freetvarr uses frames, go to Settings → WATCHING → Film and TV info and, under **STILLS FROM RECORDINGS**, set **Use stills**:
+
+- **Off**: no frames anywhere. A title or episode with no other picture shows its title card.
+- **When nothing else** (the default): a frame only when no other picture is found. An episode shows the series picture first.
+- **Before series picture**: an episode with no picture of its own shows its frame before the series picture.
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 

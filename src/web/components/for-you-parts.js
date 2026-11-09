@@ -41,7 +41,7 @@ export const ForYouCard = {
       <button type="button" class="for-you-card-hit" :aria-label="label" @click="onClick"
         @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerEnd" @pointercancel="onPointerEnd"
         @pointerleave="onPointerEnd">
-        <title-art :title="item.title" :src="item.image || ''" :shape="shape" :channel-id="showsLogo ? null : item.channelId">
+        <title-art :title="item.title" :src="item.image || ''" :shape="shape">
           <span v-if="badge" :class="['ui-art-badge', 'for-you-badge', 'is-' + badge.tone]">
             <span v-if="badge.tone !== 'plain'" class="for-you-badge-dot" aria-hidden="true"></span>{{ badge.label }}
           </span>
