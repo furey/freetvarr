@@ -976,7 +976,7 @@ const imageOfResolution = async ({ resolution, title, width, shape }) => {
     publishWhenRendered({ rendering, title, shape })
     return PENDING_IMAGE
   }
-  if (image) return { image, pending: false }
+  if (image) return resolution.provisional ? { image, pending: false, provisional: true } : { image, pending: false }
   return resolution.stage === CHOICE_STAGE ? NO_IMAGE : FINAL_MISS
 }
 

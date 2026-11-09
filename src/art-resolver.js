@@ -123,7 +123,7 @@ export const createArtResolver = ({
   const resolveOuter = async (ctx) => {
     const run = (budget) => settleAnswer({ ctx, key: outerKeyOf(ctx), result: runOuterChain({ chain: chainOf(ctx), ctx, budget }) })
     const result = await run(outerBudgetMs)
-    if (result.pending) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
+    if (result.pending || result.provisional) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
     return result
   }
 
@@ -132,7 +132,7 @@ export const createArtResolver = ({
 
   const settleAnswer = async ({ ctx, key, result }) => {
     const answer = await result
-    if (answer.pending) {
+    if (answer.pending || answer.provisional) {
       rememberPendingAnswer(key)
       return answer
     }
@@ -153,7 +153,7 @@ export const createArtResolver = ({
     const attempt = (index) => {
       const timer = setTimeout(async () => {
         const result = await run().catch(() => PENDING_RESULT)
-        if (result.pending && index + 1 < followUpDelaysMs.length) return attempt(index + 1)
+        if ((result.pending || result.provisional) && index + 1 < followUpDelaysMs.length) return attempt(index + 1)
         followUps.delete(key)
       }, followUpDelaysMs[index])
       timer.unref?.()
@@ -220,13 +220,13 @@ export const createArtResolver = ({
       if (stage === 'title') {
         const fromTitle = await resolveTitle({ ...ctx, recordingId: null, eventId: null })
         if (fromTitle.pending) pendingSeen = true
-        else if (fromTitle.stage !== FINAL_STAGE) return fromTitle
+        else if (fromTitle.stage !== FINAL_STAGE) return provisionalIf({ result: fromTitle, pendingSeen })
         continue
       }
       const found = await stageWithin({ stage, ctx, deadline })
       if (found.pending) pendingSeen = true
       const loaded = await firstLoaded({ sources: found.sources, deadline })
-      if (loaded.origin) return { stage, origin: loaded.origin, transform: 'none', pending: false }
+      if (loaded.origin) return provisionalIf({ result: { stage, origin: loaded.origin, transform: 'none', pending: false }, pendingSeen })
       if (loaded.pending) pendingSeen = true
     }
     return pendingSeen ? PENDING_RESULT : FINAL_RESULT
@@ -308,6 +308,8 @@ export const createArtResolver = ({
 
   return { resolve, forget, invalidate, stampsByKey }
 }
+
+const provisionalIf = ({ result, pendingSeen }) => (pendingSeen ? { ...result, provisional: true } : result)
 
 const outerKeyOf = ({ recordingId, eventId }) => (recordingId != null ? `episode|${recordingId}` : `event|${eventId}`)
 

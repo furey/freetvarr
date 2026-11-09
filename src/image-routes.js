@@ -18,14 +18,14 @@ export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
 
 export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => {
   try {
-    const { image, pending, final, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
+    const { image, pending, final, badWidth, provisional } = await loadRouteImage({ route, params: req.params, query: req.query })
     if (badWidth) return res.status(400).json({ error: route.widthError })
     if (!image) return sendMissing(res, artStateOf({ pending, final }))
     const contentType = rasterTypeOf(image.body)
     if (!contentType) return sendMissing(res)
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
-    res.setHeader('Cache-Control', `public, max-age=${imageMaxAgeS}`)
+    res.setHeader('Cache-Control', provisional ? PROVISIONAL_CACHE : `public, max-age=${imageMaxAgeS}`)
     res.send(image.body)
   } catch {
     sendMissing(res)
@@ -44,6 +44,7 @@ export const createImageResolver = (routes) => async (url) => {
 export const imageResultOf = (result) => {
   if (result?.body) return { image: result, pending: false }
   const image = result?.image ?? null
+  if (image && result.provisional) return { image, pending: false, provisional: true }
   return result?.final && !image ? { image, pending: false, final: true } : { image, pending: Boolean(result?.pending) }
 }
 
@@ -89,4 +90,5 @@ const sendMissing = (res, state = null) => {
 }
 
 const LOCAL_BASE = 'http://localhost'
+const PROVISIONAL_CACHE = 'no-cache'
 const ART_PENDING = 'pending'

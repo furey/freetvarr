@@ -552,3 +552,47 @@ test('a guessed film resolves to the series picture the series lookup finds, and
   assert.deepEqual([result.stage, result.origin], ['online', 'https://tmdb/esc-asia-backdrop.jpg'])
   assert.equal([...store.rows.values()][0].origin, 'https://tmdb/esc-asia-backdrop.jpg')
 })
+
+test('episode frame first: a series picture while the frame is still grabbing is provisional, and the frame tells listeners when it arrives', async () => {
+  const frame = { ready: false }
+  const resolved = []
+  const { resolver } = resolverWith({
+    stages: {
+      plex: async () => ({ sources: ['plex:/art'] }),
+      frame: async ({ recordingId }) => (recordingId && !frame.ready ? { sources: [], pending: true } : { sources: recordingId ? [`frame:${recordingId}`] : [] }),
+    },
+    sizes: { 'plex:/art': WIDE, 'frame:r2': WIDE },
+    onResolved: (change) => resolved.push(change),
+  })
+  const first = await resolver.resolve({ title: 'Bluey', recordingId: 'r2', episodeOrder: 'frame' })
+  assert.deepEqual([first.origin, first.provisional], ['plex:/art', true])
+  resolved.length = 0
+  frame.ready = true
+  const later = await resolver.resolve({ title: 'Bluey', recordingId: 'r2', episodeOrder: 'frame' })
+  assert.deepEqual([later.origin, later.provisional], ['frame:r2', undefined])
+  assert.deepEqual(resolved, [{ key: 'bluey', kind: 'background', stamp: null }])
+})
+
+test('a provisional picture is served with no-cache, a final one for a day', async () => {
+  const serve = (result) => serveImageRoute({
+    imageMaxAgeS: 86400,
+    route: imageRouteOf({ path: '/x', widthOf: () => 384, loadImage: async () => result }),
+  })
+  const recorder = () => {
+    const res = { headers: {}, statusCode: 200 }
+    res.setHeader = (name, value) => { res.headers[name.toLowerCase()] = value }
+    res.status = (code) => { res.statusCode = code; return res }
+    res.send = (body) => { res.body = body; return res }
+    res.end = () => res
+    res.json = () => res
+    return res
+  }
+  const jpeg = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#888' } }).jpeg().toBuffer()
+  const image = { body: jpeg, contentType: 'image/jpeg' }
+  const provisional = recorder()
+  await serve({ image, pending: false, provisional: true })({ params: {}, query: {} }, provisional)
+  assert.equal(provisional.headers['cache-control'], 'no-cache')
+  const settled = recorder()
+  await serve({ image, pending: false })({ params: {}, query: {} }, settled)
+  assert.equal(settled.headers['cache-control'], 'public, max-age=86400')
+})
