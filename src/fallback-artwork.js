@@ -374,7 +374,7 @@ export const evidenceFingerprintOf = ({ kind = null, hints = null, ids = null, a
     MISS_REFERENCE,
     artworkKindOf(kind),
     hints ? evidenceOfHints(hints) : null,
-    hasExternalIds(ids) ? ids : null,
+    hasExternalIds(ids) ? Object.entries(ids).filter(([, id]) => id != null).sort(([a], [b]) => a.localeCompare(b)) : null,
     Boolean(apiKey),
   ]))
   .digest('hex')
@@ -390,13 +390,14 @@ export const missOf = (reference) => {
 }
 
 const evidenceOfHints = (hints) => [
-  hints.years || [],
-  hints.releaseYears || [],
-  hints.channelNames || [],
-  hints.synopsis || '',
+  sortedUniqueOf(hints.years),
+  sortedUniqueOf(hints.releaseYears),
+  sortedUniqueOf(hints.channelNames),
   Boolean(hints.isEpisode),
   Boolean(hints.inLibrary),
 ]
+
+const sortedUniqueOf = (values = []) => [...new Set(values || [])].map(String).sort()
 
 const isRetryReference = (reference) => String(reference || '').startsWith(TMDB_RETRY_REFERENCE)
 

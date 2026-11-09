@@ -85,7 +85,7 @@ test('a miss is looked up again at once when its evidence changes, and the ladde
   clock.ms = 1011
   await artwork.sourcesFor('Arrival')
   assert.equal(calls, 2)
-  hints = { title: 'Arrival', synopsis: 'A linguist works with the military to talk with alien visitors.', releaseYears: [2016] }
+  hints = { title: 'Arrival', releaseYears: [2016] }
   await artwork.sourcesFor('Arrival')
   assert.equal(calls, 3)
   const row = cache.rows.get('wide-v1:open:arrival')
@@ -95,20 +95,30 @@ test('a miss is looked up again at once when its evidence changes, and the ladde
   assert.equal(calls, 3)
 })
 
-test('a miss fingerprint changes with kind, years, channels, description, ids, library presence, and the TMDB key', () => {
+test('a miss fingerprint changes with kind, years, channels, ids, library presence, and the TMDB key', () => {
   const base = { kind: null, hints: { years: [], releaseYears: [], channelNames: ['ABC'], synopsis: 'A show.' }, ids: null, apiKey: null }
   const of = (change) => evidenceFingerprintOf({ ...base, ...change })
   const changed = [
     of({ kind: 'movie' }),
     of({ hints: { ...base.hints, releaseYears: [2001] } }),
     of({ hints: { ...base.hints, channelNames: ['SBS'] } }),
-    of({ hints: { ...base.hints, synopsis: 'Another show.' } }),
     of({ hints: { ...base.hints, inLibrary: true } }),
     of({ ids: { tmdb: '12' } }),
     of({ apiKey: 'k' }),
   ]
   assert.equal(new Set([of({}), ...changed]).size, changed.length + 1)
   assert.equal(of({}), of({ hints: { ...base.hints, title: 'Different title text' } }))
+})
+
+test('a miss is kept when only the synopsis and the channel order change', async () => {
+  let calls = 0
+  let hints = { title: 'Gardening Live', synopsis: 'Monday tips.', channelNames: ['ABC', 'SBS'], years: [2026, 2025] }
+  const { artwork, clock } = fallbackWith({ hintsFor: async () => hints, lookUp: async () => { calls += 1; return null } })
+  await artwork.sourcesFor('Gardening Live')
+  hints = { title: 'Gardening Live', synopsis: 'Tuesday tips, with a new guest.', channelNames: ['SBS', 'ABC', 'ABC'], years: [2025, 2026] }
+  clock.ms = 1009
+  await artwork.sourcesFor('Gardening Live')
+  assert.equal(calls, 1)
 })
 
 test('a miss saved before fingerprints is looked up again', async () => {

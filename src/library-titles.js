@@ -66,7 +66,7 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
       }
     : { title: item.title, synopsis: item.synopsis, year: item.year, aired_at: item.aired_at })),
   ...recordings.map((recording) => ({
-    title: recording.title,
+    title: recording.show_title_override ?? recording.title,
     episode_title: recording.episode_title,
     series_no: recording.season,
     episode_no: recording.episode,
@@ -83,7 +83,7 @@ const loadLibraryTitleRows = async () => {
   const [items, recordings] = await Promise.all([
     db('library_items').select('kind', 'title', 'show_title', 'season', 'episode', 'year', 'synopsis', 'aired_at'),
     db('recordings')
-      .select('recording_id', 'title', 'episode_title', 'season', 'episode', 'synopsis', 'channel_id', 'channel_name', 'aired_at', 'image_path'),
+      .select('recording_id', 'title', 'show_title_override', 'episode_title', 'season', 'episode', 'synopsis', 'channel_id', 'channel_name', 'aired_at', 'image_path'),
   ])
   return libraryTitleRowsOf({ items, recordings })
 }

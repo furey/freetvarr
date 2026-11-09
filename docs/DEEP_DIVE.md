@@ -1221,7 +1221,7 @@ A Plex or recording picture ends the chain, so the title gets no TVmaze or onlin
 
 - Keys start with `wide-v1:` and hold the mode (`tmdb` with a key, `open` without), the kind, and the title key; stored external ids end the key.
 - An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old. A refresh with no guide hints, no year, and no stored external ids that finds nothing counts as a failure, so it never replaces a hit.
-- A Wikipedia and TMDB miss stores an evidence fingerprint in `reference` (`miss:guide-network-v2:<step>:<fingerprint>`). The fingerprint covers the kind, years, channel names, synopsis, episode flag, library presence, external ids, and whether a TMDB key is set. A changed fingerprint retries at once and starts the steps again.
+- A Wikipedia and TMDB miss stores an evidence fingerprint in `reference` (`miss:guide-network-v2:<step>:<fingerprint>`). The fingerprint covers the kind, the sorted years, release years, and channel names, the episode flag, library presence, external ids, and whether a TMDB key is set; it leaves out the synopsis, which changes as airings roll. A changed fingerprint retries at once and starts the steps again.
 - A failed lookup is not stored; the key waits `10` min in memory.
 - Routes wait for a lookup within a budget, then answer pending: `1.5 s` for guide images and for ratings, `3 s` for a show picture, `6 s` for the **Change picture** list.
 

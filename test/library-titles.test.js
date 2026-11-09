@@ -60,6 +60,14 @@ test('createLibraryTitles: groups rows by title key and reloads them after the T
   assert.deepEqual(await titles.recordingImagesFor('Garden Show'), ['recording:r2'])
 })
 
+test('libraryTitleRowsOf: a recording with a show title override counts under the named show', () => {
+  const rows = libraryTitleRowsOf({
+    recordings: [{ recording_id: 'b', title: 'The Block - Kids Room Week', show_title_override: 'The Block', image_path: 'b.jpg' }],
+  })
+  assert.equal(rows[0].title, 'The Block')
+  assert.deepEqual(recordingImageSourcesOf(rows), ['recording:b'])
+})
+
 test('createLibraryTitles: a failed load answers with nothing', async () => {
   const titles = createLibraryTitles({ loadRows: async () => { throw new Error('db locked') } })
   assert.equal(await titles.hintsFor('Dune'), null)
