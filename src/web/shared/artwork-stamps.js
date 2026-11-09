@@ -30,15 +30,32 @@ export const applyResolvedArt = (changes = []) => {
   artworkStamps.setStamps(changes.filter((change) => change.stamp))
   for (const { key, kind } of changes) {
     const id = pictureIdOf({ key, kind })
+    forgetFinalMissesOf(id)
     resolvedTicks.set(id, (resolvedTicks.get(id) ?? 0) + 1)
   }
 }
 
-export const artResolvedTickOf = ({ url = '', title = '', shape = 'card' }) => {
-  const picture = pictureOfShowImageUrl(url) ?? { key: showKeyOf(title), kind: shape === 'poster' ? 'poster' : 'background' }
-  return resolvedTicks.get(pictureIdOf(picture)) ?? 0
+export const artResolvedTickOf = (picture) => resolvedTicks.get(pictureIdOf(pictureOf(picture))) ?? 0
+
+export const rememberFinalMiss = ({ url, title = '', shape = 'card' }) => {
+  finalMisses.set(url, pictureIdOf(pictureOf({ url, title, shape })))
 }
 
+export const isFinalMiss = (url) => finalMisses.has(url)
+
+export const forgetFinalMiss = (url) => finalMisses.delete(url)
+
+export const forgetFinalMisses = () => finalMisses.clear()
+
+const forgetFinalMissesOf = (id) => {
+  for (const [url, missId] of finalMisses) if (missId === id) finalMisses.delete(url)
+}
+
+const pictureOf = ({ url = '', title = '', shape = 'card' }) =>
+  pictureOfShowImageUrl(url) ?? { key: showKeyOf(title), kind: shape === 'poster' ? 'poster' : 'background' }
+
 const pictureIdOf = ({ key, kind }) => `${kind}|${key}`
+
+const finalMisses = new Map()
 
 const resolvedTicks = shallowReactive(new Map())

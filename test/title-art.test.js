@@ -90,3 +90,23 @@ test('TitleArt shows the picture once a resolve event arrives and the picture lo
     stop()
   }
 })
+
+test('a final miss is forgotten when its picture resolves while no tile shows it, so a remount loads the picture', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  answering(['final'])
+  const url = '/api/epg/show-image?title=Rake&shape=poster&w=384'
+  try {
+    const first = mountArt(url)
+    first.state.onError()
+    mock.timers.tick(4000)
+    await flush()
+    first.stop()
+    assert.equal(mountArt(url).state.failed.value, true)
+    applyResolvedArt([{ key: 'rake', kind: 'poster', stamp: null }])
+    const again = mountArt(url)
+    assert.equal(again.state.failed.value, false)
+    again.stop()
+  } finally {
+    mock.timers.reset()
+  }
+})

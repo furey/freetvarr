@@ -1,5 +1,5 @@
 import { ref } from '/vendor/vue.esm-browser.prod.js'
-import { applyResolvedArt, loadArtworkStamps } from '/shared/artwork-stamps.js'
+import { applyResolvedArt, forgetFinalMisses, loadArtworkStamps } from '/shared/artwork-stamps.js'
 
 export const ART_STREAM_PATH = '/api/activity/stream'
 export const RECONNECT_DELAYS_MS = [1000, 3000, 10_000, 30_000]
@@ -130,7 +130,10 @@ export const createArtStream = ({
 }
 
 const catchUp = ({ reload }) => {
-  if (reload) loadArtworkStamps().catch(() => {})
+  if (reload) {
+    forgetFinalMisses()
+    loadArtworkStamps().catch(() => {})
+  }
   artStreamResets.value += 1
 }
 
