@@ -23,9 +23,12 @@ import {
   resolveConnection,
   getChannelIcon,
   fetchProgrammeImageOrThrow,
+  listChannelTriplets,
   TvheadendError,
 } from './tvheadend.js'
-import { createProgrammeImages } from './programme-images.js'
+import { createProgrammeImages, guideImageHosts } from './programme-images.js'
+import { createGuidePictures, guidePictureCandidatesOf, isGuidePictureOrigin } from './guide-pictures.js'
+import { createFreeviewAu, freeviewAiringsOf, freeviewCandidatesOf, freeviewClient, isFreeviewImageSource } from './freeview-au.js'
 import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
@@ -38,6 +41,7 @@ import {
   createArtResolver,
   episodePictureOrderFrom,
   guideKindsOf,
+  guideSourcesOf,
   stillsAllowed,
   isGuessedFilmKind,
   onlineArtworkOf,
@@ -908,6 +912,7 @@ const rawImageOfOrigin = (origin) => rawImageOrErrorOf(origin).catch(() => null)
 const rawImageOrErrorOf = async (origin) => {
   if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
   if (isFrameOrigin(origin)) return frameGrabs.read(origin)
+  if (isGuidePictureOrigin(origin)) return guidePictures.read(origin)
   if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
     return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
   }
@@ -1237,6 +1242,54 @@ const imagesByTitleOf = (events) => {
   }
   return imagesByTitle
 }
+export const watchGuidePictures = () => {
+  onGuideLoaded((guide) => {
+    saveGuidePictures(guide).catch((err) => console.warn(`[guide-pictures] ${err.message}`))
+  })
+}
+
+export const saveGuidePictures = (guide) => {
+  if (guidePictureRun) return guidePictureRun
+  guidePictureRun = measureJob('guide-pictures', () => runGuidePictures(guide), { kind: 'guide-pictures' })
+    .finally(() => { guidePictureRun = null })
+  return guidePictureRun
+}
+
+export const pruneGuidePictures = async ({ database = db } = {}) => {
+  const [recordings, items, choices] = await Promise.all([
+    database('recordings').whereNull('purged_at').select('title', 'show_title_override'),
+    database('library_items').select('show_title', 'title'),
+    database('show_artwork_choices').select('origin'),
+  ])
+  const keepTitleKeys = new Set([
+    ...recordings.map((row) => showTitleKey(row.show_title_override ?? row.title)),
+    ...items.flatMap((row) => [showTitleKey(row.show_title), showTitleKey(row.title)]),
+  ].filter(Boolean))
+  return guidePictures.prune({ keepTitleKeys, keepOrigins: new Set(choices.map((row) => row.origin)) })
+}
+
+export const guidePictureCoverage = () => guidePictures.savedTitleKeys()
+
+const runGuidePictures = async (guide) => {
+  const programmes = [...guide.programByEventId.values()]
+  const fromGuide = await guidePictures.saveAll({ candidates: guidePictureCandidatesOf(programmes) })
+  const fromFreeview = await saveFreeviewPictures({ guide, programmes, titleKeys: fromGuide.unsaved })
+  return { saved: fromGuide.saved, freeview: fromFreeview, unsaved: fromGuide.unsaved.length }
+}
+
+const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
+  if (!freeviewAu.isOn() || !titleKeys.length) return 0
+  const triplets = await listChannelTriplets({ channels: guide.channels }).catch(() => new Map())
+  const airings = freeviewAiringsOf({ programmes, titleKeys: new Set(titleKeys), triplets, nowMs: Date.now() })
+  const matches = await freeviewAu.matchAirings(airings)
+  for (const [eventId, url] of matches) {
+    freeviewByEvent.delete(eventId)
+    freeviewByEvent.set(eventId, url)
+    if (freeviewByEvent.size > MAX_FREEVIEW_EVENTS) freeviewByEvent.delete(freeviewByEvent.keys().next().value)
+  }
+  return (await guidePictures.saveAll({ candidates: freeviewCandidatesOf({ airings, matches }) })).saved
+}
+
 export const listGuideChannels = async () => (await getCachedGuide()).channels
 
 export const getGuideSnapshot = () => getCachedGuide()
@@ -1338,9 +1391,15 @@ const recordingsStorageInfo = async () => {
 export const clearGuideCache = () => guideCache.clear()
 
 const imageCache = new Map()
-const programmeImages = createProgrammeImages({
-  fetchImage: (source) => (isFallbackImageSource(source) ? artworkClient.getImage({ url: source }) : fetchProgrammeImageOrThrow({ source })),
-})
+const fetchImageSource = (source) => {
+  if (isFreeviewImageSource(source)) return freeviewClient.getImage({ url: source })
+  if (isFallbackImageSource(source)) return artworkClient.getImage({ url: source })
+  return fetchProgrammeImageOrThrow({ source })
+}
+const programmeImages = createProgrammeImages({ fetchImage: guideImageHosts.watch(fetchImageSource) })
+const guidePictures = createGuidePictures({ fetchImage: fetchImageSource })
+const freeviewAu = createFreeviewAu()
+const freeviewByEvent = new Map()
 const PERSON_IMAGE_MEMORY_ENTRIES = 48
 const PERSON_IMAGE_MEMORY_BYTES = 4 * 1024 * 1024
 const personImages = createProgrammeImages({
@@ -1365,7 +1424,11 @@ const artResolver = createArtResolver({
     choice: async (ctx) => ({ sources: [await chosenOriginOf(ctx)].filter(Boolean) }),
     plex: plexStage,
     recording: async ({ title }) => ({ sources: await recordingImagesFor(title) }),
-    guide: async ({ title }) => ({ sources: (await guideImagesFor(title)).slice(0, MAX_IMAGE_SOURCES) }),
+    guide: async ({ title }) => ({
+      sources: guideSourcesOf({ saved: await guidePictures.originFor(title), live: await guideImagesFor(title) }).slice(0, MAX_IMAGE_SOURCES),
+    }),
+    saved: async ({ title }) => ({ sources: [await guidePictures.originFor(title)].filter(Boolean) }),
+    freeview: async ({ eventId }) => ({ sources: [freeviewByEvent.get(String(eventId))].filter(Boolean) }),
     online: onlineStage,
     own: async ({ ownSource }) => ({ sources: [ownSource].filter(Boolean) }),
     'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
@@ -1388,6 +1451,8 @@ const thumbnailStore = createThumbnailStore({
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
+const MAX_FREEVIEW_EVENTS = 20_000
+let guidePictureRun = null
 const SHOW_IMAGE_BUDGET_MS = 3000
 const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920

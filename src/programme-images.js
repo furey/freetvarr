@@ -82,3 +82,50 @@ const DEFAULT_MAX_BYTES = 32 * 1024 * 1024
 const DEFAULT_MISS_TTL_MS = 10 * 60 * 1000
 const DEFAULT_MAX_MISSES = 2000
 const DEFAULT_FAILURE_TTL_MS = 60 * 1000
+
+export const createHostTally = ({ windowSize = DEFAULT_TALLY_WINDOW, maxHosts = DEFAULT_TALLY_HOSTS, now = Date.now } = {}) => {
+  const outcomes = new Map()
+
+  const record = ({ source, loaded }) => {
+    const host = hostOfSource(source)
+    if (!host) return
+    const recent = outcomes.get(host) ?? []
+    outcomes.delete(host)
+    recent.push({ loaded: Boolean(loaded), at: now() })
+    if (recent.length > windowSize) recent.shift()
+    outcomes.set(host, recent)
+    if (outcomes.size > maxHosts) outcomes.delete(outcomes.keys().next().value)
+  }
+
+  const watch = (fetchImage) => async (source) => {
+    try {
+      const image = await fetchImage(source)
+      record({ source, loaded: Boolean(image) })
+      return image
+    } catch (error) {
+      record({ source, loaded: false })
+      throw error
+    }
+  }
+
+  const stats = () => new Map([...outcomes].map(([host, recent]) => {
+    const failed = recent.filter((outcome) => !outcome.loaded).length
+    return [host, { tried: recent.length, failed, loaded: recent.length - failed, lastAt: recent.at(-1)?.at ?? null }]
+  }))
+
+  return { record, watch, stats }
+}
+
+export const hostOfSource = (source) => {
+  if (!/^https?:\/\//i.test(String(source ?? ''))) return null
+  try {
+    return new URL(source).hostname.toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+const DEFAULT_TALLY_WINDOW = 200
+const DEFAULT_TALLY_HOSTS = 64
+
+export const guideImageHosts = createHostTally()

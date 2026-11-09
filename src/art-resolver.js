@@ -37,7 +37,9 @@ const EPISODE_CHAINS_BY_ORDER = {
   [EPISODE_FRAME_FIRST]: EPISODE_FRAME_FIRST_CHAIN,
 }
 
-export const GUIDE_ONLY_CHAIN = ['own', 'same-title', 'title', FINAL_STAGE]
+export const GUIDE_ONLY_CHAIN = ['saved', 'own', 'same-title', 'freeview', 'title', FINAL_STAGE]
+
+export const guideSourcesOf = ({ saved = null, live = [] }) => [...new Set([saved, ...live].filter(Boolean))]
 
 export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST }) => {
   if (recordingId != null) return EPISODE_CHAINS_BY_ORDER[episodeOrder] ?? EPISODE_CHAIN

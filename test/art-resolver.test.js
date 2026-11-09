@@ -14,6 +14,7 @@ import {
   onlineArtworkOf,
   createArtResolver,
   guideKindsOf,
+  guideSourcesOf,
   pictureChangeOf,
   pictureStampOf,
 } from '../src/art-resolver.js'
@@ -76,7 +77,7 @@ test('chainOf: each kind runs its own chain, from the owner choice to no picture
     [{ kind: 'series', recordingId: 'r1' }, ['episode', 'title', 'frame', 'none']],
     [{ kind: 'series', recordingId: 'r1', episodeOrder: 'series' }, ['episode', 'title', 'frame', 'none']],
     [{ kind: 'series', recordingId: 'r1', episodeOrder: 'frame' }, ['episode', 'frame', 'title', 'none']],
-    [{ kind: 'movie', eventId: 'e1' }, ['own', 'same-title', 'title', 'none']],
+    [{ kind: 'movie', eventId: 'e1' }, ['saved', 'own', 'same-title', 'freeview', 'title', 'none']],
     [{ kind: 'unknown' }, TITLE_CHAINS.series],
   ]
   for (const [request, chain] of table) assert.deepEqual(chainOf(request), chain, JSON.stringify(request))
@@ -634,4 +635,36 @@ test('a guessed film whose film lookup has not settled saves nothing, so a real 
   })
   assert.equal((await resolver.resolve({ title: 'Fargo' })).pending, true)
   assert.equal(store.rows.size, 0)
+})
+
+test('guide step: the saved copy of a guide picture comes before the live guide address', async () => {
+  const saved = 'guide-picture:0123456789abcdef01234567-v1'
+  const live = 'https://images.example.com/gruen.jpg'
+  assert.deepEqual(guideSourcesOf({ saved, live: [live, saved] }), [saved, live])
+  assert.deepEqual(guideSourcesOf({ live: [live] }), [live])
+  const run = async (sizes) => {
+    const { resolver } = resolverWith({ stages: { guide: async () => ({ sources: guideSourcesOf({ saved, live: [live] }) }) }, sizes })
+    return (await resolver.resolve({ title: 'Gruen' })).origin
+  }
+  assert.equal(await run({ [saved]: WIDE, [live]: WIDE }), saved)
+  assert.equal(await run({ [live]: WIDE }), live)
+})
+
+test('guide airing chain: saved copy, then the airing picture, then other airings, then Freeview, then the title chain', async () => {
+  const run = async ({ saved = null, own = null, freeview = null }) => {
+    const { resolver } = resolverWith({
+      stages: {
+        saved: async () => ({ sources: [saved].filter(Boolean) }),
+        own: async ({ ownSource }) => ({ sources: [ownSource].filter(Boolean) }),
+        'same-title': async () => ({ sources: [] }),
+        freeview: async () => ({ sources: [freeview].filter(Boolean) }),
+      },
+      sizes: { 'guide-picture:saved': WIDE, 'https://images.example.com/own.jpg': WIDE, 'https://freeview.example.com/1.jpg': WIDE },
+    })
+    const found = await resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: own })
+    return [found.stage, found.origin]
+  }
+  assert.deepEqual(await run({ saved: 'guide-picture:saved', own: 'https://images.example.com/own.jpg' }), ['saved', 'guide-picture:saved'])
+  assert.deepEqual(await run({ own: 'https://images.example.com/own.jpg', freeview: 'https://freeview.example.com/1.jpg' }), ['own', 'https://images.example.com/own.jpg'])
+  assert.deepEqual(await run({ own: 'https://images.example.com/gone.jpg', freeview: 'https://freeview.example.com/1.jpg' }), ['freeview', 'https://freeview.example.com/1.jpg'])
 })

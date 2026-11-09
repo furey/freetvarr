@@ -588,9 +588,32 @@ export const listServiceMuxes = async (conn) => {
     muxName: muxDisplayName({ multiplex: s.multiplex, network: s.network }),
     enabled: s.enabled !== false,
     serviceType: s.dvb_servicetype,
+    sid: s.sid ?? null,
   }]))
   serviceMuxCache = { value, expiresAt: Date.now() + SERVICE_MUX_TTL_MS }
   return value
+}
+
+export const listChannelTriplets = async ({ channels = [], conn } = {}) => {
+  const c = conn || (await resolveConnection())
+  const [services, muxes] = await Promise.all([listServiceMuxes(c), listMuxIdentities(c)])
+  return new Map(channels.map((channel) => [String(channel.id), [...new Set((channel.serviceIds || [])
+    .map((id) => services.get(id))
+    .filter((service) => service && service.enabled !== false)
+    .map((service) => dvbTripletOf({ ...muxes.get(service.muxId), sid: service.sid }))
+    .filter(Boolean))]]))
+}
+
+export const dvbTripletOf = ({ onid, tsid, sid }) => {
+  if ([onid, tsid, sid].some((part) => part == null || part === '')) return null
+  const parts = [onid, tsid, sid].map(Number)
+  if (!parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 0xffff)) return null
+  return parts.map((part) => part.toString(16).padStart(4, '0')).join(':')
+}
+
+const listMuxIdentities = async (conn) => {
+  const body = await apiGet(mpegts/mux/grid, { limit: 10000 }, conn)
+  return new Map((body?.entries || []).map((m) => [m.uuid, { onid: m.onid, tsid: m.tsid }]))
 }
 
 export const muxDisplayName = ({ multiplex, network }) =>

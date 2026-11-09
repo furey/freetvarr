@@ -155,7 +155,7 @@ const sameDrive = (a, b) => a.total === b.total && a.free === b.free
 
 const doctorFinding = (check) => {
   if (check.status === 'fail') return { level: 'fail', sentence: `The ${checkSubjectOf(check)} check failed.` }
-  if (check.status === 'warn') return { level: 'warn', sentence: `The ${checkSubjectOf(check)} check has a warning.` }
+  if (check.status === 'warn') return { level: 'warn', sentence: check.summary ?? `The ${checkSubjectOf(check)} check has a warning.` }
   return null
 }
 
