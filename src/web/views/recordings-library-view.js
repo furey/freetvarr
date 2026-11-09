@@ -24,6 +24,7 @@ import {
 import { diagnoseRecordingError } from '/recording-error.js'
 import { scheduledCountOfState } from '/scheduled-groups.js'
 import { showHrefOf } from '/show-key.js'
+import { showImageUrlOf } from '/artwork-stamps.js'
 import { recordingsPageOf } from '/route-table.js'
 import { libraryBackOf } from '/back-target.js'
 import { createRowScrollMemory } from '/row-scroll-memory.js'
@@ -155,7 +156,7 @@ export const RecordingsLibraryView = {
               <a :href="showHrefOf(show.title)" :class="group.shape === 'poster' ? 'ui-poster' : 'ui-card'" :aria-label="posterLabel(show, group)"
                 @contextmenu="posterPress.onContextMenu($event, show)" @pointerdown="posterPress.onPointerDown($event, show)"
                 @pointermove="posterPress.onPointerMove" @pointerup="posterPress.onPointerEnd" @pointercancel="posterPress.onPointerEnd" @pointerleave="posterPress.onPointerEnd">
-                <title-art :shape="group.shape" :title="show.title" :src="group.shape === 'poster' ? posterSrc(show) : cardSrc(show)">
+                <title-art :shape="group.shape" :title="show.title" :src="group.shape === 'poster' ? posterSrc(show) : cardSrc(show)" :fallback-src="group.shape === 'poster' ? show.image || '' : ''">
                   <span v-if="show.recordingNow" class="ui-art-badge"><span class="ui-live-badge"><span class="ui-live-dot"></span>Rec</span></span>
                   <span v-if="group.key === 'shows' && unwatchedCountOf(show)" class="ui-art-badge is-end"><span class="ui-count-badge" :aria-label="unwatchedLabelOf(show)">{{ unwatchedCountOf(show) }}</span></span>
                   <span v-if="recordingPercent(show) != null" class="ui-art-bar ui-progress is-live" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: recordingPercent(show) + '%' }"></span></span>
@@ -358,7 +359,7 @@ export const RecordingsLibraryView = {
       group.key === 'shows' ? unwatchedLabelOf(show) : '',
     ].filter(Boolean).join(', ')
     const posterSrc = (show) => `${show.poster}&w=384`
-    const cardSrc = (show) => show.image || `/api/epg/show-image?title=${encodeURIComponent(show.title)}&w=384`
+    const cardSrc = (show) => show.image || showImageUrlOf({ title: show.title, width: 384, kind: show.kind === 'movie' ? 'movie' : null })
 
     return {
       ...actions,

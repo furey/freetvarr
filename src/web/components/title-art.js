@@ -10,6 +10,7 @@ export const TitleArt = {
     title: { type: String, default: '' },
     shape: { type: String, default: 'card' },
     src: { type: String, default: '' },
+    fallbackSrc: { type: String, default: '' },
   },
   template: `
     <div :class="[shape === 'poster' ? 'ui-poster-art' : 'ui-card-art', 'ui-art-fallback']" :style="fallbackStyle">
@@ -19,7 +20,8 @@ export const TitleArt = {
     </div>
   `,
   setup(props) {
-    const shownSrc = computed(() => stampedShowImage(props.src))
+    const usingFallback = ref(false)
+    const shownSrc = computed(() => stampedShowImage(usingFallback.value ? props.fallbackSrc : props.src))
     const failed = ref(false)
     const attempt = ref(0)
     let retryTimer = null
@@ -56,9 +58,14 @@ export const TitleArt = {
       }, delay)
     }
     const onError = () => {
+      if (!usingFallback.value && props.fallbackSrc) {
+        usingFallback.value = true
+        return
+      }
       failed.value = true
       if (!retryTimer) retryLater()
     }
+    watch(() => [props.src, props.fallbackSrc], () => { usingFallback.value = false })
     watch(shownSrc, () => {
       cancelRetry()
       attempt.value = 0

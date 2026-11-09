@@ -358,6 +358,13 @@ test('showSummariesOf: a chosen background replaces the newest episode picture a
   assert.deepEqual(automatic.artworkStamps, { background: null, poster: null })
 })
 
+test('showSummariesOf: a film poster URL asks for the film kind', () => {
+  const rows = [row({ recording_id: 'h', title: 'Heat', file_path: '/media/movies/Heat (1995)/Heat.ts' })]
+  const [heat] = showSummariesOf({ rows, moviesRoot: '/media/movies' })
+  assert.equal(heat.kind, 'movie')
+  assert.equal(heat.poster, '/api/epg/show-image?title=Heat&shape=poster&kind=movie')
+})
+
 test('libraryEpisodesOf: a chosen background replaces episode pictures and is marked as chosen', () => {
   const rows = [row({ recording_id: 'a', image_path: 'x', aired_at: NOW })]
   const stamps = new Map([['the-block', { background: 'k1' }]])

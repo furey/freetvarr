@@ -122,18 +122,18 @@ test('tvmazeSourcesOf: puts the main landscape background before the poster', ()
   assert.deepEqual(tvmazeSourcesOf({ show }), ['https://tvmaze.test/7.jpg'])
 })
 
-test('plexSourcesOf: keys each library item by title, background art first, token attached', () => {
+test('plexSourcesOf: keys each library item by title, background art first and poster thumb first, token attached', () => {
   const items = [
     { title: 'Bluey (2018)', art: '/library/metadata/1/art/9', thumb: '/library/metadata/1/thumb/9' },
     { title: 'Chefs Ahoy', thumb: '/library/metadata/2/thumb/9' },
     { title: 'No Pictures' },
   ]
   const byTitle = plexSourcesOf({ items, url: 'http://plex:32400', token: 'a b' })
-  assert.deepEqual(byTitle.get('bluey'), [
-    'http://plex:32400/library/metadata/1/art/9?X-Plex-Token=a%20b',
-    'http://plex:32400/library/metadata/1/thumb/9?X-Plex-Token=a%20b',
-  ])
-  assert.deepEqual(byTitle.get('chefs ahoy'), ['http://plex:32400/library/metadata/2/thumb/9?X-Plex-Token=a%20b'])
+  const art = 'http://plex:32400/library/metadata/1/art/9?X-Plex-Token=a%20b'
+  const thumb = 'http://plex:32400/library/metadata/1/thumb/9?X-Plex-Token=a%20b'
+  assert.deepEqual(byTitle.get('bluey'), { sources: [art, thumb], posters: [thumb, art] })
+  const chefs = 'http://plex:32400/library/metadata/2/thumb/9?X-Plex-Token=a%20b'
+  assert.deepEqual(byTitle.get('chefs ahoy'), { sources: [chefs], posters: [chefs] })
   assert.equal(byTitle.has('no pictures'), false)
 })
 
@@ -425,6 +425,30 @@ test('sourcesFor: a Plex film poster is not used for a series of the same name',
   assert.deepEqual(await outOfGuide.sourcesFor('Dune'), ['http://plex/film'])
 })
 
+test('artworkFor: a poster asks for the Plex thumb before the Plex background art', async () => {
+  const entry = { sources: ['http://plex/art', 'http://plex/thumb'], posters: ['http://plex/thumb', 'http://plex/art'], section: 'show' }
+  const artwork = artworkWith({ loadPlexShows: async () => new Map([['bluey', entry]]) })
+  assert.deepEqual(await artwork.artworkFor('Bluey', { shape: 'poster' }), { sources: ['http://plex/thumb', 'http://plex/art'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Bluey'), { sources: ['http://plex/art', 'http://plex/thumb'], pending: false })
+  assert.deepEqual(await artwork.sourcesFor('Bluey', { shape: 'poster' }), ['http://plex/thumb', 'http://plex/art'])
+})
+
+test('artworkFor: a film takes its Plex movie art and never asks TVmaze', async () => {
+  let searches = 0
+  const artwork = artworkWith({
+    loadPlexShows: async () => new Map([
+      ['dune', { sources: ['http://plex/dune-art'], posters: ['http://plex/dune-thumb'], section: 'movie' }],
+      ['fargo', { sources: ['http://plex/fargo-series'], section: 'show' }],
+    ]),
+    hintsFor: async () => ({ isEpisode: true }),
+    searchTvmaze: async () => { searches += 1; return [] },
+  })
+  assert.deepEqual(await artwork.artworkFor('Dune', { kind: 'movie', shape: 'poster' }), { sources: ['http://plex/dune-thumb'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Fargo', { kind: 'movie' }), { sources: [], pending: false })
+  assert.deepEqual(await artwork.sourcesFor('Unknown Film', { kind: 'movie' }), [])
+  assert.equal(searches, 0)
+})
+
 test('plexShowSources: one Plex section failing keeps the other section, each entry tagged with its section', async () => {
   const entries = await plexShowSources({
     loadSettings: async () => ({ url: 'http://plex', token: 't', sections: [{ id: '1', kind: 'show' }, { id: '2', kind: 'movie' }] }),
@@ -433,7 +457,8 @@ test('plexShowSources: one Plex section failing keeps the other section, each en
       return [{ title: 'Dune', thumb: '/thumb' }]
     },
   })
-  assert.deepEqual([...entries], [['dune', { sources: ['http://plex/thumb?X-Plex-Token=t'], section: 'movie' }]])
+  const thumb = 'http://plex/thumb?X-Plex-Token=t'
+  assert.deepEqual([...entries], [['dune', { sources: [thumb], posters: [thumb], section: 'movie' }]])
 })
 
 test('sourcesFor: a failed Plex refresh keeps the last good list', async () => {
@@ -468,7 +493,7 @@ test('plexShowSources: a Plex section that fails keeps its entries from the last
   })
   assert.deepEqual(Object.fromEntries(entries), {
     bluey: { sources: ['http://plex/bluey'], section: 'show' },
-    dune: { sources: ['http://plex/thumb?X-Plex-Token=t'], section: 'movie' },
+    dune: { sources: ['http://plex/thumb?X-Plex-Token=t'], posters: ['http://plex/thumb?X-Plex-Token=t'], section: 'movie' },
   })
 })
 

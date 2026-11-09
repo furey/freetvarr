@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createArtworkLookup, createFallbackArtwork } from '../src/fallback-artwork.js'
+import { createArtworkLookup, createFallbackArtwork, evidenceFingerprintOf, missOf, missReferenceOf } from '../src/fallback-artwork.js'
 import { programmeHintsOf } from '../src/artwork-match.js'
 
 const memoryCache = () => {
@@ -25,7 +25,7 @@ const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 100
     hintsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
-    missTtlMs: 10,
+    missRetryMs: [10, 20, 30, 40],
     failureBackoffMs: 50,
     staleBeforeMs,
     ...(tmdbRetryTtlMs ? { tmdbRetryTtlMs } : {}),
@@ -52,6 +52,73 @@ test('a miss is remembered for the shorter miss TTL', async () => {
   clock.ms = 1011
   await artwork.sourcesFor('Nothing Here')
   assert.equal(calls, 2)
+})
+
+test('misses with the same evidence retry on a widening ladder that stops at the last step', async () => {
+  let calls = 0
+  const { artwork, cache, clock } = fallbackWith({ lookUp: async () => { calls += 1; return null } })
+  const expiries = []
+  for (let step = 0; step < 5; step += 1) {
+    await artwork.sourcesFor('Nothing Here')
+    const row = cache.rows.get('wide-v1:open:nothing here')
+    expiries.push(row.expiresAt - clock.ms)
+    assert.equal(missOf(row.reference).step, step)
+    clock.ms = row.expiresAt - 1
+    await artwork.sourcesFor('Nothing Here')
+    assert.equal(calls, step + 1)
+    clock.ms = row.expiresAt
+  }
+  assert.deepEqual(expiries, [10, 20, 30, 40, 40])
+})
+
+test('a miss is looked up again at once when its evidence changes, and the ladder starts over', async () => {
+  let calls = 0
+  let hints = { title: 'Arrival' }
+  const { artwork, cache, clock } = fallbackWith({
+    hintsFor: async () => hints,
+    lookUp: async () => { calls += 1; return null },
+  })
+  await artwork.sourcesFor('Arrival')
+  clock.ms = 1010
+  await artwork.sourcesFor('Arrival')
+  assert.equal(missOf(cache.rows.get('wide-v1:open:arrival').reference).step, 1)
+  clock.ms = 1011
+  await artwork.sourcesFor('Arrival')
+  assert.equal(calls, 2)
+  hints = { title: 'Arrival', synopsis: 'A linguist works with the military to talk with alien visitors.', releaseYears: [2016] }
+  await artwork.sourcesFor('Arrival')
+  assert.equal(calls, 3)
+  const row = cache.rows.get('wide-v1:open:arrival')
+  assert.equal(missOf(row.reference).step, 0)
+  assert.equal(row.expiresAt, 1021)
+  await artwork.sourcesFor('Arrival')
+  assert.equal(calls, 3)
+})
+
+test('a miss fingerprint changes with kind, years, channels, description, ids, library presence, and the TMDB key', () => {
+  const base = { kind: null, hints: { years: [], releaseYears: [], channelNames: ['ABC'], synopsis: 'A show.' }, ids: null, apiKey: null }
+  const of = (change) => evidenceFingerprintOf({ ...base, ...change })
+  const changed = [
+    of({ kind: 'movie' }),
+    of({ hints: { ...base.hints, releaseYears: [2001] } }),
+    of({ hints: { ...base.hints, channelNames: ['SBS'] } }),
+    of({ hints: { ...base.hints, synopsis: 'Another show.' } }),
+    of({ hints: { ...base.hints, inLibrary: true } }),
+    of({ ids: { tmdb: '12' } }),
+    of({ apiKey: 'k' }),
+  ]
+  assert.equal(new Set([of({}), ...changed]).size, changed.length + 1)
+  assert.equal(of({}), of({ hints: { ...base.hints, title: 'Different title text' } }))
+})
+
+test('a miss saved before fingerprints is looked up again', async () => {
+  let calls = 0
+  const cache = memoryCache()
+  cache.rows.set('wide-v1:open:old miss', { sources: [], reference: 'miss:guide-network-v2', expiresAt: 10_000 })
+  const { artwork } = fallbackWith({ cache, lookUp: async () => { calls += 1; return null } })
+  await artwork.sourcesFor('Old Miss')
+  assert.equal(calls, 1)
+  assert.equal(missOf(cache.rows.get('wide-v1:open:old miss').reference).step, 0)
 })
 
 test('a failed lookup is not cached but backs off for a while', async () => {
@@ -104,7 +171,8 @@ test('a TMDB key gets its own cache entries and is passed to the lookup', async 
 test('a film gets its own cache entry and film hints, so an old show miss does not hide it', async () => {
   const seen = []
   const cache = memoryCache()
-  cache.rows.set('wide-v1:tmdb:training day', { sources: [], reference: 'miss:guide-network-v2', expiresAt: 10_000 })
+  const showMiss = missReferenceOf({ fingerprint: evidenceFingerprintOf({ hints: { title: 'Training Day' }, apiKey: 'k' }) })
+  cache.rows.set('wide-v1:tmdb:training day', { sources: [], reference: showMiss, expiresAt: 10_000 })
   const { artwork } = fallbackWith({
     apiKey: 'k',
     cache,

@@ -343,8 +343,9 @@ export const ShowView = {
     const heroStyle = computed(() => artFallbackStyle(titleHint.value))
     const artStyle = heroStyle
     const versionSuffix = computed(() => (artworkVersion.value ? `&v=${artworkVersion.value}` : ''))
-    const heroSrc = computed(() => (show.value ? `${stampedShowImage(showImageUrlOf({ title: show.value.title, width: 768 }))}${versionSuffix.value}` : ''))
-    const episodeFallbackSrc = computed(() => (show.value ? stampedShowImage(showImageUrlOf({ title: show.value.title, width: 384 })) : ''))
+    const imageKind = computed(() => (show.value?.kind === 'movie' ? 'movie' : null))
+    const heroSrc = computed(() => (show.value ? `${stampedShowImage(showImageUrlOf({ title: show.value.title, width: 768, kind: imageKind.value }))}${versionSuffix.value}` : ''))
+    const episodeFallbackSrc = computed(() => (show.value ? stampedShowImage(showImageUrlOf({ title: show.value.title, width: 384, kind: imageKind.value })) : ''))
     const posterSrc = computed(() => (show.value ? `${stampedShowImage(`${show.value.poster}&w=192`)}${versionSuffix.value}` : ''))
     const heroMeta = computed(() => (show.value ? heroMetaOf({ show: show.value }) : ''))
     const playLabel = computed(() => (show.value ? playButtonLabel({ show: show.value }) : ''))

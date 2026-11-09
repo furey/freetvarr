@@ -1157,7 +1157,7 @@ Pictures and programme info come from the guide, Plex, TVmaze, [Wikidata](https:
 | `GET /api/epg/show-image`      | `title`, `shape` (`poster` or landscape), `kind` (`movie`), `w` | For you, show pages, **Change picture**              |
 | `GET /api/epg/logo/:channelId` | `w` (`96` or `192`)                                             | Channel logos                                        |
 
-`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. A found picture answers `200` with `Cache-Control: public, max-age=86400`. A lookup still running answers `404` with `no-store`, and the client asks again after `5 s`. No picture answers `404` with `max-age=300`.
+`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. A found picture answers `200` with `Cache-Control: public, max-age=86400`. A lookup still running answers `404` with `no-store`, and the client asks again after `5 s`. No picture answers `404` with `no-store`.
 
 ### Picture sources
 
@@ -1169,29 +1169,36 @@ A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE
 flowchart TD
   request["GET /api/epg/show-image"] --> chosen{"Chosen picture<br>for show and kind?"}
   chosen -- yes --> chosenImage["Serve the chosen picture"]
-  chosen -- no --> kind{"kind"}
+  chosen -- no --> local
+  subgraph local["Local pictures"]
+    plex["Plex item<br>for the kind"] --> recording["Recording pictures<br>(landscape only)"]
+  end
+  local -- none --> kind{"kind"}
   subgraph series["Series"]
-    plex["Plex art and thumb"] --> tvmaze["TVmaze"] --> online["Wikipedia and TMDB"]
+    tvmaze["TVmaze"] --> online["Wikipedia and TMDB"]
   end
   subgraph film["Film"]
     onlineFilm["Wikipedia and TMDB"] --> airings["Guide images of other airings"]
   end
-  kind -- series --> plex
+  kind -- series --> tvmaze
   kind -- film --> onlineFilm
 ```
 
-| Source             | Code                                                 | Rule                                                                                                                                                               |
-| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                                                                                                       |
-| Plex               | `plexShowSources` in `src/show-artwork.js`           | `art` and `thumb` of the item with the same title key in the TV and movies sections; a movies item is skipped for a title whose guide airings have episode details |
-| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                                                                                                    |
-| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                    |
+A Plex or recording picture ends the chain, so the title gets no TVmaze or online request.
+
+| Source             | Code                                                 | Rule                                                                                                                                                                                                                                |
+| ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                                                                                                                                                                        |
+| Plex               | `plexShowSources` in `src/show-artwork.js`           | `art` then `thumb` (posters: `thumb` then `art`) of the item with the same title key in the TV and movies sections; a film takes a movies item only; a movies item is skipped for a series whose guide airings have episode details |
+| Recording          | `createLibraryTitles` in `src/library-titles.js`     | Saved recording pictures of the title, newest first; landscape only                                                                                                                                                                 |
+| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                                                                                                                                                                     |
+| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                                                                                     |
 
 `plexShowSources` lists each section with a `15 s` timeout. A section that fails keeps its entries from the last good list, and a refresh where every section fails keeps the whole list for another `10` min. The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
 
 ### Online lookup
 
-`createArtworkLookup` in `src/fallback-artwork.js` finds a Wikidata item or a TMDB record for a title. `programmeHintsOf` in `src/artwork-match.js` gathers hints from up to `8` airings: the longest synopsis, release years, cast names, episode titles, and channel names. A title with no hints and no stored external ids gets no result.
+`createArtworkLookup` in `src/fallback-artwork.js` finds a Wikidata item or a TMDB record for a title. `programmeHintsOf` in `src/artwork-match.js` gathers hints from up to `8` airings: the longest synopsis, release years, cast names, episode titles, and channel names. A title with no guide airings takes its hints from Plex library items and recordings (`libraryHintsOf` in `src/library-titles.js`); a Plex film year counts as a release year. A title with no hints and no stored external ids gets no result.
 
 1. With a TMDB key and stored external ids, the lookup goes straight to TMDB.
 2. Otherwise it searches Wikidata (`wbsearchentities`), then Wikipedia, for each title variant, and keeps items with the same title key.
@@ -1206,7 +1213,7 @@ flowchart TD
 
 | Store                       | Table                                    | Hit    | Miss                                                               |
 | --------------------------- | ---------------------------------------- | ------ | ------------------------------------------------------------------ |
-| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d`                                                              |
+| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `6 h`, `24 h`, `3 d`, then `7 d` while the evidence stays the same |
 | Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without                              |
 | **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                                              |
 | Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`; `6 h` for a film with no guide details (`no-guide-details`) |
@@ -1214,6 +1221,7 @@ flowchart TD
 
 - Keys start with `wide-v1:` and hold the mode (`tmdb` with a key, `open` without), the kind, and the title key; stored external ids end the key.
 - An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old. A refresh with no guide hints, no year, and no stored external ids that finds nothing counts as a failure, so it never replaces a hit.
+- A Wikipedia and TMDB miss stores an evidence fingerprint in `reference` (`miss:guide-network-v2:<step>:<fingerprint>`). The fingerprint covers the kind, years, channel names, synopsis, episode flag, library presence, external ids, and whether a TMDB key is set. A changed fingerprint retries at once and starts the steps again.
 - A failed lookup is not stored; the key waits `10` min in memory.
 - Routes wait for a lookup within a budget, then answer pending: `1.5 s` for guide images and for ratings, `3 s` for a show picture, `6 s` for the **Change picture** list.
 
