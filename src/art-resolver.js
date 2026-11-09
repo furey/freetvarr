@@ -80,6 +80,7 @@ export const createArtResolver = ({
 }) => {
   const inflight = new Map()
   const followUps = new Map()
+  const answeredPending = new Map()
 
   const resolve = async ({ title, kind: hint = null, shape = null, recordingId = null, eventId = null, ...extra }) => {
     const kind = await kindOf({ title, hint })
@@ -93,22 +94,49 @@ export const createArtResolver = ({
       eventId,
     }
     const isTitleRequest = recordingId == null && eventId == null
-    const result = isTitleRequest ? await resolveTitle(ctx) : await runOuterChain({ chain: chainOf(ctx), ctx })
+    const result = isTitleRequest ? await resolveTitle(ctx) : await resolveOuter(ctx)
     return { ...result, kind }
   }
 
   const resolveTitle = async (ctx) => {
-    const result = await resolveTitleWithin({ ctx, budget: budgetMs })
-    if (result.pending) followUp(ctx)
+    const result = await resolveTitleOnce({ ctx, budget: budgetMs })
+    if (result.pending) followUp({ key: resolutionKeyOf(ctx), run: () => resolveTitleOnce({ ctx, budget: followUpBudgetMs }) })
     return result
   }
 
-  const followUp = (ctx) => {
-    const key = resolutionKeyOf(ctx)
+  const resolveOuter = async (ctx) => {
+    const run = (budget) => settleAnswer({ ctx, key: outerKeyOf(ctx), result: runOuterChain({ chain: chainOf(ctx), ctx, budget }) })
+    const result = await run(outerBudgetMs)
+    if (result.pending) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
+    return result
+  }
+
+  const resolveTitleOnce = ({ ctx, budget }) =>
+    settleAnswer({ ctx, key: resolutionKeyOf(ctx), result: resolveTitleWithin({ ctx, budget }) })
+
+  const settleAnswer = async ({ ctx, key, result }) => {
+    const answer = await result
+    if (answer.pending) {
+      rememberPendingAnswer(key)
+      return answer
+    }
+    if (answeredPending.delete(key) && answer.origin) {
+      onResolved({ key: showKeyOf(ctx.title), kind: stampKindOf(ctx.shape), stamp: null })
+    }
+    return answer
+  }
+
+  const rememberPendingAnswer = (key) => {
+    answeredPending.delete(key)
+    answeredPending.set(key, true)
+    if (answeredPending.size > MAX_PENDING_ANSWERS) answeredPending.delete(answeredPending.keys().next().value)
+  }
+
+  const followUp = ({ key, run }) => {
     if (followUps.has(key) || !followUpDelaysMs.length) return
     const attempt = (index) => {
       const timer = setTimeout(async () => {
-        const result = await resolveTitleWithin({ ctx, budget: followUpBudgetMs }).catch(() => PENDING_RESULT)
+        const result = await run().catch(() => PENDING_RESULT)
         if (result.pending && index + 1 < followUpDelaysMs.length) return attempt(index + 1)
         followUps.delete(key)
       }, followUpDelaysMs[index])
@@ -168,8 +196,8 @@ export const createArtResolver = ({
     return settle(FINAL_RESULT)
   }
 
-  const runOuterChain = async ({ chain, ctx }) => {
-    const deadline = now() + outerBudgetMs
+  const runOuterChain = async ({ chain, ctx, budget = outerBudgetMs }) => {
+    const deadline = now() + budget
     let pendingSeen = false
     for (const stage of chain) {
       if (stage === FINAL_STAGE) return pendingSeen ? PENDING_RESULT : FINAL_RESULT
@@ -240,7 +268,10 @@ export const createArtResolver = ({
       stamp: change.stamp,
       show_key: showKey,
     }).catch(() => {})
-    if (change.changed) onResolved({ key: showKey, kind: stampKindOf(ctx.shape), stamp: change.stamp })
+    if (change.changed) {
+      answeredPending.delete(resolutionKeyOf(ctx))
+      onResolved({ key: showKey, kind: stampKindOf(ctx.shape), stamp: change.stamp })
+    }
     return result
   }
 
@@ -261,6 +292,8 @@ export const createArtResolver = ({
 
   return { resolve, forget, invalidate, stampsByKey }
 }
+
+const outerKeyOf = ({ recordingId, eventId }) => (recordingId != null ? `episode|${recordingId}` : `event|${eventId}`)
 
 export const pictureStampOf = ({ origin, transform }) => createHash('sha256')
   .update(`${origin ?? ''}|${transform ?? ''}`)
@@ -357,4 +390,5 @@ const ERROR_RETRY_MS = 5 * 60 * 1000
 const PICTURE_STAMP_LENGTH = 10
 const FOLLOW_UP_DELAYS_MS = [2000, 15_000, 60_000]
 const FOLLOW_UP_BUDGET_MS = 20_000
+const MAX_PENDING_ANSWERS = 2000
 const MISS_RETRY_MS = [6 * HOUR_MS, 24 * HOUR_MS, 3 * 24 * HOUR_MS, 7 * 24 * HOUR_MS]

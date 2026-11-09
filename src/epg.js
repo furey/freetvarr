@@ -31,7 +31,7 @@ import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
-import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
+import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, guideKindsOf, stampKindOf } from './art-resolver.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
 import { createLibraryTitles } from './library-titles.js'
@@ -933,11 +933,19 @@ const findTitleImage = async ({ title, width, kind, shape }) => {
 const imageOfResolution = async ({ resolution, title, width, shape }) => {
   if (resolution.pending) return PENDING_IMAGE
   if (resolution.stage === FINAL_STAGE) return FINAL_MISS
-  const image = await resolveWithin(resolvedThumbnail({ resolution, width, shape }), SHOW_IMAGE_BUDGET_MS)
-  if (image === TIMED_OUT) return PENDING_IMAGE
+  const rendering = resolvedThumbnail({ resolution, width, shape })
+  const image = await resolveWithin(rendering, SHOW_IMAGE_BUDGET_MS)
+  if (image === TIMED_OUT) {
+    publishWhenRendered({ rendering, title, shape })
+    return PENDING_IMAGE
+  }
   if (image) return { image, pending: false }
   return resolution.stage === CHOICE_STAGE ? NO_IMAGE : FINAL_MISS
 }
+
+export const publishWhenRendered = ({ rendering, title, shape, publish = artFeed.publish }) => rendering.then((image) => {
+  if (image) publish({ key: showKeyOf(title), kind: stampKindOf(shape), stamp: null })
+}).catch(() => {})
 
 const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) => thumbnailStore.thumbnailFor({
   key: `art:${shape}:${transform}:${origin}`,

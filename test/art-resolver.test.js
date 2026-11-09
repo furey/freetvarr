@@ -399,3 +399,45 @@ test('a pending answer asks again in the background until the picture resolves, 
   await new Promise((resolve) => setTimeout(resolve, 30))
   assert.deepEqual(resolved, [{ key: 'bluey', kind: 'background', stamp: null }])
 })
+
+test('restart cold: a pending answer that later resolves to the saved picture still tells listeners once', async () => {
+  const resolved = []
+  const store = memoryStore()
+  const plex = { sources: ['plex:/art'], pending: false }
+  const first = resolverWith({ store, stages: { plex: async () => plex }, sizes: { 'plex:/art': WIDE } })
+  await first.resolver.resolve({ title: 'Bluey' })
+  plex.pending = true
+  const { resolver } = resolverWith({
+    store,
+    stages: { plex: async () => plex },
+    sizes: { 'plex:/art': WIDE },
+    onResolved: (change) => resolved.push(change),
+    followUpDelaysMs: [1, 1, 1],
+  })
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).pending, true)
+  plex.pending = false
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  assert.deepEqual(resolved, [{ key: 'bluey', kind: 'background', stamp: null }])
+  await resolver.resolve({ title: 'Bluey' })
+  assert.equal(resolved.length, 1)
+})
+
+test('a guide airing whose own image times out asks again in the background and tells listeners when it loads', async () => {
+  const resolved = []
+  let slow = true
+  const { resolver } = resolverWith({
+    stages: { own: async ({ ownSource }) => ({ sources: [ownSource] }) },
+    loadImage: async (origin) => {
+      if (slow) await new Promise((resolve) => setTimeout(resolve, 50))
+      return { body: Buffer.from(origin) }
+    },
+    now: Date.now,
+    outerBudgetMs: 5,
+    onResolved: (change) => resolved.push(change),
+    followUpDelaysMs: [60, 60, 60],
+  })
+  assert.equal((await resolver.resolve({ title: 'Gruen', eventId: 'e1', ownSource: 'https://example.com/e1.jpg' })).pending, true)
+  slow = false
+  await new Promise((resolve) => setTimeout(resolve, 150))
+  assert.deepEqual(resolved, [{ key: 'gruen', kind: 'background', stamp: null }])
+})
