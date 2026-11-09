@@ -13,7 +13,7 @@ import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
-import { getGuideSnapshot, guidePictureCoverage } from './epg.js'
+import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage } from './epg.js'
 import { guideImageHosts, hostOfSource } from './programme-images.js'
 import { showTitleKey } from './show-artwork.js'
 import { formatDiskSize } from './web/size-format.js'
@@ -707,6 +707,7 @@ export const guidePicturesCheck = ({
   programmes = [],
   hosts = new Map(),
   savedTitleKeys = new Set(),
+  freeviewProblem = null,
   minAirings = PICTURE_HOST_MIN_AIRINGS,
   minTried = PICTURE_HOST_MIN_TRIED,
   failShare = PICTURE_HOST_FAIL_SHARE,
@@ -721,17 +722,19 @@ export const guidePicturesCheck = ({
   if (!failing.length) {
     return {
       status: 'pass',
-      detail: `Guide pictures come from ${joinAnd([...usage.keys()])}. Saved copies cover ${covered(allTitles)} of ${plural(allTitles.size, 'title')}.`,
+      detail: withFreeviewProblem({ detail: `Guide pictures come from ${joinAnd([...usage.keys()])}. Saved copies cover ${covered(allTitles)} of ${plural(allTitles.size, 'title')}.`, freeviewProblem }),
     }
   }
   const worst = failing[0]
   return {
     status: 'warn',
-    detail: failing.map((use) => `${use.host}: ${use.failed} of the last ${plural(use.tried, 'picture')} failed to load. Saved copies cover ${covered(use.titleKeys)} of the ${plural(use.titleKeys.size, 'title')} that use it.`).join(' '),
+    detail: withFreeviewProblem({ freeviewProblem, detail: failing.map((use) => `${use.host}: ${use.failed} of the last ${plural(use.tried, 'picture')} failed to load. Saved copies cover ${covered(use.titleKeys)} of the ${plural(use.titleKeys.size, 'title')} that use it.`).join(' ') }),
     fix: 'Freetvarr shows its saved copies of these pictures, then pictures from other sources. If many titles have no picture, the guide source may have stopped serving them; ask the guide provider.',
     summary: `Guide pictures from ${worst.host} fail to load.`,
   }
 }
+
+const withFreeviewProblem = ({ detail, freeviewProblem }) => (freeviewProblem ? `${detail} ${freeviewProblem}` : detail)
 
 const pictureHostUsageOf = (programmes) => {
   const usage = new Map()
@@ -750,6 +753,7 @@ const pictureHostUsageOf = (programmes) => {
 const readGuidePictureHealth = async () => ({
   hosts: guideImageHosts.stats(),
   savedTitleKeys: await guidePictureCoverage().catch(() => new Set()),
+  freeviewProblem: freeviewPictureProblem(),
 })
 
 export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {

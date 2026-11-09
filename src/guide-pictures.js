@@ -18,10 +18,10 @@ export const GUIDE_PICTURE_MAX_BYTES = 500 * 1024 * 1024
 
 export const isGuidePictureOrigin = (origin) => String(origin ?? '').startsWith(GUIDE_PICTURE_ORIGIN_PREFIX)
 
-export const guidePictureIdOf = (titleKey) => createHash('sha256').update(String(titleKey)).digest('hex').slice(0, PICTURE_ID_LENGTH)
+export const guidePictureIdOf = (source) => createHash('sha256').update(String(source)).digest('hex').slice(0, PICTURE_ID_LENGTH)
 
-export const guidePictureOriginOf = ({ titleKey, savedAt }) =>
-  `${GUIDE_PICTURE_ORIGIN_PREFIX}${guidePictureIdOf(titleKey)}${VERSION_SEPARATOR}${Number(savedAt).toString(36)}`
+export const guidePictureOriginOf = ({ source_url: source, saved_at: savedAt }) =>
+  `${GUIDE_PICTURE_ORIGIN_PREFIX}${guidePictureIdOf(source)}${VERSION_SEPARATOR}${Number(savedAt).toString(36)}`
 
 export const guidePictureCandidatesOf = (programmes = [], { maxSources = MAX_SOURCES_PER_TITLE } = {}) => {
   const byTitle = new Map()
@@ -78,8 +78,8 @@ export const createGuidePictures = ({
     if (index) return index
     if (!loading) {
       loading = database('guide_pictures').select('title_key', 'source_url', 'saved_at')
-        .then((rows) => { index = new Map(rows.map((row) => [row.title_key, row])) })
-        .catch(() => { index = new Map() })
+        .then((rows) => { index = indexOf(rows) })
+        .catch(() => { index = indexOf([]) })
         .finally(() => { loading = null })
     }
     await loading
@@ -88,8 +88,13 @@ export const createGuidePictures = ({
 
   const originFor = async (title) => {
     const titleKey = showTitleKey(title)
-    const row = titleKey ? (await load()).get(titleKey) : null
-    return row ? guidePictureOriginOf({ titleKey, savedAt: row.saved_at }) : null
+    const row = titleKey ? (await load()).byTitle.get(titleKey) : null
+    return row ? guidePictureOriginOf(row) : null
+  }
+
+  const originForSource = async (source) => {
+    const row = source ? (await load()).bySource.get(source) : null
+    return row ? guidePictureOriginOf(row) : null
   }
 
   const read = async (origin) => {
@@ -97,12 +102,6 @@ export const createGuidePictures = ({
     if (!id) return null
     const body = await fs.readFile(path.join(root, `${id}${EXTENSION}`)).catch(() => null)
     return body ? { body, contentType: CONTENT_TYPE } : null
-  }
-
-  const needsSaving = ({ entry, saved }) => {
-    if (!entry.sources.length) return false
-    if (saved && entry.sources.includes(saved.source_url)) return false
-    return !(saved && entry.sources.every(isNotedFailure))
   }
 
   const isNotedFailure = (source) => {
@@ -132,76 +131,67 @@ export const createGuidePictures = ({
     return outcome
   }
 
-  const saveOne = async ({ entry, saved }) => {
-    for (const source of entry.sources) {
-      if (isNotedFailure(source)) continue
-      const { image, error } = await fetchThroughHost(source)
-      if (!image) {
-        noteFailure({ source, ms: error ? errorRetryMs : missRetryMs })
-        continue
-      }
-      const encoded = await encode(image).catch(() => null)
-      if (!encoded?.body?.length) {
-        noteFailure({ source, ms: missRetryMs })
-        continue
-      }
-      await write({ entry, source, encoded, saved })
-      return true
+  const saveSource = async ({ titleKey, source }) => {
+    const { image, error } = await fetchThroughHost(source)
+    if (!image) {
+      noteFailure({ source, ms: error ? errorRetryMs : missRetryMs })
+      return false
     }
-    return false
+    const encoded = await encode(image).catch(() => null)
+    if (!encoded?.body?.length) {
+      noteFailure({ source, ms: missRetryMs })
+      return false
+    }
+    await write({ titleKey, source, encoded })
+    return true
   }
 
-  const write = async ({ entry, source, encoded, saved: previous }) => {
-    const id = guidePictureIdOf(entry.titleKey)
-    const target = path.join(root, `${id}${EXTENSION}`)
+  const write = async ({ titleKey, source, encoded }) => {
+    const target = path.join(root, `${guidePictureIdOf(source)}${EXTENSION}`)
     const temporary = `${target}.tmp`
     await fs.mkdir(root, { recursive: true })
     await fs.writeFile(temporary, encoded.body)
     await fs.rename(temporary, target)
-    const savedAt = Math.max(now(), Number(previous?.saved_at ?? 0) + 1)
-    const row = {
-      title_key: entry.titleKey,
+    const saved = await load()
+    const savedAt = Math.max(now(), Number(saved.byTitle.get(titleKey)?.saved_at ?? 0) + 1)
+    await database('guide_pictures').insert({
       source_url: source,
+      title_key: titleKey,
       host: hostOfSource(source) ?? LOCAL_HOST,
       w: encoded.width,
       h: encoded.height,
       bytes: encoded.body.length,
       saved_at: savedAt,
       last_seen_at: now(),
-    }
-    await database('guide_pictures').insert(row).onConflict('title_key').merge()
-    const saved = await load()
-    saved.set(entry.titleKey, { title_key: entry.titleKey, source_url: source, saved_at: savedAt })
+    }).onConflict('source_url').merge()
+    index = indexOf([...saved.bySource.values(), { title_key: titleKey, source_url: source, saved_at: savedAt }])
   }
 
-  const markSeen = async (titleKeys) => {
-    const keys = [...titleKeys]
-    for (let at = 0; at < keys.length; at += SEEN_BATCH) {
-      await database('guide_pictures').whereIn('title_key', keys.slice(at, at + SEEN_BATCH)).update({ last_seen_at: now() })
+  const markSeen = async ({ candidates, saved }) => {
+    const sources = [...candidates.values()].flatMap((entry) => [
+      ...entry.sources,
+      saved.byTitle.get(entry.titleKey)?.source_url,
+    ]).filter(Boolean)
+    for (let at = 0; at < sources.length; at += SEEN_BATCH) {
+      await database('guide_pictures').whereIn('source_url', sources.slice(at, at + SEEN_BATCH)).update({ last_seen_at: now() })
     }
   }
 
-  const saveAll = async ({ candidates, onProgress = () => {} }) => {
-    const saved = await load()
-    await markSeen(candidates.keys()).catch(() => {})
+  const saveAll = async ({ candidates }) => {
+    await markSeen({ candidates, saved: await load() }).catch(() => {})
     const result = { saved: 0, kept: 0, failed: [], unsaved: [] }
     for (const entry of candidates.values()) {
-      const current = saved.get(entry.titleKey)
-      if (!entry.sources.length) {
-        if (!current) result.unsaved.push(entry.titleKey)
-        continue
+      const saved = await load()
+      const missing = entry.sources.filter((source) => !saved.bySource.has(source))
+      const due = missing.filter((source) => !isNotedFailure(source))
+      result.kept += entry.sources.length - missing.length
+      let failed = missing.length > due.length
+      for (const source of due) {
+        if (await saveSource({ titleKey: entry.titleKey, source }).catch(() => false)) result.saved += 1
+        else failed = true
       }
-      if (!needsSaving({ entry, saved: current })) {
-        result.kept += 1
-        continue
-      }
-      onProgress(entry)
-      const ok = await saveOne({ entry, saved: current }).catch(() => false)
-      if (ok) result.saved += 1
-      else {
-        result.failed.push(entry.titleKey)
-        if (!current) result.unsaved.push(entry.titleKey)
-      }
+      if (failed) result.failed.push(entry.titleKey)
+      if (!(await load()).byTitle.has(entry.titleKey)) result.unsaved.push(entry.titleKey)
     }
     return result
   }
@@ -209,34 +199,41 @@ export const createGuidePictures = ({
   const prune = async ({ keepTitleKeys = new Set(), keepOrigins = new Set() } = {}) => {
     const rows = await database('guide_pictures').select('title_key', 'source_url', 'bytes', 'last_seen_at').orderBy('last_seen_at', 'asc')
     const chosenIds = new Set([...keepOrigins].map(idOfOrigin).filter(Boolean))
-    const isKept = (row) => keepTitleKeys.has(row.title_key) || keepOrigins.has(row.source_url) || chosenIds.has(guidePictureIdOf(row.title_key))
-    const expired = rows.filter((row) => !isKept(row) && Number(row.last_seen_at) < now() - keepMs)
-    const gone = new Set(expired.map((row) => row.title_key))
-    let total = rows.filter((row) => !gone.has(row.title_key)).reduce((sum, row) => sum + Number(row.bytes), 0)
+    const isKept = (row) => keepTitleKeys.has(row.title_key) || keepOrigins.has(row.source_url) || chosenIds.has(guidePictureIdOf(row.source_url))
+    const gone = new Set(rows.filter((row) => !isKept(row) && Number(row.last_seen_at) < now() - keepMs).map((row) => row.source_url))
+    let total = rows.filter((row) => !gone.has(row.source_url)).reduce((sum, row) => sum + Number(row.bytes), 0)
     for (const row of rows) {
       if (total <= maxBytes) break
-      if (gone.has(row.title_key) || isKept(row)) continue
-      gone.add(row.title_key)
+      if (gone.has(row.source_url) || isKept(row)) continue
+      gone.add(row.source_url)
       total -= Number(row.bytes)
     }
     await remove([...gone])
     return gone.size
   }
 
-  const remove = async (titleKeys) => {
-    for (let at = 0; at < titleKeys.length; at += SEEN_BATCH) {
-      await database('guide_pictures').whereIn('title_key', titleKeys.slice(at, at + SEEN_BATCH)).del()
+  const remove = async (sources) => {
+    for (let at = 0; at < sources.length; at += SEEN_BATCH) {
+      await database('guide_pictures').whereIn('source_url', sources.slice(at, at + SEEN_BATCH)).del()
     }
-    const saved = await load()
-    for (const titleKey of titleKeys) {
-      saved.delete(titleKey)
-      await fs.rm(path.join(root, `${guidePictureIdOf(titleKey)}${EXTENSION}`), { force: true })
-    }
+    const removed = new Set(sources)
+    index = indexOf([...(await load()).bySource.values()].filter((row) => !removed.has(row.source_url)))
+    for (const source of sources) await fs.rm(path.join(root, `${guidePictureIdOf(source)}${EXTENSION}`), { force: true })
   }
 
-  const savedTitleKeys = async () => new Set((await load()).keys())
+  const savedTitleKeys = async () => new Set((await load()).byTitle.keys())
 
-  return { saveAll, originFor, read, prune, savedTitleKeys }
+  return { saveAll, originFor, originForSource, read, prune, savedTitleKeys }
+}
+
+const indexOf = (rows) => {
+  const bySource = new Map(rows.map((row) => [row.source_url, row]))
+  const byTitle = new Map()
+  for (const row of bySource.values()) {
+    const current = byTitle.get(row.title_key)
+    if (!current || Number(row.saved_at) > Number(current.saved_at)) byTitle.set(row.title_key, row)
+  }
+  return { bySource, byTitle }
 }
 
 const idOfOrigin = (origin) => {

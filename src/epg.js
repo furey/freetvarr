@@ -1270,6 +1270,25 @@ export const pruneGuidePictures = async ({ database = db } = {}) => {
 
 export const guidePictureCoverage = () => guidePictures.savedTitleKeys()
 
+export const freeviewPictureProblem = () => freeviewProblem
+
+const channelTripletsFor = async (channels) => {
+  try {
+    const triplets = await listChannelTriplets({ channels })
+    freeviewProblem = null
+    return triplets
+  } catch (err) {
+    const problem = freeviewProblemOf(err)
+    if (problem !== freeviewProblem) console.warn(`[guide-pictures] Freeview pictures are off: ${problem}`)
+    freeviewProblem = problem
+    return null
+  }
+}
+
+export const freeviewProblemOf = (err) => (err?.status === 401 || err?.status === 403
+  ? `TVHeadend refused the service and mux lists (HTTP ${err.status}), so Freeview pictures are off. Give the Freetvarr user in TVHeadend the Admin right.`
+  : `Freetvarr could not read the service and mux lists from TVHeadend (${err?.message ?? 'no answer'}), so Freeview pictures are off.`)
+
 const runGuidePictures = async (guide) => {
   const programmes = [...guide.programByEventId.values()]
   const fromGuide = await guidePictures.saveAll({ candidates: guidePictureCandidatesOf(programmes) })
@@ -1279,7 +1298,8 @@ const runGuidePictures = async (guide) => {
 
 const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
   if (!freeviewAu.isOn() || !titleKeys.length) return 0
-  const triplets = await listChannelTriplets({ channels: guide.channels }).catch(() => new Map())
+  const triplets = await channelTripletsFor(guide.channels)
+  if (!triplets) return 0
   const airings = freeviewAiringsOf({ programmes, titleKeys: new Set(titleKeys), triplets, nowMs: Date.now() })
   const matches = await freeviewAu.matchAirings(airings)
   for (const [eventId, url] of matches) {
@@ -1428,9 +1448,12 @@ const artResolver = createArtResolver({
       sources: guideSourcesOf({ saved: await guidePictures.originFor(title), live: await guideImagesFor(title) }).slice(0, MAX_IMAGE_SOURCES),
     }),
     saved: async ({ title }) => ({ sources: [await guidePictures.originFor(title)].filter(Boolean) }),
-    freeview: async ({ eventId }) => ({ sources: [freeviewByEvent.get(String(eventId))].filter(Boolean) }),
+    freeview: async ({ eventId }) => {
+      const source = freeviewByEvent.get(String(eventId))
+      return { sources: [await guidePictures.originForSource(source), source].filter(Boolean) }
+    },
     online: onlineStage,
-    own: async ({ ownSource }) => ({ sources: [ownSource].filter(Boolean) }),
+    own: async ({ ownSource }) => ({ sources: [ownSource, await guidePictures.originForSource(ownSource)].filter(Boolean) }),
     'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
     episode: async ({ recordingId }) => ({ sources: [`${RECORDING_ORIGIN_PREFIX}${recordingId}`] }),
     frame: frameStage,
@@ -1453,6 +1476,7 @@ const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
 const MAX_FREEVIEW_EVENTS = 20_000
 let guidePictureRun = null
+let freeviewProblem = null
 const SHOW_IMAGE_BUDGET_MS = 3000
 const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920

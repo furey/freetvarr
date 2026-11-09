@@ -238,7 +238,7 @@ Freetvarr stores state in SQLite through Knex and [better-sqlite3](https://githu
 | `external_ids`              | `0036`                           | TVDB, TMDB, and IMDb ids per `title_key`, `kind`, and `source`                                                                                                                                                                                                                                                                             | `src/external-ids-store.js`            |
 | `show_identity_picks`       | `0037`                           | The picked or declined identity per `title_key` and `network_family`                                                                                                                                                                                                                                                                       | `src/show-identity-store.js`           |
 | `art_resolutions`           | `0044`, `0045`                   | The resolved picture per title key, kind, and shape: `stage`, `origin`, `transform`, evidence `fingerprint`, `miss_step`, `next_check_at`, the picture `stamp`, and the client `show_key`                                                                                                                                                  | `src/art-resolver.js`                  |
-| `guide_pictures`            | `0046`                           | One saved guide picture per title key: `source_url`, `host`, `w`, `h`, `bytes`, `saved_at`, `last_seen_at`                                                                                                                                                                                                                                 | `src/guide-pictures.js`                |
+| `guide_pictures`            | `0046`                           | One saved guide picture per image address (`source_url`), with its `title_key`, `host`, `w`, `h`, `bytes`, `saved_at`, `last_seen_at`                                                                                                                                                                                                      | `src/guide-pictures.js`                |
 
 ### Config folder
 
@@ -1183,14 +1183,14 @@ The server sets the kind (`canonicalKindOf`). The `kind` in the URL is a hint on
 
 Each kind runs its own chain of steps (`chainOf`). The steps are functions that `src/epg.js` passes in; each gives picture origins (`plex:<path>`, `recording:<id>`, `upload:<id>`, or a URL).
 
-| Request                  | Chain                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------- |
-| Film                     | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none           |
-| Series                   | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none           |
-| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none                          |
-| Episode (`recordingId`)  | recording picture, the title chain, frame, none                                             |
-| Episode, frame first     | recording picture, frame, the title chain, none                                             |
-| Guide airing (`eventId`) | saved copy, the airing's image, other airings of the title, Freeview, the title chain, none |
+| Request                  | Chain                                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Film                     | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none                                                         |
+| Series                   | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none                                                         |
+| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none                                                                        |
+| Episode (`recordingId`)  | recording picture, the title chain, frame, none                                                                                           |
+| Episode, frame first     | recording picture, frame, the title chain, none                                                                                           |
+| Guide airing (`eventId`) | the airing's image, then its saved copy; the title copy; other airings of the title; Freeview, then its saved copy; the title chain; none |
 
 ```mermaid
 flowchart TD
@@ -1262,14 +1262,14 @@ The daily cache prune (`pruneFrameGrabs` in `src/epg.js`) deletes frames, marks,
 
 ### Saved guide pictures
 
-`createGuidePictures` in `src/guide-pictures.js` keeps one copy of the guide picture of each title, so a title keeps its picture when the guide host stops serving it. In Australia the free-to-air guide pictures of the mjh feed come from one host, and about a third of them answer `403`.
+`createGuidePictures` in `src/guide-pictures.js` keeps one copy of each guide image address, so an airing keeps its picture when the guide host stops serving it. The title copy of a title is its copy with the newest `saved_at`. An airing uses its own picture first and falls to the title copy only when its own picture and the saved copy of its address both fail. In Sydney about `1,150` addresses at about `34 KB` each make about `40 MB`. In Australia the free-to-air guide pictures of the mjh feed come from one host, and about a third of them answer `403`.
 
 1. `watchGuidePictures` in `src/epg.js` runs `saveGuidePictures` after each guide load (`onGuideLoaded`), one run at a time, as the quiet job `guide-pictures`.
 1. `guidePictureCandidatesOf` groups the airings by title key (`showTitleKey`) with up to `4` distinct image addresses, earliest airing first.
-1. `saveAll` sets `last_seen_at` for every title in the guide. It skips a title whose saved `source_url` is still one of its addresses, and a title with a saved copy whose addresses all failed recently.
+1. `saveAll` sets `last_seen_at` for every address in the guide and for the title copy of every title in the guide. It downloads each address that has no copy and did not fail recently. A title with no copy at the end is `unsaved`.
 1. It downloads one picture at a time. Each host has a `createHostLimiter` with a `1 s` gap and a `createCircuitBreaker` from `src/outbound-http.js`. A failed address waits `24 h` (`404`, `403`, not an image) or `1 h` (an error) in memory.
-1. `encodeGuidePicture` writes WebP at quality `72`, at most `1280` px wide, to `artwork/guide/<id>.webp` (`<id>`: the first `24` hex characters of a SHA-256 hash of the title key), then upserts the `guide_pictures` row.
-1. The origin is `guide-picture:<id>-v<saved_at in base 36>`, so a new copy changes the stamp. `rawImageOrErrorOf` reads it from the file.
+1. `encodeGuidePicture` writes WebP at quality `72`, at most `1280` px wide, to `artwork/guide/<id>.webp` (`<id>`: the first `24` hex characters of a SHA-256 hash of the address), then upserts the `guide_pictures` row.
+1. The origin is `guide-picture:<id>-v<saved_at in base 36>`, so a new title copy changes the stamp. `originForSource` gives the copy of an address, `originFor` the title copy. `rawImageOrErrorOf` reads it from the file.
 
 The daily cache prune calls `pruneGuidePictures`: it deletes copies not seen in the guide for `180 d`, then the oldest seen while the copies are over `500 MB`. It keeps a copy whose title is a recording that is not purged or a Plex library item (`show_title` or `title`), and a copy whose origin or `source_url` is an owner choice.
 
@@ -1282,7 +1282,7 @@ The daily cache prune calls `pruneGuidePictures`: it deletes copies not seen in 
 - `freeviewAiringsOf` takes the next `2` airings of each title (from `1 h` ago) on a channel with a triplet. `matchAirings` keeps the triplets that the region lists (`/content/v1/channels/region/<region>`, cached `24 h`), and reads `/content/v1/epgs/<triplet>` for the six-hour UTC window of the start, and the next or previous window when the start is within `5` min of an edge.
 - `matchListing` takes the listing that starts within `5` min of the airing and whose title agrees (`titlesAgree`: the same key without spaces, one key a word prefix of the other, or at least `2` shared words that are `60%` of the shorter title). It never takes a listing with another title.
 - `listingImageOf` takes the show picture, else the episode picture unless other titles in the window share it (a channel placeholder). Addresses on `img-store-prod.switch.tv` change to `https`.
-- The matched addresses go to `saveAll`, so the title gets a saved copy. The `freeview` step of a guide airing serves the match of that airing from memory (up to `20000` airings).
+- The matched addresses go to `saveAll`, so the title gets a saved copy. When `listChannelTriplets` fails (for example HTTP `403` without the Admin right), the step is off: the log gets one line per new reason, and `guide.pictures` adds the reason to its detail (`freeviewPictureProblem`). The `freeview` step of a guide airing serves the match of that airing from memory (up to `20000` airings).
 
 | Rule    | Value                                                                                                                                |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------ |

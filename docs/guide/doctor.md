@@ -84,9 +84,9 @@ Counts the channels that have a TVHeadend icon. It skips when there are no chann
 
 Checks whether the pictures in the TV guide still load. Each guide programme can name a picture on a website (the host). Freetvarr notes whether each of its recent picture downloads worked, and this check reads those notes; it sends no request of its own. It skips when the TV guide names no pictures.
 
-It warns when a host that serves `50` or more programmes in the TV guide failed at least half of its last picture downloads. The warning names the host, how many downloads failed, and how many of that host's titles have a saved copy. Freetvarr saves one copy of each title's guide picture after each guide refresh and shows that copy first, so a title keeps its picture after the host stops serving it. Titles with no saved copy show a picture from another source.
+It warns when a host that serves `50` or more programmes in the TV guide failed at least half of its last picture downloads. The warning names the host, how many downloads failed, and how many of that host's titles have a saved copy. After each guide refresh, Freetvarr saves a copy of each guide picture. A programme shows its own picture, then the saved copy of that picture, then the title's newest saved copy, so it keeps a picture after the host stops serving it. Titles with no saved copy show a picture from another source.
 
-In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview.com.au/) for titles whose guide picture fails or is missing. It picks the Freeview region from your time zone (the capital city of each state and territory), and matches each programme by its channel and start time. Outside Australia this step is off.
+In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview.com.au/) for titles whose guide picture fails or is missing. It picks the Freeview region from your time zone (the capital city of each state and territory), and matches each programme by its channel and start time. Outside Australia this step is off. It also needs the Admin right in TVHeadend to read the channel lists; without it, this check says that Freeview pictures are off and why.
 
 ## Recordings folder {#paths-recordings}
 

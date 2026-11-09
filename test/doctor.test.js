@@ -789,3 +789,10 @@ test('runDoctor: the guide pictures check reads the guide and the recorded host 
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /^images\.example\.com: 15 of the last 20 pictures failed to load\. Saved copies cover 0 of the 10 titles/)
 })
+
+test('guidePicturesCheck: says when Freeview pictures are off and why', () => {
+  const freeviewProblem = 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off. Give the Freetvarr user in TVHeadend the Admin right.'
+  const check = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 10 }), freeviewProblem })
+  assert.equal(check.status, 'pass')
+  assert.ok(check.detail.endsWith(freeviewProblem))
+})

@@ -77,16 +77,17 @@ test('saveAll saves one WebP per title, at most 1280 px wide, and the saved orig
   assert.equal(row.host, 'images.example.com')
   assert.equal(row.w, GUIDE_PICTURE_MAX_WIDTH)
   assert.equal(row.h, 720)
-  const file = await fs.readFile(path.join(root, `${guidePictureIdOf('bluey')}.webp`))
+  const file = await fs.readFile(path.join(root, `${guidePictureIdOf('https://images.example.com/bluey.jpg')}.webp`))
   assert.equal(row.bytes, file.length)
   assert.equal((await sharp(file).metadata()).format, 'webp')
   const origin = await pictures.originFor('Bluey')
   assert.ok(isGuidePictureOrigin(origin))
   assert.deepEqual(await pictures.read(origin), { body: file, contentType: 'image/webp' })
   assert.equal(await pictures.originFor('Unknown Show'), null)
+  assert.equal(await pictures.originForSource('https://images.example.com/bluey.jpg'), origin)
 })
 
-test('saveAll skips a title already saved from the same address and saves again when the address changes', async () => {
+test('saveAll saves each address of a title once, and the newest saved address is the title copy', async () => {
   const { database, pictures, fetched, clock } = await setUp()
   const first = guidePictureCandidatesOf([airing('Gruen', 'https://images.example.com/gruen-1.jpg', 1)])
   await pictures.saveAll({ candidates: first })
@@ -98,8 +99,10 @@ test('saveAll skips a title already saved from the same address and saves again 
   assert.equal(Number((await database('guide_pictures').first()).last_seen_at), clock.ms)
   await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Gruen', 'https://images.example.com/gruen-2.jpg', 1)]) })
   assert.deepEqual(fetched, ['https://images.example.com/gruen-1.jpg', 'https://images.example.com/gruen-2.jpg'])
-  assert.equal((await database('guide_pictures').first()).source_url, 'https://images.example.com/gruen-2.jpg')
+  assert.deepEqual(await database('guide_pictures').orderBy('source_url').pluck('source_url'), ['https://images.example.com/gruen-1.jpg', 'https://images.example.com/gruen-2.jpg'])
   assert.notEqual(await pictures.originFor('Gruen'), before)
+  assert.equal(await pictures.originForSource('https://images.example.com/gruen-1.jpg'), before)
+  assert.equal(await pictures.originFor('Gruen'), await pictures.originForSource('https://images.example.com/gruen-2.jpg'))
 })
 
 test('a failing address keeps the saved copy, is not asked again for a day, and is counted against its host', async () => {
@@ -154,7 +157,7 @@ test('prune deletes copies unseen for 180 days unless a recording, library item,
   assert.equal(removed, 1)
   assert.deepEqual((await database('guide_pictures').orderBy('title_key').pluck('title_key')), ['chosen show', 'fresh show', 'recorded show'])
   assert.equal(await pictures.originFor('Old Show'), null)
-  await assert.rejects(fs.access(path.join(root, `${guidePictureIdOf('old show')}.webp`)))
+  await assert.rejects(fs.access(path.join(root, `${guidePictureIdOf('https://images.example.com/old.jpg')}.webp`)))
 })
 
 test('prune keeps the copies under the size cap by deleting the oldest seen first', async () => {
@@ -168,4 +171,17 @@ test('prune keeps the copies under the size cap by deleting the oldest seen firs
   const capped = createGuidePictures({ database, root, now: () => clock.ms, maxBytes: cap, fetchImage: async () => null })
   assert.equal(await capped.prune(), 1)
   assert.deepEqual(await database('guide_pictures').orderBy('title_key').pluck('title_key'), ['second', 'third'])
+})
+
+test('an airing keeps its own saved picture while another airing of the title has a different saved copy', async () => {
+  const { pictures } = await setUp()
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([
+    airing('Gardening Australia', 'https://images.example.com/ga-1.jpg', 1),
+    airing('Gardening Australia', 'https://images.example.com/ga-2.jpg', 2),
+  ]) })
+  const first = await pictures.originForSource('https://images.example.com/ga-1.jpg')
+  const second = await pictures.originForSource('https://images.example.com/ga-2.jpg')
+  assert.ok(first && second && first !== second)
+  assert.equal(await pictures.originFor('Gardening Australia'), second)
+  assert.notDeepEqual((await pictures.read(first)).body.length, 0)
 })
