@@ -8,6 +8,7 @@ import {
   TITLE_CHAINS,
   canonicalKindOf,
   chainOf,
+  episodePictureOrderFrom,
   createArtResolver,
   guideKindsOf,
   pictureChangeOf,
@@ -66,10 +67,12 @@ const throwingClient = () => {
 
 test('chainOf: each kind runs its own chain, from the owner choice to no picture', () => {
   const table = [
-    [{ kind: 'movie' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'none']],
-    [{ kind: 'series' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'none']],
+    [{ kind: 'movie' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', 'none']],
+    [{ kind: 'series' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', 'none']],
     [{ kind: 'one-off' }, ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', 'none']],
     [{ kind: 'series', recordingId: 'r1' }, ['episode', 'title', 'frame', 'none']],
+    [{ kind: 'series', recordingId: 'r1', episodeOrder: 'series' }, ['episode', 'title', 'frame', 'none']],
+    [{ kind: 'series', recordingId: 'r1', episodeOrder: 'frame' }, ['episode', 'frame', 'title', 'none']],
     [{ kind: 'movie', eventId: 'e1' }, ['own', 'same-title', 'title', 'none']],
     [{ kind: 'unknown' }, TITLE_CHAINS.series],
   ]
@@ -268,6 +271,56 @@ test('episode chain: the recording picture, then the series picture, then no pic
   assert.equal((await resolver.resolve({ title: 'Bluey', recordingId: 'r2' })).origin, 'plex:/art')
 })
 
+const episodeFrameStages = () => ({
+  plex: async () => ({ sources: ['plex:/art'] }),
+  frame: async ({ recordingId }) => ({ sources: [recordingId ? `frame:${recordingId}` : 'frame:newest'] }),
+})
+
+test('episode pictures: series picture first by default; the setting puts the episode frame first', async () => {
+  const sizes = { 'plex:/art': WIDE, 'frame:r2': WIDE, 'frame:newest': WIDE }
+  const { resolver } = resolverWith({ stages: episodeFrameStages(), sizes })
+  assert.equal((await resolver.resolve({ title: 'Bluey', recordingId: 'r2' })).origin, 'plex:/art')
+  assert.equal((await resolver.resolve({ title: 'Bluey', recordingId: 'r2', episodeOrder: 'series' })).origin, 'plex:/art')
+  const framed = await resolver.resolve({ title: 'Bluey', recordingId: 'r2', episodeOrder: 'frame' })
+  assert.deepEqual([framed.stage, framed.origin], ['frame', 'frame:r2'])
+})
+
+test('episode pictures: the title step uses the newest episode frame, never the episode one', async () => {
+  const { resolver } = resolverWith({
+    stages: { frame: episodeFrameStages().frame },
+    sizes: { 'frame:r2': WIDE, 'frame:newest': WIDE },
+  })
+  const result = await resolver.resolve({ title: 'Bluey', recordingId: 'r2' })
+  assert.deepEqual([result.stage, result.origin], ['frame', 'frame:newest'])
+})
+
+test('frame step: a series with no other picture gets its newest frame; a poster pads it', async () => {
+  const { resolver, calls } = resolverWith({
+    stages: { online: async () => ({ sources: [] }), frame: async () => ({ sources: ['frame:newest'] }) },
+    sizes: { 'frame:newest': WIDE },
+  })
+  const wide = await resolver.resolve({ title: 'Bluey', kind: 'series' })
+  assert.deepEqual([wide.stage, wide.origin, wide.transform], ['frame', 'frame:newest', 'none'])
+  assert.deepEqual(calls.slice(0, 2), ['online', 'frame'])
+  const poster = await resolver.resolve({ title: 'Bluey', kind: 'series', shape: 'poster' })
+  assert.deepEqual([poster.stage, poster.origin, poster.transform], ['derived', 'frame:newest', 'pad'])
+})
+
+test('frame step: a one-off takes its frame before any online lookup', async () => {
+  const { resolver, calls } = resolverWith({
+    stages: { online: async () => ({ sources: ['https://online/wide.jpg'] }), frame: async () => ({ sources: ['frame:f1'] }) },
+    sizes: { 'frame:f1': WIDE, 'https://online/wide.jpg': WIDE },
+  })
+  assert.equal((await resolver.resolve({ title: 'The Ashes', kind: 'one-off' })).origin, 'frame:f1')
+  assert.deepEqual(calls, ['frame'])
+})
+
+test('frame step: a frame still grabbing makes the answer pending and saves nothing', async () => {
+  const { resolver, store } = resolverWith({ stages: { frame: async () => ({ sources: [], pending: true }) } })
+  assert.equal((await resolver.resolve({ title: 'Bluey', kind: 'series' })).pending, true)
+  assert.equal(store.rows.size, 0)
+})
+
 test('a stage that runs past the time budget makes the answer pending', async () => {
   const { resolver } = resolverWith({
     budgetMs: 20,
@@ -440,4 +493,11 @@ test('a guide airing whose own image times out asks again in the background and 
   slow = false
   await new Promise((resolve) => setTimeout(resolve, 150))
   assert.deepEqual(resolved, [{ key: 'gruen', kind: 'background', stamp: null }])
+})
+
+test('episodePictureOrderFrom: series picture first unless the setting says frame', () => {
+  assert.equal(episodePictureOrderFrom(null), 'series')
+  assert.equal(episodePictureOrderFrom('nonsense'), 'series')
+  assert.equal(episodePictureOrderFrom('series'), 'series')
+  assert.equal(episodePictureOrderFrom('frame'), 'frame')
 })

@@ -44,6 +44,8 @@ const ENTRIES = [
   { label: 'TMDB key', page: 'film-tv-info', setting: 'tmdb-key', description: 'The optional key for TMDB posters, ratings, and reviews.', tags: ['api key', 'the movie database', 'token'] },
   { label: 'TMDB API key', page: 'film-tv-info', setting: 'tmdb-key', description: 'Test, save, or remove the TMDB key.', tags: ['api key', 'token'] },
   { label: 'Picture cropping', page: 'film-tv-info', setting: 'picture-cropping', description: 'How Freetvarr crops programme pictures.', tags: ['crop'] },
+  { label: 'Episode pictures', page: 'film-tv-info', setting: 'episode-pictures', description: 'Series picture or episode frame first, for a recording with no picture.', tags: ['artwork', 'images', 'frame', 'still'] },
+  { label: 'Show first', page: 'film-tv-info', setting: 'episode-picture-order', description: 'The series picture or a frame from the recording.', tags: ['episode pictures', 'frame', 'still'] },
   { label: 'Keep faces in view', page: 'film-tv-info', setting: 'faces', description: 'Crops pictures so they show the faces.', tags: ['crop', 'face detection'] },
   { label: 'Movie corrections', page: 'film-tv-info', setting: 'movie-corrections', description: 'Shows you marked Not a movie or This is a movie, or moved between Shows and One-offs.', tags: ['not a movie', 'this is a movie', 'film', 'undo', 'move to shows', 'move to one-offs'] },
 

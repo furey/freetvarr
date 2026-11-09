@@ -1182,13 +1182,14 @@ The server sets the kind (`canonicalKindOf`). The `kind` in the URL is a hint on
 
 Each kind runs its own chain of steps (`chainOf`). The steps are functions that `src/epg.js` passes in; each gives picture origins (`plex:<path>`, `recording:<id>`, `upload:<id>`, or a URL).
 
-| Request                  | Chain                                                                 |
-| ------------------------ | --------------------------------------------------------------------- |
-| Film                     | choice, Plex, recording, guide, online, derived shape, frame, none    |
-| Series                   | choice, Plex, recording, guide, online, derived shape, frame, none    |
-| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none    |
-| Episode (`recordingId`)  | recording picture, the title chain, frame, none                       |
-| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, none |
+| Request                  | Chain                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| Film                     | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none |
+| Series                   | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none |
+| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none                |
+| Episode (`recordingId`)  | recording picture, the title chain, frame, none                                   |
+| Episode, frame first     | recording picture, frame, the title chain, none                                   |
+| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, none             |
 
 ```mermaid
 flowchart TD
@@ -1203,14 +1204,16 @@ flowchart TD
     recording --> guide["Guide images<br>of the title"]
     guide --> online["Online: TVmaze, then Wikipedia and TMDB;<br>films: Wikipedia and TMDB"]
     online --> derived["Derived shape from the first<br>picture that did not fit"]
-    derived --> none["No picture"]
+    derived --> frame["Frame from the newest recording file"]
+    frame --> none["No picture"]
   end
   chain --> store["Save the row in art_resolutions"]
 ```
 
 - A picture fits when it has the asked shape (`poster`: taller than wide; landscape: at least `1.3:1`) and is wide enough (`MIN_WIDTHS`): `300` px for a poster or a Plex picture, `640` px for any other landscape picture, the width the home hero check needs. The first picture that fits ends the chain, so a Plex or recording picture that fits makes no web request.
 - A picture that loads but does not fit is kept. When no later step finds a picture that fits, the derived step uses it: as it is when it has the asked shape, else on a blurred canvas (`portraitPadOf` in `src/show-poster.js` for `2:3` posters, `landscapeOf` in `src/image-thumbnails.js` for `16:9`).
-- The frame step gives nothing yet.
+- The frame step of a title takes the newest of up to `3` files of the title (`frameFilesFor` in `src/library-titles.js`): recordings that are not purged, and Plex library items of the same kind, with a `file_path`. The frame step of an episode takes the file of the recording. A frame that loads but does not fit (a poster) goes to the derived step after it, so a landscape frame can give a padded poster. See [Frame grabs](#frame-grabs).
+- The setting `episode_picture_order` (`series`, the default, or `frame`) sets the episode chain (Settings → Film and TV info → **EPISODE PICTURES**). The title step of an episode resolves the title without the `recordingId`, so it uses the frame of the newest file, as the title does.
 - The online step for a one-off is the same as for a series; the TVmaze and [online lookup](#online-lookup) match rules decide.
 - A picture that fails to load with an error (a timeout, `429`, or `5xx`) is not a miss. `createProgrammeImages` waits `60 s` before it asks that source again, and keeps misses (`404`, not an image) for `10` min. When an earlier step failed with an error, a later picture that fits is saved for `5` min only (`ERROR_RETRY_MS`), and a derived shape or no picture answers pending and is not saved.
 - A Plex picture is saved as `plex:<path>` without the token (`plexOriginOf`); a Plex source from another server is skipped, and `remember` never saves an origin that holds `X-Plex-Token`. Every Plex picture loads through the photo transcoder.
@@ -1218,7 +1221,7 @@ flowchart TD
 - The chain has `3 s` (`RESOLVE_BUDGET_MS`); the airing and episode steps have `1.5 s` (`OUTER_BUDGET_MS`). A step that runs past it, a Plex list still loading, or an online lookup still running makes the answer pending; nothing is saved.
 - `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to resize keeps its row and answers `final` for that request.
 
-`art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
+`art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the version (`art-v2`), the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
 
 | Result                    | Next check                                                         |
 | ------------------------- | ------------------------------------------------------------------ |
@@ -1227,6 +1230,20 @@ flowchart TD
 | A changed fingerprint     | At once                                                            |
 
 `forgetShowArtwork` (**Refresh artwork**) deletes the rows of the title. The daily prune deletes rows whose `next_check_at` is more than `90 d` past.
+
+### Frame grabs
+
+`createFrameGrabs` in `src/frame-grabs.js` takes a frame from a recording file with ffmpeg and saves it as `artwork/frames/<id>.jpg` beside the database (`ARTWORK_PATH`). `<id>` is the first `24` hex characters of a SHA-256 hash of the file path; the origin is `frame:<id>`.
+
+1. `frameFor` answers with the saved frame. With no frame, it puts the file in a queue and answers pending. A file with a `<id>.none` mark, no ffmpeg (`ffmpeg -version` fails, as on an install outside Docker), or a file that the server cannot read answers with no frame.
+1. The queue runs one grab at a time. `ffprobe` reads the length of the file. `frameOffsetsOf` takes half of the time the file runs past `duration_s` as padding, then seeks to `25%`, `40%`, and `60%` of the programme. With no length, it seeks to `120 s`, `300 s`, and `600 s`.
+1. `frameArgsOf` runs `nice -n 19 ffmpeg -ss <offset> -i <file>` for one frame through `yadif`, at the display aspect, at most `1280` px wide, as a JPEG. ffmpeg gets `30 s`.
+1. `isUsableFrame` reads `sharp` stats: the brightness must be from `24` to `232`, and the mean standard deviation of the channels at least `18`. The first usable frame is saved. When frames decode but none is usable, the file gets a `.none` mark. When ffmpeg fails every time, the file waits `1 h` in memory.
+1. A saved frame calls `artFeed.publish` for the title, background and poster, with no stamp, so open pages ask again.
+
+The daily cache prune (`pruneFrameGrabs` in `src/epg.js`) deletes frames and marks whose file is no longer a `file_path` of a recording that is not purged or of a Plex library item, and deletes the `art_resolutions` rows with those origins.
+
+`GET /api/recordings/:recording_id/image` serves the saved recording picture as before. Without one, it serves the episode chain (`findEpisodeThumbnail` in `src/epg.js`), at `1280` px when `w` is missing. `episodeOf` in `src/library.js` adds `picture`, the route URL for every recording, and keeps `image` for the saved picture only. The **New recordings** row and the episode list of a show page use `picture`. The Home hero uses `image`, and its picture pools list the route only for a saved picture, so the hero is the same.
 
 ### Live picture updates
 

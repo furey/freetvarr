@@ -369,6 +369,7 @@ export const episodeOf = ({ row, playable = false }) => {
     channelName: row.channel_name ?? null,
     classification: row.classification ?? null,
     image: recordingImageOf(row),
+    picture: episodePictureOf(row),
     status: row.status,
     libraryState: row.library_state ?? null,
     deletedFromTvhAt: row.deleted_from_tvh_at ?? null,
@@ -639,6 +640,11 @@ const recordingImageOf = (row) => {
   if (isPlexRow(row)) return row.image_url ?? null
   if (isInProgressRow(row)) return inProgressImageOf(row, CARD_IMAGE_WIDTH)
   return row.image_path ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}` : null
+}
+
+const episodePictureOf = (row) => {
+  if (isPlexRow(row) || isInProgressRow(row) || row.image_path) return recordingImageOf(row)
+  return `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${CARD_IMAGE_WIDTH}`
 }
 
 const percentOf = ({ position, duration }) => {

@@ -15,15 +15,21 @@ export const LANDSCAPE_SHAPE = 'landscape'
 export const FINAL_STAGE = 'none'
 
 export const TITLE_CHAINS = {
-  [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', FINAL_STAGE],
-  [SERIES_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', FINAL_STAGE],
+  [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', FINAL_STAGE],
+  [SERIES_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', FINAL_STAGE],
   [ONE_OFF_KIND]: ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', FINAL_STAGE],
 }
 export const EPISODE_CHAIN = ['episode', 'title', 'frame', FINAL_STAGE]
+export const EPISODE_FRAME_FIRST_CHAIN = ['episode', 'frame', 'title', FINAL_STAGE]
+export const SERIES_PICTURE_FIRST = 'series'
+export const EPISODE_FRAME_FIRST = 'frame'
+export const EPISODE_PICTURE_ORDERS = [SERIES_PICTURE_FIRST, EPISODE_FRAME_FIRST]
+
+export const episodePictureOrderFrom = (value) => (value === EPISODE_FRAME_FIRST ? EPISODE_FRAME_FIRST : SERIES_PICTURE_FIRST)
 export const GUIDE_ONLY_CHAIN = ['own', 'same-title', 'title', FINAL_STAGE]
 
-export const chainOf = ({ kind, recordingId = null, eventId = null }) => {
-  if (recordingId != null) return EPISODE_CHAIN
+export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST }) => {
+  if (recordingId != null) return episodeOrder === EPISODE_FRAME_FIRST ? EPISODE_FRAME_FIRST_CHAIN : EPISODE_CHAIN
   if (eventId != null) return GUIDE_ONLY_CHAIN
   return TITLE_CHAINS[kind] ?? TITLE_CHAINS[SERIES_KIND]
 }
@@ -202,7 +208,7 @@ export const createArtResolver = ({
     for (const stage of chain) {
       if (stage === FINAL_STAGE) return pendingSeen ? PENDING_RESULT : FINAL_RESULT
       if (stage === 'title') {
-        const fromTitle = await resolveTitle(ctx)
+        const fromTitle = await resolveTitle({ ...ctx, recordingId: null, eventId: null })
         if (fromTitle.pending) pendingSeen = true
         else if (fromTitle.stage !== FINAL_STAGE) return fromTitle
         continue
@@ -379,7 +385,7 @@ const LOAD_FAILED = Symbol('load failed')
 const NO_SOURCES = { sources: [], pending: false }
 const FINAL_RESULT = { stage: FINAL_STAGE, origin: null, transform: 'none', pending: false }
 const PENDING_RESULT = { stage: null, origin: null, transform: null, pending: true }
-const FINGERPRINT_VERSION = 'art-v1'
+const FINGERPRINT_VERSION = 'art-v2'
 const FINGERPRINT_LENGTH = 24
 const RESOLVE_BUDGET_MS = 3000
 const OUTER_BUDGET_MS = 1500

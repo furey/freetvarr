@@ -442,3 +442,13 @@ test('the hero clock ticks by the minute until a recording slide nears its end',
   assert.equal(heroClockMsOf({ candidates: [ending(Date.parse('2026-10-23T10:01:00Z'))], nowMs }), nowMs)
   assert.equal(heroClockMsOf({ candidates: [{ type: 'upcoming', endsAt: Date.parse('2026-10-23T10:01:00Z') }], nowMs }), minute)
 })
+
+test('new episode slide: an episode picture from the episode chain leaves the hero on the series picture', () => {
+  const shows = [{ key: 'mkr', title: 'MKR', counts: { total: 3, unwatched: 1 } }]
+  const plain = episode({ recordingId: 'n1', showKey: 'mkr', title: 'MKR', positionS: null })
+  const withPicture = { ...plain, picture: '/api/recordings/n1/image?w=384' }
+  const before = slidesFrom({ newEpisodes: [plain], shows, inProgress: [episode({ recordingId: 'w1', showKey: 'mkr', title: 'MKR' })], nowMs, timeZone })
+  const after = slidesFrom({ newEpisodes: [withPicture], shows, inProgress: [episode({ recordingId: 'w1', showKey: 'mkr', title: 'MKR' })], nowMs, timeZone })
+  assert.deepEqual(after.map((slide) => slide.art), before.map((slide) => slide.art))
+  assert.ok(after.length >= 1)
+})

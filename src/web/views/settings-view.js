@@ -40,6 +40,10 @@ const LICENCES = [
   { name: 'Hold music', note: '"Local Forecast – Elevator" by Kevin MacLeod (incompetech.com).', licence: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
 ]
 const GENRE_SOURCES = ['TVmaze', 'Wikidata']
+const EPISODE_PICTURE_CHOICES = [
+  { value: 'series', label: 'Series picture first' },
+  { value: 'frame', label: 'Episode frame first' },
+]
 const DEFAULT_PLEX_PREFS_PATH = '/plex/Library/Application Support/Plex Media Server/Preferences.xml'
 
 const isCustomPlexPrefsPath = (path) => Boolean(path) && path !== DEFAULT_PLEX_PREFS_PATH
@@ -466,6 +470,17 @@ export const SettingsView = {
               </div>
             </div>
           </div>
+          <div class="settings-group" data-setting="episode-pictures">
+            <h3 class="ui-group-label">Episode pictures</h3>
+            <div class="ui-group">
+              <div class="settings-row" data-setting="episode-picture-order">
+                <span id="episode-picture-order-label" class="field-label">Show first</span>
+                <ui-segmented class="episode-picture-choices" aria-labelledby="episode-picture-order-label" :model-value="episodePictureOrder"
+                  :options="episodePictureChoices" @update:model-value="episodePictureOrder = $event" />
+                <p class="settings-hint">For a recording with no picture of its own. An episode frame is a still from about a quarter of the way into the recording.</p>
+              </div>
+            </div>
+          </div>
           <movie-corrections />
         </section>
 
@@ -679,6 +694,7 @@ export const SettingsView = {
     const importUnmatched = ref(true)
     const addToLibraryDefault = ref(true)
     const showArtworkLookup = ref(true)
+    const episodePictureOrder = ref('series')
     const ratingsLookupEnabled = ref(true)
     const faceFocusEnabled = ref(true)
     const reviewsLookupEnabled = ref(true)
@@ -781,6 +797,7 @@ export const SettingsView = {
       importUnmatched.value = s.import_unmatched !== false
       loadRecordingDefaults()
       showArtworkLookup.value = s.show_artwork_lookup !== false
+      episodePictureOrder.value = s.episode_picture_order === 'frame' ? 'frame' : 'series'
       ratingsLookupEnabled.value = s.ratings_lookup_enabled !== false
       faceFocusEnabled.value = s.face_focus_enabled !== false
       reviewsLookupEnabled.value = s.reviews_lookup_enabled !== false
@@ -819,6 +836,7 @@ export const SettingsView = {
         oneoff_root: oneOffRoot.value,
         import_unmatched: importUnmatched.value,
         show_artwork_lookup: showArtworkLookup.value,
+        episode_picture_order: episodePictureOrder.value,
         ratings_lookup_enabled: ratingsLookupEnabled.value,
         face_focus_enabled: faceFocusEnabled.value,
         reviews_lookup_enabled: reviewsLookupEnabled.value,
@@ -1131,7 +1149,7 @@ export const SettingsView = {
       resetting, resetError, askResetFreetvarr,
       mediaRoot, mediaRootTesting, mediaRootStatus, mediaRootStatusKind, testMediaRoot,
       oneOffRoot, oneOffRootTesting, oneOffRootStatus, oneOffRootStatusKind, testOneOffRoot,
-      importUnmatched, addToLibraryDefault, showArtworkLookup, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, genreLookup, genreCredits, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
+      importUnmatched, addToLibraryDefault, showArtworkLookup, episodePictureOrder, episodePictureChoices: EPISODE_PICTURE_CHOICES, ratingsLookupEnabled, faceFocusEnabled, reviewsLookupEnabled, creditsLookupEnabled, genreLookup, genreCredits, tmdbKeySet, licences: LICENCES, dataCredits, plexOneOffSectionId, plexMoviesSectionId,
       moviesRoot, moviesRootTesting, moviesRootStatus, moviesRootStatusKind, testMoviesRoot,
       canSaveSettings, save, loadPlexSections, refreshPlexNow, detectPlexToken,
       discoverPlex, usePlexCandidate,

@@ -182,8 +182,15 @@ Some programmes in a guide feed have no image, or an image link that no longer w
 3. The show's picture on TVmaze, matched by exact title.
 4. With a [TMDB key](#tmdb-key), the film or show's backdrop or poster on [TMDB](https://www.themoviedb.org).
 5. The lead picture of the film or show's English Wikipedia article.
+6. A frame from a recording of the show: a still from about a quarter of the way into the newest recording. For a one-off, this step comes before the online steps.
 
 For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wikidata.org) by exact title, then checks the match before it uses a picture: a year in the synopsis must match the release year, a cast list in the synopsis must name someone in the article, and otherwise names and words from the synopsis must appear in the article. A programme with no synopsis gets no picture from these steps. An episode never matches a film.
+
+### Episode frames
+
+Freetvarr takes a frame with [ffmpeg](https://ffmpeg.org/), which comes with the Docker image. It skips the padding at the start of the recording, then tries up to three points in the programme until it finds a frame that is not black, white, or a flat slate. It makes one frame at a time, at low priority, and deletes a frame when its recording is gone. An install without ffmpeg shows no frames. A frame can show a moment from the programme, such as a contestant or a scene.
+
+A recording with no picture of its own shows the series picture first, then its own frame. To show the episode frame first, go to Settings → WATCHING → Film and TV info and, under **EPISODE PICTURES**, set **Show first** to **Episode frame first**.
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 

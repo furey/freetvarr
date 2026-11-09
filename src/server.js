@@ -135,6 +135,8 @@ import {
   keepGuideWarm,
   watchPendingSkips,
   getGuideSnapshot,
+  episodePictureOrder,
+  pruneFrameGrabs,
 } from './epg.js'
 import {
   adScansRunning,
@@ -204,7 +206,7 @@ import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWat
 import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
 import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
-import { kindHintFrom } from './art-resolver.js'
+import { episodePictureOrderFrom, kindHintFrom } from './art-resolver.js'
 import { artFeed } from './art-feed.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
@@ -242,7 +244,7 @@ import { FOCUS_SETTING, faceFocusEnabledFrom } from './image-focus.js'
 import { imageFocus } from './image-focus-service.js'
 import { canonicalFocusKeysOf } from './web/image-focus.js'
 import { createKnownTitles, createLookupGate, libraryLookupTitles, useLookupGate } from './lookup-gate.js'
-import { startCachePruning } from './cache-prune.js'
+import { pruneLookupCaches, startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import { activity } from './activity.js'
 import { createJobRunStore } from './activity-store.js'
@@ -705,7 +707,8 @@ const knownLookupTitles = async () => {
   ].filter(Boolean)
 }
 useLookupGate(createLookupGate({ isKnownTitle: createKnownTitles({ loadTitles: knownLookupTitles }) }))
-startCachePruning()
+const pruneCachesAndFrames = async () => ({ ...(await pruneLookupCaches()), frames: await pruneFrameGrabs().catch(() => 0) })
+startCachePruning({ prune: pruneCachesAndFrames })
 
 app.get('/api/image-focus', async (req, res) => {
   const keys = canonicalFocusKeysOf(req.query.k).slice(0, MAX_FOCUS_KEYS)
@@ -1634,6 +1637,7 @@ app.get('/api/settings', async (req, res) => {
     reviewsLookup,
     creditsLookup,
     faceFocus,
+    episodeOrder,
   ] = await Promise.all([
     getSetting('tvh_url'),
     getSetting('tvh_username'),
@@ -1663,6 +1667,7 @@ app.get('/api/settings', async (req, res) => {
     getSetting(REVIEWS_SETTING),
     getSetting(CREDITS_SETTING),
     getSetting(FOCUS_SETTING),
+    episodePictureOrder(),
   ])
   res.json({
     tvh_url: tvhUrl,
@@ -1705,6 +1710,7 @@ app.get('/api/settings', async (req, res) => {
     reviews_lookup_enabled: reviewsLookup !== 'false',
     credits_lookup_enabled: creditsLookup !== 'false',
     face_focus_enabled: faceFocusEnabledFrom(faceFocus),
+    episode_picture_order: episodeOrder,
   })
 })
 
@@ -1746,6 +1752,9 @@ app.post('/api/settings', doubleCsrfProtection, async (req, res) => {
   }
   if (body.face_focus_enabled !== undefined) {
     await setSetting(FOCUS_SETTING, body.face_focus_enabled ? 'true' : 'false')
+  }
+  if (body.episode_picture_order !== undefined) {
+    await setSetting('episode_picture_order', episodePictureOrderFrom(body.episode_picture_order))
   }
   if (body.import_unmatched !== undefined) {
     await setSetting('import_unmatched', body.import_unmatched ? 'true' : 'false')

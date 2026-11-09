@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createLibraryTitles, libraryHintsOf, libraryTitleRowsOf, recordingImageSourcesOf } from '../src/library-titles.js'
+import { createLibraryTitles, frameFilesOf, libraryHintsOf, libraryTitleRowsOf, recordingImageSourcesOf } from '../src/library-titles.js'
 
 const FILM_SYNOPSIS = 'A mythic hero leads a desert people against an empire that wants their spice.'
 
@@ -72,4 +72,22 @@ test('createLibraryTitles: a failed load answers with nothing', async () => {
   const titles = createLibraryTitles({ loadRows: async () => { throw new Error('db locked') } })
   assert.equal(await titles.hintsFor('Dune'), null)
   assert.deepEqual(await titles.recordingImagesFor('Dune'), [])
+})
+
+test('frameFilesOf: newest files first, Plex items of the other kind and purged recordings left out', () => {
+  const rows = libraryTitleRowsOf({
+    items: [
+      { kind: 'movie', title: 'Fargo', file_path: '/m/fargo.mkv', duration_s: 5880, aired_at: 1 },
+      { kind: 'episode', show_title: 'Fargo', title: 'Pilot', season: 1, episode: 1, file_path: '/tv/fargo-s01e01.mkv', aired_at: 2 },
+    ],
+    recordings: [
+      { recording_id: 'r1', title: 'Fargo', file_path: '/rec/fargo-new.ts', duration_s: 3600, aired_at: 9 },
+      { recording_id: 'r2', title: 'Fargo', file_path: '/rec/fargo-gone.ts', aired_at: 10, purged_at: '2026-11-01' },
+    ],
+  })
+  assert.deepEqual(frameFilesOf({ rows, kind: 'series' }), [
+    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600 },
+    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null },
+  ])
+  assert.deepEqual(frameFilesOf({ rows, kind: 'movie' }).map((file) => file.filePath), ['/rec/fargo-new.ts', '/m/fargo.mkv'])
 })

@@ -6,7 +6,7 @@ import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
-import { findArtSourceThumbnail } from './epg.js'
+import { findArtSourceThumbnail, findEpisodeThumbnail } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { imageRouteOf, serveImageRoute } from './image-routes.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf, withPlexRows } from './library.js'
@@ -84,13 +84,15 @@ export const warmHomeArtPools = async ({ artPool, loadCandidates = homeCandidate
 export const recordingImageRoute = ({
   loadOriginal = (recordingId) => findArtwork({ kind: 'recording', id: recordingId }),
   thumbnails = recordingThumbnails,
+  episodePicture = findEpisodeThumbnail,
 } = {}) => imageRouteOf({
   path: '/api/recordings/:recording_id/image',
   widthOf: (requested) => (requested === undefined ? ORIGINAL_WIDTH : heroWidthFrom(requested)),
   widthError: HERO_WIDTH_ERROR,
   loadImage: async ({ recording_id: recordingId, width }) => {
     const original = await loadOriginal(recordingId).catch(() => null)
-    if (!original || width === ORIGINAL_WIDTH) return original
+    if (!original) return episodePicture({ recordingId, width: width === ORIGINAL_WIDTH ? EPISODE_FALLBACK_WIDTH : width })
+    if (width === ORIGINAL_WIDTH) return original
     return thumbnails().thumbnailFor({
       key: `recording:${recordingId}:${contentKeyOf(original.body)}`,
       width,
@@ -520,4 +522,5 @@ const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
 const HERO_IMAGE_WIDTH = 768
 const ORIGINAL_WIDTH = 'original'
+const EPISODE_FALLBACK_WIDTH = 1280
 const HERO_WIDTH_ERROR = `w must be one of ${HERO_IMAGE_WIDTHS.join(', ')}`

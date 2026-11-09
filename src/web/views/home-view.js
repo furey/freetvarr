@@ -192,7 +192,7 @@ export const HomeView = {
             <menu-card v-for="r in newRecordingsRow" :key="r.recordingId" class="ui-card" :href="showHref(r)"
               :label="newCardLabel(r)" :more-label="'More for ' + r.title" @menu="openEpisodeMenu(r)">
               <span class="ui-card-art ui-art-fallback" :style="fallbackStyleOf(r.title)">
-                <programme-image :source="r.image" :title="r.title" variant="info" />
+                <programme-image :source="r.picture || r.image" :title="r.title" variant="info" />
                 <span class="ui-art-badge ui-new-badge">NEW</span>
               </span>
               <span class="ui-card-title">{{ r.title }}</span>

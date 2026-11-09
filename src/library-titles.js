@@ -34,7 +34,9 @@ export const createLibraryTitles = ({ loadRows = loadLibraryTitleRows, ttlMs = L
 
   const kindsFor = async (title) => libraryKindsOf(await rowsFor(title))
 
-  return { hintsFor, recordingImagesFor, kindsFor }
+  const frameFilesFor = async (title, { kind = null } = {}) => frameFilesOf({ rows: await rowsFor(title), kind })
+
+  return { hintsFor, recordingImagesFor, kindsFor, frameFilesFor }
 }
 
 export const libraryHintsOf = (rows = []) => {
@@ -58,6 +60,11 @@ export const recordingImageSourcesOf = (rows = []) => newestFirst(rows)
   .filter((row) => row.recording_id && row.has_image)
   .map((row) => `${RECORDING_ORIGIN_PREFIX}${row.recording_id}`)
 
+export const frameFilesOf = ({ rows = [], kind = null }) => newestFirst(rows)
+  .filter((row) => row.file_path && (!kind || !row.library_kind || row.library_kind === kind))
+  .map((row) => ({ filePath: row.file_path, programmeDurationS: row.duration_s ?? null }))
+  .slice(0, MAX_FRAME_FILES)
+
 export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
   ...items.map((item) => (item.kind === 'episode'
     ? {
@@ -68,8 +75,18 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
         synopsis: item.synopsis,
         aired_at: item.aired_at,
         library_kind: 'series',
+        file_path: item.file_path ?? null,
+        duration_s: item.duration_s ?? null,
       }
-    : { title: item.title, synopsis: item.synopsis, year: item.year, aired_at: item.aired_at, library_kind: 'movie' })),
+    : {
+        title: item.title,
+        synopsis: item.synopsis,
+        year: item.year,
+        aired_at: item.aired_at,
+        library_kind: 'movie',
+        file_path: item.file_path ?? null,
+        duration_s: item.duration_s ?? null,
+      })),
   ...recordings.map((recording) => ({
     title: recording.show_title_override ?? recording.title,
     episode_title: recording.episode_title,
@@ -81,14 +98,18 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
     aired_at: recording.aired_at,
     recording_id: recording.recording_id,
     has_image: Boolean(recording.image_path),
+    file_path: recording.purged_at ? null : recording.file_path ?? null,
+    duration_s: recording.duration_s ?? null,
   })),
 ].filter((row) => row.title)
 
 const loadLibraryTitleRows = async () => {
   const [items, recordings] = await Promise.all([
-    db('library_items').select('kind', 'title', 'show_title', 'season', 'episode', 'year', 'synopsis', 'aired_at'),
-    db('recordings')
-      .select('recording_id', 'title', 'show_title_override', 'episode_title', 'season', 'episode', 'synopsis', 'channel_id', 'channel_name', 'aired_at', 'image_path'),
+    db('library_items').select('kind', 'title', 'show_title', 'season', 'episode', 'year', 'synopsis', 'aired_at', 'file_path', 'duration_s'),
+    db('recordings').select(
+      'recording_id', 'title', 'show_title_override', 'episode_title', 'season', 'episode', 'synopsis', 'channel_id', 'channel_name', 'aired_at',
+      'image_path', 'file_path', 'duration_s', 'purged_at',
+    ),
   ])
   return libraryTitleRowsOf({ items, recordings })
 }
@@ -112,3 +133,4 @@ const uniqueOf = (values) => [...new Set(values)]
 
 const LIBRARY_TITLES_TTL_MS = 5 * 60 * 1000
 const MAX_ROWS_PER_TITLE = 20
+const MAX_FRAME_FILES = 3

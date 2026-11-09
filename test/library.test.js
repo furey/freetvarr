@@ -5,6 +5,7 @@ import http from 'node:http'
 import {
   adsOf,
   episodeLimitFrom,
+  episodeOf,
   getLibraryShow,
   getLibraryShows,
   groupTitleOf,
@@ -443,4 +444,14 @@ test('adsOf: the ad state an episode menu needs, including the backup and its ke
     progress: null,
   })
   assert.deepEqual(adsOf({}), { status: null, breakCount: 0, showMode: 'off', cut: false, backup: null, progress: null })
+})
+
+test('episodeOf: picture is the episode route even with no saved picture; image keeps the saved picture only, for the home hero', () => {
+  const recorded = { recording_id: 'r9', title: 'Bluey', status: 'imported', file_path: '/r/bluey.ts' }
+  const plain = episodeOf({ row: recorded })
+  assert.equal(plain.image, null)
+  assert.equal(plain.picture, '/api/recordings/r9/image?w=384')
+  const saved = episodeOf({ row: { ...recorded, image_path: 'recordings/r9.jpg' } })
+  assert.equal(saved.image, '/api/recordings/r9/image?w=384')
+  assert.equal(saved.picture, saved.image)
 })

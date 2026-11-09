@@ -522,7 +522,7 @@ export const ShowView = {
       episodeBadge: (episode) => episodeBadgeOf({ episode, activeIds: activeIds.value }),
       episodeFallbackSrc,
       scheduledWhen: (episode) => scheduledWhenOf({ ms: episode.airedAt, nowMs: nowMs.value, timeZone: tz.value }),
-      episodeImage: (episode) => episode.image || episodeFallbackSrc.value,
+      episodeImage: (episode) => episode.picture || episode.image || episodeFallbackSrc.value,
     }
   },
 }
