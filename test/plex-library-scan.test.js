@@ -229,3 +229,12 @@ test('afterSync: a quick pass with no new episodes asks Plex for no shows and ke
   assert.deepEqual(state.showCalls, [])
   assert.deepEqual(state.externalIds, [])
 })
+
+test('rowToSave: a scan never writes back an older Plex thumb or art than the one a picture refresh saved', () => {
+  const kept = { file_path: '/a.mkv', thumb: '/library/metadata/77/thumb/1731000000', art: '/library/metadata/5/art/1700000000' }
+  const row = { file_path: '/a.mkv', thumb: '/library/metadata/77/thumb/1700000000', art: '/library/metadata/5/art/1731500000' }
+  const saved = rowToSave({ row, kept })
+  assert.equal(saved.thumb, kept.thumb)
+  assert.equal(saved.art, row.art)
+  assert.equal(rowToSave({ row: { ...row, thumb: null }, kept }).thumb, null)
+})
