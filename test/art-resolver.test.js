@@ -360,3 +360,41 @@ const hexOfHue = (hue) => {
   }
   return `#${channel(0)}${channel(8)}${channel(4)}`
 }
+
+test('a series hero gets the 1280 px TVmaze background over a 400 px guide still; the still is used only when nothing fits', async () => {
+  const still = { width: 400, height: 225 }
+  const run = async (online) => {
+    const { resolver } = resolverWith({
+      guideKind: 'series',
+      stages: { guide: async () => ({ sources: ['guide:still'] }), online: async () => ({ sources: online }) },
+      sizes: { 'guide:still': still, 'https://tvmaze.test/bg.jpg': WIDE },
+    })
+    const found = await resolver.resolve({ title: 'The Block' })
+    return [found.stage, found.origin]
+  }
+  assert.deepEqual(await run(['https://tvmaze.test/bg.jpg']), ['online', 'https://tvmaze.test/bg.jpg'])
+  assert.deepEqual(await run([]), ['derived', 'guide:still'])
+})
+
+test('home hero: every title that had a hero-sized picture under the 2.12.3 chain still resolves to one', async () => {
+  const fixture = [
+    { title: 'Plex Show', plex: ['plex:/art'], sizes: { 'plex:/art': WIDE } },
+    { title: 'Recorded Show', recording: ['recording:r1'], sizes: { 'recording:r1': { width: 960, height: 540 } } },
+    { title: 'Small Recording Show', recording: ['recording:r2'], online: ['https://tvmaze.test/a.jpg'], sizes: { 'recording:r2': { width: 400, height: 225 }, 'https://tvmaze.test/a.jpg': WIDE } },
+    { title: 'Guide Still Show', guide: ['guide:s'], online: ['https://tvmaze.test/b.jpg'], sizes: { 'guide:s': { width: 400, height: 225 }, 'https://tvmaze.test/b.jpg': WIDE } },
+    { title: 'Online Film', kind: 'movie', online: ['https://tmdb.test/c.jpg'], sizes: { 'https://tmdb.test/c.jpg': WIDE } },
+    { title: 'Portrait Plex Show', plex: ['plex:/thumb'], sizes: { 'plex:/thumb': POSTER } },
+  ]
+  const heroSized = []
+  for (const item of fixture) {
+    const { resolver } = resolverWith({
+      stages: Object.fromEntries(['plex', 'recording', 'guide', 'online'].map((stage) => [stage, async () => ({ sources: item[stage] ?? [] })])),
+      sizes: item.sizes,
+    })
+    const found = await resolver.resolve({ title: item.title, kind: item.kind })
+    const size = item.sizes[found.origin]
+    const shownWidth = found.transform === 'pad' ? Math.round(Math.min(size.height, 1080) * 16 / 9) : size?.width ?? 0
+    if (shownWidth >= 640) heroSized.push(item.title)
+  }
+  assert.deepEqual(heroSized, fixture.map((item) => item.title))
+})

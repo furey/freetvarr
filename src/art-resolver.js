@@ -69,7 +69,7 @@ export const createArtResolver = ({
   now = Date.now,
   budgetMs = RESOLVE_BUDGET_MS,
   outerBudgetMs = OUTER_BUDGET_MS,
-  minWidth = MIN_LOCAL_WIDTH_PX,
+  minWidths = MIN_WIDTHS,
   hitRecheckMs = HIT_RECHECK_MS,
   missRetryMs = MISS_RETRY_MS,
 }) => {
@@ -129,7 +129,7 @@ export const createArtResolver = ({
       const found = local.found[stage] ?? await stageWithin({ stage, ctx, deadline })
       if (found.pending) return PENDING_RESULT
       for (const origin of found.sources) {
-        const verdict = await judge({ origin, shape: ctx.shape, deadline })
+        const verdict = await judge({ origin, shape: ctx.shape, minWidth: minWidthOf({ minWidths, stage, shape: ctx.shape }), deadline })
         if (verdict.pending) return PENDING_RESULT
         if (verdict.fits) return remember({ ctx, fingerprint, saved, result: { stage, origin, transform: 'none', pending: false } })
         if (verdict.loaded && !weak) weak = { origin, rightShape: verdict.rightShape }
@@ -175,7 +175,7 @@ export const createArtResolver = ({
     return { sources: [...new Set(found?.sources ?? [])], pending: Boolean(found?.pending) }
   }
 
-  const judge = async ({ origin, shape, deadline }) => {
+  const judge = async ({ origin, shape, minWidth, deadline }) => {
     const image = await within(loadImage(origin), deadline - now())
     if (image === TIMED_OUT) return { pending: true }
     if (!image?.body) return { loaded: false }
@@ -236,6 +236,11 @@ const derivedResultOf = (weak) => ({
   pending: false,
 })
 
+const minWidthOf = ({ minWidths, stage, shape }) => {
+  if (shape === POSTER_SHAPE) return minWidths.poster
+  return stage === 'plex' ? minWidths.plex : minWidths.landscape
+}
+
 const chosenTransformOf = (shape) => (shape === POSTER_SHAPE ? 'none' : 'pad')
 
 const resultOfRow = (row) => ({ stage: row.stage, origin: row.origin ?? null, transform: row.transform, pending: false })
@@ -277,7 +282,7 @@ const FINGERPRINT_VERSION = 'art-v1'
 const FINGERPRINT_LENGTH = 24
 const RESOLVE_BUDGET_MS = 3000
 const OUTER_BUDGET_MS = 1500
-const MIN_LOCAL_WIDTH_PX = 300
+const MIN_WIDTHS = { poster: 300, plex: 300, landscape: 640 }
 const HOUR_MS = 60 * 60 * 1000
 const HIT_RECHECK_MS = 7 * 24 * HOUR_MS
 const MISS_RETRY_MS = [6 * HOUR_MS, 24 * HOUR_MS, 3 * 24 * HOUR_MS, 7 * 24 * HOUR_MS]

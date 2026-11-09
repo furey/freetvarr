@@ -1209,7 +1209,7 @@ flowchart TD
   chain --> store["Save the row in art_resolutions"]
 ```
 
-- A picture fits when it has the asked shape (`poster`: taller than wide; landscape: at least `1.3:1`) and is at least `300` px wide. The first picture that fits ends the chain, so a Plex or recording picture that fits makes no web request.
+- A picture fits when it has the asked shape (`poster`: taller than wide; landscape: at least `1.3:1`) and is wide enough (`MIN_WIDTHS`): `300` px for a poster or a Plex picture, `640` px for any other landscape picture, the width the home hero check needs. The first picture that fits ends the chain, so a Plex or recording picture that fits makes no web request.
 - A picture that loads but does not fit is kept. When no later step finds a picture that fits, the derived step uses it: as it is when it has the asked shape, else on a blurred canvas (`portraitPadOf` in `src/show-poster.js` for `2:3` posters, `landscapeOf` in `src/image-thumbnails.js` for `16:9`).
 - The frame step gives nothing yet.
 - The online step for a one-off runs only with lookup evidence: library presence, episode details, a release year, or cast names.
