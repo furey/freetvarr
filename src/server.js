@@ -205,6 +205,7 @@ import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
 import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
 import { kindHintFrom } from './art-resolver.js'
+import { artFeed } from './art-feed.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountPlexLibraryRoutes } from './plex-library-routes.js'
@@ -1394,6 +1395,7 @@ const loadTunerUse = cachedFor({
 mountActivityRoutes({
   app,
   activity,
+  artFeed,
   listSessions: () => [...liveSessions.list(), ...playbackSessions.list()],
   loadRecordings: async () => recordingRowsOf(await getRecordingNow()),
   loadServer: async () => {

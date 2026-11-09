@@ -124,3 +124,11 @@ test('art_resolutions never holds a Plex token, and a Plex source from another s
   assert.equal(epg.plexOriginOf({ source: 'http://other:32400/library/metadata/1/art?X-Plex-Token=t', url: base }), null)
   assert.equal(epg.plexOriginOf({ source: `${base}/library/metadata/1/art?X-Plex-Token=t`, url: base }), 'plex:/library/metadata/1/art')
 })
+
+test('a picture whose resize runs past the request budget tells the art feed when it is ready', async () => {
+  const published = []
+  const publish = (change) => published.push(change)
+  await epg.publishWhenRendered({ rendering: Promise.resolve({ body: Buffer.from('x') }), title: 'Muster Dogs', shape: 'poster', publish })
+  await epg.publishWhenRendered({ rendering: Promise.resolve(null), title: 'Gruen', shape: 'landscape', publish })
+  assert.deepEqual(published, [{ key: 'muster-dogs', kind: 'poster', stamp: null }])
+})

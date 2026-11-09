@@ -95,6 +95,7 @@ import { pollHealth } from '/shared/health.js'
 import { installImageFocus } from '/shared/image-focus.js'
 import { installVisibleViewport } from '/shared/visible-viewport.js'
 import { loadArtworkStamps } from '/shared/artwork-stamps.js'
+import { artStream } from '/shared/art-stream.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
 import { scrollFade } from '/shared/scroll-fade.js'
 import { pageReveal } from '/shared/page-reveal.js'
@@ -231,6 +232,7 @@ loadSyncStatus().then(ensureSyncPolling)
 pollRecordingNow()
 pollHealth()
 loadArtworkStamps().catch(() => {})
+artStream.start()
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') loadArtworkStamps().catch(() => {})
 })

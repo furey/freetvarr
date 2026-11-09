@@ -19,20 +19,30 @@ export const createArtworkStamps = ({ storage = null } = {}) => {
     changed()
   }
 
-  const setStamp = ({ key, kind, stamp }) => {
+  const putStamp = ({ key, kind, stamp }) => {
     const next = { ...stamps.get(key), [kind]: stamp || null }
     if (next.background || next.poster) stamps.set(key, next)
     else stamps.delete(key)
+  }
+
+  const setStamp = (entry) => {
+    putStamp(entry)
+    changed()
+  }
+
+  const setStamps = (entries = []) => {
+    const fresh = entries.filter(({ key, kind, stamp }) => key && STAMP_KINDS.includes(kind) && stamps.get(key)?.[kind] !== stamp)
+    if (!fresh.length) return
+    fresh.forEach(putStamp)
     changed()
   }
 
   const stampOf = ({ title, kind = 'background' }) => stamps.get(showKeyOf(title))?.[kind] || null
 
   const stampUrl = (url) => {
-    if (!isShowImageUrl(url)) return url
-    const params = new URLSearchParams(String(url).split('?')[1] || '')
-    const kind = params.get('shape') === 'poster' ? 'poster' : 'background'
-    return withChoiceStamp({ url, stamp: stampOf({ title: params.get('title') || '', kind }) || SERIES_MATCH_VERSION })
+    const picture = pictureOfShowImageUrl(url)
+    if (!picture) return url
+    return withChoiceStamp({ url, stamp: stamps.get(picture.key)?.[picture.kind] || SERIES_MATCH_VERSION })
   }
 
   const subscribe = (listener) => {
@@ -40,8 +50,16 @@ export const createArtworkStamps = ({ storage = null } = {}) => {
     return () => listeners.delete(listener)
   }
 
-  return { replaceAll, setStamp, stampOf, stampUrl, subscribe }
+  return { replaceAll, setStamp, setStamps, stampOf, stampUrl, subscribe }
 }
+
+export const pictureOfShowImageUrl = (url) => {
+  if (!isShowImageUrl(url)) return null
+  const params = new URLSearchParams(String(url).split('?')[1] || '')
+  return { key: showKeyOf(params.get('title') || ''), kind: params.get('shape') === 'poster' ? 'poster' : 'background' }
+}
+
+export const unstampedUrl = (url) => (isShowImageUrl(url) ? withChoiceStamp({ url, stamp: null }) : url)
 
 export const artKindHintOf = (kind) => ART_KIND_HINTS[kind] ?? null
 
@@ -87,4 +105,5 @@ const save = ({ storage, stamps }) => {
 
 export const artworkStamps = createArtworkStamps({ storage: browserStorage() })
 
+const STAMP_KINDS = ['background', 'poster']
 const ART_KIND_HINTS = { movie: 'movie', series: 'series', oneoff: 'one-off', 'one-off': 'one-off' }

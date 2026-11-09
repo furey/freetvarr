@@ -6,6 +6,7 @@ import {
 import { episodeMetaParts } from '/scheduled-groups.js'
 import { syncTook } from '/sync-when.js'
 import { api } from '/shared/api.js'
+import { artStream, artStreamConnected } from '/shared/art-stream.js'
 import { fmtBytes } from '/shared/format.js'
 import { routeSection } from '/shared/router.js'
 import { now, tz } from '/shared/time.js'
@@ -15,7 +16,6 @@ import { SyncsView } from '/views/syncs-view.js'
 const FULL_REFRESH_MS = 10_000
 const POLL_MS = 2_000
 const FINISHED_SHOWN = 5
-const STREAM_URL = '/api/activity/stream'
 
 const ActivityIcon = {
   props: { kind: { type: String, required: true } },
@@ -284,7 +284,7 @@ const ActivityNow = {
       if (open && jobs.running.some((run) => run.id === open)) loadDetail(open)
     }
 
-    let stream = null
+    let stopJobs = null
     let fullTimer = null
     let pollTimer = null
 
@@ -293,40 +293,39 @@ const ActivityNow = {
       pollTimer = setInterval(refresh, POLL_MS)
     }
 
-    const openStream = () => {
-      if (typeof EventSource !== 'function') return startPolling()
-      stream = new EventSource(STREAM_URL)
-      stream.addEventListener('jobs', (event) => {
-        try {
-          applyJobs(JSON.parse(event.data))
-        } catch {}
-      })
-      stream.onerror = () => {
-        stream?.close()
-        stream = null
-        startPolling()
-      }
+    const stopPolling = () => {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+
+    const pollUnlessStreaming = (streaming) => {
+      if (!fullTimer) return
+      if (streaming) stopPolling()
+      else startPolling()
     }
 
     const stop = () => {
-      stream?.close()
-      stream = null
+      stopJobs?.()
+      stopJobs = null
       clearInterval(fullTimer)
-      clearInterval(pollTimer)
       fullTimer = null
-      pollTimer = null
+      stopPolling()
     }
 
     const start = () => {
       refresh()
-      openStream()
+      stopJobs ??= artStream.onJobs(applyJobs)
+      clearInterval(fullTimer)
       fullTimer = setInterval(refresh, FULL_REFRESH_MS)
+      pollUnlessStreaming(artStreamConnected.value)
     }
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') start()
       else stop()
     }
+
+    watch(artStreamConnected, pollUnlessStreaming)
 
     onMounted(() => {
       start()

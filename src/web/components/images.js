@@ -8,7 +8,7 @@ import {
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
 import { createRequestGate } from '/shared/request-gate.js'
-import { stampedShowImage } from '/shared/artwork-stamps.js'
+import { artResolvedTickOf, stampedShowImage } from '/shared/artwork-stamps.js'
 import { showImageUrlOf } from '/artwork-stamps.js'
 import { primeImageFocus, showLoadedImage } from '/shared/image-focus.js'
 import { logoWidthOf } from '/channel-logo-width.js'
@@ -163,6 +163,15 @@ export const ProgrammeImage = {
       status.value = 'failed'
       retryLater()
     }
+    const resolvedTick = computed(() => artResolvedTickOf({ url: usesSavedSource.value ? props.source : '', title: props.title || '' }))
+    const upgradeWhenResolved = () => {
+      if (status.value !== 'failed' || src.value == null) return
+      const url = src.value
+      const probe = new Image()
+      probe.onload = () => { if (src.value === url && status.value === 'failed') fadeInUpgrade() }
+      probe.src = url
+    }
+    watch(resolvedTick, upgradeWhenResolved)
     watch(src, (url) => { if (url) primeImageFocus(url) }, { immediate: true })
     onMounted(() => {
       revealTitleCardLater()

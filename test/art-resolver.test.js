@@ -10,6 +10,8 @@ import {
   chainOf,
   createArtResolver,
   guideKindsOf,
+  pictureChangeOf,
+  pictureStampOf,
 } from '../src/art-resolver.js'
 import { imageRouteOf, serveImageRoute } from '../src/image-routes.js'
 import { portraitPadOf } from '../src/show-poster.js'
@@ -30,6 +32,7 @@ const memoryStore = () => {
     write: async (row) => { rows.set(row.resolution_key, row) },
     remove: async (key) => { rows.delete(key) },
     removeTitle: async (titleKey) => { for (const [key, row] of rows) if (row.title_key === titleKey) rows.delete(key) },
+    stamped: async () => [...rows.values()].filter((row) => row.stamp),
   }
 }
 
@@ -46,6 +49,7 @@ const resolverWith = ({ stages = {}, sizes = {}, libraryKinds = [], guideKind = 
     sizeOf: async (image) => sizes[image.body.toString()],
     store,
     now: () => clock.ms,
+    followUpDelaysMs: [],
     ...rest,
   })
   return { resolver, calls, store, clock }
@@ -345,4 +349,95 @@ test('an origin that carries a Plex token is never saved', async () => {
   })
   await resolver.resolve({ title: 'Bluey' })
   assert.equal([...store.rows.values()].some((row) => /X-Plex-Token/i.test(row.origin ?? '')), false)
+})
+
+test('a first picture tells listeners with no stamp, and a changed picture gets a saved stamp that stampsByKey lists', async () => {
+  const resolved = []
+  const sources = { plex: ['plex:/old'] }
+  const { resolver, store, clock } = resolverWith({
+    stages: { plex: async () => ({ sources: sources.plex }) },
+    sizes: { 'plex:/old': WIDE, 'plex:/new': WIDE },
+    onResolved: (change) => resolved.push(change),
+  })
+  await resolver.resolve({ title: 'The Block' })
+  assert.deepEqual(resolved, [{ key: 'the-block', kind: 'background', stamp: null }])
+  assert.equal(store.rows.get('series|landscape|block').show_key, 'the-block')
+  await resolver.resolve({ title: 'The Block' })
+  assert.equal(resolved.length, 1)
+  sources.plex = ['plex:/new']
+  clock.ms += 1
+  await resolver.resolve({ title: 'The Block' })
+  const stamp = pictureStampOf({ origin: 'plex:/new', transform: 'none' })
+  assert.deepEqual(resolved[1], { key: 'the-block', kind: 'background', stamp })
+  assert.deepEqual(Object.fromEntries(await resolver.stampsByKey()), { 'the-block': { background: stamp } })
+})
+
+test('pictureChangeOf: a stamp only when the browser may hold an older picture, and kept while the picture stays', () => {
+  const hit = { origin: 'plex:/a', transform: 'none' }
+  const none = { origin: null, transform: 'none' }
+  assert.deepEqual(pictureChangeOf({ saved: null, result: hit }), { changed: true, stamp: null })
+  assert.deepEqual(pictureChangeOf({ saved: null, result: none }), { changed: false, stamp: null })
+  assert.deepEqual(pictureChangeOf({ saved: { ...none }, result: hit }), { changed: true, stamp: null })
+  assert.deepEqual(pictureChangeOf({ saved: { ...hit, stamp: 's1' }, result: hit }), { changed: false, stamp: 's1' })
+  assert.deepEqual(pictureChangeOf({ saved: hit, result: none }), { changed: true, stamp: pictureStampOf(none) })
+  assert.deepEqual(pictureChangeOf({ saved: { ...none, stamp: 's1' }, result: hit }), { changed: true, stamp: pictureStampOf(hit) })
+  assert.match(pictureStampOf(hit), /^[0-9a-f]{10}$/)
+})
+
+test('a pending answer asks again in the background until the picture resolves, then tells listeners', async () => {
+  const resolved = []
+  const online = { sources: [], pending: true }
+  const { resolver } = resolverWith({
+    stages: { online: async () => online },
+    sizes: { 'https://example.com/wide.jpg': WIDE },
+    onResolved: (change) => resolved.push(change),
+    followUpDelaysMs: [1, 1, 1],
+  })
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).pending, true)
+  online.sources = ['https://example.com/wide.jpg']
+  online.pending = false
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  assert.deepEqual(resolved, [{ key: 'bluey', kind: 'background', stamp: null }])
+})
+
+test('restart cold: a pending answer that later resolves to the saved picture still tells listeners once', async () => {
+  const resolved = []
+  const store = memoryStore()
+  const plex = { sources: ['plex:/art'], pending: false }
+  const first = resolverWith({ store, stages: { plex: async () => plex }, sizes: { 'plex:/art': WIDE } })
+  await first.resolver.resolve({ title: 'Bluey' })
+  plex.pending = true
+  const { resolver } = resolverWith({
+    store,
+    stages: { plex: async () => plex },
+    sizes: { 'plex:/art': WIDE },
+    onResolved: (change) => resolved.push(change),
+    followUpDelaysMs: [1, 1, 1],
+  })
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).pending, true)
+  plex.pending = false
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  assert.deepEqual(resolved, [{ key: 'bluey', kind: 'background', stamp: null }])
+  await resolver.resolve({ title: 'Bluey' })
+  assert.equal(resolved.length, 1)
+})
+
+test('a guide airing whose own image times out asks again in the background and tells listeners when it loads', async () => {
+  const resolved = []
+  let slow = true
+  const { resolver } = resolverWith({
+    stages: { own: async ({ ownSource }) => ({ sources: [ownSource] }) },
+    loadImage: async (origin) => {
+      if (slow) await new Promise((resolve) => setTimeout(resolve, 50))
+      return { body: Buffer.from(origin) }
+    },
+    now: Date.now,
+    outerBudgetMs: 5,
+    onResolved: (change) => resolved.push(change),
+    followUpDelaysMs: [60, 60, 60],
+  })
+  assert.equal((await resolver.resolve({ title: 'Gruen', eventId: 'e1', ownSource: 'https://example.com/e1.jpg' })).pending, true)
+  slow = false
+  await new Promise((resolve) => setTimeout(resolve, 150))
+  assert.deepEqual(resolved, [{ key: 'gruen', kind: 'background', stamp: null }])
 })

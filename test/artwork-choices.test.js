@@ -13,7 +13,7 @@ const {
   artworkChoiceKindFrom, choiceStampOf, createArtworkChoices, isCandidateId, isShowKey, plexSourceOf,
 } = await import('../src/artwork-choices.js')
 const {
-  artworkCandidatesOf, candidateIdOf, createArtworkCandidates, mountArtworkChoiceRoutes, plexEntryOf, withChosenOf,
+  artworkCandidatesOf, candidateIdOf, createArtworkCandidates, mergedStampsOf, mountArtworkChoiceRoutes, plexEntryOf, withChosenOf,
 } = await import('../src/artwork-choice-routes.js')
 
 const passThrough = (req, res, next) => next()
@@ -257,4 +257,14 @@ test('createArtworkCandidates offers Plex art for a film that only Plex has and 
   assert.deepEqual(found.candidates.map((entry) => [entry.origin, entry.source]), [['plex:/photo/dune', 'plex']])
   assert.deepEqual(asked, [{ title: 'Dune', kind: 'movie' }])
   assert.equal(await candidates.candidatesFor('nothing'), null)
+})
+
+test('mergedStampsOf: an owner choice beats a resolved stamp per kind, and only non-default stamps are sent', () => {
+  const chosen = new Map([['bluey', { background: 'choice', poster: null }], ['empty', { background: null, poster: null }]])
+  const resolved = new Map([['bluey', { background: 'r1', poster: 'r2' }], ['heat', { poster: 'r3' }]])
+  assert.deepEqual(mergedStampsOf({ chosen, resolved }), {
+    bluey: { background: 'choice', poster: 'r2' },
+    heat: { background: null, poster: 'r3' },
+  })
+  assert.deepEqual(mergedStampsOf({}), {})
 })

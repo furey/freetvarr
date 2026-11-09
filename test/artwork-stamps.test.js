@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ARTWORK_STAMPS_KEY, SERIES_MATCH_VERSION, createArtworkStamps, isShowImageUrl, showImageUrlOf, withChoiceStamp } from '../src/web/artwork-stamps.js'
+import { ARTWORK_STAMPS_KEY, SERIES_MATCH_VERSION, createArtworkStamps, isShowImageUrl, pictureOfShowImageUrl, showImageUrlOf, unstampedUrl, withChoiceStamp } from '../src/web/artwork-stamps.js'
 
 const memoryStorage = (initial = {}) => {
   const values = new Map(Object.entries(initial))
@@ -40,4 +40,28 @@ test('withChoiceStamp and isShowImageUrl handle bare paths', () => {
   assert.equal(withChoiceStamp({ url: '/a?c=1', stamp: null }), '/a')
   assert.equal(isShowImageUrl('/api/epg/show-image?title=x'), true)
   assert.equal(isShowImageUrl('/api/epg/show-imagex'), false)
+})
+
+test('setStamps saves a batch once, skips unchanged and unknown kinds, and keeps other stamps', () => {
+  const storage = memoryStorage()
+  const stamps = createArtworkStamps({ storage })
+  stamps.setStamp({ key: 'bluey', kind: 'background', stamp: 'choice1' })
+  let calls = 0
+  stamps.subscribe(() => { calls += 1 })
+  stamps.setStamps([
+    { key: 'bluey', kind: 'poster', stamp: 'r1' },
+    { key: 'heat', kind: 'background', stamp: 'r2' },
+    { key: 'heat', kind: 'banner', stamp: 'r3' },
+  ])
+  assert.equal(calls, 1)
+  assert.deepEqual(JSON.parse(storage.values.get(ARTWORK_STAMPS_KEY)), { bluey: { background: 'choice1', poster: 'r1' }, heat: { background: 'r2' } })
+  stamps.setStamps([{ key: 'heat', kind: 'background', stamp: 'r2' }])
+  assert.equal(calls, 1)
+})
+
+test('pictureOfShowImageUrl and unstampedUrl read and strip show-image URLs only', () => {
+  assert.deepEqual(pictureOfShowImageUrl('/api/epg/show-image?title=The%20Block&shape=poster&c=x'), { key: 'the-block', kind: 'poster' })
+  assert.equal(pictureOfShowImageUrl('/api/epg/image/12'), null)
+  assert.equal(unstampedUrl('/api/epg/show-image?title=A&c=x&w=384'), '/api/epg/show-image?title=A&w=384')
+  assert.equal(unstampedUrl('/api/recordings/r1/image?c=x'), '/api/recordings/r1/image?c=x')
 })

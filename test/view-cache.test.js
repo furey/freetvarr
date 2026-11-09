@@ -121,3 +121,21 @@ test('the library and scheduled caches reject malformed values', () => {
   assert.equal(roundTrip({ spec: SCHEDULED_CACHE, value: { state: {}, watchlist: [] } }), null)
   assert.equal(roundTrip({ spec: SCHEDULED_CACHE, value: scheduledOf({ watchlist: 'x' }) }), null)
 })
+
+test('the library cache is version 2 and stores show pictures without stamps, so stamps apply at render', () => {
+  assert.equal(LIBRARY_CACHE.version, 2)
+  const show = {
+    key: 'bluey',
+    title: 'Bluey',
+    poster: '/api/epg/show-image?title=Bluey&shape=poster&kind=series&c=k1',
+    image: '/api/epg/show-image?title=Bluey&c=k2',
+  }
+  const recordingPicture = { key: 'news', title: 'News', poster: '/api/epg/show-image?title=News&shape=poster', image: '/api/recordings/r1/image' }
+  const [stored, untouched] = roundTrip({ spec: LIBRARY_CACHE, value: libraryOf([show, recordingPicture]) }).shows
+  assert.equal(stored.poster, '/api/epg/show-image?title=Bluey&shape=poster&kind=series')
+  assert.equal(stored.image, '/api/epg/show-image?title=Bluey')
+  assert.deepEqual(untouched, recordingPicture)
+  const storage = memoryStorage()
+  storage.setItem(LIBRARY_CACHE.key, JSON.stringify({ version: 1, build: 'b1', savedAt: NOW, value: libraryOf([show]) }))
+  assert.equal(readViewCache({ storage, spec: LIBRARY_CACHE, build: 'b1', nowMs: NOW }), null)
+})

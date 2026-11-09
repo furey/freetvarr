@@ -1,5 +1,6 @@
-import { ref } from '/vendor/vue.esm-browser.prod.js'
-import { artworkStamps } from '/artwork-stamps.js'
+import { ref, shallowReactive } from '/vendor/vue.esm-browser.prod.js'
+import { artworkStamps, pictureOfShowImageUrl } from '/artwork-stamps.js'
+import { showKeyOf } from '/show-key.js'
 import { api } from '/shared/api.js'
 
 export const artworkStampsVersion = ref(0)
@@ -11,9 +12,50 @@ export const stampedShowImage = (url) => {
   return artworkStamps.stampUrl(url)
 }
 
+export const stampedSrcset = (srcset) => (srcset
+  ? srcset.split(', ').map((part) => {
+    const [url, ...descriptor] = part.split(' ')
+    return [stampedShowImage(url), ...descriptor].join(' ')
+  }).join(', ')
+  : srcset)
+
 export const rememberArtworkStamp = ({ key, kind, stamp }) => artworkStamps.setStamp({ key, kind, stamp })
 
 export const loadArtworkStamps = async () => {
   const { stamps } = await api('GET', '/api/library/artwork-stamps')
   artworkStamps.replaceAll(stamps)
 }
+
+export const applyResolvedArt = (changes = []) => {
+  artworkStamps.setStamps(changes.filter((change) => change.stamp))
+  for (const { key, kind } of changes) {
+    const id = pictureIdOf({ key, kind })
+    forgetFinalMissesOf(id)
+    resolvedTicks.set(id, (resolvedTicks.get(id) ?? 0) + 1)
+  }
+}
+
+export const artResolvedTickOf = (picture) => resolvedTicks.get(pictureIdOf(pictureOf(picture))) ?? 0
+
+export const rememberFinalMiss = ({ url, title = '', shape = 'card' }) => {
+  finalMisses.set(url, pictureIdOf(pictureOf({ url, title, shape })))
+}
+
+export const isFinalMiss = (url) => finalMisses.has(url)
+
+export const forgetFinalMiss = (url) => finalMisses.delete(url)
+
+export const forgetFinalMisses = () => finalMisses.clear()
+
+const forgetFinalMissesOf = (id) => {
+  for (const [url, missId] of finalMisses) if (missId === id) finalMisses.delete(url)
+}
+
+const pictureOf = ({ url = '', title = '', shape = 'card' }) =>
+  pictureOfShowImageUrl(url) ?? { key: showKeyOf(title), kind: shape === 'poster' ? 'poster' : 'background' }
+
+const pictureIdOf = ({ key, kind }) => `${kind}|${key}`
+
+const finalMisses = new Map()
+
+const resolvedTicks = shallowReactive(new Map())
