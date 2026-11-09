@@ -160,6 +160,15 @@ test('prune deletes copies unseen for 180 days unless a recording, library item,
   await assert.rejects(fs.access(path.join(root, `${guidePictureIdOf('https://images.example.com/old.jpg')}.webp`)))
 })
 
+test('prune deletes WebP and temporary files that have no row and keeps other files', async () => {
+  const { root, pictures } = await setUp()
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Kept', 'https://images.example.com/kept.jpg', 1)]) })
+  const kept = `${guidePictureIdOf('https://images.example.com/kept.jpg')}.webp`
+  for (const name of ['0123456789abcdef01234567.webp', '0123456789abcdef01234567.webp.tmp', 'notes.txt']) await fs.writeFile(path.join(root, name), 'x')
+  assert.equal(await pictures.prune(), 2)
+  assert.deepEqual((await fs.readdir(root)).sort(), [kept, 'notes.txt'].sort())
+})
+
 test('prune keeps the copies under the size cap by deleting the oldest seen first', async () => {
   const { database, root, pictures, clock } = await setUp()
   for (const [index, title] of ['First', 'Second', 'Third'].entries()) {

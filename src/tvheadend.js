@@ -612,7 +612,7 @@ export const dvbTripletOf = ({ onid, tsid, sid }) => {
 }
 
 const listMuxIdentities = async (conn) => {
-  const body = await apiGet(mpegts/mux/grid, { limit: 10000 }, conn)
+  const body = await apiGet('mpegts/mux/grid', { limit: 10000 }, conn)
   return new Map((body?.entries || []).map((m) => [m.uuid, { onid: m.onid, tsid: m.tsid }]))
 }
 

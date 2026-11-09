@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import http from 'node:http'
 
 import {
   FREEVIEW_WINDOW_MS,
@@ -16,7 +18,7 @@ import {
   windowsAround,
 } from '../src/freeview-au.js'
 import { OutboundError } from '../src/outbound-http.js'
-import { dvbTripletOf } from '../src/tvheadend.js'
+import { dvbTripletOf, listChannelTriplets } from '../src/tvheadend.js'
 
 const MINUTE = 60 * 1000
 const START = Date.parse('2026-11-10T09:30:00Z')
@@ -51,7 +53,7 @@ test('dvbTripletOf writes the original network, transport stream, and service id
   assert.equal(dvbTripletOf({ onid: 70000, tsid: 1, sid: 1 }), null)
 })
 
-test('freeviewRegionOf maps the eight capital-city time zones and is off outside Australia', () => {
+test('freeviewRegionOf maps the Australian time zones to Freeview regions and is off outside Australia', () => {
   const table = [
     ['Australia/Sydney', 'region_nsw_sydney'],
     ['Australia/Melbourne', 'region_vic_melbourne'],
@@ -61,7 +63,12 @@ test('freeviewRegionOf maps the eight capital-city time zones and is off outside
     ['Australia/Hobart', 'region_tas_hobart'],
     ['Australia/Darwin', 'region_nt_darwin'],
     ['Australia/Canberra', 'region_act_canberra'],
-    ['Australia/Eucla', null],
+    ['Australia/Broken_Hill', 'region_nsw_broken_hill'],
+    ['Australia/Lindeman', 'region_qld_brisbane'],
+    ['Australia/Currie', 'region_tas_hobart'],
+    ['Australia/Eucla', 'region_wa_perth'],
+    ['Australia/Lord_Howe', 'region_nsw_sydney'],
+    ['Asia/Tokyo', null],
     ['Pacific/Auckland', null],
     ['Europe/London', null],
     ['', null],
@@ -177,4 +184,36 @@ test('freeviewAiringsOf takes the next two airings of each wanted title on a cha
   assert.deepEqual(airings.map((airing) => airing.key), ['1', '2'])
   const candidates = freeviewCandidatesOf({ airings, matches: new Map([['2', 'https://img-store-prod.switch.tv/images/g.jpg']]) })
   assert.deepEqual(candidates.get('gruen').sources, ['https://img-store-prod.switch.tv/images/g.jpg'])
+})
+
+const setupFixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/tvh-setup/${name}.json`, import.meta.url), 'utf8'))
+
+test('listChannelTriplets reads the service and mux grids and maps each channel to its Freeview triplets', async () => {
+  const paths = []
+  const grids = { '/api/mpegts/service/grid': setupFixture('service-grid'), '/api/mpegts/mux/grid': setupFixture('mux-grid') }
+  const server = http.createServer((req, res) => {
+    const { pathname } = new URL(req.url, 'http://tvh')
+    paths.push(pathname)
+    res.writeHead(grids[pathname] ? 200 : 404, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(grids[pathname] ?? {}))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const services = setupFixture('service-grid').entries
+    const seven = services.find((service) => service.sid === 1312)
+    const sbs = services.find((service) => service.sid === 769)
+    const triplets = await listChannelTriplets({
+      channels: [
+        { id: 'seven', serviceIds: [seven.uuid] },
+        { id: 'sbs', serviceIds: [sbs.uuid] },
+        { id: 'none', serviceIds: ['missing'] },
+      ],
+      conn: { url: `http://127.0.0.1:${server.address().port}`, username: '', password: '' },
+    })
+    assert.deepEqual([...triplets], [['seven', [TRIPLET]], ['sbs', ['3202:0300:0301']], ['none', []]])
+    assert.ok(paths.includes('/api/mpegts/mux/grid'))
+  } finally {
+    server.closeAllConnections()
+    await new Promise((resolve) => server.close(resolve))
+  }
 })

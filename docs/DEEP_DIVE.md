@@ -1271,13 +1271,13 @@ The daily cache prune (`pruneFrameGrabs` in `src/epg.js`) deletes frames, marks,
 1. `encodeGuidePicture` writes WebP at quality `72`, at most `1280` px wide, to `artwork/guide/<id>.webp` (`<id>`: the first `24` hex characters of a SHA-256 hash of the address), then upserts the `guide_pictures` row.
 1. The origin is `guide-picture:<id>-v<saved_at in base 36>`, so a new title copy changes the stamp. `originForSource` gives the copy of an address, `originFor` the title copy. `rawImageOrErrorOf` reads it from the file.
 
-The daily cache prune calls `pruneGuidePictures`: it deletes copies not seen in the guide for `180 d`, then the oldest seen while the copies are over `500 MB`. It keeps a copy whose title is a recording that is not purged or a Plex library item (`show_title` or `title`), and a copy whose origin or `source_url` is an owner choice.
+The daily cache prune calls `pruneGuidePictures`: it deletes copies not seen in the guide for `180 d`, then the oldest seen while the copies are over `500 MB`, then any `<id>.webp` or `<id>.webp.tmp` file in `artwork/guide/` with no row. It keeps a copy whose title is a recording that is not purged or a Plex library item (`show_title` or `title`), and a copy whose origin or `source_url` is an owner choice.
 
 ### Freeview pictures
 
 `createFreeviewAu` in `src/freeview-au.js` reads the keyless Freeview API at `fvau-api-prod.switch.tv` for titles that have no saved copy after the guide step (no guide image, or every address failed).
 
-- It runs only when the country of `currentTimeZone()` is `au`. `freeviewRegionOf` maps the zone to a region: `Australia/Sydney` to `region_nsw_sydney`, and likewise Melbourne, Brisbane, Adelaide, Perth, Hobart, Darwin, and Canberra, with their old aliases (`Australia/NSW`). Other zones turn the step off.
+- It runs only when the country of `currentTimeZone()` is `au`. `freeviewRegionOf` maps the zone to a region: `Australia/Sydney` to `region_nsw_sydney`, and likewise Melbourne, Brisbane, Adelaide, Perth, Hobart, Darwin, and Canberra, with their old aliases (`Australia/NSW`). `Australia/Broken_Hill` maps to `region_nsw_broken_hill`, `Lindeman` to Brisbane, `Currie` to Hobart, `Eucla` to Perth, and `Lord_Howe` to Sydney. Other zones turn the step off.
 - `listChannelTriplets` in `src/tvheadend.js` reads `mpegts/service/grid` (`sid`) and `mpegts/mux/grid` (`onid`, `tsid`). `dvbTripletOf` writes each as `onid:tsid:sid` in 4-digit hex, the form of `dvb_triplet` in Freeview.
 - `freeviewAiringsOf` takes the next `2` airings of each title (from `1 h` ago) on a channel with a triplet. `matchAirings` keeps the triplets that the region lists (`/content/v1/channels/region/<region>`, cached `24 h`), and reads `/content/v1/epgs/<triplet>` for the six-hour UTC window of the start, and the next or previous window when the start is within `5` min of an edge.
 - `matchListing` takes the listing that starts within `5` min of the airing and whose title agrees (`titlesAgree`: the same key without spaces, one key a word prefix of the other, or at least `2` shared words that are `60%` of the shorter title). It never takes a listing with another title.

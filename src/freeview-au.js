@@ -25,6 +25,13 @@ export const FREEVIEW_REGIONS = {
   'Australia/North': 'region_nt_darwin',
   'Australia/Canberra': 'region_act_canberra',
   'Australia/ACT': 'region_act_canberra',
+  'Australia/Broken_Hill': 'region_nsw_broken_hill',
+  'Australia/Yancowinna': 'region_nsw_broken_hill',
+  'Australia/Lindeman': 'region_qld_brisbane',
+  'Australia/Currie': 'region_tas_hobart',
+  'Australia/Eucla': 'region_wa_perth',
+  'Australia/Lord_Howe': 'region_nsw_sydney',
+  'Australia/LHI': 'region_nsw_sydney',
 }
 
 export const freeviewRegionOf = (timeZone) => {

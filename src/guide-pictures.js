@@ -209,7 +209,10 @@ export const createGuidePictures = ({
       total -= Number(row.bytes)
     }
     await remove([...gone])
-    return gone.size
+    const kept = new Set(rows.filter((row) => !gone.has(row.source_url)).map((row) => `${guidePictureIdOf(row.source_url)}${EXTENSION}`))
+    const strays = (await fs.readdir(root).catch(() => [])).filter((name) => isStrayFile({ name, kept }))
+    for (const name of strays) await fs.rm(path.join(root, name), { force: true })
+    return gone.size + strays.length
   }
 
   const remove = async (sources) => {
@@ -225,6 +228,8 @@ export const createGuidePictures = ({
 
   return { saveAll, originFor, originForSource, read, prune, savedTitleKeys }
 }
+
+const isStrayFile = ({ name, kept }) => STRAY_FILE.test(name) && !kept.has(name)
 
 const indexOf = (rows) => {
   const bySource = new Map(rows.map((row) => [row.source_url, row]))
@@ -247,6 +252,7 @@ const EXTENSION = '.webp'
 const CONTENT_TYPE = 'image/webp'
 const PICTURE_ID_LENGTH = 24
 const PICTURE_ID = /^[0-9a-f]{24}$/
+const STRAY_FILE = /^[0-9a-f]{24}\.webp(\.tmp)?$/
 const VERSION_SEPARATOR = '-v'
 const LOCAL_HOST = 'tvheadend'
 const MAX_SOURCES_PER_TITLE = 4

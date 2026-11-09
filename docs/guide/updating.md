@@ -114,7 +114,7 @@ These releases change something on your install when you update to them. Read ea
 
 [Release notes for `2.16.0`](https://github.com/furey/freetvarr/releases/tag/2.16.0)
 
-- **Database**: the first start adds one database change (database change `0046`). `0046` adds a table that lists the guide pictures Freetvarr saves, one per title, so that a title keeps its picture when the guide source stops serving it. A version that is older than `0046` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+- **Database**: the first start adds one database change (database change `0046`). `0046` adds a table that lists the guide pictures Freetvarr saves, one per picture address and up to `4` per title, so that a programme keeps its picture when the guide source stops serving it. The pictures go in the `artwork/guide/` folder of the config folder. A version that is older than `0046` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup). After you go back, you can delete the `artwork/guide/` folder.
 
 ### 2.14.0
 
