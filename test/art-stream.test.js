@@ -19,7 +19,7 @@ registerHooks({
 
 const { ref } = await import(pathToFileURL(VUE).href)
 const { createArtStream } = await import('../src/web/shared/art-stream.js')
-const { applyResolvedArt, artResolvedTickOf, stampedShowImage } = await import('../src/web/shared/artwork-stamps.js')
+const { applyResolvedArt, artResolvedTickOf, episodePictureOf, stampedShowImage } = await import('../src/web/shared/artwork-stamps.js')
 const { showImageUrlOf } = await import('../src/web/artwork-stamps.js')
 
 const harness = () => {
@@ -125,4 +125,14 @@ test('a resolved picture with a stamp restamps its URL; one without bumps only i
   applyResolvedArt([{ key: 'heat', kind: 'background', stamp: 'r9' }])
   assert.equal(stampedShowImage(background), '/api/epg/show-image?title=Heat&c=r9')
   assert.equal(artResolvedTickOf({ url: background }), 1)
+})
+
+test('episodePictureOf: an episode picture from the chain gets a new URL on each art event of its title; a saved one keeps its URL', () => {
+  const chained = { title: 'Frame Swap Show', image: null, picture: '/api/recordings/r1/image?w=384' }
+  const saved = { title: 'Frame Swap Show', image: '/api/recordings/r2/image?w=384', picture: '/api/recordings/r2/image?w=384' }
+  assert.equal(episodePictureOf(chained), '/api/recordings/r1/image?w=384')
+  applyResolvedArt([{ key: 'frame-swap-show', kind: 'background', stamp: null }])
+  assert.equal(episodePictureOf(chained), '/api/recordings/r1/image?w=384&r=1')
+  assert.equal(episodePictureOf(saved), '/api/recordings/r2/image?w=384')
+  assert.equal(episodePictureOf({ title: 'X' }), null)
 })

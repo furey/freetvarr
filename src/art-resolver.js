@@ -15,15 +15,32 @@ export const LANDSCAPE_SHAPE = 'landscape'
 export const FINAL_STAGE = 'none'
 
 export const TITLE_CHAINS = {
-  [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', FINAL_STAGE],
-  [SERIES_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', FINAL_STAGE],
+  [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', FINAL_STAGE],
+  [SERIES_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', FINAL_STAGE],
   [ONE_OFF_KIND]: ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', FINAL_STAGE],
 }
 export const EPISODE_CHAIN = ['episode', 'title', 'frame', FINAL_STAGE]
+export const EPISODE_FRAME_FIRST_CHAIN = ['episode', 'frame', 'title', FINAL_STAGE]
+export const SERIES_PICTURE_FIRST = 'series'
+export const EPISODE_FRAME_FIRST = 'frame'
+export const STILLS_OFF = 'off'
+export const EPISODE_PICTURE_ORDERS = [STILLS_OFF, SERIES_PICTURE_FIRST, EPISODE_FRAME_FIRST]
+export const EPISODE_NO_FRAME_CHAIN = ['episode', 'title', FINAL_STAGE]
+
+export const episodePictureOrderFrom = (value) => (EPISODE_PICTURE_ORDERS.includes(value) ? value : SERIES_PICTURE_FIRST)
+
+export const stillsAllowed = (order) => order !== STILLS_OFF
+
+const EPISODE_CHAINS_BY_ORDER = {
+  [STILLS_OFF]: EPISODE_NO_FRAME_CHAIN,
+  [SERIES_PICTURE_FIRST]: EPISODE_CHAIN,
+  [EPISODE_FRAME_FIRST]: EPISODE_FRAME_FIRST_CHAIN,
+}
+
 export const GUIDE_ONLY_CHAIN = ['own', 'same-title', 'title', FINAL_STAGE]
 
-export const chainOf = ({ kind, recordingId = null, eventId = null }) => {
-  if (recordingId != null) return EPISODE_CHAIN
+export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST }) => {
+  if (recordingId != null) return EPISODE_CHAINS_BY_ORDER[episodeOrder] ?? EPISODE_CHAIN
   if (eventId != null) return GUIDE_ONLY_CHAIN
   return TITLE_CHAINS[kind] ?? TITLE_CHAINS[SERIES_KIND]
 }
@@ -56,6 +73,17 @@ export const guideKindsOf = (programmes = []) => {
     countsByKey.set(key, counts)
   }
   return new Map([...countsByKey].map(([key, counts]) => [key, guideKindOfCounts(counts)]))
+}
+
+export const isGuessedFilmKind = ({ libraryKinds = [], override = null }) =>
+  !libraryKinds.includes(MOVIE_KIND) && OVERRIDE_KINDS[override] !== MOVIE_KIND
+
+export const onlineArtworkOf = async ({ kind, lookUpFilm, lookUpSeries, isGuessedFilm }) => {
+  if (kind !== MOVIE_KIND) return lookUpSeries()
+  const film = await lookUpFilm()
+  if (film?.sources?.length || film?.pending || film?.off) return film
+  if (!(await isGuessedFilm())) return film
+  return film?.settled ? lookUpSeries() : UNSETTLED_FILM_LOOKUP
 }
 
 export const resolutionKeyOf = ({ titleKey, kind, shape }) => `${kind}|${shape}|${titleKey}`
@@ -107,7 +135,7 @@ export const createArtResolver = ({
   const resolveOuter = async (ctx) => {
     const run = (budget) => settleAnswer({ ctx, key: outerKeyOf(ctx), result: runOuterChain({ chain: chainOf(ctx), ctx, budget }) })
     const result = await run(outerBudgetMs)
-    if (result.pending) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
+    if (result.pending || result.provisional) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
     return result
   }
 
@@ -116,7 +144,7 @@ export const createArtResolver = ({
 
   const settleAnswer = async ({ ctx, key, result }) => {
     const answer = await result
-    if (answer.pending) {
+    if (answer.pending || answer.provisional) {
       rememberPendingAnswer(key)
       return answer
     }
@@ -137,7 +165,7 @@ export const createArtResolver = ({
     const attempt = (index) => {
       const timer = setTimeout(async () => {
         const result = await run().catch(() => PENDING_RESULT)
-        if (result.pending && index + 1 < followUpDelaysMs.length) return attempt(index + 1)
+        if ((result.pending || result.provisional) && index + 1 < followUpDelaysMs.length) return attempt(index + 1)
         followUps.delete(key)
       }, followUpDelaysMs[index])
       timer.unref?.()
@@ -202,15 +230,15 @@ export const createArtResolver = ({
     for (const stage of chain) {
       if (stage === FINAL_STAGE) return pendingSeen ? PENDING_RESULT : FINAL_RESULT
       if (stage === 'title') {
-        const fromTitle = await resolveTitle(ctx)
+        const fromTitle = await resolveTitle({ ...ctx, recordingId: null, eventId: null })
         if (fromTitle.pending) pendingSeen = true
-        else if (fromTitle.stage !== FINAL_STAGE) return fromTitle
+        else if (fromTitle.stage !== FINAL_STAGE) return provisionalIf({ result: fromTitle, pendingSeen })
         continue
       }
       const found = await stageWithin({ stage, ctx, deadline })
       if (found.pending) pendingSeen = true
       const loaded = await firstLoaded({ sources: found.sources, deadline })
-      if (loaded.origin) return { stage, origin: loaded.origin, transform: 'none', pending: false }
+      if (loaded.origin) return provisionalIf({ result: { stage, origin: loaded.origin, transform: 'none', pending: false }, pendingSeen })
       if (loaded.pending) pendingSeen = true
     }
     return pendingSeen ? PENDING_RESULT : FINAL_RESULT
@@ -293,6 +321,8 @@ export const createArtResolver = ({
   return { resolve, forget, invalidate, stampsByKey }
 }
 
+const provisionalIf = ({ result, pendingSeen }) => (pendingSeen ? { ...result, provisional: true } : result)
+
 const outerKeyOf = ({ recordingId, eventId }) => (recordingId != null ? `episode|${recordingId}` : `event|${eventId}`)
 
 export const pictureStampOf = ({ origin, transform }) => createHash('sha256')
@@ -371,6 +401,7 @@ const databaseStore = {
 }
 
 const NOT_MOVIE_OVERRIDE = 'not-movie'
+const UNSETTLED_FILM_LOOKUP = { sources: [], pending: true }
 const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OFF_KIND }
 const LOCAL_STAGES = ['plex', 'recording', 'guide']
 const SETTLED_STAGES = new Set(['derived', FINAL_STAGE])
@@ -379,7 +410,7 @@ const LOAD_FAILED = Symbol('load failed')
 const NO_SOURCES = { sources: [], pending: false }
 const FINAL_RESULT = { stage: FINAL_STAGE, origin: null, transform: 'none', pending: false }
 const PENDING_RESULT = { stage: null, origin: null, transform: null, pending: true }
-const FINGERPRINT_VERSION = 'art-v1'
+const FINGERPRINT_VERSION = 'art-v2'
 const FINGERPRINT_LENGTH = 24
 const RESOLVE_BUDGET_MS = 3000
 const OUTER_BUDGET_MS = 1500

@@ -41,7 +41,7 @@ import { knownShowTitleOf } from '/show-key.js'
 import { createResponseOrder } from '/response-order.js'
 import { AD_JOB_POLL_MS, hasAdJobRunning } from '/ad-confirm.js'
 import { createPoll } from '/poll.js'
-import { artResolvedTickOf, rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
+import { artResolvedTickOf, episodePictureOf, rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
 import { artKindHintOf, showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
@@ -522,7 +522,7 @@ export const ShowView = {
       episodeBadge: (episode) => episodeBadgeOf({ episode, activeIds: activeIds.value }),
       episodeFallbackSrc,
       scheduledWhen: (episode) => scheduledWhenOf({ ms: episode.airedAt, nowMs: nowMs.value, timeZone: tz.value }),
-      episodeImage: (episode) => episode.image || episodeFallbackSrc.value,
+      episodeImage: (episode) => episodePictureOf(episode) || episodeFallbackSrc.value,
     }
   },
 }

@@ -1647,3 +1647,12 @@ a.settings-row-link:hover {
 .plex-library-sections-label {
   margin: 0 0 10px;
 }
+
+.ui-segmented.is-fill.episode-picture-choices .ui-segment {
+  flex: 1 1 auto;
+  padding: 6px 12px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  text-wrap: balance;
+}

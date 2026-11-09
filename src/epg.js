@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 
-import { getSetting, setSetting } from './db.js'
+import { db, getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
 import { scheduledByProgramIdOf, seriesLinkSetOf } from './web/programme-state.js'
 import { SIMULCAST_START_TOLERANCE_MS, findHdSimulcast, isHdChannel, sdSimulcastIds } from './web/simulcast.js'
@@ -31,10 +31,23 @@ import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
-import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, guideKindsOf, stampKindOf } from './art-resolver.js'
+import {
+  FINAL_STAGE,
+  LANDSCAPE_SHAPE,
+  canonicalKindOf,
+  createArtResolver,
+  episodePictureOrderFrom,
+  guideKindsOf,
+  stillsAllowed,
+  isGuessedFilmKind,
+  onlineArtworkOf,
+  stampKindOf,
+} from './art-resolver.js'
+import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, isFrameOrigin } from './frame-grabs.js'
+import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
-import { createLibraryTitles } from './library-titles.js'
+import { createLibraryTitles, isCompleteRow } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
 import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
 import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
@@ -809,6 +822,49 @@ export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, w
   return imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE })
 }
 
+export const findEpisodeThumbnail = async ({ recordingId, width, loadRow = recordingRowOf, episodeOrder = episodePictureOrder } = {}) => {
+  const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
+  const title = row?.show_title_override ?? row?.title
+  if (!title) return NO_IMAGE
+  const fileReady = !row.purged_at && isCompleteRow(row)
+  const resolution = await artResolver.resolve({
+    title,
+    recordingId,
+    episodeOrder: await episodeOrder().catch(() => undefined),
+    episodeFile: { filePath: fileReady ? row.file_path : null, programmeDurationS: row.duration_s ?? null, expectedBytes: row.size ?? null },
+  })
+  return imageOfResolution({ resolution, title, width, shape: LANDSCAPE_SHAPE })
+}
+
+export const episodePictureOrder = async () => episodePictureOrderFrom(await getSetting(EPISODE_PICTURE_ORDER_SETTING))
+
+export const pruneFrameGrabs = async ({ database = db } = {}) => {
+  const [recordings, items] = await Promise.all([
+    database('recordings').whereNull('purged_at').whereNotNull('file_path').select('file_path'),
+    database('library_items').whereNotNull('file_path').select('file_path'),
+  ])
+  const { removed, removedOrigins } = await frameGrabs.prune({ keepPaths: [...recordings, ...items].map((row) => row.file_path) })
+  await deleteFrameResolutions({ database, origins: removedOrigins })
+  return removed
+}
+
+export const deleteFrameResolutions = async ({ database = db, origins = [] } = {}) => {
+  if (!origins.length) return 0
+  const removedIds = new Set(origins.map(frameBaseOriginOf))
+  const rows = await database('art_resolutions').where('origin', 'like', FRAME_ORIGIN_LIKE).select('resolution_key', 'origin')
+  const keys = rows.filter((row) => removedIds.has(frameBaseOriginOf(row.origin))).map((row) => row.resolution_key)
+  let deleted = 0
+  for (let at = 0; at < keys.length; at += FRAME_PRUNE_BATCH) {
+    deleted += await database('art_resolutions').whereIn('resolution_key', keys.slice(at, at + FRAME_PRUNE_BATCH)).del().catch((err) => {
+      console.error(`[frames] could not delete frame resolutions: ${err.message}`)
+      return 0
+    })
+  }
+  return deleted
+}
+
+const frameBaseOriginOf = (origin) => String(origin ?? '').split(FRAME_VERSION_SEPARATOR)[0]
+
 export const findShowThumbnail = ({ title, width, kind = null } = {}) =>
   findTitleImage({ title, width, kind, shape: LANDSCAPE_SHAPE })
 
@@ -851,6 +907,7 @@ const rawImageOfOrigin = (origin) => rawImageOrErrorOf(origin).catch(() => null)
 
 const rawImageOrErrorOf = async (origin) => {
   if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
+  if (isFrameOrigin(origin)) return frameGrabs.read(origin)
   if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
     return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
   }
@@ -939,7 +996,7 @@ const imageOfResolution = async ({ resolution, title, width, shape }) => {
     publishWhenRendered({ rendering, title, shape })
     return PENDING_IMAGE
   }
-  if (image) return { image, pending: false }
+  if (image) return resolution.provisional ? { image, pending: false, provisional: true } : { image, pending: false }
   return resolution.stage === CHOICE_STAGE ? NO_IMAGE : FINAL_MISS
 }
 
@@ -982,8 +1039,19 @@ export const plexOriginOf = ({ source, url }) => {
   return `${PLEX_ORIGIN_PREFIX}${path}${rest ? `?${rest}` : ''}`
 }
 
-const onlineStage = async ({ title, kind }) => {
-  if (isFilmKind(kind)) return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
+const onlineStage = ({ title, kind }) => onlineArtworkOf({
+  kind,
+  lookUpFilm: () => fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK),
+  lookUpSeries: () => seriesOnlineArtwork({ title, kind: isFilmKind(kind) ? SERIES_LOOKUP_KIND : kind }),
+  isGuessedFilm: () => guessedFilm(title),
+})
+
+const guessedFilm = async (title) => {
+  const [libraryKinds, overrides] = await Promise.all([libraryTitles.kindsFor(title).catch(() => []), kindOverrides()])
+  return isGuessedFilmKind({ libraryKinds, override: overrides.get(showKeyOf(title)) ?? null })
+}
+
+const seriesOnlineArtwork = async ({ title, kind }) => {
   const tvmaze = await showArtwork.tvmazeArtworkFor(title).catch(() => NO_ARTWORK)
   if (tvmaze.sources.length) return tvmaze
   if (tvmaze.pending) {
@@ -993,7 +1061,10 @@ const onlineStage = async ({ title, kind }) => {
   return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
 }
 
-const onlineSettingsKey = async () => `${await tvmazeLookupEnabled().catch(() => false)}|${Boolean(await storedTmdbKey().catch(() => null))}`
+const onlineSettingsKey = async () => {
+  const online = `${await tvmazeLookupEnabled().catch(() => false)}|${Boolean(await storedTmdbKey().catch(() => null))}`
+  return stillsAllowed(await episodePictureOrder().catch(() => undefined)) ? online : `${online}|stills-off`
+}
 
 const canonicalKindFor = async ({ title, hint }) => {
   const [libraryKinds, overrides, guideKind] = await Promise.all([
@@ -1020,6 +1091,86 @@ const guideDisplayKindFor = async (title) => {
 }
 
 const recordingImagesFor = (title) => libraryTitles.recordingImagesFor(title).catch(() => [])
+
+const recordingRowOf = (recordingId) => db('recordings').where({ recording_id: recordingId }).first()
+
+export const frameStage = async ({ title, kind, recordingId = null, episodeFile = null }) => {
+  if (!stillsAllowed(await episodePictureOrder().catch(() => undefined))) return NO_ARTWORK
+  const onReady = () => publishFrameReady(title)
+  if (recordingId != null) {
+    const plans = await adPlansFor([recordingId])
+    return frameGrabs.frameFor({ ...episodeFile, adPlan: plans.get(String(recordingId)) ?? UNKNOWN_AD_PLAN, onReady })
+  }
+  const files = await libraryTitles.frameFilesFor(title, { kind }).catch(() => [])
+  const plans = await adPlansFor(files.map((file) => file.recordingId).filter((id) => id != null))
+  const planned = files.map((file) => ({ ...file, adPlan: filePlanOf({ file, plans }) }))
+  for (const file of framePreferenceOrderOf(planned)) {
+    const found = await frameGrabs.frameFor({ ...file, onReady })
+    if (found.sources.length || found.pending) return found
+  }
+  return NO_ARTWORK
+}
+
+export const filePlanOf = ({ file, plans }) => (file.recordingId != null
+  ? plans.get(String(file.recordingId)) ?? UNKNOWN_AD_PLAN
+  : downloadAdPlanOf(file))
+
+const adPlansFor = async (recordingIds) => {
+  if (!recordingIds.length) return new Map()
+  const [rows, enabled] = await Promise.all([
+    db('recordings').leftJoin('shows', 'recordings.show_id', 'shows.id')
+      .whereIn('recordings.recording_id', recordingIds)
+      .select('recordings.recording_id', 'recordings.ad_status', 'recordings.ad_breaks_json', 'recordings.imported_at', 'recordings.channel_name', 'shows.ad_removal as show_ad_removal')
+      .catch(() => []),
+    getSetting('ad_removal_enabled').catch(() => null),
+  ])
+  return new Map(rows.map((row) => [String(row.recording_id), adPlanOf({
+    adStatus: row.ad_status,
+    breaksJson: row.ad_breaks_json,
+    showMode: row.show_ad_removal,
+    adRemovalEnabled: enabled === 'true',
+    importedAt: row.imported_at,
+    scanning: isAdJobRunning(row.recording_id),
+    channelName: row.channel_name,
+  })]))
+}
+
+export const refreshFrameAfterAdScan = async ({ recordingId, filePath, breaks = [] }, { grabs = frameGrabs, loadRow = recordingRowOf, database = db } = {}) => {
+  const { stale, awaited } = await grabs.reconsider({ filePath, breaks })
+  if (stale) await database('art_resolutions').where('origin', 'like', `${frameOriginOf(filePath)}%`).update({ next_check_at: 0 }).catch(() => 0)
+  const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
+  const title = row?.show_title_override ?? row?.title
+  if (!title) return { stale, awaited, grabbing: false }
+  if (stale) publishFrameReady(title)
+  const allowed = stillsAllowed(await episodePictureOrder().catch(() => undefined))
+  if (!allowed || !(stale || awaited) || row.purged_at || !isCompleteRow(row)) return { stale, awaited, grabbing: false }
+  const plans = await adPlansFor([recordingId])
+  await grabs.frameFor({
+    filePath: row.file_path,
+    programmeDurationS: row.duration_s ?? null,
+    expectedBytes: row.size ?? null,
+    adPlan: plans.get(String(recordingId)) ?? UNKNOWN_AD_PLAN,
+    onReady: () => publishFrameReady(title),
+  })
+  return { stale, awaited, grabbing: true }
+}
+
+const publishFrameReady = (title) => {
+  for (const kind of ['background', 'poster']) artFeed.publish({ key: showKeyOf(title), kind, stamp: null })
+}
+
+export const publishStillsChange = async ({ database = db, publish = artFeed.publish } = {}) => {
+  const [resolved, recordings] = await Promise.all([
+    database('art_resolutions').where('origin', 'like', `${FRAME_ORIGIN_LIKE}`).distinct('show_key').catch(() => []),
+    database('recordings').whereNull('purged_at').whereNull('image_path').select('title', 'show_title_override').catch(() => []),
+  ])
+  const keys = new Set([
+    ...resolved.map((row) => row.show_key),
+    ...recordings.map((row) => showKeyOf(row.show_title_override ?? row.title)),
+  ].filter(Boolean))
+  for (const key of keys) for (const kind of ['background', 'poster']) publish({ key, kind, stamp: null })
+  return keys.size
+}
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
 
@@ -1207,6 +1358,8 @@ const hintsByGuide = new WeakMap()
 const kindsByGuide = new WeakMap()
 const displayKindsByGuide = new WeakMap()
 const overridesCache = { value: new Map(), expiresAt: 0 }
+const frameGrabs = createFrameGrabs()
+onAdScanResult((result) => refreshFrameAfterAdScan(result))
 const artResolver = createArtResolver({
   stages: {
     choice: async (ctx) => ({ sources: [await chosenOriginOf(ctx)].filter(Boolean) }),
@@ -1217,6 +1370,7 @@ const artResolver = createArtResolver({
     own: async ({ ownSource }) => ({ sources: [ownSource].filter(Boolean) }),
     'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
     episode: async ({ recordingId }) => ({ sources: [`${RECORDING_ORIGIN_PREFIX}${recordingId}`] }),
+    frame: frameStage,
   },
   kindOf: canonicalKindFor,
   loadImage: rawImageOrErrorOf,
@@ -1239,6 +1393,11 @@ const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')
 const CHOICE_STAGE = 'choice'
+const SERIES_LOOKUP_KIND = 'series'
+const EPISODE_PICTURE_ORDER_SETTING = 'episode_picture_order'
+const FRAME_ORIGIN_LIKE = 'frame:%'
+const FRAME_VERSION_SEPARATOR = '-v'
+const FRAME_PRUNE_BATCH = 200
 const KIND_OVERRIDES_TTL_MS = 30 * 1000
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }

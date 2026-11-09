@@ -312,8 +312,9 @@ const jpegOf = (text) => Buffer.concat([JPEG_START, Buffer.from(text)])
 const webpOf = (text) => Buffer.concat([WEBP_START, Buffer.from(text)])
 const textAfter = (start, body) => body.subarray(start.length).toString()
 
-const recordingImageRoute = () => {
+const recordingImageRoute = ({ episodePicture = async () => ({ image: null, pending: false, final: true }) } = {}) => {
   const widths = []
+  const episodeRequests = []
   const route = serveImageRoute({
     imageMaxAgeS: 86400,
     route: recordingImageRouteOf({
@@ -325,6 +326,10 @@ const recordingImageRoute = () => {
           return { body: webpOf(`${textAfter(JPEG_START, original.body)}|${width}`), contentType: 'image/webp' }
         },
       }),
+      episodePicture: async (request) => {
+        episodeRequests.push(request)
+        return episodePicture(request)
+      },
     }),
   })
   const call = async ({ id = 'r1', query = {} } = {}) => {
@@ -332,7 +337,7 @@ const recordingImageRoute = () => {
     await route({ params: { recording_id: id }, query }, res)
     return res
   }
-  return { call, widths }
+  return { call, widths, episodeRequests }
 }
 
 test('the recording image route resizes to an allowed width as webp', async () => {
@@ -354,6 +359,29 @@ test('the recording image route keeps the original without w and rejects other w
   assert.equal(missing.statusCode, 404)
   assert.equal(missing.headers['cache-control'], 'no-store')
   assert.equal(widths.length, 0)
+})
+
+test('the recording image route serves a saved picture without the episode chain, so the hero pools stay the same', async () => {
+  const { call, episodeRequests } = recordingImageRoute()
+  const res = await call({ query: { w: '768' } })
+  assert.equal(res.statusCode, 200)
+  assert.equal(textAfter(WEBP_START, res.body), 'jpeg|768')
+  assert.deepEqual(episodeRequests, [])
+})
+
+test('the recording image route runs the episode chain for a recording with no saved picture', async () => {
+  const { call, episodeRequests } = recordingImageRoute({
+    episodePicture: async () => ({ image: { body: webpOf('frame'), contentType: 'image/webp' }, pending: false }),
+  })
+  const found = await call({ id: 'r2', query: { w: '384' } })
+  assert.equal(found.statusCode, 200)
+  assert.equal(textAfter(WEBP_START, found.body), 'frame')
+  await call({ id: 'r2' })
+  assert.deepEqual(episodeRequests, [{ recordingId: 'r2', width: 384 }, { recordingId: 'r2', width: 1280 }])
+  const pending = recordingImageRoute({ episodePicture: async () => ({ image: null, pending: true }) })
+  const waiting = await pending.call({ id: 'r3', query: { w: '384' } })
+  assert.equal(waiting.statusCode, 404)
+  assert.equal(waiting.headers['x-art-state'], 'pending')
 })
 
 test('tvmazePoolOf puts the widest background first so a tiny main picture never leads the hero', () => {

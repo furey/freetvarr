@@ -96,7 +96,21 @@ const scanRecordingAds = async ({ filePath, mode, recordingId, tools }) => {
   }).catch((err) => {
     console.error(`[ads] ${recordingId}: failed to record result: ${err.message}`)
   })
+  notifyAdScanResult({ recordingId, filePath, status, breaks })
   return { status, breaks, adSeconds: totalBreakSeconds(breaks), restored }
+}
+
+export const onAdScanResult = (listener) => {
+  adScanListeners.add(listener)
+  return () => adScanListeners.delete(listener)
+}
+
+const notifyAdScanResult = (result) => {
+  for (const listener of adScanListeners) {
+    Promise.resolve().then(() => listener(result)).catch((err) => {
+      console.error(`[ads] ${result.recordingId}: ad result listener failed: ${err.message}`)
+    })
+  }
 }
 
 export const isAdJobRunning = (recordingId) => scansInFlight.has(recordingId)
@@ -516,3 +530,4 @@ const SPAWN_MAX_BUFFER = 16 * 1024 * 1024
 const DAY_MS = 86_400_000
 
 const scansInFlight = new Set()
+const adScanListeners = new Set()

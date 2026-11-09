@@ -39,6 +39,7 @@ import { showKeyOf } from '/show-key.js'
 import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { forYouHiddenKeys, sendFeedback, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { warmImageFocus } from '/shared/image-focus.js'
+import { episodePictureOf } from '/shared/artwork-stamps.js'
 import { loadNowAll } from '/shared/channel-twins.js'
 import { browserStorage } from '/shared/storage.js'
 import { freshHomeOf, readHomeCache, writeHomeCache } from '/home-cache.js'
@@ -192,7 +193,7 @@ export const HomeView = {
             <menu-card v-for="r in newRecordingsRow" :key="r.recordingId" class="ui-card" :href="showHref(r)"
               :label="newCardLabel(r)" :more-label="'More for ' + r.title" @menu="openEpisodeMenu(r)">
               <span class="ui-card-art ui-art-fallback" :style="fallbackStyleOf(r.title)">
-                <programme-image :source="r.image" :title="r.title" variant="info" />
+                <programme-image :source="episodePictureOf(r)" :title="r.title" variant="info" />
                 <span class="ui-art-badge ui-new-badge">NEW</span>
               </span>
               <span class="ui-card-title">{{ r.title }}</span>
@@ -605,7 +606,7 @@ export const HomeView = {
 
     return {
       showArtOf,
-      loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
+      episodePictureOf, loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, showFlash, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
       forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF, libraryCountText, forYouCountText,

@@ -61,7 +61,7 @@ export const loadPartsByFile = (filePath) => db('library_items').where({ file_pa
 
 export const saveScannedItems = async ({ rows, full, sectionId, seenAt, nowMs = Date.now() }) => {
   forgetOldDeletions(nowMs)
-  const existing = await db('library_items').where({ section_id: sectionId }).select('rating_key', 'part_id', 'pending_push', 'watched_at', 'view_offset_s', 'manager', 'manager_file_id', 'manager_item_id', 'manager_series_id', 'file_path')
+  const existing = await db('library_items').where({ section_id: sectionId }).select('rating_key', 'part_id', 'pending_push', 'watched_at', 'view_offset_s', 'manager', 'manager_file_id', 'manager_item_id', 'manager_series_id', 'file_path', 'thumb', 'art')
   const byId = new Map(existing.map((row) => [partKeyOf(row), row]))
   await db.transaction(async (trx) => {
     for (const row of rows.filter((entry) => !recentlyDeletedFiles.has(entry.file_path))) {
@@ -80,7 +80,16 @@ export const rowToSave = ({ row, kept }) => {
   const local = kept?.pending_push
     ? { pending_push: kept.pending_push, watched_at: kept.watched_at, view_offset_s: kept.view_offset_s }
     : {}
-  return { ...row, ...managed, ...local }
+  return { ...row, ...managed, ...local, ...newerArtOf({ row, kept }) }
+}
+
+export const newerArtOf = ({ row, kept }) => Object.fromEntries(['thumb', 'art']
+  .filter((field) => artVersionOf(row[field]) >= 0 && artVersionOf(kept?.[field]) > artVersionOf(row[field]))
+  .map((field) => [field, kept[field]]))
+
+const artVersionOf = (path) => {
+  const version = String(path ?? '').split('?')[0].match(/\/(\d+)$/)?.[1]
+  return version ? Number(version) : -1
 }
 
 export const saveManagerFields = async (updates) => {

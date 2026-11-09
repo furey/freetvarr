@@ -37,6 +37,12 @@ export const applyResolvedArt = (changes = []) => {
 
 export const artResolvedTickOf = (picture) => resolvedTicks.get(pictureIdOf(pictureOf(picture))) ?? 0
 
+export const episodePictureOf = (episode) => {
+  if (episode?.image || !episode?.picture) return episode?.image || null
+  const tick = artResolvedTickOf({ title: episode.title || '' })
+  return tick ? `${episode.picture}${episode.picture.includes('?') ? '&' : '?'}r=${tick}` : episode.picture
+}
+
 export const rememberFinalMiss = ({ url, title = '', shape = 'card' }) => {
   finalMisses.set(url, pictureIdOf(pictureOf({ url, title, shape })))
 }

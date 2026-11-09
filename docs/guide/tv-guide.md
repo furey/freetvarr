@@ -182,8 +182,23 @@ Some programmes in a guide feed have no image, or an image link that no longer w
 3. The show's picture on TVmaze, matched by exact title.
 4. With a [TMDB key](#tmdb-key), the film or show's backdrop or poster on [TMDB](https://www.themoviedb.org).
 5. The lead picture of the film or show's English Wikipedia article.
+6. A frame from a recording of the show: a still from about a quarter of the way into the newest recording. For a one-off, this step comes before the online steps.
 
 For steps 4 and 5, Freetvarr finds the film or show on [Wikidata](https://www.wikidata.org) by exact title, then checks the match before it uses a picture: a year in the synopsis must match the release year, a cast list in the synopsis must name someone in the article, and otherwise names and words from the synopsis must appear in the article. A programme with no synopsis gets no picture from these steps. An episode never matches a film.
+
+### Episode frames
+
+Freetvarr takes a frame with [ffmpeg](https://ffmpeg.org/), which comes with the Docker image. It skips the padding at the start and end of the recording, and tries up to three points in the programme until it finds a frame that is not black, white, or a flat slate. It makes one frame at a time, at low priority, and deletes a frame when its recording is gone. An install without ffmpeg shows no frames.
+
+Freetvarr keeps frames out of ad breaks. When [Ad removal](/guide/ad-removal) has scanned a recording, the frame comes from the middle of the longest part of the programme, at least 20 seconds from any ad break. For a series, Freetvarr uses the newest episode with an ad scan, then older episodes. While an ad scan is still to come, Freetvarr waits for it before it takes the frame. When a later scan finds that a frame came from an ad break, Freetvarr takes a new frame.
+
+Without an ad scan, Freetvarr takes no frame from a recording, so the title shows its title card. The exceptions have no ads: a recording from an Australian ABC channel (ABC TV, ABC Kids/ABC Family, ABC Entertains, ABC NEWS), and a download in your Plex library, such as one from Sonarr or Radarr. To get frames for a series on another channel, turn on Ad removal for it.
+
+A frame can show a moment from inside an episode, such as a contestant or who wins. To choose when Freetvarr uses frames, go to Settings → WATCHING → Film and TV info and, under **STILLS FROM RECORDINGS**, set **Use stills**:
+
+- **Off**: no frames anywhere. A title or episode with no other picture shows its title card.
+- **When nothing else** (the default): a frame only when no other picture is found. An episode shows the series picture first.
+- **Before series picture**: an episode with no picture of its own shows its frame before the series picture.
 
 While Freetvarr looks, the programme sheet shows a title card: the programme's name on a coloured background. The title card stays when no step finds a picture. A grid cell shows only its text until a step finds a picture, then the picture appears beside the text. With **Images** off, the grid does not ask for these pictures.
 

@@ -1182,13 +1182,14 @@ The server sets the kind (`canonicalKindOf`). The `kind` in the URL is a hint on
 
 Each kind runs its own chain of steps (`chainOf`). The steps are functions that `src/epg.js` passes in; each gives picture origins (`plex:<path>`, `recording:<id>`, `upload:<id>`, or a URL).
 
-| Request                  | Chain                                                                 |
-| ------------------------ | --------------------------------------------------------------------- |
-| Film                     | choice, Plex, recording, guide, online, derived shape, frame, none    |
-| Series                   | choice, Plex, recording, guide, online, derived shape, frame, none    |
-| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none    |
-| Episode (`recordingId`)  | recording picture, the title chain, frame, none                       |
-| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, none |
+| Request                  | Chain                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| Film                     | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none |
+| Series                   | choice, Plex, recording, guide, online, derived shape, frame, derived shape, none |
+| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none                |
+| Episode (`recordingId`)  | recording picture, the title chain, frame, none                                   |
+| Episode, frame first     | recording picture, frame, the title chain, none                                   |
+| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, none             |
 
 ```mermaid
 flowchart TD
@@ -1203,22 +1204,25 @@ flowchart TD
     recording --> guide["Guide images<br>of the title"]
     guide --> online["Online: TVmaze, then Wikipedia and TMDB;<br>films: Wikipedia and TMDB"]
     online --> derived["Derived shape from the first<br>picture that did not fit"]
-    derived --> none["No picture"]
+    derived --> frame["Frame from the newest recording file"]
+    frame --> none["No picture"]
   end
   chain --> store["Save the row in art_resolutions"]
 ```
 
 - A picture fits when it has the asked shape (`poster`: taller than wide; landscape: at least `1.3:1`) and is wide enough (`MIN_WIDTHS`): `300` px for a poster or a Plex picture, `640` px for any other landscape picture, the width the home hero check needs. The first picture that fits ends the chain, so a Plex or recording picture that fits makes no web request.
 - A picture that loads but does not fit is kept. When no later step finds a picture that fits, the derived step uses it: as it is when it has the asked shape, else on a blurred canvas (`portraitPadOf` in `src/show-poster.js` for `2:3` posters, `landscapeOf` in `src/image-thumbnails.js` for `16:9`).
-- The frame step gives nothing yet.
+- The frame step of a title takes up to `6` of the newest files of the title (`frameFilesFor` in `src/library-titles.js`): recordings that are imported (`done` or `partial`) and not purged, and Plex library items of the same kind, with a `file_path`. `framePreferenceOrderOf` in `src/frame-grabs.js` tries the files with ad data first, newest first, then files from an ad-free channel, then files that wait for an ad scan, then files with no ad data, which give no frame. The frame step of an episode takes the file of the recording. A frame that loads but does not fit (a poster) goes to the derived step after it, so a landscape frame can give a padded poster. See [Frame grabs](#frame-grabs).
+- The setting `episode_picture_order` (`off`, `series`, the default, or `frame`) sets the use of frames (Settings → Film and TV info → **STILLS FROM RECORDINGS** → **Use stills**: **Off**, **When nothing else**, **Before series picture**). `off` removes the frame step from the episode chain, and the frame step of every title answers no picture. `off` also adds `stills-off` to the settings key of the resolution fingerprint, so every saved title resolution runs again. A change between `off` and the other values calls `publishStillsChange` in `src/epg.js`, which publishes an art event for each title with a frame resolution and each recording with no saved picture. Frame files stay until the daily prune. The title step of an episode resolves the title without the `recordingId`, so it uses the frame of the newest file, as the title does.
 - The online step for a one-off is the same as for a series; the TVmaze and [online lookup](#online-lookup) match rules decide.
+- A film kind that comes from the guide only (`isGuessedFilmKind`: no Plex film of the title and no `movie` override) that finds no film online asks again as a series: TVmaze, then the online lookup without the film kind, which uses TMDB `/search/multi` (`onlineArtworkOf`). It asks again only after a settled film miss (a saved miss, `settled: true`); a refused lookup or a recent failure answers pending, so no series picture is saved for a real film. The same match rules decide. For example, a one-off `3 h` contest with no episode details is a guessed film.
 - A picture that fails to load with an error (a timeout, `429`, or `5xx`) is not a miss. `createProgrammeImages` waits `60 s` before it asks that source again, and keeps misses (`404`, not an image) for `10` min. When an earlier step failed with an error, a later picture that fits is saved for `5` min only (`ERROR_RETRY_MS`), and a derived shape or no picture answers pending and is not saved.
 - A Plex picture is saved as `plex:<path>` without the token (`plexOriginOf`); a Plex source from another server is skipped, and `remember` never saves an origin that holds `X-Plex-Token`. Every Plex picture loads through the photo transcoder.
 - The guide step uses at most `4` images. Plex pictures come through the Plex photo transcoder at most `1920` px (`plexResizedSourceOf`), so originals over the `4 MB` image limit still load.
 - The chain has `3 s` (`RESOLVE_BUDGET_MS`); the airing and episode steps have `1.5 s` (`OUTER_BUDGET_MS`). A step that runs past it, a Plex list still loading, or an online lookup still running makes the answer pending; nothing is saved.
 - `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to resize keeps its row and answers `final` for that request.
 
-`art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
+`art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the version (`art-v2`), the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
 
 | Result                    | Next check                                                         |
 | ------------------------- | ------------------------------------------------------------------ |
@@ -1227,6 +1231,33 @@ flowchart TD
 | A changed fingerprint     | At once                                                            |
 
 `forgetShowArtwork` (**Refresh artwork**) deletes the rows of the title. The daily prune deletes rows whose `next_check_at` is more than `90 d` past.
+
+### Frame grabs
+
+`createFrameGrabs` in `src/frame-grabs.js` takes a frame from a recording file with ffmpeg and saves it as `artwork/frames/<id>.jpg` beside the database (`ARTWORK_PATH`). `<id>` is the first `24` hex characters of a SHA-256 hash of the file path; the origin is `frame:<id>`.
+
+1. `frameFor` answers with the saved frame. With no frame, it puts the file in a queue and answers pending. A file with a `<id>.none` mark, no ffmpeg (`ffmpeg -version` fails, as on an install outside Docker), or a file that the server cannot read answers with no frame.
+1. `adPlanOf` sets the ad plan of a recording from `ad_status`, `ad_breaks_json`, the `ad_removal` of its series folder, the `ad_removal_enabled` setting, and `imported_at`:
+   - `clear`: `ad_status` is `cut`, `no_breaks`, or `detected` with no breaks.
+   - `marked`: `ad_status` is `detected` with breaks.
+   - `waiting`: a scan runs (`scanning`, or `isAdJobRunning`), or no scan result yet while ad removal is on for the folder and the recording was imported less than `8 h` ago. `frameFor` answers pending and does not grab.
+   - `ad-free`: no ad data, the install country is `au` (`countryForTimeZone(currentTimeZone())`), and `isAdFreeChannel` matches the `channel_name` of the recording: the first word is `abc`, `abctv`, `abcnews`, `abckids`, `abcfamily`, `abcme`, or `abc1`–`abc3`, and every other word is an ABC channel word (`tv`, `plus`, `kids`, `family`, `entertains`, `me`, `news`, `24`, `hd`), a state, or a capital city. ABC TV, ABC Kids/ABC Family, ABC Entertains, and ABC NEWS match; ABC Spark and a US ABC 7 do not. The ad removal code has no list of ad-free channels.
+   - `ad-free` also for a Plex library item with no `recording_id` (`downloadAdPlanOf`): an item with a `manager` (Sonarr or Radarr), or a file that is not a transport stream (`.ts`, `.m2ts`, `.mts`). A library item with a `recording_id` takes the plan of that recording (`filePlanOf` in `src/epg.js`).
+   - `unknown`: any other recording, and a transport stream in Plex with no `recording_id` and no `manager`. `frameFor` answers with no frame and does not grab.
+1. The queue runs one grab at a time. `ffprobe` reads the length of the file. `programmeWindowOf` takes half of the time the file runs past `duration_s` as padding at each end.
+1. With a `clear` or `marked` plan, `adAwareOffsetsOf` removes the breaks from the programme window (`programmeSegmentsOf`) and moves each segment edge `20 s` in (`BREAK_MARGIN_S`), away from breaks and padding. It seeks to the middle of the longest segment, then the middles of the next two segments, then `30%` and `70%` of the longest segment, up to `3` offsets. The first usable frame is saved. No segment longer than `40 s` gives a `.none` mark.
+1. With an `ad-free` plan, `frameOffsetsOf` seeks to `25%`, `40%`, and `60%` of the programme, inside its middle `80%`. With no length, it seeks to `120 s`, `300 s`, and `600 s`. `steadyUsableOf` grabs all `3` and keeps the usable ones. `distinctFramesOf` drops frames whose `32 × 18` grey fingerprint differs from another by less than `3%` (the same ad or slate in two breaks). For each frame left, it grabs a second frame `2 s` later; `steadyFrameOf` keeps the first frame that changed less than `10%` (`SCENE_DRIFT_MAX`). With none, the file gets a `.none` mark.
+1. `frameArgsOf` runs `nice -n 19 ffmpeg -ss <offset> -i <file>` for one frame through `yadif`, at the display aspect, at most `1280` px wide, as a JPEG. ffmpeg gets `30 s`.
+1. `isUsableFrame` reads `sharp` stats: the brightness must be from `24` to `232`, and the mean standard deviation of the channels at least `18`. When frames decode but none is kept, the file gets a `.none` mark, unless the file is smaller than the `size` of the recording (still copying). When ffmpeg fails every time, the file waits `1 h` in memory.
+1. A saved frame writes `<id>.json` with `offsetS`, `adAware`, `plan`, and `version`, and calls `artFeed.publish` for the title, background and poster, with no stamp, so open pages ask again. The origin of version `0` is `frame:<id>`; a later version is `frame:<id>-v<version>`, so thumbnails and stamps change with the picture. `frameFor` serves a saved frame only when its `<id>.json` has `adAware: true` or `plan: ad-free`; it deletes any other frame and plans it again.
+
+The checks of the `ad-free` path catch a channel promo that repeats or cuts fast. A recording from a channel with ads and no ad data gives no frame, because these checks do not catch a still ad slate or a long ad shot.
+
+When an ad scan ends, `scanRecordingAds` in `src/commercials.js` calls the `onAdScanResult` listeners. `refreshFrameAfterAdScan` in `src/epg.js` calls `reconsider`, which deletes the `.none` mark of the file. A frame saved without ad data whose offset is in a break or within `20 s` of one (`isNearBreak`), or that has no `<id>.json`, is deleted. Its `art_resolutions` rows get `next_check_at` `0`, and an art event goes out for the title. A frame clear of the breaks gets `adAware: true`. When the frame was deleted, or a request waited for the scan, it grabs again with the new plan, unless **Use stills** is **Off**.
+
+The daily cache prune (`pruneFrameGrabs` in `src/epg.js`) deletes frames, marks, and `<id>.json` files whose file is no longer a `file_path` of a recording that is not purged or of a Plex library item, and deletes the `art_resolutions` rows with those origins and their versions (`deleteFrameResolutions`, by `resolution_key` in batches of `200`; a failed batch is logged).
+
+`GET /api/recordings/:recording_id/image` serves the saved recording picture as before. Without one, it serves the episode chain (`findEpisodeThumbnail` in `src/epg.js`), at `1280` px when `w` is missing. `episodeOf` in `src/library.js` adds `picture`, the route URL for every recording, and keeps `image` for the saved picture only. The **New recordings** row and the episode list of a show page use `picture`. A guide airing or episode answer that comes after a step that is still pending is provisional (`provisional: true`, for example the series picture while the frame of the episode is still being grabbed with **Before series picture**). The route sends it with `Cache-Control: no-cache`, and the resolver asks again in the background and tells listeners when the preferred picture arrives. `episodePictureOf` in `src/web/shared/artwork-stamps.js` adds `r=<tick>` to a `picture` URL after each art event of the title, so a tile that shows a picture loads the new one. The Home hero uses `image`, and its picture pools list the route only for a saved picture, so the hero is the same.
 
 ### Live picture updates
 
@@ -1436,7 +1467,7 @@ Writes to Plex use `/:/scrobble`, `/:/unscrobble`, and `/:/progress`, `4` at a t
 - `src/library.js` merges `library_items` with the recordings. A Plex copy of a recording, or a Plex episode with the same show, season, and episode, becomes another version of that recording. Only a recording with a playable file (`done` or `partial`, no `library_state`) takes the Plex episode; a `failed` or `skipped` recording of that episode is dropped and the Plex episode stays. Any other item becomes a row with the id `plex-<ratingKey>`.
 - A watched mark or resume point on a `plex-` row sets `pending_push` (`scrobble`, `unscrobble`, or `progress`); the next scan sends it.
 
-`GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`.
+`GET` and `PUT /api/plex/whole-library` read and set the switch and sections. `GET /api/library/items/:ratingKey/image` serves Plex artwork through `/photo/:/transcode`. Plex changes the path of a thumb when it refreshes the picture, so a saved `thumb` can answer `404` until the next scan. On a miss, `createItemImage` in `src/plex-library-routes.js` reads the item again (`GET /library/metadata/<ratingKey>`), at most once per item in `5` min. When `thumb` or `art` changed (`itemArtOf`, the same rules as the scan), it saves them in `library_items`, serves the new picture, and calls `artFeed.publish` for the show, poster and background, with no stamp. A later scan keeps a saved `thumb` or `art` whose version (the number at the end of the Plex path) is newer than the one it read (`newerArtOf` in `src/plex-library-store.js`).
 
 ## Sonarr and Radarr
 
