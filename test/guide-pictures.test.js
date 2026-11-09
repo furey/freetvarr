@@ -13,6 +13,7 @@ import {
   guidePictureCandidatesOf,
   guidePictureIdOf,
   isGuidePictureOrigin,
+  titleIndexOf,
 } from '../src/guide-pictures.js'
 import { createHostTally } from '../src/programme-images.js'
 
@@ -103,6 +104,48 @@ test('saveAll saves each address of a title once, and the newest saved address i
   assert.notEqual(await pictures.originFor('Gruen'), before)
   assert.equal(await pictures.originForSource('https://images.example.com/gruen-1.jpg'), before)
   assert.equal(await pictures.originFor('Gruen'), await pictures.originForSource('https://images.example.com/gruen-2.jpg'))
+})
+
+test('host rank: a Freeview copy is the title copy even when a guide-host copy is newer, and the guide-host copy is next', async () => {
+  const freeviewHost = 'img-store-prod.switch.tv'
+  const { pictures, clock } = await setUp({ preferredHosts: [freeviewHost] })
+  const freeview = `https://${freeviewHost}/images/gruen.jpg`
+  const guide = 'https://images.example.com/gruen-1.jpg'
+  const newer = 'https://images.example.com/gruen-2.jpg'
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Gruen', guide, 1)]) })
+  assert.deepEqual(await pictures.titleOriginsFor('Gruen'), [await pictures.originForSource(guide)])
+  clock.ms += DAY
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Gruen', freeview, 1)]) })
+  clock.ms += DAY
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Gruen', newer, 1)]) })
+  assert.equal(await pictures.originFor('Gruen'), await pictures.originForSource(freeview))
+  assert.deepEqual(await pictures.titleOriginsFor('Gruen'), [await pictures.originForSource(freeview), await pictures.originForSource(newer)])
+  assert.deepEqual(await pictures.titleOriginsFor('Bluey'), [])
+})
+
+test('host rank: with no preferred host the newest copy is the title copy, as outside Australia', async () => {
+  const { pictures, clock } = await setUp()
+  const freeview = 'https://img-store-prod.switch.tv/images/gruen.jpg'
+  const newer = 'https://images.example.com/gruen-2.jpg'
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Gruen', freeview, 1)]) })
+  clock.ms += DAY
+  await pictures.saveAll({ candidates: guidePictureCandidatesOf([airing('Gruen', newer, 1)]) })
+  assert.equal(await pictures.originFor('Gruen'), await pictures.originForSource(newer))
+  assert.deepEqual(await pictures.titleOriginsFor('Gruen'), [await pictures.originForSource(newer)])
+})
+
+test('titleIndexOf ranks preferred hosts first, then the newest saved copy', () => {
+  const rows = [
+    { title_key: 'a', source_url: 'https://images.example.com/a-old.jpg', saved_at: 1 },
+    { title_key: 'a', source_url: 'https://img-store-prod.switch.tv/a.jpg', saved_at: 2 },
+    { title_key: 'a', source_url: 'https://images.example.com/a-new.jpg', saved_at: 3 },
+    { title_key: 'b', source_url: 'https://images.example.com/b.jpg', saved_at: 1 },
+  ]
+  const ranked = titleIndexOf({ rows, preferred: new Set(['img-store-prod.switch.tv']) })
+  assert.equal(ranked.byTitle.get('a').source_url, 'https://img-store-prod.switch.tv/a.jpg')
+  assert.equal(ranked.fallbackByTitle.get('a').source_url, 'https://images.example.com/a-new.jpg')
+  assert.equal(ranked.byTitle.get('b').source_url, 'https://images.example.com/b.jpg')
+  assert.equal(titleIndexOf({ rows }).byTitle.get('a').source_url, 'https://images.example.com/a-new.jpg')
 })
 
 test('a failing address keeps the saved copy, is not asked again for a day, and is counted against its host', async () => {

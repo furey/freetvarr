@@ -38,12 +38,13 @@ const EPISODE_CHAINS_BY_ORDER = {
 }
 
 export const GUIDE_ONLY_CHAIN = ['own', 'saved', 'same-title', 'freeview', 'title', FINAL_STAGE]
+export const FREEVIEW_FIRST_GUIDE_CHAIN = ['freeview', 'own', 'saved', 'same-title', 'title', FINAL_STAGE]
 
-export const guideSourcesOf = ({ saved = null, live = [] }) => [...new Set([saved, ...live].filter(Boolean))]
+export const guideSourcesOf = ({ saved = [], live = [] }) => [...new Set([saved, live].flat().filter(Boolean))]
 
-export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST }) => {
+export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST, freeviewFirst = false }) => {
   if (recordingId != null) return EPISODE_CHAINS_BY_ORDER[episodeOrder] ?? EPISODE_CHAIN
-  if (eventId != null) return GUIDE_ONLY_CHAIN
+  if (eventId != null) return freeviewFirst ? FREEVIEW_FIRST_GUIDE_CHAIN : GUIDE_ONLY_CHAIN
   return TITLE_CHAINS[kind] ?? TITLE_CHAINS[SERIES_KIND]
 }
 

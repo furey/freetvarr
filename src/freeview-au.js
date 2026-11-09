@@ -191,7 +191,7 @@ export const createFreeviewAu = ({
         if (error?.code === 'bad-content') return { data: [] }
         throw error
       })
-      listings.push(...(body?.data ?? []))
+      listings.push(...(body?.data ?? []).map(slimListingOf))
       if (!body?.meta?.pagination?.more) break
     }
     return listings
@@ -245,6 +245,17 @@ export const isFreeviewImageSource = (source) => {
     return false
   }
 }
+
+export const slimListingOf = (listing) => ({
+  title: listing?.title,
+  start: listing?.start,
+  related: {
+    shows: (listing?.related?.shows ?? []).slice(0, 1).map(slimImagesOf),
+    episodes: (listing?.related?.episodes ?? []).slice(0, 1).map(slimImagesOf),
+  },
+})
+
+const slimImagesOf = (entity) => ({ related: { images: (entity?.related?.images ?? []).map((image) => ({ url: image?.url })) } })
 
 const wordsOf = (key) => new Set(key.split(' ').filter((word) => word && !STOP_WORDS.has(word)))
 

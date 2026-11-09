@@ -4,6 +4,7 @@ import sharp from 'sharp'
 
 import {
   EPISODE_CHAIN,
+  FREEVIEW_FIRST_GUIDE_CHAIN,
   GUIDE_ONLY_CHAIN,
   TITLE_CHAINS,
   canonicalKindOf,
@@ -78,11 +79,15 @@ test('chainOf: each kind runs its own chain, from the owner choice to no picture
     [{ kind: 'series', recordingId: 'r1', episodeOrder: 'series' }, ['episode', 'title', 'frame', 'none']],
     [{ kind: 'series', recordingId: 'r1', episodeOrder: 'frame' }, ['episode', 'frame', 'title', 'none']],
     [{ kind: 'movie', eventId: 'e1' }, ['own', 'saved', 'same-title', 'freeview', 'title', 'none']],
+    [{ kind: 'movie', eventId: 'e1', freeviewFirst: false }, ['own', 'saved', 'same-title', 'freeview', 'title', 'none']],
+    [{ kind: 'movie', eventId: 'e1', freeviewFirst: true }, ['freeview', 'own', 'saved', 'same-title', 'title', 'none']],
+    [{ kind: 'series', freeviewFirst: true }, TITLE_CHAINS.series],
     [{ kind: 'unknown' }, TITLE_CHAINS.series],
   ]
   for (const [request, chain] of table) assert.deepEqual(chainOf(request), chain, JSON.stringify(request))
   assert.equal(chainOf({ kind: 'series', recordingId: 'r1' }), EPISODE_CHAIN)
   assert.equal(chainOf({ kind: 'series', eventId: 'e1' }), GUIDE_ONLY_CHAIN)
+  assert.equal(chainOf({ kind: 'series', eventId: 'e1', freeviewFirst: true }), FREEVIEW_FIRST_GUIDE_CHAIN)
 })
 
 test('canonicalKindOf: library kind, then programme-kind override, then guide kind; the URL kind is only a hint', () => {
@@ -671,6 +676,52 @@ test('guide airing chain: the airing picture, its saved copy, the title copy, ot
   assert.deepEqual(await run({ sizes: { [ownCopy]: WIDE, [titleCopy]: WIDE } }), ['own', ownCopy])
   assert.deepEqual(await run({ sizes: { [titleCopy]: WIDE } }), ['saved', titleCopy])
   assert.deepEqual(await run({ sizes: { 'https://freeview.example.com/1.jpg': WIDE }, freeview: 'https://freeview.example.com/1.jpg' }), ['freeview', 'https://freeview.example.com/1.jpg'])
+})
+
+test('guide airing chain in Australia: Freeview first, then the airing picture, its saved copy, the title copy, other airings', async () => {
+  const freeviewCopy = 'guide-picture:cccccccccccccccccccccccc-v3'
+  const freeviewLive = 'https://img-store-prod.switch.tv/images/bluey.jpg'
+  const own = 'https://images.example.com/episode-2.jpg'
+  const ownCopy = 'guide-picture:aaaaaaaaaaaaaaaaaaaaaaaa-v1'
+  const titleCopy = 'guide-picture:bbbbbbbbbbbbbbbbbbbbbbbb-v2'
+  const sameTitle = 'https://images.example.com/episode-3.jpg'
+  const run = async ({ sizes, freeview = [], freeviewFirst = true }) => {
+    const { resolver, calls } = resolverWith({
+      stages: {
+        freeview: async () => ({ sources: freeview }),
+        own: async ({ ownSource }) => ({ sources: [ownSource, ownCopy] }),
+        saved: async () => ({ sources: [titleCopy] }),
+        'same-title': async () => ({ sources: [sameTitle] }),
+      },
+      sizes,
+    })
+    const found = await resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: own, freeviewFirst })
+    return { picked: [found.stage, found.origin], calls }
+  }
+  const everything = { [freeviewCopy]: WIDE, [freeviewLive]: WIDE, [own]: WIDE, [ownCopy]: WIDE, [titleCopy]: WIDE, [sameTitle]: WIDE }
+  const matched = [freeviewCopy, freeviewLive]
+  assert.deepEqual((await run({ sizes: everything, freeview: matched })).picked, ['freeview', freeviewCopy])
+  assert.deepEqual((await run({ sizes: { ...everything, [freeviewCopy]: null }, freeview: matched })).picked, ['freeview', freeviewLive])
+  assert.deepEqual((await run({ sizes: everything, freeview: matched, freeviewFirst: false })).picked, ['own', own])
+  const noMatch = await run({ sizes: everything })
+  assert.deepEqual(noMatch.picked, ['own', own])
+  assert.deepEqual(noMatch.calls, ['freeview', 'own'])
+  assert.deepEqual((await run({ sizes: { [ownCopy]: WIDE, [titleCopy]: WIDE }, freeview: matched })).picked, ['own', ownCopy])
+  assert.deepEqual((await run({ sizes: { [titleCopy]: WIDE, [sameTitle]: WIDE } })).picked, ['saved', titleCopy])
+  assert.deepEqual((await run({ sizes: { [sameTitle]: WIDE } })).picked, ['same-title', sameTitle])
+})
+
+test('guide step: a Freeview title copy comes first, then the copy from the guide host, then the live addresses', async () => {
+  const freeviewCopy = 'guide-picture:cccccccccccccccccccccccc-v3'
+  const guideCopy = 'guide-picture:bbbbbbbbbbbbbbbbbbbbbbbb-v2'
+  const live = 'https://images.example.com/gruen.jpg'
+  assert.deepEqual(guideSourcesOf({ saved: [freeviewCopy, guideCopy], live: [live, guideCopy] }), [freeviewCopy, guideCopy, live])
+  const run = async (sizes) => {
+    const { resolver } = resolverWith({ stages: { guide: async () => ({ sources: guideSourcesOf({ saved: [freeviewCopy, guideCopy], live: [live] }) }) }, sizes })
+    return (await resolver.resolve({ title: 'Gruen' })).origin
+  }
+  assert.equal(await run({ [freeviewCopy]: WIDE, [guideCopy]: WIDE, [live]: WIDE }), freeviewCopy)
+  assert.equal(await run({ [freeviewCopy]: { width: 400, height: 225 }, [guideCopy]: WIDE }), guideCopy)
 })
 
 test('peek: due with no row or a due retry, else the saved or chosen picture, with only the local steps run', async () => {

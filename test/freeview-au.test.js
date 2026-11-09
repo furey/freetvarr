@@ -13,6 +13,7 @@ import {
   listingImageOf,
   matchListing,
   placeholderImagesOf,
+  slimListingOf,
   titlesAgree,
   windowStartOf,
   windowsAround,
@@ -157,6 +158,41 @@ test('a 504 window backs off: no request until the wait ends, then it asks again
   assert.deepEqual(await freeview.listingsFor(window), [])
   assert.deepEqual(await freeview.listingsFor(window), [])
   assert.equal(client.calls.length, 3)
+})
+
+test('matchAirings gives no match while Freeview fails or backs off, or lists another title, so the guide picture stays', async () => {
+  const clock = { ms: START }
+  let failing = true
+  const client = fakeClient(({ url }) => {
+    if (url.includes('/channels/')) return channelsBody
+    if (failing) throw new OutboundError('fvau-api-prod.switch.tv HTTP 504', { code: 'unavailable', status: 504 })
+    return { data: [listing({ title: 'Home and Away', start: START, show: 'home.jpg' })], meta: { pagination: { more: false } } }
+  })
+  const freeview = createFreeviewAu({ client, timeZone: () => 'Australia/Sydney', now: () => clock.ms })
+  const airings = [{ key: '1', title: 'Seven News', start: START, triplets: [TRIPLET] }]
+  assert.equal((await freeview.matchAirings(airings)).size, 0)
+  const asked = client.calls.length
+  clock.ms += MINUTE
+  assert.equal((await freeview.matchAirings(airings)).size, 0)
+  assert.equal(client.calls.length, asked)
+  failing = false
+  clock.ms += 16 * MINUTE
+  assert.equal((await freeview.matchAirings(airings)).size, 0)
+  assert.ok(client.calls.length > asked)
+})
+
+test('slimListingOf keeps only the title, start, and first show and episode images, so cached windows stay small', () => {
+  const full = {
+    ...listing({ title: 'Gruen', show: 'show.jpg', episode: 'ep.jpg' }),
+    synopsis: 'x'.repeat(5000),
+    crid: 'crid://abc',
+  }
+  full.related.shows[0].related.synopsis = 'y'.repeat(5000)
+  const slim = slimListingOf(full)
+  assert.deepEqual(Object.keys(slim), ['title', 'start', 'related'])
+  assert.equal(listingImageOf({ listing: slim }), 'https://img-store-prod.switch.tv/images/show.jpg')
+  assert.equal(matchListing({ airing: { title: 'Gruen', start: START }, listings: [slim] }), slim)
+  assert.ok(JSON.stringify(slim).length < 300)
 })
 
 test('outside Australia the Freeview step is off and makes no request', async () => {

@@ -57,7 +57,10 @@ export const createGuidePictures = ({
   maxBytes = GUIDE_PICTURE_MAX_BYTES,
   missRetryMs = MISS_RETRY_MS,
   errorRetryMs = ERROR_RETRY_MS,
+  preferredHosts = [],
 } = {}) => {
+  const preferred = new Set(preferredHosts)
+  const indexOf = (rows) => titleIndexOf({ rows, preferred })
   const limiters = new Map()
   const breakers = new Map()
   const failedSources = new Map()
@@ -90,6 +93,15 @@ export const createGuidePictures = ({
     const titleKey = showTitleKey(title)
     const row = titleKey ? (await load()).byTitle.get(titleKey) : null
     return row ? guidePictureOriginOf(row) : null
+  }
+
+  const titleOriginsFor = async (title) => {
+    const titleKey = showTitleKey(title)
+    const saved = titleKey ? await load() : null
+    const best = saved?.byTitle.get(titleKey)
+    if (!best) return []
+    const fallback = preferred.has(hostOfRow(best)) ? saved.fallbackByTitle.get(titleKey) : null
+    return [best, fallback].filter(Boolean).map(guidePictureOriginOf)
   }
 
   const originForSource = async (source) => {
@@ -226,20 +238,32 @@ export const createGuidePictures = ({
 
   const savedTitleKeys = async () => new Set((await load()).byTitle.keys())
 
-  return { saveAll, originFor, originForSource, read, prune, savedTitleKeys }
+  return { saveAll, originFor, titleOriginsFor, originForSource, read, prune, savedTitleKeys }
 }
 
 const isStrayFile = ({ name, kept }) => STRAY_FILE.test(name) && !kept.has(name)
 
-const indexOf = (rows) => {
+export const titleIndexOf = ({ rows, preferred = new Set() }) => {
   const bySource = new Map(rows.map((row) => [row.source_url, row]))
   const byTitle = new Map()
+  const fallbackByTitle = new Map()
+  const rankOf = (row) => [preferred.has(hostOfRow(row)) ? 1 : 0, Number(row.saved_at)]
+  const isBetter = (row, current) => {
+    const [rankA, savedA] = rankOf(row)
+    const [rankB, savedB] = rankOf(current)
+    return rankA !== rankB ? rankA > rankB : savedA > savedB
+  }
   for (const row of bySource.values()) {
     const current = byTitle.get(row.title_key)
-    if (!current || Number(row.saved_at) > Number(current.saved_at)) byTitle.set(row.title_key, row)
+    if (!current || isBetter(row, current)) byTitle.set(row.title_key, row)
+    if (preferred.has(hostOfRow(row))) continue
+    const fallback = fallbackByTitle.get(row.title_key)
+    if (!fallback || Number(row.saved_at) > Number(fallback.saved_at)) fallbackByTitle.set(row.title_key, row)
   }
-  return { bySource, byTitle }
+  return { bySource, byTitle, fallbackByTitle }
 }
+
+const hostOfRow = (row) => hostOfSource(row.source_url) ?? LOCAL_HOST
 
 const idOfOrigin = (origin) => {
   if (!isGuidePictureOrigin(origin)) return null
