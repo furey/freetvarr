@@ -72,6 +72,7 @@ export const createArtResolver = ({
   minWidths = MIN_WIDTHS,
   hitRecheckMs = HIT_RECHECK_MS,
   missRetryMs = MISS_RETRY_MS,
+  errorRetryMs = ERROR_RETRY_MS,
 }) => {
   const inflight = new Map()
 
@@ -119,11 +120,13 @@ export const createArtResolver = ({
 
   const runTitleChain = async ({ ctx, local, fingerprint, saved, deadline }) => {
     let weak = null
+    let errored = false
+    const settle = (result) => (errored ? PENDING_RESULT : remember({ ctx, fingerprint, saved, result }))
     for (const stage of chainOf({ kind: ctx.kind })) {
       if (stage === 'choice') continue
-      if (stage === FINAL_STAGE) return remember({ ctx, fingerprint, saved, result: FINAL_RESULT })
+      if (stage === FINAL_STAGE) return settle(FINAL_RESULT)
       if (stage === 'derived') {
-        if (weak) return remember({ ctx, fingerprint, saved, result: derivedResultOf(weak) })
+        if (weak) return settle(derivedResultOf(weak))
         continue
       }
       const found = local.found[stage] ?? await stageWithin({ stage, ctx, deadline })
@@ -131,11 +134,12 @@ export const createArtResolver = ({
       for (const origin of found.sources) {
         const verdict = await judge({ origin, shape: ctx.shape, minWidth: minWidthOf({ minWidths, stage, shape: ctx.shape }), deadline })
         if (verdict.pending) return PENDING_RESULT
-        if (verdict.fits) return remember({ ctx, fingerprint, saved, result: { stage, origin, transform: 'none', pending: false } })
+        if (verdict.errored) errored = true
+        if (verdict.fits) return remember({ ctx, fingerprint, saved, result: { stage, origin, transform: 'none', pending: false }, errored })
         if (verdict.loaded && !weak) weak = { origin, rightShape: verdict.rightShape }
       }
     }
-    return remember({ ctx, fingerprint, saved, result: FINAL_RESULT })
+    return settle(FINAL_RESULT)
   }
 
   const runOuterChain = async ({ chain, ctx }) => {
@@ -159,12 +163,14 @@ export const createArtResolver = ({
   }
 
   const firstLoaded = async ({ sources, deadline }) => {
+    let failed = false
     for (const origin of sources) {
       const image = await within(loadImage(origin), deadline - now())
       if (image === TIMED_OUT) return { origin: null, pending: true }
-      if (image) return { origin, pending: false }
+      if (image === LOAD_FAILED) failed = true
+      else if (image) return { origin, pending: false }
     }
-    return { origin: null, pending: false }
+    return { origin: null, pending: failed }
   }
 
   const stageWithin = async ({ stage, ctx, deadline }) => {
@@ -178,6 +184,7 @@ export const createArtResolver = ({
   const judge = async ({ origin, shape, minWidth, deadline }) => {
     const image = await within(loadImage(origin), deadline - now())
     if (image === TIMED_OUT) return { pending: true }
+    if (image === LOAD_FAILED) return { loaded: false, errored: true }
     if (!image?.body) return { loaded: false }
     const size = await sizeOf(image).catch(() => null)
     if (!size?.width) return { loaded: false }
@@ -185,10 +192,11 @@ export const createArtResolver = ({
     return { loaded: true, rightShape, fits: rightShape && size.width >= minWidth }
   }
 
-  const remember = async ({ ctx, fingerprint, saved, result }) => {
+  const remember = async ({ ctx, fingerprint, saved, result, errored = false }) => {
+    if (!isStorableOrigin(result.origin)) return result
     const settled = SETTLED_STAGES.has(result.stage)
     const step = settled && saved?.fingerprint === fingerprint && SETTLED_STAGES.has(saved.stage) ? Number(saved.miss_step) + 1 : 0
-    const waitMs = settled ? missRetryMs[Math.min(step, missRetryMs.length - 1)] : hitRecheckMs
+    const waitMs = errored ? errorRetryMs : (settled ? missRetryMs[Math.min(step, missRetryMs.length - 1)] : hitRecheckMs)
     await store.write({
       resolution_key: resolutionKeyOf(ctx),
       title_key: ctx.titleKey,
@@ -241,6 +249,8 @@ const minWidthOf = ({ minWidths, stage, shape }) => {
   return stage === 'plex' ? minWidths.plex : minWidths.landscape
 }
 
+const isStorableOrigin = (origin) => !/x-plex-token=/i.test(String(origin ?? ''))
+
 const chosenTransformOf = (shape) => (shape === POSTER_SHAPE ? 'none' : 'pad')
 
 const resultOfRow = (row) => ({ stage: row.stage, origin: row.origin ?? null, transform: row.transform, pending: false })
@@ -258,7 +268,7 @@ const within = (promise, ms) => {
   }
   let timer = null
   return Promise.race([
-    Promise.resolve(promise).catch(() => null),
+    Promise.resolve(promise).catch(() => LOAD_FAILED),
     new Promise((resolve) => { timer = setTimeout(resolve, ms, TIMED_OUT) }),
   ]).finally(() => clearTimeout(timer))
 }
@@ -275,6 +285,7 @@ const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OF
 const LOCAL_STAGES = ['plex', 'recording', 'guide']
 const SETTLED_STAGES = new Set(['derived', FINAL_STAGE])
 const TIMED_OUT = Symbol('timed out')
+const LOAD_FAILED = Symbol('load failed')
 const NO_SOURCES = { sources: [], pending: false }
 const FINAL_RESULT = { stage: FINAL_STAGE, origin: null, transform: 'none', pending: false }
 const PENDING_RESULT = { stage: null, origin: null, transform: null, pending: true }
@@ -285,4 +296,5 @@ const OUTER_BUDGET_MS = 1500
 const MIN_WIDTHS = { poster: 300, plex: 300, landscape: 640 }
 const HOUR_MS = 60 * 60 * 1000
 const HIT_RECHECK_MS = 7 * 24 * HOUR_MS
+const ERROR_RETRY_MS = 5 * 60 * 1000
 const MISS_RETRY_MS = [6 * HOUR_MS, 24 * HOUR_MS, 3 * 24 * HOUR_MS, 7 * 24 * HOUR_MS]

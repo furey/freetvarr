@@ -149,7 +149,7 @@ test('createProgrammeImages: evicts the least recently used image past the entry
   await images.imageFor('b')
   await images.imageFor('a')
   await images.imageFor('c')
-  assert.deepEqual(images.stats(), { entries: 2, bytes: 20, misses: 0 })
+  assert.deepEqual(images.stats(), { entries: 2, bytes: 20, misses: 0, failures: 0 })
   await images.imageFor('a')
   await images.imageFor('b')
   assert.deepEqual(fetched, ['a', 'b', 'c', 'b'])
@@ -163,13 +163,13 @@ test('createProgrammeImages: stays under the byte limit and skips an image large
   })
   await images.imageFor('small')
   await images.imageFor('medium')
-  assert.deepEqual(images.stats(), { entries: 2, bytes: 90, misses: 0 })
+  assert.deepEqual(images.stats(), { entries: 2, bytes: 90, misses: 0, failures: 0 })
   const huge = await images.imageFor('huge')
   assert.equal(huge.body.length, 200)
-  assert.deepEqual(images.stats(), { entries: 2, bytes: 90, misses: 0 })
+  assert.deepEqual(images.stats(), { entries: 2, bytes: 90, misses: 0, failures: 0 })
   sizes.large = 70
   await images.imageFor('large')
-  assert.deepEqual(images.stats(), { entries: 1, bytes: 70, misses: 0 })
+  assert.deepEqual(images.stats(), { entries: 1, bytes: 70, misses: 0, failures: 0 })
 })
 
 test('createProgrammeImages: shares one fetch between concurrent requests', async () => {
@@ -207,15 +207,23 @@ test('createProgrammeImages: remembers a miss until it expires, then asks upstre
   assert.equal(images.stats().misses, 0)
 })
 
-test('createProgrammeImages: a failed fetch counts as a miss and the miss list stays bounded', async () => {
+test('createProgrammeImages: a failed fetch is kept apart from a miss, waits out a short backoff, and both lists stay bounded', async () => {
+  let clock = 0
+  let calls = 0
   const images = createProgrammeImages({
     maxMisses: 2,
-    fetchImage: async () => { throw new Error('upstream down') },
+    now: () => clock,
+    fetchImage: async () => { calls += 1; throw new Error('upstream down') },
   })
   await images.imageFor('a')
   await images.imageFor('b')
   await images.imageFor('c')
-  assert.equal(images.stats().misses, 2)
+  assert.deepEqual([images.stats().misses, images.stats().failures], [0, 2])
+  await assert.rejects(images.imageOrErrorFor('c'))
+  assert.equal(calls, 3)
+  clock += 61 * 1000
+  await assert.rejects(images.imageOrErrorFor('c'))
+  assert.equal(calls, 4)
 })
 
 test('onGuideLoaded: tells listeners once the guide has loaded', async () => {

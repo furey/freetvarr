@@ -22,7 +22,7 @@ import {
   seriesKey,
   resolveConnection,
   getChannelIcon,
-  fetchProgrammeImage,
+  fetchProgrammeImageOrThrow,
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
@@ -30,8 +30,8 @@ import { channelShiftHours, createClassificationLookup, createClassificationStor
 import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
-import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
-import { FINAL_STAGE, LANDSCAPE_SHAPE, MOVIE_KIND, ONE_OFF_KIND, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
+import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
+import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
 import { loadKindOverrides } from './programme-kind.js'
 import { createLibraryTitles } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
@@ -846,14 +846,16 @@ const originalOfOrigin = async ({ origin, kind }) => {
   return landscapeOf(image).catch(() => image)
 }
 
-const rawImageOfOrigin = async (origin) => {
+const rawImageOfOrigin = (origin) => rawImageOrErrorOf(origin).catch(() => null)
+
+const rawImageOrErrorOf = async (origin) => {
   if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
   if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
     return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
   }
-  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageFor(origin)
+  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageOrErrorFor(origin)
   const connection = await getPlexConnection().catch(() => null)
-  return connection ? showSourceImage(plexSourceOf({ origin, ...connection })) : null
+  return connection ? programmeImages.imageOrErrorFor(plexResizedSourceOf(plexSourceOf({ origin, ...connection }))) : null
 }
 
 const showSourceImage = (source) => (source.startsWith(RECORDING_ORIGIN_PREFIX)
@@ -933,9 +935,7 @@ const imageOfResolution = async ({ resolution, title, width, shape }) => {
   const image = await resolveWithin(resolvedThumbnail({ resolution, width, shape }), SHOW_IMAGE_BUDGET_MS)
   if (image === TIMED_OUT) return PENDING_IMAGE
   if (image) return { image, pending: false }
-  if (resolution.stage === CHOICE_STAGE) return NO_IMAGE
-  artResolver.invalidate({ title, kind: resolution.kind, shape })
-  return PENDING_IMAGE
+  return resolution.stage === CHOICE_STAGE ? NO_IMAGE : FINAL_MISS
 }
 
 const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) => thumbnailStore.thumbnailFor({
@@ -960,11 +960,12 @@ const plexStage = async ({ title, kind, shape }) => {
   const found = await showArtwork.plexArtworkFor(title, { kind, shape: shape === POSTER_SHAPE ? POSTER_SHAPE : null }).catch(() => NO_ARTWORK)
   if (!found.sources.length) return found
   const connection = await getPlexConnection().catch(() => null)
-  return { sources: found.sources.map((source) => plexOriginOf({ source, url: connection?.url })), pending: found.pending }
+  const origins = found.sources.map((source) => plexOriginOf({ source, url: connection?.url })).filter(Boolean)
+  return { sources: origins, pending: found.pending }
 }
 
 export const plexOriginOf = ({ source, url }) => {
-  if (!url || !source.startsWith(`${url}/`)) return source
+  if (!url || !source.startsWith(`${url}/`)) return null
   const [path, query = ''] = source.slice(url.length).split('?')
   const kept = new URLSearchParams(query)
   kept.delete('X-Plex-Token')
@@ -973,7 +974,6 @@ export const plexOriginOf = ({ source, url }) => {
 }
 
 const onlineStage = async ({ title, kind }) => {
-  if (kind === ONE_OFF_KIND && !hasLookupEvidence(await artworkHintsFor(title).catch(() => null))) return NO_ARTWORK
   if (isFilmKind(kind)) return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
   const tvmaze = await showArtwork.tvmazeArtworkFor(title).catch(() => NO_ARTWORK)
   if (tvmaze.sources.length) return tvmaze
@@ -983,10 +983,6 @@ const onlineStage = async ({ title, kind }) => {
   }
   return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
 }
-
-const hasLookupEvidence = (hints) => Boolean(hints && (
-  hints.inLibrary || hints.isEpisode || hints.releaseYears?.length || hints.castNames?.length
-))
 
 const onlineSettingsKey = async () => `${await tvmazeLookupEnabled().catch(() => false)}|${Boolean(await storedTmdbKey().catch(() => null))}`
 
@@ -1183,7 +1179,7 @@ export const clearGuideCache = () => guideCache.clear()
 
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
-  fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
+  fetchImage: (source) => (isFallbackImageSource(source) ? artworkClient.getImage({ url: source }) : fetchProgrammeImageOrThrow({ source })),
 })
 const PERSON_IMAGE_MEMORY_ENTRIES = 48
 const PERSON_IMAGE_MEMORY_BYTES = 4 * 1024 * 1024
@@ -1214,7 +1210,7 @@ const artResolver = createArtResolver({
     episode: async ({ recordingId }) => ({ sources: [`${RECORDING_ORIGIN_PREFIX}${recordingId}`] }),
   },
   kindOf: canonicalKindFor,
-  loadImage: (origin) => rawImageOfOrigin(origin),
+  loadImage: rawImageOrErrorOf,
   settingsKeyOf: onlineSettingsKey,
 })
 const guideSearchFor = createGuideSearchCache()

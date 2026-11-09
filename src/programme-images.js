@@ -3,11 +3,13 @@ export const createProgrammeImages = ({
   maxEntries = DEFAULT_MAX_ENTRIES,
   maxBytes = DEFAULT_MAX_BYTES,
   missTtlMs = DEFAULT_MISS_TTL_MS,
+  failureTtlMs = DEFAULT_FAILURE_TTL_MS,
   maxMisses = DEFAULT_MAX_MISSES,
   now = Date.now,
 }) => {
   const entries = new Map()
   const misses = new Map()
+  const failures = new Map()
   const inflight = new Map()
   let totalBytes = 0
 
@@ -32,44 +34,51 @@ export const createProgrammeImages = ({
     return image
   }
 
-  const rememberMiss = (source) => {
-    misses.delete(source)
-    misses.set(source, now() + missTtlMs)
-    if (misses.size > maxMisses) misses.delete(misses.keys().next().value)
+  const note = ({ list, source, ttlMs }) => {
+    list.delete(source)
+    list.set(source, now() + ttlMs)
+    if (list.size > maxMisses) list.delete(list.keys().next().value)
   }
 
-  const recentlyMissed = (source) => {
-    const expiresAt = misses.get(source)
+  const isNoted = ({ list, source }) => {
+    const expiresAt = list.get(source)
     if (expiresAt === undefined) return false
     if (expiresAt > now()) return true
-    misses.delete(source)
+    list.delete(source)
     return false
   }
 
-  const imageFor = async (source) => {
+  const imageOrErrorFor = async (source) => {
     if (!source) return null
     const cached = recall(source)
     if (cached) return cached
-    if (recentlyMissed(source)) return null
+    if (isNoted({ list: misses, source })) return null
+    if (isNoted({ list: failures, source })) throw new Error('image source failed recently')
     if (inflight.has(source)) return inflight.get(source)
-    const pending = Promise.resolve(fetchImage(source))
-      .catch(() => null)
+    const pending = Promise.resolve()
+      .then(() => fetchImage(source))
       .then((image) => {
         if (image) remember(source, image)
-        else rememberMiss(source)
+        else note({ list: misses, source, ttlMs: missTtlMs })
         return image || null
+      }, (error) => {
+        note({ list: failures, source, ttlMs: failureTtlMs })
+        throw error
       })
       .finally(() => inflight.delete(source))
     inflight.set(source, pending)
     return pending
   }
 
-  const stats = () => ({ entries: entries.size, bytes: totalBytes, misses: misses.size })
+  const imageFor = (source) => imageOrErrorFor(source).catch(() => null)
 
-  return { imageFor, stats }
+  const stats = () => ({ entries: entries.size, bytes: totalBytes, misses: misses.size, failures: failures.size })
+
+  return { imageFor, imageOrErrorFor, stats }
 }
 
 const DEFAULT_MAX_ENTRIES = 64
 const DEFAULT_MAX_BYTES = 32 * 1024 * 1024
 const DEFAULT_MISS_TTL_MS = 10 * 60 * 1000
 const DEFAULT_MAX_MISSES = 2000
+const DEFAULT_FAILURE_TTL_MS = 60 * 1000

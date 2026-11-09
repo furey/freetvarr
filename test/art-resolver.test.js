@@ -310,3 +310,39 @@ test('a final miss answers 404 no-store with X-Art-State final, a pending one wi
   assert.equal(artProbeStateOf({ ok: false, state: null }), 'pending')
   assert.equal(artProbeStateOf({ ok: true, state: null }), 'loaded')
 })
+
+test('a Plex 503 never saves a lower pick for long: the online pick lives 5 min, then Plex art comes back', async () => {
+  let plexDown = true
+  const { resolver, store, clock } = resolverWith({
+    stages: { plex: async () => ({ sources: ['plex:/art'] }), online: async () => ({ sources: ['https://tvmaze.test/bg.jpg'] }) },
+    sizes: { 'plex:/art': WIDE, 'https://tvmaze.test/bg.jpg': WIDE },
+    loadImage: async (origin) => {
+      if (origin === 'plex:/art' && plexDown) throw new Error('Plex HTTP 503')
+      return { body: Buffer.from(origin) }
+    },
+  })
+  const during = await resolver.resolve({ title: 'Bluey' })
+  assert.equal(during.origin, 'https://tvmaze.test/bg.jpg')
+  assert.equal((store.rows.get('series|landscape|bluey').next_check_at - clock.ms) / 60000, 5)
+  plexDown = false
+  clock.ms += 5 * 60 * 1000 + 1
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).origin, 'plex:/art')
+})
+
+test('a Plex error with nothing else that fits answers pending and saves no miss', async () => {
+  const { resolver, store } = resolverWith({
+    stages: { plex: async () => ({ sources: ['plex:/art'] }) },
+    loadImage: async () => { throw new Error('Plex timed out') },
+  })
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).pending, true)
+  assert.equal(store.rows.size, 0)
+})
+
+test('an origin that carries a Plex token is never saved', async () => {
+  const { resolver, store } = resolverWith({
+    stages: { online: async () => ({ sources: ['http://plex:32400/library/metadata/1/art?X-Plex-Token=secret'] }) },
+    sizes: { 'http://plex:32400/library/metadata/1/art?X-Plex-Token=secret': WIDE },
+  })
+  await resolver.resolve({ title: 'Bluey' })
+  assert.equal([...store.rows.values()].some((row) => /X-Plex-Token/i.test(row.origin ?? '')), false)
+})

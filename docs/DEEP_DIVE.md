@@ -1211,10 +1211,12 @@ flowchart TD
 - A picture fits when it has the asked shape (`poster`: taller than wide; landscape: at least `1.3:1`) and is wide enough (`MIN_WIDTHS`): `300` px for a poster or a Plex picture, `640` px for any other landscape picture, the width the home hero check needs. The first picture that fits ends the chain, so a Plex or recording picture that fits makes no web request.
 - A picture that loads but does not fit is kept. When no later step finds a picture that fits, the derived step uses it: as it is when it has the asked shape, else on a blurred canvas (`portraitPadOf` in `src/show-poster.js` for `2:3` posters, `landscapeOf` in `src/image-thumbnails.js` for `16:9`).
 - The frame step gives nothing yet.
-- The online step for a one-off runs only with lookup evidence: library presence, episode details, a release year, or cast names.
+- The online step for a one-off is the same as for a series; the TVmaze and [online lookup](#online-lookup) match rules decide.
+- A picture that fails to load with an error (a timeout, `429`, or `5xx`) is not a miss. `createProgrammeImages` waits `60 s` before it asks that source again, and keeps misses (`404`, not an image) for `10` min. When an earlier step failed with an error, a later picture that fits is saved for `5` min only (`ERROR_RETRY_MS`), and a derived shape or no picture answers pending and is not saved.
+- A Plex picture is saved as `plex:<path>` without the token (`plexOriginOf`); a Plex source from another server is skipped, and `remember` never saves an origin that holds `X-Plex-Token`. Every Plex picture loads through the photo transcoder.
 - The guide step uses at most `4` images. Plex pictures come through the Plex photo transcoder at most `1920` px (`plexResizedSourceOf`), so originals over the `4 MB` image limit still load.
 - The chain has `3 s` (`RESOLVE_BUDGET_MS`); the airing and episode steps have `1.5 s` (`OUTER_BUDGET_MS`). A step that runs past it, a Plex list still loading, or an online lookup still running makes the answer pending; nothing is saved.
-- `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to load deletes its row (`invalidate`) and answers pending, so the client asks again.
+- `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to resize keeps its row and answers `final` for that request.
 
 `art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
 
