@@ -38,12 +38,24 @@ const EPISODE_CHAINS_BY_ORDER = {
 }
 
 export const GUIDE_ONLY_CHAIN = ['own', 'saved', 'same-title', 'freeview', 'title', FINAL_STAGE]
+export const FREEVIEW_FIRST_GUIDE_CHAIN = ['freeview', 'freeview-title', 'own', 'saved', 'same-title', 'title', FINAL_STAGE]
 
-export const guideSourcesOf = ({ saved = null, live = [] }) => [...new Set([saved, ...live].filter(Boolean))]
+export const freeviewAiringOriginsOf = ({ episode = [], show = [] }) => [...new Set([...episode, ...show].filter(Boolean))]
 
-export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST }) => {
+export const recordingPictureOrderOf = ({ freeviewEpisode = [], own = null, freeviewShow = [], freeviewTitle = null, sameTitle = [] }) =>
+  [...new Set([...freeviewEpisode, own, ...freeviewShow, freeviewTitle, ...sameTitle].filter(Boolean))]
+
+export const programmeWarmOriginsOf = ({ freeview = [], freeviewTitle = null, own = null, ownCopy = null, titleCopy = null, sameTitle = [] }) => {
+  const guide = own ? [own, ownCopy] : [titleCopy, ...sameTitle]
+  const fallbacks = freeview.length || freeviewTitle ? [own, ownCopy, titleCopy, ...sameTitle] : guide
+  return [...new Set([...freeview, freeviewTitle, ...fallbacks].filter(Boolean))]
+}
+
+export const guideSourcesOf = ({ saved = [], live = [] }) => [...new Set([saved, live].flat().filter(Boolean))]
+
+export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder = SERIES_PICTURE_FIRST, freeviewFirst = false }) => {
   if (recordingId != null) return EPISODE_CHAINS_BY_ORDER[episodeOrder] ?? EPISODE_CHAIN
-  if (eventId != null) return GUIDE_ONLY_CHAIN
+  if (eventId != null) return freeviewFirst ? FREEVIEW_FIRST_GUIDE_CHAIN : GUIDE_ONLY_CHAIN
   return TITLE_CHAINS[kind] ?? TITLE_CHAINS[SERIES_KIND]
 }
 

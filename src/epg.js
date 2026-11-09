@@ -28,7 +28,7 @@ import {
 } from './tvheadend.js'
 import { createProgrammeImages, guideImageHosts } from './programme-images.js'
 import { createGuidePictures, guidePictureCandidatesOf, isGuidePictureOrigin } from './guide-pictures.js'
-import { createFreeviewAu, freeviewAiringsOf, freeviewCandidatesOf, freeviewClient, isFreeviewImageSource } from './freeview-au.js'
+import { FREEVIEW_IMAGE_HOST, createFreeviewAu, freeviewAiringsOf, freeviewCandidatesOf, freeviewClient, isFreeviewImageSource } from './freeview-au.js'
 import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
@@ -41,7 +41,10 @@ import {
   createArtResolver,
   episodePictureOrderFrom,
   guideKindsOf,
+  freeviewAiringOriginsOf,
   guideSourcesOf,
+  programmeWarmOriginsOf,
+  recordingPictureOrderOf,
   stillsAllowed,
   isGuessedFilmKind,
   kindHintFrom,
@@ -809,7 +812,9 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
 
 export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
   const { own, sameTitle, title, kind } = await programmeImageSources({ eventId, fallbackSource })
-  return await firstImageOf({ sources: [own, ...sameTitle].filter(Boolean), load: (source) => programmeImages.imageFor(source) })
+  const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title }) : NO_FREEVIEW_IMAGES
+  const sources = recordingPictureOrderOf({ freeviewEpisode: freeview.episode, own, freeviewShow: freeview.show, freeviewTitle: freeview.title, sameTitle })
+  return await firstImageOf({ sources, load: rawImageOfOrigin })
     || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
 }
 
@@ -824,6 +829,7 @@ export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, w
     eventId,
     ownSource: programme.own,
     sameTitleSources: programme.sameTitle,
+    freeviewFirst: freeviewAu.isOn(),
   })
   return imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE })
 }
@@ -890,12 +896,34 @@ export const isShowArtWarm = async ({ title, kind = null, shape = null, width })
 export const isProgrammeArtWarm = async ({ eventId, width }) => {
   const programme = await programmeImageSources({ eventId, fallbackSource: null })
   if (!programme.title && !programme.own) return true
-  const ownOrigins = programme.own ? [programme.own, await guidePictures.originForSource(programme.own)] : []
-  const titleOrigins = programme.own ? [] : [await guidePictures.originFor(programme.title), ...programme.sameTitle]
-  const origins = [...ownOrigins, ...titleOrigins].filter(Boolean)
-  if (origins.some((origin) => thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }))) return true
+  const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title: programme.title }) : NO_FREEVIEW_IMAGES
+  const origins = programmeWarmOriginsOf({
+    freeview: freeviewAiringOriginsOf(freeview),
+    freeviewTitle: freeview.title,
+    own: programme.own,
+    ownCopy: programme.own ? await guidePictures.originForSource(programme.own) : null,
+    titleCopy: await guidePictures.originFor(programme.title),
+    sameTitle: programme.sameTitle,
+  })
+  if (isAnyOriginWarm({ origins, width })) return true
   return origins.length ? false : isShowArtWarm({ title: programme.title, kind: programme.kind, width })
 }
+
+const isAnyOriginWarm = ({ origins, width }) =>
+  origins.some((origin) => thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }))
+
+const freeviewImagesOf = async ({ eventId, title }) => {
+  const match = freeviewByEvent.get(String(eventId))
+  return {
+    episode: await copyThenSourceOf(match?.episode),
+    show: await copyThenSourceOf(match?.show),
+    title: title ? await guidePictures.preferredOriginFor(title) : null,
+  }
+}
+
+const copyThenSourceOf = async (source) => (source ? [await guidePictures.originForSource(source), source].filter(Boolean) : [])
+
+const NO_FREEVIEW_IMAGES = { episode: [], show: [], title: null }
 
 export const isEpisodeArtWarm = async ({ recordingId, width, loadRow = recordingRowOf, episodeOrder = episodePictureOrder }) => {
   const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
@@ -1167,7 +1195,7 @@ const recordingRowOf = (recordingId) => db('recordings').where({ recording_id: r
 
 export const frameStage = async ({ title, kind, recordingId = null, episodeFile = null }) => {
   if (!stillsAllowed(await episodePictureOrder().catch(() => undefined))) return NO_ARTWORK
-  const onReady = () => publishFrameReady(title)
+  const onReady = () => publishTitleArtChange(title)
   if (recordingId != null) {
     const plans = await adPlansFor([recordingId])
     return frameGrabs.frameFor({ ...episodeFile, adPlan: plans.get(String(recordingId)) ?? UNKNOWN_AD_PLAN, onReady })
@@ -1212,7 +1240,7 @@ export const refreshFrameAfterAdScan = async ({ recordingId, filePath, breaks = 
   const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
   const title = row?.show_title_override ?? row?.title
   if (!title) return { stale, awaited, grabbing: false }
-  if (stale) publishFrameReady(title)
+  if (stale) publishTitleArtChange(title)
   const allowed = stillsAllowed(await episodePictureOrder().catch(() => undefined))
   if (!allowed || !(stale || awaited) || row.purged_at || !isCompleteRow(row)) return { stale, awaited, grabbing: false }
   const plans = await adPlansFor([recordingId])
@@ -1221,12 +1249,12 @@ export const refreshFrameAfterAdScan = async ({ recordingId, filePath, breaks = 
     programmeDurationS: row.duration_s ?? null,
     expectedBytes: row.size ?? null,
     adPlan: plans.get(String(recordingId)) ?? UNKNOWN_AD_PLAN,
-    onReady: () => publishFrameReady(title),
+    onReady: () => publishTitleArtChange(title),
   })
   return { stale, awaited, grabbing: true }
 }
 
-const publishFrameReady = (title) => {
+const publishTitleArtChange = (title) => {
   for (const kind of ['background', 'poster']) artFeed.publish({ key: showKeyOf(title), kind, stamp: null })
 }
 
@@ -1359,8 +1387,9 @@ export const freeviewProblemOf = (err) => (err?.status === 401 || err?.status ==
 
 const runGuidePictures = async (guide) => {
   const programmes = [...guide.programByEventId.values()]
-  const fromGuide = await guidePictures.saveAll({ candidates: guidePictureCandidatesOf(programmes) })
-  const fromFreeview = await saveFreeviewPictures({ guide, programmes, titleKeys: fromGuide.unsaved })
+  const candidates = guidePictureCandidatesOf(programmes)
+  const fromGuide = await guidePictures.saveAll({ candidates })
+  const fromFreeview = await saveFreeviewPictures({ guide, programmes, titleKeys: [...candidates.keys()] })
   return { saved: fromGuide.saved, freeview: fromFreeview, unsaved: fromGuide.unsaved.length }
 }
 
@@ -1375,8 +1404,19 @@ const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
     freeviewByEvent.set(eventId, url)
     if (freeviewByEvent.size > MAX_FREEVIEW_EVENTS) freeviewByEvent.delete(freeviewByEvent.keys().next().value)
   }
-  return (await guidePictures.saveAll({ candidates: freeviewCandidatesOf({ airings, matches }) })).saved
+  const candidates = freeviewCandidatesOf({ airings, matches })
+  const before = await titleCopiesOf(candidates)
+  const { saved } = await guidePictures.saveAll({ candidates })
+  const after = await titleCopiesOf(candidates)
+  const changed = [...after].filter(([titleKey, origin]) => origin !== before.get(titleKey)).map(([titleKey]) => candidates.get(titleKey).title)
+  if (changed.length > MAX_TITLE_ART_EVENTS) artFeed.reset()
+  else changed.forEach(publishTitleArtChange)
+  return saved
 }
+
+const titleCopiesOf = async (candidates) => new Map(await Promise.all(
+  [...candidates.values()].map(async ({ titleKey, title }) => [titleKey, await guidePictures.originFor(title)]),
+))
 
 export const listGuideChannels = async () => (await getCachedGuide()).channels
 
@@ -1485,7 +1525,7 @@ const fetchImageSource = (source) => {
   return fetchProgrammeImageOrThrow({ source })
 }
 const programmeImages = createProgrammeImages({ fetchImage: guideImageHosts.watch(fetchImageSource) })
-const guidePictures = createGuidePictures({ fetchImage: fetchImageSource })
+const guidePictures = createGuidePictures({ fetchImage: fetchImageSource, preferredHosts: [FREEVIEW_IMAGE_HOST] })
 const freeviewAu = createFreeviewAu()
 const freeviewByEvent = new Map()
 const PERSON_IMAGE_MEMORY_ENTRIES = 48
@@ -1513,13 +1553,11 @@ const artResolver = createArtResolver({
     plex: plexStage,
     recording: async ({ title }) => ({ sources: await recordingImagesFor(title) }),
     guide: async ({ title }) => ({
-      sources: guideSourcesOf({ saved: await guidePictures.originFor(title), live: await guideImagesFor(title) }).slice(0, MAX_IMAGE_SOURCES),
+      sources: guideSourcesOf({ saved: await guidePictures.titleOriginsFor(title), live: await guideImagesFor(title) }).slice(0, MAX_IMAGE_SOURCES),
     }),
     saved: async ({ title }) => ({ sources: [await guidePictures.originFor(title)].filter(Boolean) }),
-    freeview: async ({ eventId }) => {
-      const source = freeviewByEvent.get(String(eventId))
-      return { sources: [await guidePictures.originForSource(source), source].filter(Boolean) }
-    },
+    freeview: async ({ eventId }) => ({ sources: freeviewAiringOriginsOf(await freeviewImagesOf({ eventId })) }),
+    'freeview-title': async ({ title }) => ({ sources: [await guidePictures.preferredOriginFor(title)].filter(Boolean) }),
     online: onlineStage,
     own: async ({ ownSource }) => ({ sources: [ownSource, await guidePictures.originForSource(ownSource)].filter(Boolean) }),
     'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
@@ -1543,6 +1581,7 @@ const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
 const MAX_FREEVIEW_EVENTS = 20_000
+const MAX_TITLE_ART_EVENTS = 200
 let guidePictureRun = null
 let freeviewProblem = null
 const SHOW_IMAGE_BUDGET_MS = 3000

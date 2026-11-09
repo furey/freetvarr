@@ -17,6 +17,12 @@ export const createArtFeed = ({ size = ART_FEED_SIZE, bootId = randomBytes(4).to
     listeners.forEach((listener) => listener())
   }
 
+  const reset = () => {
+    changes.length = 0
+    sequence += 1
+    listeners.forEach((listener) => listener())
+  }
+
   const since = (from) => {
     const parsed = parsedCursorOf(from)
     const oldest = changes[0]?.sequence ?? sequence + 1
@@ -30,7 +36,7 @@ export const createArtFeed = ({ size = ART_FEED_SIZE, bootId = randomBytes(4).to
     return () => listeners.delete(listener)
   }
 
-  return { cursor, publish, since, subscribe }
+  return { cursor, publish, reset, since, subscribe }
 }
 
 export const parsedCursorOf = (value) => {

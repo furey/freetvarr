@@ -50,6 +50,11 @@ export const listingImageOf = ({ listing, placeholders = new Set() }) => {
   return imageUrlsOf(listing?.related?.episodes?.[0]).find((url) => url && !placeholders.has(url)) ?? null
 }
 
+export const listingImagesOf = ({ listing, placeholders = new Set() }) => ({
+  episode: imageUrlsOf(listing?.related?.episodes?.[0]).find((url) => url && !placeholders.has(url)) ?? null,
+  show: imageUrlsOf(listing?.related?.shows?.[0]).find(Boolean) ?? null,
+})
+
 export const placeholderImagesOf = (listings = []) => {
   const titlesByUrl = new Map()
   for (const listing of listings) {
@@ -87,19 +92,20 @@ export const freeviewAiringsOf = ({ programmes = [], titleKeys, triplets, nowMs,
   for (const programme of [...programmes].sort((a, b) => a.start - b.start)) {
     const titleKey = showTitleKey(programme.title)
     if (!titleKeys.has(titleKey) || programme.start < nowMs - PAST_AIRING_MS) continue
-    if ((taken.get(titleKey) ?? 0) >= perTitle) continue
     const channelTriplets = triplets.get(String(programme.channel_id)) ?? []
     if (!channelTriplets.length) continue
-    taken.set(titleKey, (taken.get(titleKey) ?? 0) + 1)
-    airings.push({ key: String(programme.program_id), titleKey, title: programme.title, start: programme.start, triplets: channelTriplets })
+    const count = taken.get(titleKey) ?? 0
+    taken.set(titleKey, count + 1)
+    airings.push({ key: String(programme.program_id), titleKey, title: programme.title, start: programme.start, triplets: channelTriplets, fetch: count < perTitle })
   }
   return airings
 }
 
 export const freeviewCandidatesOf = ({ airings, matches }) => {
   const candidates = new Map()
-  for (const airing of airings) {
-    const url = matches.get(airing.key)
+  for (const airing of airings.filter((candidate) => candidate.fetch)) {
+    const match = matches.get(airing.key)
+    const url = match?.show ?? match?.episode
     if (!url) continue
     const entry = candidates.get(airing.titleKey) ?? { titleKey: airing.titleKey, title: airing.title, sources: [] }
     if (!entry.sources.includes(url)) entry.sources.push(url)
@@ -152,10 +158,15 @@ export const createFreeviewAu = ({
     }
   }
 
+  const cachedListingsFor = ({ triplet, windowStart }) => {
+    const cached = windows.get(`${triplet}|${windowStart}`)
+    return cached && cached.expiresAt > now() ? cached.listings : null
+  }
+
   const listingsFor = async ({ triplet, windowStart }) => {
     const key = `${triplet}|${windowStart}`
-    const cached = windows.get(key)
-    if (cached && cached.expiresAt > now()) return cached.listings
+    const cached = cachedListingsFor({ triplet, windowStart })
+    if (cached) return cached
     if (isBackingOff(key)) return null
     try {
       const listings = await fetchWindow({ triplet, windowStart })
@@ -191,7 +202,7 @@ export const createFreeviewAu = ({
         if (error?.code === 'bad-content') return { data: [] }
         throw error
       })
-      listings.push(...(body?.data ?? []))
+      listings.push(...(body?.data ?? []).map(slimListingOf))
       if (!body?.meta?.pagination?.more) break
     }
     return listings
@@ -207,21 +218,23 @@ export const createFreeviewAu = ({
     const matches = new Map()
     if (!isOn() || !airings.length) return matches
     const known = await regionTriplets()
-    for (const airing of airings) {
-      const url = await matchOne({ airing, known })
-      if (url) matches.set(airing.key, url)
+    const fetchingFirst = [...airings].sort((a, b) => Number(b.fetch !== false) - Number(a.fetch !== false))
+    for (const airing of fetchingFirst) {
+      const images = await matchOne({ airing, known })
+      if (images) matches.set(airing.key, images)
     }
     return matches
   }
 
   const matchOne = async ({ airing, known }) => {
+    const listingsOf = airing.fetch === false ? cachedListingsFor : listingsFor
     for (const triplet of airing.triplets.filter((candidate) => known.has(candidate))) {
       for (const windowStart of windowsAround(airing.start)) {
-        const listings = await listingsFor({ triplet, windowStart })
+        const listings = await listingsOf({ triplet, windowStart })
         if (!listings?.length) continue
         const listing = matchListing({ airing, listings })
-        const url = listing && listingImageOf({ listing, placeholders: placeholderImagesOf(listings) })
-        if (url) return url
+        const images = listing && listingImagesOf({ listing, placeholders: placeholderImagesOf(listings) })
+        if (images?.episode || images?.show) return images
       }
     }
     return null
@@ -245,6 +258,17 @@ export const isFreeviewImageSource = (source) => {
     return false
   }
 }
+
+export const slimListingOf = (listing) => ({
+  title: listing?.title,
+  start: listing?.start,
+  related: {
+    shows: (listing?.related?.shows ?? []).slice(0, 1).map(slimImagesOf),
+    episodes: (listing?.related?.episodes ?? []).slice(0, 1).map(slimImagesOf),
+  },
+})
+
+const slimImagesOf = (entity) => ({ related: { images: (entity?.related?.images ?? []).map((image) => ({ url: image?.url })) } })
 
 const wordsOf = (key) => new Set(key.split(' ').filter((word) => word && !STOP_WORDS.has(word)))
 

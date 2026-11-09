@@ -194,3 +194,15 @@ test('a reconnect with since gets what it missed; an unknown or too old cursor g
     server.close()
   }
 })
+
+test('art feed reset: one change tells every older cursor to reload all stamps', () => {
+  const feed = createArtFeed({ bootId: 'b1' })
+  let told = 0
+  feed.subscribe(() => { told += 1 })
+  const before = feed.cursor()
+  feed.publish({ key: 'gruen', kind: 'poster' })
+  feed.reset()
+  assert.equal(told, 2)
+  assert.equal(feed.since(before).reset, true)
+  assert.deepEqual(feed.since(feed.cursor()), { cursor: feed.cursor(), reset: false, stamps: [] })
+})
