@@ -31,7 +31,17 @@ import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
-import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, episodePictureOrderFrom, guideKindsOf, stampKindOf } from './art-resolver.js'
+import {
+  FINAL_STAGE,
+  LANDSCAPE_SHAPE,
+  canonicalKindOf,
+  createArtResolver,
+  episodePictureOrderFrom,
+  guideKindsOf,
+  isGuessedFilmKind,
+  onlineArtworkOf,
+  stampKindOf,
+} from './art-resolver.js'
 import { createFrameGrabs, isFrameOrigin } from './frame-grabs.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
@@ -1009,8 +1019,19 @@ export const plexOriginOf = ({ source, url }) => {
   return `${PLEX_ORIGIN_PREFIX}${path}${rest ? `?${rest}` : ''}`
 }
 
-const onlineStage = async ({ title, kind }) => {
-  if (isFilmKind(kind)) return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
+const onlineStage = ({ title, kind }) => onlineArtworkOf({
+  kind,
+  lookUpFilm: () => fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK),
+  lookUpSeries: () => seriesOnlineArtwork({ title, kind: isFilmKind(kind) ? SERIES_LOOKUP_KIND : kind }),
+  isGuessedFilm: () => guessedFilm(title),
+})
+
+const guessedFilm = async (title) => {
+  const [libraryKinds, overrides] = await Promise.all([libraryTitles.kindsFor(title).catch(() => []), kindOverrides()])
+  return isGuessedFilmKind({ libraryKinds, override: overrides.get(showKeyOf(title)) ?? null })
+}
+
+const seriesOnlineArtwork = async ({ title, kind }) => {
   const tvmaze = await showArtwork.tvmazeArtworkFor(title).catch(() => NO_ARTWORK)
   if (tvmaze.sources.length) return tvmaze
   if (tvmaze.pending) {
@@ -1285,6 +1306,7 @@ const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')
 const CHOICE_STAGE = 'choice'
+const SERIES_LOOKUP_KIND = 'series'
 const EPISODE_PICTURE_ORDER_SETTING = 'episode_picture_order'
 const KIND_OVERRIDES_TTL_MS = 30 * 1000
 const NO_IMAGE = { image: null, pending: false }

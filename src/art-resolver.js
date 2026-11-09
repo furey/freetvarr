@@ -64,6 +64,16 @@ export const guideKindsOf = (programmes = []) => {
   return new Map([...countsByKey].map(([key, counts]) => [key, guideKindOfCounts(counts)]))
 }
 
+export const isGuessedFilmKind = ({ libraryKinds = [], override = null }) =>
+  !libraryKinds.includes(MOVIE_KIND) && OVERRIDE_KINDS[override] !== MOVIE_KIND
+
+export const onlineArtworkOf = async ({ kind, lookUpFilm, lookUpSeries, isGuessedFilm }) => {
+  if (kind !== MOVIE_KIND) return lookUpSeries()
+  const film = await lookUpFilm()
+  if (film?.sources?.length || film?.pending) return film
+  return (await isGuessedFilm()) ? lookUpSeries() : film
+}
+
 export const resolutionKeyOf = ({ titleKey, kind, shape }) => `${kind}|${shape}|${titleKey}`
 
 export const createArtResolver = ({

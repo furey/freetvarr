@@ -9,6 +9,8 @@ import {
   canonicalKindOf,
   chainOf,
   episodePictureOrderFrom,
+  isGuessedFilmKind,
+  onlineArtworkOf,
   createArtResolver,
   guideKindsOf,
   pictureChangeOf,
@@ -500,4 +502,53 @@ test('episodePictureOrderFrom: series picture first unless the setting says fram
   assert.equal(episodePictureOrderFrom('nonsense'), 'series')
   assert.equal(episodePictureOrderFrom('series'), 'series')
   assert.equal(episodePictureOrderFrom('frame'), 'frame')
+})
+
+test('isGuessedFilmKind: a film kind from the guide only, never from the library or the owner', () => {
+  assert.equal(isGuessedFilmKind({}), true)
+  assert.equal(isGuessedFilmKind({ libraryKinds: ['series'] }), true)
+  assert.equal(isGuessedFilmKind({ libraryKinds: ['movie'] }), false)
+  assert.equal(isGuessedFilmKind({ override: 'movie' }), false)
+})
+
+test('onlineArtworkOf: a guessed film with no film match asks again as a series (Eurovision Song Contest Asia 2026)', async () => {
+  const asked = []
+  const lookUps = ({ film, series, guessed }) => ({
+    lookUpFilm: async () => { asked.push('film'); return film },
+    lookUpSeries: async () => { asked.push('series'); return series },
+    isGuessedFilm: async () => guessed,
+  })
+  const none = { sources: [], pending: false }
+  const backdrop = { sources: ['https://image.tmdb.org/t/p/original/esc-asia.jpg'], pending: false }
+  assert.deepEqual(await onlineArtworkOf({ kind: 'movie', ...lookUps({ film: none, series: backdrop, guessed: true }) }), backdrop)
+  assert.deepEqual(asked, ['film', 'series'])
+  asked.length = 0
+  assert.deepEqual(await onlineArtworkOf({ kind: 'movie', ...lookUps({ film: none, series: backdrop, guessed: false }) }), none)
+  assert.deepEqual(asked, ['film'])
+  asked.length = 0
+  const waiting = { sources: [], pending: true }
+  assert.deepEqual(await onlineArtworkOf({ kind: 'movie', ...lookUps({ film: waiting, series: backdrop, guessed: true }) }), waiting)
+  assert.deepEqual(asked, ['film'])
+  asked.length = 0
+  assert.deepEqual(await onlineArtworkOf({ kind: 'series', ...lookUps({ film: none, series: backdrop, guessed: true }) }), backdrop)
+  assert.deepEqual(asked, ['series'])
+})
+
+test('a guessed film resolves to the series picture the series lookup finds, and saves it', async () => {
+  const { resolver, store } = resolverWith({
+    guideKind: 'movie',
+    stages: {
+      online: ({ kind }) => onlineArtworkOf({
+        kind,
+        lookUpFilm: async () => ({ sources: [], pending: false }),
+        lookUpSeries: async () => ({ sources: ['https://tmdb/esc-asia-backdrop.jpg'], pending: false }),
+        isGuessedFilm: async () => isGuessedFilmKind({ libraryKinds: [] }),
+      }),
+    },
+    sizes: { 'https://tmdb/esc-asia-backdrop.jpg': WIDE },
+  })
+  const result = await resolver.resolve({ title: 'Eurovision Song Contest Asia 2026' })
+  assert.equal(result.kind, 'movie')
+  assert.deepEqual([result.stage, result.origin], ['online', 'https://tmdb/esc-asia-backdrop.jpg'])
+  assert.equal([...store.rows.values()][0].origin, 'https://tmdb/esc-asia-backdrop.jpg')
 })
