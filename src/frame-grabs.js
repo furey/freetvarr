@@ -10,7 +10,7 @@ export const FRAME_ORIGIN_PREFIX = 'frame:'
 export const FRAME_FRACTIONS = [0.25, 0.4, 0.6]
 export const FRAME_WIDTH = 1280
 export const BREAK_MARGIN_S = 20
-export const AD_PLAN_STATES = { clear: 'clear', marked: 'marked', waiting: 'waiting', unknown: 'unknown' }
+export const AD_PLAN_STATES = { clear: 'clear', marked: 'marked', adFree: 'ad-free', waiting: 'waiting', unknown: 'unknown' }
 export const UNKNOWN_AD_PLAN = { state: AD_PLAN_STATES.unknown, breaks: [] }
 
 export const getFrameRoot = () => path.join(getArtworkRoot(), FRAMES_DIR)
@@ -49,6 +49,7 @@ export const adPlanOf = ({
   adRemovalEnabled = false,
   importedAt = null,
   scanning = false,
+  channelName = null,
   nowMs = Date.now(),
 }) => {
   if (scanning || adStatus === 'scanning') return { state: AD_PLAN_STATES.waiting, breaks: [] }
@@ -59,7 +60,13 @@ export const adPlanOf = ({
   }
   const scanExpected = adStatus == null && adRemovalEnabled && Boolean(showMode) && showMode !== 'off'
     && nowMs - utcMsOf(importedAt) < AD_SCAN_WAIT_MS
-  return scanExpected ? { state: AD_PLAN_STATES.waiting, breaks: [] } : UNKNOWN_AD_PLAN
+  if (scanExpected) return { state: AD_PLAN_STATES.waiting, breaks: [] }
+  return isAdFreeChannel(channelName) ? { state: AD_PLAN_STATES.adFree, breaks: [] } : UNKNOWN_AD_PLAN
+}
+
+export const isAdFreeChannel = (channelName) => {
+  const words = String(channelName ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  return AD_FREE_BRAND.test(words[0] ?? '')
 }
 
 export const framePreferenceOrderOf = (files) => files
@@ -162,6 +169,7 @@ export const createFrameGrabs = ({
     if (await exists(framePathOf(id))) return { sources: [frameVersionOriginOf({ id, version: (await readMeta(id))?.version ?? 0 })], pending: false }
     if (await exists(missPathOf(id))) return NO_FRAME
     if (queued.has(id)) return PENDING_FRAME
+    if (adPlan.state === AD_PLAN_STATES.unknown) return NO_FRAME
     if (adPlan.state === AD_PLAN_STATES.waiting) {
       awaitingAds.add(id)
       return PENDING_FRAME
@@ -418,7 +426,8 @@ const FRAME_EXTENSION = '.jpg'
 const MISS_EXTENSION = '.none'
 const META_EXTENSION = '.json'
 const VERSION_SEPARATOR = '-v'
-const AD_PLAN_RANKS = { clear: 0, marked: 0, waiting: 1, unknown: 2 }
+const AD_PLAN_RANKS = { clear: 0, marked: 0, 'ad-free': 1, waiting: 2, unknown: 3 }
+const AD_FREE_BRAND = /^abc(tv|news|kids|family|entertains|me|[0-9]+)?$/
 const CLEAR_AD_STATUSES = ['cut', 'no_breaks']
 const AD_SCAN_WAIT_MS = 8 * 60 * 60 * 1000
 const FRAME_TRIES = 3

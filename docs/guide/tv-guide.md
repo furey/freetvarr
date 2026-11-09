@@ -192,7 +192,7 @@ Freetvarr takes a frame with [ffmpeg](https://ffmpeg.org/), which comes with the
 
 Freetvarr keeps frames out of ad breaks. When [Ad removal](/guide/ad-removal) has scanned a recording, the frame comes from the middle of the longest part of the programme, at least 20 seconds from any ad break. For a series, Freetvarr uses the newest episode with an ad scan, then older episodes. While an ad scan is still to come, Freetvarr waits for it before it takes the frame. When a later scan finds that a frame came from an ad break, Freetvarr takes a new frame.
 
-Without an ad scan, Freetvarr skips a frame that also shows at another point in the recording (the same ad in two breaks), and a frame that changes within 2 seconds. These checks do not catch every ad, so turn on Ad removal for series where an ad frame would matter.
+Without an ad scan, Freetvarr takes no frame from a recording, so the title shows its title card. The exception is a recording from an ABC channel (ABC TV, ABC Kids/ABC Family, ABC Entertains, ABC NEWS), which has no ads. To get frames for a series on another channel, turn on Ad removal for it.
 
 A frame can show a moment from inside an episode, such as a contestant or who wins. To choose when Freetvarr uses frames, go to Settings → WATCHING → Film and TV info and, under **STILLS FROM RECORDINGS**, set **Use stills**:
 

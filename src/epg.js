@@ -1104,7 +1104,7 @@ const adPlansFor = async (recordingIds) => {
   const [rows, enabled] = await Promise.all([
     db('recordings').leftJoin('shows', 'recordings.show_id', 'shows.id')
       .whereIn('recordings.recording_id', recordingIds)
-      .select('recordings.recording_id', 'recordings.ad_status', 'recordings.ad_breaks_json', 'recordings.imported_at', 'shows.ad_removal as show_ad_removal')
+      .select('recordings.recording_id', 'recordings.ad_status', 'recordings.ad_breaks_json', 'recordings.imported_at', 'recordings.channel_name', 'shows.ad_removal as show_ad_removal')
       .catch(() => []),
     getSetting('ad_removal_enabled').catch(() => null),
   ])
@@ -1115,6 +1115,7 @@ const adPlansFor = async (recordingIds) => {
     adRemovalEnabled: enabled === 'true',
     importedAt: row.imported_at,
     scanning: isAdJobRunning(row.recording_id),
+    channelName: row.channel_name,
   })]))
 }
 

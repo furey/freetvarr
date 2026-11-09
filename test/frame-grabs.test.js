@@ -11,6 +11,7 @@ import {
   createFrameGrabs,
   frameDistanceOf,
   framePreferenceOrderOf,
+  isAdFreeChannel,
   isNearBreak,
   programmeSegmentsOf,
   distinctFramesOf,
@@ -35,6 +36,7 @@ const noisyJpeg = () => {
 }
 
 const CLEAR = { state: 'clear', breaks: [] }
+const AD_FREE = { state: 'ad-free', breaks: [] }
 
 const grabsWith = async ({ frames = [], hasFfmpeg = true, canRead = true, durationS = 3600, onGrabbed = () => {}, fingerprintOf } = {}) => {
   const root = await makeRoot()
@@ -108,7 +110,7 @@ test('a black first frame tries the next offset and saves the first usable frame
 test('three unusable frames save a miss, so the file is not grabbed again', async () => {
   const black = await solidJpeg(0)
   const { grabs, offsets } = await grabsWith({ frames: [black, black, black] })
-  await grabs.frameFor({ filePath: '/r/b.ts' })
+  await grabs.frameFor({ filePath: '/r/b.ts', adPlan: AD_FREE })
   await grabs.idle()
   assert.equal(offsets.length, 3)
   assert.deepEqual(await grabs.frameFor({ filePath: '/r/b.ts' }), { sources: [], pending: false })
@@ -118,7 +120,7 @@ test('three unusable frames save a miss, so the file is not grabbed again', asyn
 test('an ffmpeg error saves no miss and waits before it tries the file again', async () => {
   const failure = new Error('ffmpeg exited 1')
   const { grabs, root, offsets } = await grabsWith({ frames: [failure, failure, failure] })
-  await grabs.frameFor({ filePath: '/r/c.ts' })
+  await grabs.frameFor({ filePath: '/r/c.ts', adPlan: AD_FREE })
   await grabs.idle()
   assert.deepEqual(await fs.readdir(root).catch(() => []), [])
   assert.deepEqual(await grabs.frameFor({ filePath: '/r/c.ts' }), { sources: [], pending: false })
@@ -151,10 +153,10 @@ test('one ffmpeg at a time: grabs queue behind each other', async () => {
 
 test('no ffmpeg (an install outside Docker) or an unreadable file skips the frame step cleanly', async () => {
   const missing = await grabsWith({ hasFfmpeg: false })
-  assert.deepEqual(await missing.grabs.frameFor({ filePath: '/r/d.ts' }), { sources: [], pending: false })
+  assert.deepEqual(await missing.grabs.frameFor({ filePath: '/r/d.ts', adPlan: AD_FREE }), { sources: [], pending: false })
   assert.deepEqual(missing.offsets, [])
   const unreadable = await grabsWith({ canRead: false })
-  assert.deepEqual(await unreadable.grabs.frameFor({ filePath: '/r/d.ts' }), { sources: [], pending: false })
+  assert.deepEqual(await unreadable.grabs.frameFor({ filePath: '/r/d.ts', adPlan: AD_FREE }), { sources: [], pending: false })
   assert.deepEqual(await unreadable.grabs.frameFor({ filePath: null }), { sources: [], pending: false })
 })
 
@@ -184,10 +186,10 @@ test('a file under its expected size (still copying) saves no miss, so it is gra
     sizeOf: async () => 100,
     failureRetryMs: 0,
   })
-  await grabs.frameFor({ filePath: '/r/copying.ts', expectedBytes: 5000 })
+  await grabs.frameFor({ filePath: '/r/copying.ts', expectedBytes: 5000, adPlan: AD_FREE })
   await grabs.idle()
   assert.deepEqual(await fs.readdir(root).catch(() => []), [])
-  assert.deepEqual(await grabs.frameFor({ filePath: '/r/copying.ts', expectedBytes: 5000 }), { sources: [], pending: true })
+  assert.deepEqual(await grabs.frameFor({ filePath: '/r/copying.ts', expectedBytes: 5000, adPlan: AD_FREE }), { sources: [], pending: true })
 })
 
 test('adAwareOffsetsOf: picks the middle of the longest programme segment, then other segments, at least 20 s from breaks and padding', () => {
@@ -233,15 +235,16 @@ test('adPlanOf: ad data, a scan to wait for, or no ad data', () => {
   assert.equal(adPlanOf({ adStatus: 'detect_failed' }).state, 'unknown')
 })
 
-test('framePreferenceOrderOf: newest file with ad data first, then files waiting for a scan, then files with no ad data', () => {
+test('framePreferenceOrderOf: newest file with ad data first, then ad-free channels, then files waiting for a scan, then files with no ad data', () => {
   const files = [
     { filePath: '/newest-unknown.ts', adPlan: { state: 'unknown' } },
     { filePath: '/newer-waiting.ts', adPlan: { state: 'waiting' } },
+    { filePath: '/abc.ts', adPlan: { state: 'ad-free' } },
     { filePath: '/older-marked.ts', adPlan: { state: 'marked' } },
     { filePath: '/oldest-clear.ts', adPlan: { state: 'clear' } },
     { filePath: '/plex.mkv' },
   ]
-  assert.deepEqual(framePreferenceOrderOf(files).map((file) => file.filePath), ['/older-marked.ts', '/oldest-clear.ts', '/newer-waiting.ts', '/newest-unknown.ts', '/plex.mkv'])
+  assert.deepEqual(framePreferenceOrderOf(files).map((file) => file.filePath), ['/older-marked.ts', '/oldest-clear.ts', '/abc.ts', '/newer-waiting.ts', '/newest-unknown.ts', '/plex.mkv'])
 })
 
 test('a file with ad breaks is grabbed only at offsets inside the programme, away from the breaks', async () => {
@@ -266,7 +269,7 @@ test('a file waiting for its ad scan is not grabbed until the scan result arrive
   assert.deepEqual(await grabs.frameFor({ filePath: '/r/wait.ts' }), { sources: [frameOriginOf('/r/wait.ts')], pending: false })
 })
 
-test('with no ad data, near-duplicate frames are dropped and only a frame steady over 2 s is kept', async () => {
+test('on an ad-free channel with no ad data, near-duplicate frames are dropped and only a frame steady over 2 s is kept', async () => {
   const steady = await noisyJpeg()
   const prints = new Map()
   const printOf = (body) => prints.get(body)
@@ -281,7 +284,7 @@ test('with no ad data, near-duplicate frames are dropped and only a frame steady
     frames: [repeat, steady, repeatAgain, steadyNext],
     fingerprintOf: async (body) => printOf(body),
   })
-  await grabs.frameFor({ filePath: '/r/no-ads.ts', programmeDurationS: 3600 })
+  await grabs.frameFor({ filePath: '/r/no-ads.ts', programmeDurationS: 3600, adPlan: AD_FREE })
   await grabs.idle()
   assert.deepEqual(offsets, [900, 1440, 2160, 1442])
   const meta = JSON.parse(await fs.readFile(path.join(root, `${frameIdOf('/r/no-ads.ts')}.json`), 'utf8'))
@@ -331,4 +334,39 @@ test('new ad data clears a miss mark, so the file is grabbed again with the brea
   assert.deepEqual(await grabs.frameFor({ filePath }), { sources: [], pending: false })
   await grabs.reconsider({ filePath, breaks: [] })
   assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR }), { sources: [], pending: true })
+})
+
+test('isAdFreeChannel: ABC network channels carry no ads; commercial channels and SBS do', () => {
+  for (const name of ['ABC', 'ABC TV HD', 'ABCTV', 'ABC Kids/ABC Family', 'ABC Entertains', 'ABC NEWS', 'ABC ME', 'ABC2']) assert.equal(isAdFreeChannel(name), true, name)
+  for (const name of ['SBS', 'NITV', '7mate', 'Nine', '10 Peach', 'Fox ABC', '', null]) assert.equal(isAdFreeChannel(name), false, String(name))
+})
+
+test('adPlanOf: no ad data on an ABC channel is ad-free; on a commercial channel it stays unknown; a queued scan still waits', () => {
+  assert.deepEqual(adPlanOf({ channelName: 'ABC TV' }), { state: 'ad-free', breaks: [] })
+  assert.equal(adPlanOf({ channelName: '7mate' }).state, 'unknown')
+  const nowMs = Date.parse('2026-11-10T10:00:00Z')
+  assert.equal(adPlanOf({ channelName: 'ABC TV', showMode: 'detect', adRemovalEnabled: true, importedAt: '2026-11-10 09:00:00', nowMs }).state, 'waiting')
+  assert.equal(adPlanOf({ channelName: 'ABC TV', adStatus: 'detected', breaksJson: '[{"start":1,"end":2}]' }).state, 'marked')
+})
+
+test('no ad data on a commercial channel: no still is grabbed', async () => {
+  const { grabs, offsets } = await grabsWith({ frames: [await noisyJpeg()] })
+  assert.deepEqual(await grabs.frameFor({ filePath: '/r/seven.ts', adPlan: adPlanOf({ channelName: '7mate' }) }), { sources: [], pending: false })
+  await grabs.idle()
+  assert.deepEqual(offsets, [])
+})
+
+test('no ad data on an ABC channel: a steady still is grabbed', async () => {
+  const first = await noisyJpeg()
+  const second = Buffer.from(first)
+  const third = Buffer.from(first)
+  const prints = new Map([[first, Buffer.alloc(16, 200)], [second, Buffer.alloc(16, 120)], [third, Buffer.alloc(16, 40)]])
+  const { grabs, offsets } = await grabsWith({
+    frames: [first, second, third, Buffer.from(first)],
+    fingerprintOf: async (body) => prints.get(body) ?? Buffer.alloc(16, 201),
+  })
+  await grabs.frameFor({ filePath: '/r/abc.ts', programmeDurationS: 3600, adPlan: adPlanOf({ channelName: 'ABC TV' }) })
+  await grabs.idle()
+  assert.deepEqual(offsets.slice(0, 4), [900, 1440, 2160, 902])
+  assert.deepEqual(await grabs.frameFor({ filePath: '/r/abc.ts' }), { sources: [frameOriginOf('/r/abc.ts')], pending: false })
 })
