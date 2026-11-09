@@ -1,3 +1,5 @@
+import crypto from 'crypto'
+
 import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
 
 export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params }) => params, widthError = 'w is not a supported width' }) => ({
@@ -8,6 +10,8 @@ export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params })
   paramsOf,
   widthError,
 })
+
+export const cardWantedFrom = (value) => value !== '0'
 
 export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
   const width = route.widthOf(query.w)
@@ -24,6 +28,7 @@ export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => 
     if (!contentType) return sendMissing(res)
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
+    if (image.generated) return sendGenerated({ req, res, body: image.body })
     res.setHeader('Cache-Control', `public, max-age=${imageMaxAgeS}`)
     res.send(image.body)
   } catch {
@@ -31,11 +36,11 @@ export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => 
   }
 }
 
-export const createImageResolver = (routes) => async (url) => {
+export const createImageResolver = (routes, { forcedQuery = {} } = {}) => async (url) => {
   const { pathname, query } = requestOf(url)
   for (const route of routes) {
     const params = paramsFrom({ pattern: route.pattern, pathname })
-    if (params) return loadRouteImage({ route, params, query })
+    if (params) return loadRouteImage({ route, params, query: { ...query, ...forcedQuery } })
   }
   return { image: null, pending: false, unknownRoute: true }
 }
@@ -74,9 +79,18 @@ const paramsFrom = ({ pattern, pathname }) => {
   }
 }
 
+const sendGenerated = ({ req, res, body }) => {
+  const etag = `"${crypto.createHash('sha256').update(body).digest('base64url').slice(0, ETAG_LENGTH)}"`
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('ETag', etag)
+  if (req.headers?.['if-none-match'] === etag) return res.status(304).end()
+  res.send(body)
+}
+
 const sendMissing = (res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.status(404).end()
 }
 
 const LOCAL_BASE = 'http://localhost'
+const ETAG_LENGTH = 27

@@ -24,7 +24,7 @@ import {
 import { diagnoseRecordingError } from '/recording-error.js'
 import { scheduledCountOfState } from '/scheduled-groups.js'
 import { showHrefOf } from '/show-key.js'
-import { showImageUrlOf } from '/artwork-stamps.js'
+import { artKindHintOf, showImageUrlOf } from '/artwork-stamps.js'
 import { recordingsPageOf } from '/route-table.js'
 import { libraryBackOf } from '/back-target.js'
 import { createRowScrollMemory } from '/row-scroll-memory.js'
@@ -359,7 +359,7 @@ export const RecordingsLibraryView = {
       group.key === 'shows' ? unwatchedLabelOf(show) : '',
     ].filter(Boolean).join(', ')
     const posterSrc = (show) => `${show.poster}&w=384`
-    const cardSrc = (show) => show.image || showImageUrlOf({ title: show.title, width: 384, kind: show.kind === 'movie' ? 'movie' : null })
+    const cardSrc = (show) => show.image || showImageUrlOf({ title: show.title, width: 384, kind: artKindHintOf(show.kind) })
 
     return {
       ...actions,

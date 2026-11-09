@@ -52,6 +52,7 @@ import {
   watchItems,
 } from '/shared/programme-sheet-store.js'
 import { showKeyOf } from '/show-key.js'
+import { showImageUrlOf } from '/artwork-stamps.js'
 import { libraryNoteOf } from '/saves-to-text.js'
 import { episodeRecordingFor, stopOutcomeFor } from '/shared/recording-helpers.js'
 import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now.js'
@@ -760,7 +761,7 @@ export const ProgrammeSheetHost = {
       const seriesLabel = seriesChannelLabel()
       const addsToLibrary = selectedScheduled.value?.libraryChoice !== 'exclude'
       stopRequest.value = {
-        lead: { image: `/api/epg/show-image?title=${encodeURIComponent(program.title)}&w=384`, title: program.title, meta:['Recording now', channelLabel].filter(Boolean).join(' · ') },
+        lead: { image: showImageUrlOf({ title: program.title, width: 384 }), title: program.title, meta:['Recording now', channelLabel].filter(Boolean).join(' · ') },
         copy: () => stopConfirmOf({
           recordedMs: recordedMsOf({ recordingSince: selectedRecording.value?.recordingSince, nowMs: now.value.getTime() }),
           seriesChannelLabel: seriesLabel,

@@ -128,11 +128,14 @@ test('getProgrammeImage: a dead image link falls back to another airing of the s
   assert.equal(thumbnail.contentType, 'image/webp')
 })
 
-test('getProgrammeThumbnail: unknown and imageless events give nothing; a known image comes back as a WebP thumbnail', async () => {
+test('getProgrammeThumbnail: an unknown event gives nothing, an imageless event gives a title card, and a known image comes back as a WebP thumbnail', async () => {
   assert.equal(await epg.getProgrammeThumbnail({ eventId: '999', width: 192 }), null)
-  assert.equal(await epg.getProgrammeThumbnail({ eventId: '104', width: 192 }), null)
+  const card = await epg.getProgrammeThumbnail({ eventId: '104', width: 192 })
+  assert.equal(card.generated, true)
+  assert.equal(await epg.getProgrammeThumbnail({ eventId: '104', width: 192, card: false }), null)
   const image = await epg.getProgrammeThumbnail({ eventId: '101', width: 192 })
   assert.equal(image.contentType, 'image/webp')
+  assert.equal(image.generated, undefined)
 })
 
 test('createProgrammeImages: evicts the least recently used image past the entry limit', async () => {

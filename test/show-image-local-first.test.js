@@ -10,7 +10,7 @@ import sharp from 'sharp'
 
 const jpegOf = async ({ width, height }) => sharp({ create: { width, height, channels: 3, background: { r: 20, g: 40, b: 60 } } }).jpeg().toBuffer()
 
-const PORTRAIT = await jpegOf({ width: 200, height: 300 })
+const PORTRAIT = await jpegOf({ width: 400, height: 600 })
 const OVERSIZED = Buffer.concat([PORTRAIT, Buffer.alloc(5 * 1024 * 1024)])
 const LANDSCAPE = await jpegOf({ width: 320, height: 180 })
 const CHANNEL = 'ch-1'

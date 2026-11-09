@@ -9,6 +9,7 @@ import {
 } from '/vendor/vue.esm-browser.prod.js'
 import { createRequestGate } from '/shared/request-gate.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
+import { showImageUrlOf } from '/artwork-stamps.js'
 import { primeImageFocus, showLoadedImage } from '/shared/image-focus.js'
 import { logoWidthOf } from '/channel-logo-width.js'
 import { GUIDE_SCROLL_SELECTOR, NEAR_VIEW_MARGIN, observeInScroller, unobserveInScroller } from '/shared/scroll-proximity.js'
@@ -102,8 +103,8 @@ export const ProgrammeImage = {
       titleCardTimer = setTimeout(() => { titleCardShown.value = status.value !== 'loaded' }, TITLE_CARD_DELAY_MS)
     }
     const guideImageUrl = computed(() => {
-      if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}`
-      if (props.title) return stampedShowImage(`/api/epg/show-image?title=${encodeURIComponent(props.title)}`)
+      if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}?card=0`
+      if (props.title) return stampedShowImage(showImageUrlOf({ title: props.title, card: false }))
       return null
     })
     const guideImageWidths = computed(() => PROGRAMME_IMAGE_WIDTHS[props.variant] || PROGRAMME_IMAGE_WIDTHS.thumb)

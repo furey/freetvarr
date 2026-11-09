@@ -350,11 +350,11 @@ test('showSummariesOf: a chosen background replaces the newest episode picture a
   const stamps = new Map([['the-block', { background: 'k1', poster: 'k2' }]])
   const [chosen] = showSummariesOf({ rows, stamps })
   assert.equal(chosen.image, '/api/epg/show-image?title=The%20Block&w=384&c=k1')
-  assert.equal(chosen.poster, '/api/epg/show-image?title=The%20Block&shape=poster&c=k2')
+  assert.equal(chosen.poster, '/api/epg/show-image?title=The%20Block&shape=poster&kind=one-off&c=k2')
   assert.deepEqual(chosen.artworkStamps, { background: 'k1', poster: 'k2' })
   const [automatic] = showSummariesOf({ rows })
   assert.equal(automatic.image, '/api/recordings/a/image?w=384')
-  assert.equal(automatic.poster, '/api/epg/show-image?title=The%20Block&shape=poster')
+  assert.equal(automatic.poster, '/api/epg/show-image?title=The%20Block&shape=poster&kind=one-off')
   assert.deepEqual(automatic.artworkStamps, { background: null, poster: null })
 })
 

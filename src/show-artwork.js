@@ -49,11 +49,17 @@ export const createShowArtwork = ({
   const findShow = findSeriesShow || seriesShowFinder({ searchTvmaze, countryCode })
 
   const plexEntrySources = async ({ key, title, kind, shape }) => {
-    const entry = (await plexShows.get()).get(key)
+    const entry = await plexEntryFor({ entries: (await plexShows.get()).get(key) || [], title, kind })
     if (!entry) return []
-    if (isFilmKind(kind) && entry.section !== PLEX_MOVIES) return []
-    if (!isFilmKind(kind) && entry.section === PLEX_MOVIES && await hasEpisodeDetails(title)) return []
     return shape === POSTER_SHAPE ? entry.posters ?? entry.sources : entry.sources
+  }
+
+  const plexEntryFor = async ({ entries, title, kind }) => {
+    const film = entries.find((entry) => entry.section === PLEX_MOVIES) ?? null
+    if (isFilmKind(kind)) return film
+    const show = entries.find((entry) => entry.section !== PLEX_MOVIES)
+    if (show) return show
+    return film && !(await hasEpisodeDetails(title)) ? film : null
   }
 
   const hasEpisodeDetails = async (title) => Boolean((await Promise.resolve().then(() => hintsFor(title)).catch(() => null))?.isEpisode)
@@ -136,7 +142,12 @@ export const createShowArtwork = ({
     if (!key) return NO_ARTWORK
     const fromPlex = await plexArtworkFor(title, { kind, shape })
     if (fromPlex.pending || fromPlex.sources.length) return fromPlex
-    if (isFilmKind(kind) || !(await isTvmazeEnabled())) return NO_ARTWORK
+    return isFilmKind(kind) ? NO_ARTWORK : tvmazeArtworkFor(title)
+  }
+
+  const tvmazeArtworkFor = async (title) => {
+    const key = showTitleKey(title)
+    if (!key || !(await isTvmazeEnabled())) return NO_ARTWORK
     const lookup = await tvmazeLookupOf({ key, title })
     const cached = await cachedTvmazeSources(lookup.cacheKey)
     refreshStale({ cached, lookup })
@@ -158,7 +169,7 @@ export const createShowArtwork = ({
     plexShows.reset()
   }
 
-  return { sourcesFor, artworkFor, plexSourcesFor, plexArtworkFor, forget }
+  return { sourcesFor, artworkFor, tvmazeArtworkFor, plexSourcesFor, plexArtworkFor, forget }
 }
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
@@ -214,14 +225,16 @@ export const plexShowSources = async ({ previous = new Map(), loadSettings = ple
   const listed = await Promise.allSettled(sections.map(({ id }) => listSection({ url, token, id })))
   if (listed.every((result) => result.status === 'rejected')) throw listed[0].reason
   const entries = new Map()
+  const add = (key, entry) => {
+    const kept = entries.get(key) || []
+    if (!kept.some((other) => other.section === entry.section)) entries.set(key, [...kept, entry])
+  }
   sections.forEach((section, at) => {
     if (listed[at].status === 'rejected') {
-      for (const [key, entry] of previous) if (entry.section === section.kind && !entries.has(key)) entries.set(key, entry)
+      for (const [key, saved] of previous) saved.filter((entry) => entry.section === section.kind).forEach((entry) => add(key, entry))
       return
     }
-    for (const [key, found] of plexSourcesOf({ items: listed[at].value, url, token })) {
-      if (!entries.has(key)) entries.set(key, { ...found, section: section.kind })
-    }
+    for (const [key, found] of plexSourcesOf({ items: listed[at].value, url, token })) add(key, { ...found, section: section.kind })
   })
   return entries
 }

@@ -203,7 +203,8 @@ import { mountLibraryRoutes } from './library-routes.js'
 import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWatchSync, savePlexWatchToggles } from './plex-watch.js'
 import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
-import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
+import { cardWantedFrom, createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
+import { kindHintFrom } from './art-resolver.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountPlexLibraryRoutes } from './plex-library-routes.js'
@@ -658,8 +659,9 @@ const programmeImageRoute = imageRouteFor({
   path: '/api/epg/image/:eventId',
   widths: HERO_IMAGE_WIDTHS,
   widthOf: heroWidthFrom,
-  loadImage: ({ eventId, width }) =>
-    findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+  loadImage: ({ eventId, width, card }) =>
+    findProgrammeThumbnail({ eventId, width, card, fallbackSource: recordingImageSource(eventId) }),
+  paramsOf: ({ params, query }) => ({ eventId: params.eventId, card: cardWantedFrom(query.card) }),
 })
 
 const personImageRoute = imageRouteFor({
@@ -673,13 +675,14 @@ const showImageRoute = imageRouteFor({
   path: '/api/epg/show-image',
   widths: HERO_IMAGE_WIDTHS,
   widthOf: heroWidthFrom,
-  loadImage: ({ width, title, shape, kind }) => (shape === POSTER_SHAPE
-    ? findShowPoster({ title, width, kind })
-    : findShowThumbnail({ title, width, kind })),
+  loadImage: ({ width, title, shape, kind, card }) => (shape === POSTER_SHAPE
+    ? findShowPoster({ title, width, kind, card })
+    : findShowThumbnail({ title, width, kind, card })),
   paramsOf: ({ query }) => ({
     title: String(query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
     shape: showImageShapeFrom(query.shape),
-    kind: artworkKindOf(query.kind),
+    kind: kindHintFrom(query.kind),
+    card: cardWantedFrom(query.card),
   }),
 })
 
@@ -1342,7 +1345,7 @@ const resultWithin = ({ promise, ms }) => Promise.race([
 ])
 
 const heroPictureProof = createHeroPictureProof({
-  resolve: createImageResolver([programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })]),
+  resolve: createImageResolver([programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })], { forcedQuery: { card: '0' } }),
   noteServed: imageFocus.noteServed,
   focusStatusOf: imageFocus.focusStatusOf,
   onFocusWaitOver: () => homeHero.invalidate(),

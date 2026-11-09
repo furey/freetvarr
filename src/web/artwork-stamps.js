@@ -43,6 +43,8 @@ export const createArtworkStamps = ({ storage = null } = {}) => {
   return { replaceAll, setStamp, stampOf, stampUrl, subscribe }
 }
 
+export const artKindHintOf = (kind) => ART_KIND_HINTS[kind] ?? null
+
 export const isShowImageUrl = (url) => typeof url === 'string' && url.startsWith(`${SHOW_IMAGE_PATH}?`)
 
 export const withChoiceStamp = ({ url, stamp }) => {
@@ -52,11 +54,13 @@ export const withChoiceStamp = ({ url, stamp }) => {
   return kept.length ? `${path}?${kept.join('&')}` : path
 }
 
-export const showImageUrlOf = ({ title, width = null, shape = null, kind = null }) => [
+export const showImageUrlOf = ({ title, width = null, shape = null, kind = null, card = true, stamp = null }) => [
   `${SHOW_IMAGE_PATH}?title=${encodeURIComponent(title)}`,
   shape ? `&shape=${shape}` : '',
   kind ? `&kind=${kind}` : '',
+  card ? '' : '&card=0',
   width ? `&w=${width}` : '',
+  stamp ? `&c=${encodeURIComponent(stamp)}` : '',
 ].join('')
 
 const browserStorage = () => {
@@ -83,3 +87,5 @@ const save = ({ storage, stamps }) => {
 }
 
 export const artworkStamps = createArtworkStamps({ storage: browserStorage() })
+
+const ART_KIND_HINTS = { movie: 'movie', series: 'series', oneoff: 'one-off', 'one-off': 'one-off' }

@@ -23,6 +23,7 @@ import { createPoll } from '/poll.js'
 import { adScanTitle, canAdScan as canAdScanRecording, isAdScanBlocked } from '/ad-scan.js'
 import { SHOW_PAGE_MENU, adActionLabelOf, adConfirmOf, adStartedToastOf, adsOfRecording, episodeOfRecording } from '/ad-confirm.js'
 import { ActionConfirm } from '/components/library-menus.js'
+import { showImageUrlOf } from '/artwork-stamps.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api, fetchSettings } from '/shared/api.js'
 import { useMediaQuery, useFlash } from '/shared/composables.js'
@@ -416,7 +417,7 @@ export const RecordingsView = {
 
     const askAdScan = (r) => {
       actionRequest.value = {
-        lead: { image: `/api/epg/show-image?title=${encodeURIComponent(r.title)}&w=384`, title: r.title, meta: [seasonEpisodeLabel(r), r.episode_title, r.channel_name].filter(Boolean).join(' · ') },
+        lead: { image: showImageUrlOf({ title: r.title, width: 384 }), title: r.title, meta: [seasonEpisodeLabel(r), r.episode_title, r.channel_name].filter(Boolean).join(' · ') },
         copy: adConfirmOf({ episode: episodeOfRecording(r), retentionDays: adRetentionDays.value, timeZone: tz.value, nowMs: Date.now(), menuPlace: SHOW_PAGE_MENU }),
         run: async () => {
           const result = await api('POST', `/api/recordings/${encodeURIComponent(r.recording_id)}/ad-scan`)
