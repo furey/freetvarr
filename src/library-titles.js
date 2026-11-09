@@ -62,7 +62,13 @@ export const recordingImageSourcesOf = (rows = []) => newestFirst(rows)
 
 export const frameFilesOf = ({ rows = [], kind = null }) => newestFirst(rows)
   .filter((row) => row.file_path && isCompleteRow(row) && (!kind || !row.library_kind || row.library_kind === kind))
-  .map((row) => ({ filePath: row.file_path, programmeDurationS: row.duration_s ?? null, expectedBytes: row.size ?? null, recordingId: row.recording_id ?? null }))
+  .map((row) => ({
+    filePath: row.file_path,
+    programmeDurationS: row.duration_s ?? null,
+    expectedBytes: row.size ?? null,
+    recordingId: row.recording_id ?? row.source_recording_id ?? null,
+    managed: Boolean(row.manager),
+  }))
   .slice(0, MAX_FRAME_FILES)
 
 export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
@@ -77,6 +83,8 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
         library_kind: 'series',
         file_path: item.file_path ?? null,
         duration_s: item.duration_s ?? null,
+        source_recording_id: item.recording_id ?? null,
+        manager: item.manager ?? null,
       }
     : {
         title: item.title,
@@ -86,6 +94,8 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
         library_kind: 'movie',
         file_path: item.file_path ?? null,
         duration_s: item.duration_s ?? null,
+        source_recording_id: item.recording_id ?? null,
+        manager: item.manager ?? null,
       })),
   ...recordings.map((recording) => ({
     title: recording.show_title_override ?? recording.title,
@@ -107,7 +117,7 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
 
 const loadLibraryTitleRows = async () => {
   const [items, recordings] = await Promise.all([
-    db('library_items').select('kind', 'title', 'show_title', 'season', 'episode', 'year', 'synopsis', 'aired_at', 'file_path', 'duration_s'),
+    db('library_items').select('kind', 'title', 'show_title', 'season', 'episode', 'year', 'synopsis', 'aired_at', 'file_path', 'duration_s', 'recording_id', 'manager'),
     db('recordings').select(
       'recording_id', 'title', 'show_title_override', 'episode_title', 'season', 'episode', 'synopsis', 'channel_id', 'channel_name', 'aired_at',
       'image_path', 'file_path', 'duration_s', 'purged_at', 'status', 'size',

@@ -15,6 +15,7 @@ import {
   isNearBreak,
   programmeSegmentsOf,
   distinctFramesOf,
+  downloadAdPlanOf,
   steadyFrameOf,
   frameArgsOf,
   frameIdOf,
@@ -24,6 +25,7 @@ import {
   isUsableFrame,
   niceCommandOf,
 } from '../src/frame-grabs.js'
+import { countryForTimeZone } from '../src/zone-countries.js'
 
 const makeRoot = () => fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-frames-'))
 
@@ -288,7 +290,7 @@ test('on an ad-free channel with no ad data, near-duplicate frames are dropped a
   await grabs.idle()
   assert.deepEqual(offsets, [900, 1440, 2160, 1442])
   const meta = JSON.parse(await fs.readFile(path.join(root, `${frameIdOf('/r/no-ads.ts')}.json`), 'utf8'))
-  assert.deepEqual(meta, { offsetS: 1440, adAware: false, version: 0 })
+  assert.deepEqual(meta, { offsetS: 1440, adAware: false, plan: 'ad-free', version: 0 })
 })
 
 test('steadyFrameOf and distinctFramesOf: a frame that cuts away within 2 s, or that repeats at another offset, is not kept', () => {
@@ -336,22 +338,52 @@ test('new ad data clears a miss mark, so the file is grabbed again with the brea
   assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR }), { sources: [], pending: true })
 })
 
-test('isAdFreeChannel: ABC network channels carry no ads; commercial channels and SBS do', () => {
-  for (const name of ['ABC', 'ABC TV HD', 'ABCTV', 'ABC Kids/ABC Family', 'ABC Entertains', 'ABC NEWS', 'ABC ME', 'ABC2']) assert.equal(isAdFreeChannel(name), true, name)
-  for (const name of ['SBS', 'NITV', '7mate', 'Nine', '10 Peach', 'Fox ABC', '', null]) assert.equal(isAdFreeChannel(name), false, String(name))
+test('isAdFreeChannel: ABC network channels in Australia carry no ads; commercial channels, SBS, and US or Canadian ABC do', () => {
+  for (const name of ['ABC', 'ABC TV HD', 'ABCTV', 'ABC Kids/ABC Family', 'ABC Kids/ABC TV Plus', 'ABC Entertains', 'ABC NEWS', 'ABC ME', 'ABC2', 'ABC HD', 'ABC TV Sydney']) {
+    assert.equal(isAdFreeChannel({ channelName: name, country: 'au' }), true, name)
+  }
+  for (const name of ['SBS', 'NITV', '7mate', 'Nine', '10 Peach', 'Fox ABC', 'ABC Spark', '', null]) {
+    assert.equal(isAdFreeChannel({ channelName: name, country: 'au' }), false, String(name))
+  }
+  const us = countryForTimeZone('America/New_York')
+  assert.equal(us, 'us')
+  for (const name of ['ABC 7', 'ABC HD', 'ABC']) assert.equal(isAdFreeChannel({ channelName: name, country: us }), false, name)
+  assert.equal(isAdFreeChannel({ channelName: 'ABC HD', country: countryForTimeZone('America/Toronto') }), false)
+  assert.equal(adPlanOf({ channelName: 'ABC 7', country: us }).state, 'unknown')
+})
+
+test('downloadAdPlanOf: a Sonarr or Radarr download, or any non-TV file, is ad-free; an unmanaged TV transport stream is not', () => {
+  assert.equal(downloadAdPlanOf({ filePath: '/tv/show.ts', managed: true }).state, 'ad-free')
+  assert.equal(downloadAdPlanOf({ filePath: '/tv/show.mkv' }).state, 'ad-free')
+  assert.equal(downloadAdPlanOf({ filePath: '/plex-dvr/show.ts' }).state, 'unknown')
+})
+
+test('an old frame with no plan in its notes is not served; it is grabbed again under the ad plan', async () => {
+  const body = await noisyJpeg()
+  const { grabs, root, offsets } = await grabsWith({ frames: [body] })
+  const filePath = '/r/old-frame.ts'
+  await fs.writeFile(path.join(root, `${frameIdOf(filePath)}.jpg`), body)
+  assert.deepEqual(await grabs.frameFor({ filePath }), { sources: [], pending: false })
+  assert.deepEqual(offsets, [])
+  await fs.writeFile(path.join(root, `${frameIdOf(filePath)}.jpg`), body)
+  await fs.writeFile(path.join(root, `${frameIdOf(filePath)}.json`), JSON.stringify({ offsetS: 900, adAware: false, version: 0 }))
+  assert.deepEqual(await grabs.frameFor({ filePath, programmeDurationS: 3600, adPlan: CLEAR }), { sources: [], pending: true })
+  await grabs.idle()
+  assert.deepEqual(offsets, [1800])
+  assert.deepEqual(await grabs.frameFor({ filePath }), { sources: [`${frameOriginOf(filePath)}-v1`], pending: false })
 })
 
 test('adPlanOf: no ad data on an ABC channel is ad-free; on a commercial channel it stays unknown; a queued scan still waits', () => {
-  assert.deepEqual(adPlanOf({ channelName: 'ABC TV' }), { state: 'ad-free', breaks: [] })
-  assert.equal(adPlanOf({ channelName: '7mate' }).state, 'unknown')
+  assert.deepEqual(adPlanOf({ channelName: 'ABC TV', country: 'au' }), { state: 'ad-free', breaks: [] })
+  assert.equal(adPlanOf({ channelName: '7mate', country: 'au' }).state, 'unknown')
   const nowMs = Date.parse('2026-11-10T10:00:00Z')
-  assert.equal(adPlanOf({ channelName: 'ABC TV', showMode: 'detect', adRemovalEnabled: true, importedAt: '2026-11-10 09:00:00', nowMs }).state, 'waiting')
-  assert.equal(adPlanOf({ channelName: 'ABC TV', adStatus: 'detected', breaksJson: '[{"start":1,"end":2}]' }).state, 'marked')
+  assert.equal(adPlanOf({ channelName: 'ABC TV', country: 'au', showMode: 'detect', adRemovalEnabled: true, importedAt: '2026-11-10 09:00:00', nowMs }).state, 'waiting')
+  assert.equal(adPlanOf({ channelName: 'ABC TV', country: 'au', adStatus: 'detected', breaksJson: '[{"start":1,"end":2}]' }).state, 'marked')
 })
 
 test('no ad data on a commercial channel: no still is grabbed', async () => {
   const { grabs, offsets } = await grabsWith({ frames: [await noisyJpeg()] })
-  assert.deepEqual(await grabs.frameFor({ filePath: '/r/seven.ts', adPlan: adPlanOf({ channelName: '7mate' }) }), { sources: [], pending: false })
+  assert.deepEqual(await grabs.frameFor({ filePath: '/r/seven.ts', adPlan: adPlanOf({ channelName: '7mate', country: 'au' }) }), { sources: [], pending: false })
   await grabs.idle()
   assert.deepEqual(offsets, [])
 })
@@ -365,7 +397,7 @@ test('no ad data on an ABC channel: a steady still is grabbed', async () => {
     frames: [first, second, third, Buffer.from(first)],
     fingerprintOf: async (body) => prints.get(body) ?? Buffer.alloc(16, 201),
   })
-  await grabs.frameFor({ filePath: '/r/abc.ts', programmeDurationS: 3600, adPlan: adPlanOf({ channelName: 'ABC TV' }) })
+  await grabs.frameFor({ filePath: '/r/abc.ts', programmeDurationS: 3600, adPlan: adPlanOf({ channelName: 'ABC TV', country: 'au' }) })
   await grabs.idle()
   assert.deepEqual(offsets.slice(0, 4), [900, 1440, 2160, 902])
   assert.deepEqual(await grabs.frameFor({ filePath: '/r/abc.ts' }), { sources: [frameOriginOf('/r/abc.ts')], pending: false })

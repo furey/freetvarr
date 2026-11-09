@@ -43,7 +43,7 @@ import {
   onlineArtworkOf,
   stampKindOf,
 } from './art-resolver.js'
-import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, frameOriginOf, framePreferenceOrderOf, isFrameOrigin } from './frame-grabs.js'
+import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, isFrameOrigin } from './frame-grabs.js'
 import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
@@ -844,14 +844,26 @@ export const pruneFrameGrabs = async ({ database = db } = {}) => {
     database('library_items').whereNotNull('file_path').select('file_path'),
   ])
   const { removed, removedOrigins } = await frameGrabs.prune({ keepPaths: [...recordings, ...items].map((row) => row.file_path) })
-  if (removedOrigins.length) {
-    await database('art_resolutions')
-      .where((query) => removedOrigins.forEach((origin) => query.orWhere('origin', origin).orWhere('origin', 'like', `${origin}-v%`)))
-      .del()
-      .catch(() => 0)
-  }
+  await deleteFrameResolutions({ database, origins: removedOrigins })
   return removed
 }
+
+export const deleteFrameResolutions = async ({ database = db, origins = [] } = {}) => {
+  if (!origins.length) return 0
+  const removedIds = new Set(origins.map(frameBaseOriginOf))
+  const rows = await database('art_resolutions').where('origin', 'like', FRAME_ORIGIN_LIKE).select('resolution_key', 'origin')
+  const keys = rows.filter((row) => removedIds.has(frameBaseOriginOf(row.origin))).map((row) => row.resolution_key)
+  let deleted = 0
+  for (let at = 0; at < keys.length; at += FRAME_PRUNE_BATCH) {
+    deleted += await database('art_resolutions').whereIn('resolution_key', keys.slice(at, at + FRAME_PRUNE_BATCH)).del().catch((err) => {
+      console.error(`[frames] could not delete frame resolutions: ${err.message}`)
+      return 0
+    })
+  }
+  return deleted
+}
+
+const frameBaseOriginOf = (origin) => String(origin ?? '').split(FRAME_VERSION_SEPARATOR)[0]
 
 export const findShowThumbnail = ({ title, width, kind = null } = {}) =>
   findTitleImage({ title, width, kind, shape: LANDSCAPE_SHAPE })
@@ -1091,13 +1103,17 @@ export const frameStage = async ({ title, kind, recordingId = null, episodeFile 
   }
   const files = await libraryTitles.frameFilesFor(title, { kind }).catch(() => [])
   const plans = await adPlansFor(files.map((file) => file.recordingId).filter((id) => id != null))
-  const planned = files.map((file) => ({ ...file, adPlan: plans.get(String(file.recordingId)) ?? UNKNOWN_AD_PLAN }))
+  const planned = files.map((file) => ({ ...file, adPlan: filePlanOf({ file, plans }) }))
   for (const file of framePreferenceOrderOf(planned)) {
     const found = await frameGrabs.frameFor({ ...file, onReady })
     if (found.sources.length || found.pending) return found
   }
   return NO_ARTWORK
 }
+
+export const filePlanOf = ({ file, plans }) => (file.recordingId != null
+  ? plans.get(String(file.recordingId)) ?? UNKNOWN_AD_PLAN
+  : downloadAdPlanOf(file))
 
 const adPlansFor = async (recordingIds) => {
   if (!recordingIds.length) return new Map()
@@ -1380,6 +1396,8 @@ const CHOICE_STAGE = 'choice'
 const SERIES_LOOKUP_KIND = 'series'
 const EPISODE_PICTURE_ORDER_SETTING = 'episode_picture_order'
 const FRAME_ORIGIN_LIKE = 'frame:%'
+const FRAME_VERSION_SEPARATOR = '-v'
+const FRAME_PRUNE_BATCH = 200
 const KIND_OVERRIDES_TTL_MS = 30 * 1000
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }

@@ -5,6 +5,8 @@ import { spawn } from 'node:child_process'
 import sharp from 'sharp'
 
 import { getArtworkRoot } from './artwork.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
 
 export const FRAME_ORIGIN_PREFIX = 'frame:'
 export const FRAME_FRACTIONS = [0.25, 0.4, 0.6]
@@ -12,6 +14,7 @@ export const FRAME_WIDTH = 1280
 export const BREAK_MARGIN_S = 20
 export const AD_PLAN_STATES = { clear: 'clear', marked: 'marked', adFree: 'ad-free', waiting: 'waiting', unknown: 'unknown' }
 export const UNKNOWN_AD_PLAN = { state: AD_PLAN_STATES.unknown, breaks: [] }
+export const AD_FREE_PLAN = { state: AD_PLAN_STATES.adFree, breaks: [] }
 
 export const getFrameRoot = () => path.join(getArtworkRoot(), FRAMES_DIR)
 
@@ -50,6 +53,7 @@ export const adPlanOf = ({
   importedAt = null,
   scanning = false,
   channelName = null,
+  country = installCountry(),
   nowMs = Date.now(),
 }) => {
   if (scanning || adStatus === 'scanning') return { state: AD_PLAN_STATES.waiting, breaks: [] }
@@ -61,13 +65,22 @@ export const adPlanOf = ({
   const scanExpected = adStatus == null && adRemovalEnabled && Boolean(showMode) && showMode !== 'off'
     && nowMs - utcMsOf(importedAt) < AD_SCAN_WAIT_MS
   if (scanExpected) return { state: AD_PLAN_STATES.waiting, breaks: [] }
-  return isAdFreeChannel(channelName) ? { state: AD_PLAN_STATES.adFree, breaks: [] } : UNKNOWN_AD_PLAN
+  return isAdFreeChannel({ channelName, country }) ? AD_FREE_PLAN : UNKNOWN_AD_PLAN
 }
 
-export const isAdFreeChannel = (channelName) => {
+export const isAdFreeChannel = ({ channelName, country = installCountry() }) => {
+  if (country !== AD_FREE_CHANNEL_COUNTRY) return false
   const words = String(channelName ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
-  return AD_FREE_BRAND.test(words[0] ?? '')
+  const [brand, ...rest] = words
+  return AU_ABC_BRANDS.has(brand) && rest.every((word) => AU_ABC_WORDS.has(word))
 }
+
+export const downloadAdPlanOf = ({ filePath, managed = false }) => {
+  if (managed) return AD_FREE_PLAN
+  return TV_RECORDING_FILE.test(String(filePath ?? '')) ? UNKNOWN_AD_PLAN : AD_FREE_PLAN
+}
+
+export const isTrustedFrameMeta = (meta) => Boolean(meta?.adAware) || meta?.plan === AD_PLAN_STATES.adFree
 
 export const framePreferenceOrderOf = (files) => files
   .map((file, index) => ({ file, index, rank: AD_PLAN_RANKS[file.adPlan?.state] ?? AD_PLAN_RANKS[AD_PLAN_STATES.unknown] }))
@@ -166,7 +179,11 @@ export const createFrameGrabs = ({
   const frameFor = async ({ filePath, programmeDurationS = null, expectedBytes = null, adPlan = UNKNOWN_AD_PLAN, onReady = () => {} }) => {
     if (!filePath) return NO_FRAME
     const id = frameIdOf(filePath)
-    if (await exists(framePathOf(id))) return { sources: [frameVersionOriginOf({ id, version: (await readMeta(id))?.version ?? 0 })], pending: false }
+    if (await exists(framePathOf(id))) {
+      const meta = await readMeta(id)
+      if (isTrustedFrameMeta(meta)) return { sources: [frameVersionOriginOf({ id, version: meta.version ?? 0 })], pending: false }
+      await markStale({ id, meta })
+    }
     if (await exists(missPathOf(id))) return NO_FRAME
     if (queued.has(id)) return PENDING_FRAME
     if (adPlan.state === AD_PLAN_STATES.unknown) return NO_FRAME
@@ -205,9 +222,13 @@ export const createFrameGrabs = ({
       await writeMeta(id, { ...meta, adAware: true })
       return { stale: false, awaited }
     }
+    await markStale({ id, meta })
+    return { stale: true, awaited }
+  }
+
+  const markStale = async ({ id, meta }) => {
     await fs.rm(framePathOf(id), { force: true })
     await writeMeta(id, { offsetS: null, adAware: false, version: meta?.version ?? 0, stale: true })
-    return { stale: true, awaited }
   }
 
   const enqueue = (task) => {
@@ -223,7 +244,7 @@ export const createFrameGrabs = ({
       ? await firstUsableOf({ filePath, offsets: adAwareOffsetsOf({ fileDurationS, programmeDurationS, breaks: adPlan.breaks }) })
       : await steadyUsableOf({ filePath, offsets: frameOffsetsOf({ fileDurationS, programmeDurationS }) })
     if (picked.frame) {
-      await saveFrame({ id, frame: picked.frame, adAware: aware })
+      await saveFrame({ id, frame: picked.frame, adAware: aware, plan: adPlan.state })
       return true
     }
     if (picked.anyDecoded && !(await isShortOf({ filePath, expectedBytes }))) await writeFile({ target: missPathOf(id), body: Buffer.alloc(0) })
@@ -273,11 +294,11 @@ export const createFrameGrabs = ({
     return frameDistanceOf(candidate.print, print)
   }
 
-  const saveFrame = async ({ id, frame, adAware }) => {
+  const saveFrame = async ({ id, frame, adAware, plan }) => {
     const before = await readMeta(id)
     const version = before ? (before.version ?? 0) + 1 : 0
     await writeFile({ target: framePathOf(id), body: frame.body })
-    await writeMeta(id, { offsetS: frame.offsetS, adAware, version })
+    await writeMeta(id, { offsetS: frame.offsetS, adAware, plan, version })
   }
 
   const readMeta = async (id) => {
@@ -415,6 +436,8 @@ const utcMsOf = (value) => {
   return Number.isFinite(ms) ? ms : -Infinity
 }
 
+const installCountry = () => countryForTimeZone(currentTimeZone())
+
 const positiveOrNull = (value) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : null)
 
 let ffmpegCheck = null
@@ -427,7 +450,14 @@ const MISS_EXTENSION = '.none'
 const META_EXTENSION = '.json'
 const VERSION_SEPARATOR = '-v'
 const AD_PLAN_RANKS = { clear: 0, marked: 0, 'ad-free': 1, waiting: 2, unknown: 3 }
-const AD_FREE_BRAND = /^abc(tv|news|kids|family|entertains|me|[0-9]+)?$/
+const AD_FREE_CHANNEL_COUNTRY = 'au'
+const AU_ABC_BRANDS = new Set(['abc', 'abctv', 'abcnews', 'abckids', 'abcfamily', 'abcme', 'abc1', 'abc2', 'abc3'])
+const AU_ABC_WORDS = new Set([
+  'abc', 'tv', 'plus', 'kids', 'family', 'entertains', 'me', 'news', '24', 'hd',
+  'nsw', 'vic', 'qld', 'sa', 'wa', 'tas', 'nt', 'act',
+  'sydney', 'melbourne', 'brisbane', 'adelaide', 'perth', 'hobart', 'darwin', 'canberra',
+])
+const TV_RECORDING_FILE = /\.(ts|m2ts|mts)$/i
 const CLEAR_AD_STATUSES = ['cut', 'no_breaks']
 const AD_SCAN_WAIT_MS = 8 * 60 * 60 * 1000
 const FRAME_TRIES = 3

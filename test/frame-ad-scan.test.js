@@ -9,7 +9,7 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db, setSetting } = await import('../src/db.js')
 const { onAdScanResult, processRecordingAds } = await import('../src/commercials.js')
-const { frameStage, publishStillsChange, refreshFrameAfterAdScan } = await import('../src/epg.js')
+const { deleteFrameResolutions, filePlanOf, frameStage, publishStillsChange, refreshFrameAfterAdScan } = await import('../src/epg.js')
 const { artFeed } = await import('../src/art-feed.js')
 const { frameOriginOf } = await import('../src/frame-grabs.js')
 
@@ -111,4 +111,27 @@ test('stills off: the frame step answers no picture, ad results grab nothing, an
   const cursor = artFeed.cursor()
   assert.equal(await publishStillsChange(), 1)
   assert.deepEqual(publishedSince(cursor), ['background|gruen', 'poster|gruen'])
+})
+
+test('filePlanOf: a library item from a recording takes the recording plan; a download is ad-free', () => {
+  const plans = new Map([['r9', { state: 'unknown', breaks: [] }]])
+  assert.equal(filePlanOf({ file: { filePath: '/tv/copy.mkv', recordingId: 'r9' }, plans }).state, 'unknown')
+  assert.equal(filePlanOf({ file: { filePath: '/tv/gone.mkv', recordingId: 'r-missing' }, plans }).state, 'unknown')
+  assert.equal(filePlanOf({ file: { filePath: '/tv/download.mkv', recordingId: null, managed: true }, plans }).state, 'ad-free')
+})
+
+test('deleteFrameResolutions: 1000 pruned origins and their versions delete in batches', async () => {
+  const origins = Array.from({ length: 1000 }, (_, at) => `frame:${String(at).padStart(24, '0')}`)
+  const row = (key, origin) => ({
+    resolution_key: key, title_key: key, kind: 'series', shape: 'landscape', stage: 'frame',
+    origin, transform: 'none', fingerprint: 'f', resolved_at: 1, next_check_at: 1,
+  })
+  const rows = [
+    ...origins.map((origin, at) => row(`plain-${at}`, origin)),
+    ...origins.slice(0, 300).map((origin, at) => row(`versioned-${at}`, `${origin}-v2`)),
+    row('kept', 'frame:ffffffffffffffffffffffff'),
+  ]
+  for (let at = 0; at < rows.length; at += 100) await db('art_resolutions').insert(rows.slice(at, at + 100))
+  assert.equal(await deleteFrameResolutions({ origins }), 1300)
+  assert.deepEqual((await db('art_resolutions').select('resolution_key')).map((left) => left.resolution_key), ['kept'])
 })

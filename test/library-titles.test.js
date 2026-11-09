@@ -87,8 +87,21 @@ test('frameFilesOf: newest files first; Plex items of the other kind, purged rec
     ],
   })
   assert.deepEqual(frameFilesOf({ rows, kind: 'series' }), [
-    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600, expectedBytes: 900, recordingId: 'r1' },
-    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null, expectedBytes: null, recordingId: null },
+    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600, expectedBytes: 900, recordingId: 'r1', managed: false },
+    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null, expectedBytes: null, recordingId: null, managed: false },
   ])
   assert.deepEqual(frameFilesOf({ rows, kind: 'movie' }).map((file) => file.filePath), ['/rec/fargo-new.ts', '/m/fargo.mkv'])
+})
+
+test('frameFilesOf: a library item copied from a recording keeps the recording id; a Sonarr item is managed', () => {
+  const rows = libraryTitleRowsOf({
+    items: [
+      { kind: 'episode', show_title: 'Bluey', title: 'Keepy Uppy', file_path: '/tv/bluey-copy.ts', aired_at: 3, recording_id: 'r9' },
+      { kind: 'episode', show_title: 'Bluey', title: 'Magic Xylophone', file_path: '/tv/bluey-dl.mkv', aired_at: 2, manager: 'sonarr' },
+    ],
+  })
+  assert.deepEqual(frameFilesOf({ rows }).map(({ recordingId, managed }) => ({ recordingId, managed })), [
+    { recordingId: 'r9', managed: false },
+    { recordingId: null, managed: true },
+  ])
 })
