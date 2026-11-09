@@ -809,26 +809,14 @@ export const findShowThumbnail = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
   const chosen = await chosenShowImage({ title, kind: 'background', width })
   if (chosen) return chosen
-  const artwork = await showArtworkFor({ title, kind })
-  const found = await firstImageWithin({
-    sources: artwork.sources,
-    load: showThumbnailLoader(width),
-    budgetMs: SHOW_IMAGE_BUDGET_MS,
-  })
-  return { image: found.image, pending: artwork.pending || found.pending }
+  return findShowImage({ title, kind, shape: null, load: showThumbnailLoader(width) })
 }
 
 export const findShowPoster = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
   const chosen = await chosenShowImage({ title, kind: 'poster', width })
   if (chosen) return chosen
-  const artwork = await showArtworkFor({ title, kind, shape: POSTER_SHAPE })
-  const found = await firstImageWithin({
-    sources: artwork.sources,
-    load: posterThumbnailLoader(width),
-    budgetMs: SHOW_IMAGE_BUDGET_MS,
-  })
-  return { image: found.image, pending: artwork.pending || found.pending }
+  return findShowImage({ title, kind, shape: POSTER_SHAPE, load: posterThumbnailLoader(width) })
 }
 
 export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
@@ -879,7 +867,7 @@ const rawImageOfOrigin = async (origin) => {
   }
   if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageFor(origin)
   const connection = await getPlexConnection().catch(() => null)
-  return connection ? programmeImages.imageFor(plexSourceOf({ origin, ...connection })) : null
+  return connection ? showSourceImage(plexSourceOf({ origin, ...connection })) : null
 }
 
 const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
@@ -890,7 +878,29 @@ const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor
 
 const showSourceImage = (source) => (source.startsWith(RECORDING_ORIGIN_PREFIX)
   ? findArtwork({ kind: 'recording', id: source.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
-  : programmeImages.imageFor(source))
+  : programmeImages.imageFor(plexResizedSourceOf(source)))
+
+export const plexResizedSourceOf = (source) => {
+  const parsed = parsedUrlOf(source)
+  const token = parsed?.searchParams.get('X-Plex-Token')
+  if (!token || !parsed.pathname.startsWith(PLEX_METADATA_PATH)) return source
+  const params = new URLSearchParams({
+    url: parsed.pathname,
+    width: String(PLEX_RESIZE_PX),
+    height: String(PLEX_RESIZE_PX),
+    upscale: '0',
+    'X-Plex-Token': token,
+  })
+  return `${parsed.origin}/photo/:/transcode?${params}`
+}
+
+const parsedUrlOf = (source) => {
+  try {
+    return new URL(source)
+  } catch {
+    return null
+  }
+}
 
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
 
@@ -923,15 +933,19 @@ const showArtSources = async ({ title, kind = null }) => {
   return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
 }
 
-const showArtworkFor = async ({ title, kind = null, shape = null }) => {
+const findShowImage = async ({ title, kind, shape, load }) => {
+  const deadline = Date.now() + SHOW_IMAGE_BUDGET_MS
   const artworkKind = kind ?? await guideKindFor(title)
   const local = await localArtworkFor({ title, kind: artworkKind, shape })
-  if (local.sources.length) return local
   if (local.pending) {
     showArtSources({ title, kind: artworkKind })
-    return local
+    return PENDING_IMAGE
   }
-  return onlineArtworkFor({ title, kind: artworkKind })
+  const fromLocal = await firstImageWithin({ sources: local.sources, load, budgetMs: deadline - Date.now() })
+  if (fromLocal.image || fromLocal.pending) return fromLocal
+  const online = await onlineArtworkFor({ title, kind: artworkKind })
+  const found = await firstImageWithin({ sources: online.sources, load, budgetMs: deadline - Date.now() })
+  return { image: found.image, pending: online.pending || found.pending }
 }
 
 const localArtworkFor = async ({ title, kind, shape }) => {
@@ -1175,6 +1189,8 @@ const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
 const GUIDE_IMAGE_BUDGET_MS = 1500
 const SHOW_IMAGE_BUDGET_MS = 3000
+const PLEX_METADATA_PATH = '/library/metadata/'
+const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }
