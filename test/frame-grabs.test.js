@@ -160,3 +160,21 @@ test('prune removes frames and misses whose recording is gone, and names their o
   assert.deepEqual(result.removedOrigins.sort(), [frameOriginOf('/r/gone.ts'), frameOriginOf('/r/old.ts')].sort())
   assert.deepEqual(await fs.readdir(root), [`${frameIdOf('/r/keep.ts')}.jpg`])
 })
+
+test('a file under its expected size (still copying) saves no miss, so it is grabbed again later', async () => {
+  const black = await solidJpeg(0)
+  const root = await makeRoot()
+  const grabs = createFrameGrabs({
+    root,
+    grab: async () => black,
+    probe: async () => 1800,
+    hasFfmpeg: async () => true,
+    canRead: async () => true,
+    sizeOf: async () => 100,
+    failureRetryMs: 0,
+  })
+  await grabs.frameFor({ filePath: '/r/copying.ts', expectedBytes: 5000 })
+  await grabs.idle()
+  assert.deepEqual(await fs.readdir(root).catch(() => []), [])
+  assert.deepEqual(await grabs.frameFor({ filePath: '/r/copying.ts', expectedBytes: 5000 }), { sources: [], pending: true })
+})

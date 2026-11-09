@@ -61,8 +61,8 @@ export const recordingImageSourcesOf = (rows = []) => newestFirst(rows)
   .map((row) => `${RECORDING_ORIGIN_PREFIX}${row.recording_id}`)
 
 export const frameFilesOf = ({ rows = [], kind = null }) => newestFirst(rows)
-  .filter((row) => row.file_path && (!kind || !row.library_kind || row.library_kind === kind))
-  .map((row) => ({ filePath: row.file_path, programmeDurationS: row.duration_s ?? null }))
+  .filter((row) => row.file_path && isCompleteRow(row) && (!kind || !row.library_kind || row.library_kind === kind))
+  .map((row) => ({ filePath: row.file_path, programmeDurationS: row.duration_s ?? null, expectedBytes: row.size ?? null }))
   .slice(0, MAX_FRAME_FILES)
 
 export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
@@ -100,6 +100,8 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
     has_image: Boolean(recording.image_path),
     file_path: recording.purged_at ? null : recording.file_path ?? null,
     duration_s: recording.duration_s ?? null,
+    status: recording.status ?? null,
+    size: recording.size ?? null,
   })),
 ].filter((row) => row.title)
 
@@ -108,7 +110,7 @@ const loadLibraryTitleRows = async () => {
     db('library_items').select('kind', 'title', 'show_title', 'season', 'episode', 'year', 'synopsis', 'aired_at', 'file_path', 'duration_s'),
     db('recordings').select(
       'recording_id', 'title', 'show_title_override', 'episode_title', 'season', 'episode', 'synopsis', 'channel_id', 'channel_name', 'aired_at',
-      'image_path', 'file_path', 'duration_s', 'purged_at',
+      'image_path', 'file_path', 'duration_s', 'purged_at', 'status', 'size',
     ),
   ])
   return libraryTitleRowsOf({ items, recordings })
@@ -124,6 +126,10 @@ const rowsByTitleKey = (rows) => {
   }
   return grouped
 }
+
+export const COMPLETE_RECORDING_STATUSES = ['done', 'partial']
+
+export const isCompleteRow = (row) => !row.recording_id || COMPLETE_RECORDING_STATUSES.includes(row.status)
 
 const isEpisodeRow = (row) => row.series_no != null || row.episode_no != null
 

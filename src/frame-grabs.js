@@ -57,6 +57,7 @@ export const createFrameGrabs = ({
   hasFfmpeg = ffmpegAvailable,
   canRead = isReadableFile,
   onGrabbed = () => {},
+  sizeOf = fileSizeOf,
   now = Date.now,
   failureRetryMs = FAILURE_RETRY_MS,
   maxQueued = MAX_QUEUED,
@@ -65,7 +66,7 @@ export const createFrameGrabs = ({
   const failedAt = new Map()
   let tail = Promise.resolve()
 
-  const frameFor = async ({ filePath, programmeDurationS = null, onReady = () => {} }) => {
+  const frameFor = async ({ filePath, programmeDurationS = null, expectedBytes = null, onReady = () => {} }) => {
     if (!filePath) return NO_FRAME
     const id = frameIdOf(filePath)
     if (await exists(framePathOf(id))) return { sources: [`${FRAME_ORIGIN_PREFIX}${id}`], pending: false }
@@ -75,7 +76,7 @@ export const createFrameGrabs = ({
     if (!(await hasFfmpeg())) return NO_FRAME
     if (!(await canRead(filePath))) return NO_FRAME
     if (queued.size >= maxQueued) return PENDING_FRAME
-    const job = enqueue(() => grabFrame({ id, filePath, programmeDurationS }))
+    const job = enqueue(() => grabFrame({ id, filePath, programmeDurationS, expectedBytes }))
       .then((saved) => {
         if (saved) {
           onGrabbed({ filePath })
@@ -95,7 +96,7 @@ export const createFrameGrabs = ({
     return run
   }
 
-  const grabFrame = async ({ id, filePath, programmeDurationS }) => {
+  const grabFrame = async ({ id, filePath, programmeDurationS, expectedBytes }) => {
     const fileDurationS = await probe(filePath).catch(() => null)
     let anyDecoded = false
     for (const offsetS of frameOffsetsOf({ fileDurationS, programmeDurationS })) {
@@ -108,9 +109,15 @@ export const createFrameGrabs = ({
       await writeFile({ target: framePathOf(id), body })
       return true
     }
-    if (anyDecoded) await writeFile({ target: missPathOf(id), body: Buffer.alloc(0) })
+    if (anyDecoded && !(await isShortOf({ filePath, expectedBytes }))) await writeFile({ target: missPathOf(id), body: Buffer.alloc(0) })
     else failedAt.set(id, now())
     return false
+  }
+
+  const isShortOf = async ({ filePath, expectedBytes }) => {
+    if (!(Number(expectedBytes) > 0)) return false
+    const size = await sizeOf(filePath).catch(() => null)
+    return size == null || size < Number(expectedBytes)
   }
 
   const writeFile = async ({ target, body }) => {
@@ -194,6 +201,8 @@ const probeDurationS = (filePath) => new Promise((resolve, reject) => {
     resolve(positiveOrNull(Number(Buffer.concat(chunks).toString().trim())))
   })
 })
+
+const fileSizeOf = async (filePath) => (await fs.stat(filePath)).size
 
 const isReadableFile = (filePath) => fs.access(filePath, fs.constants.R_OK).then(() => true, () => false)
 

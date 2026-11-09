@@ -74,20 +74,21 @@ test('createLibraryTitles: a failed load answers with nothing', async () => {
   assert.deepEqual(await titles.recordingImagesFor('Dune'), [])
 })
 
-test('frameFilesOf: newest files first, Plex items of the other kind and purged recordings left out', () => {
+test('frameFilesOf: newest files first; Plex items of the other kind, purged recordings, and recordings still importing left out', () => {
   const rows = libraryTitleRowsOf({
     items: [
       { kind: 'movie', title: 'Fargo', file_path: '/m/fargo.mkv', duration_s: 5880, aired_at: 1 },
       { kind: 'episode', show_title: 'Fargo', title: 'Pilot', season: 1, episode: 1, file_path: '/tv/fargo-s01e01.mkv', aired_at: 2 },
     ],
     recordings: [
-      { recording_id: 'r1', title: 'Fargo', file_path: '/rec/fargo-new.ts', duration_s: 3600, aired_at: 9 },
-      { recording_id: 'r2', title: 'Fargo', file_path: '/rec/fargo-gone.ts', aired_at: 10, purged_at: '2026-11-01' },
+      { recording_id: 'r1', title: 'Fargo', file_path: '/rec/fargo-new.ts', duration_s: 3600, aired_at: 9, status: 'done', size: 900 },
+      { recording_id: 'r2', title: 'Fargo', file_path: '/rec/fargo-gone.ts', aired_at: 10, purged_at: '2026-11-01', status: 'done' },
+      { recording_id: 'r3', title: 'Fargo', file_path: '/rec/fargo-copying.ts', aired_at: 11, status: 'importing' },
     ],
   })
   assert.deepEqual(frameFilesOf({ rows, kind: 'series' }), [
-    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600 },
-    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null },
+    { filePath: '/rec/fargo-new.ts', programmeDurationS: 3600, expectedBytes: 900 },
+    { filePath: '/tv/fargo-s01e01.mkv', programmeDurationS: null, expectedBytes: null },
   ])
   assert.deepEqual(frameFilesOf({ rows, kind: 'movie' }).map((file) => file.filePath), ['/rec/fargo-new.ts', '/m/fargo.mkv'])
 })
