@@ -672,3 +672,19 @@ test('guide airing chain: the airing picture, its saved copy, the title copy, ot
   assert.deepEqual(await run({ sizes: { [titleCopy]: WIDE } }), ['saved', titleCopy])
   assert.deepEqual(await run({ sizes: { 'https://freeview.example.com/1.jpg': WIDE }, freeview: 'https://freeview.example.com/1.jpg' }), ['freeview', 'https://freeview.example.com/1.jpg'])
 })
+
+test('peek: due with no row or a due retry, else the saved or chosen picture, with no chain run', async () => {
+  const { resolver, calls, clock } = resolverWith({
+    stages: { plex: async () => ({ sources: ['plex:/wide'] }) },
+    sizes: { 'plex:/wide': WIDE },
+  })
+  assert.deepEqual(await resolver.peek({ title: 'Bluey' }), { due: true })
+  await resolver.resolve({ title: 'Bluey' })
+  calls.length = 0
+  assert.deepEqual(await resolver.peek({ title: 'Bluey' }), { due: false, stage: 'plex', origin: 'plex:/wide', transform: 'none', pending: false })
+  assert.deepEqual(calls, [])
+  clock.ms += 8 * 24 * HOUR
+  assert.deepEqual(await resolver.peek({ title: 'Bluey' }), { due: true })
+  const chosen = resolverWith({ stages: { choice: async () => ({ sources: ['upload:1'] }) } })
+  assert.deepEqual(await chosen.resolver.peek({ title: 'Bluey', shape: 'poster' }), { due: false, stage: 'choice', origin: 'upload:1', transform: 'none' })
+})

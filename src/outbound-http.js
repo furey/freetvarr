@@ -201,18 +201,30 @@ export const createHostLimiter = ({
   concurrency = 1,
   gapMs = 0,
   maxQueue = DEFAULT_MAX_QUEUE,
+  reservedForUrgent = 0,
   now = Date.now,
   sleep = wait,
 } = {}) => {
   const urgent = []
   const background = []
+  const backgroundLimit = Math.max(1, concurrency - reservedForUrgent)
   let active = 0
+  let activeBackground = 0
   let nextStartAt = 0
 
+  const nextEntry = () => {
+    if (urgent.length) return urgent.shift()
+    if (background.length && activeBackground < backgroundLimit) return background.shift()
+    return null
+  }
+
   const pump = () => {
-    while (active < concurrency && (urgent.length || background.length)) {
-      const { task, resolve, reject } = urgent.length ? urgent.shift() : background.shift()
+    while (active < concurrency) {
+      const entry = nextEntry()
+      if (!entry) return
+      const { task, resolve, reject, isBackground } = entry
       active += 1
+      if (isBackground) activeBackground += 1
       const startAt = Math.max(now(), nextStartAt)
       nextStartAt = startAt + gapMs
       Promise.resolve(sleep(Math.max(0, startAt - now())))
@@ -220,6 +232,7 @@ export const createHostLimiter = ({
         .then(resolve, reject)
         .finally(() => {
           active -= 1
+          if (isBackground) activeBackground -= 1
           pump()
         })
     }
@@ -229,7 +242,7 @@ export const createHostLimiter = ({
     const queue = isBackground ? background : urgent
     if (queue.length >= maxQueue) return Promise.reject(Object.assign(new Error('queue full'), { code: 'queue-full' }))
     return new Promise((resolve, reject) => {
-      queue.push({ task, resolve, reject, id })
+      queue.push({ task, resolve, reject, id, isBackground })
       pump()
     })
   }
@@ -237,11 +250,13 @@ export const createHostLimiter = ({
   const promote = (id) => {
     const index = background.findIndex((entry) => entry.id === id)
     if (index < 0) return false
-    urgent.push(...background.splice(index, 1))
+    const [entry] = background.splice(index, 1)
+    urgent.push({ ...entry, isBackground: false })
+    pump()
     return true
   }
 
-  const size = () => ({ active, queued: urgent.length + background.length, background: background.length })
+  const size = () => ({ active, queued: urgent.length + background.length, background: background.length, activeBackground })
 
   return { run, promote, size }
 }

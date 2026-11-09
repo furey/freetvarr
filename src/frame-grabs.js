@@ -350,7 +350,9 @@ export const createFrameGrabs = ({
 
   const metaPathOf = (id) => path.join(root, `${id}${META_EXTENSION}`)
 
-  return { frameFor, reconsider, read, prune, idle }
+  const queuedCount = () => queued.size
+
+  return { frameFor, reconsider, read, prune, idle, queuedCount }
 }
 
 export const runFfmpegFrame = (args, { timeoutMs = FFMPEG_TIMEOUT_MS, spawnProcess = spawn } = {}) => new Promise((resolve, reject) => {

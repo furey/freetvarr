@@ -212,8 +212,39 @@ test('createHostLimiter runs urgent tasks before background ones, caps each queu
   runs.push(limiter.run(task('opened')))
   assert.equal(limiter.promote('w2'), true)
   assert.equal(limiter.promote('missing'), false)
-  assert.deepEqual(limiter.size(), { active: 1, queued: 3, background: 1 })
+  assert.deepEqual(limiter.size(), { active: 1, queued: 3, background: 1, activeBackground: 0 })
   release()
   await Promise.all(runs)
   assert.deepEqual(order, ['first', 'opened', 'warm 2', 'warm 1'])
+})
+
+test('createHostLimiter keeps a slot for urgent tasks while background work runs', async () => {
+  const releases = []
+  const order = []
+  const limiter = createHostLimiter({ concurrency: 2, reservedForUrgent: 1 })
+  const task = (name) => () => new Promise((resolve) => {
+    order.push(name)
+    releases.push(resolve)
+  })
+  const runs = [
+    limiter.run(task('warm 1'), { isBackground: true, id: 'w1' }),
+    limiter.run(task('warm 2'), { isBackground: true, id: 'w2' }),
+    limiter.run(task('warm 3'), { isBackground: true, id: 'w3' }),
+  ]
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.deepEqual(order, ['warm 1'])
+  assert.deepEqual(limiter.size(), { active: 1, queued: 2, background: 2, activeBackground: 1 })
+  runs.push(limiter.run(task('viewed')))
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.deepEqual(order, ['warm 1', 'viewed'])
+  assert.equal(limiter.promote('w3'), true)
+  releases.shift()()
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.deepEqual(order, ['warm 1', 'viewed', 'warm 3'])
+  while (releases.length) {
+    releases.shift()()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+  await Promise.all(runs)
+  assert.deepEqual(order, ['warm 1', 'viewed', 'warm 3', 'warm 2'])
 })

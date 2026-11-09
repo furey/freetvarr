@@ -228,7 +228,7 @@ test('artworkFor: answers at once and looks TVmaze up in the background', async 
     searchTvmaze: () => new Promise((resolve) => { finishSearch = resolve }),
   })
   assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: [], pending: true })
-  await new Promise(setImmediate)
+  await new Promise((resolve) => setTimeout(resolve, 0))
   finishSearch([tvmazeShow({ id: 4, name: 'Pooch Perfect' })])
   assert.deepEqual(await artwork.sourcesFor('Pooch Perfect'), ['https://tvmaze.test/4.jpg'])
   assert.deepEqual(await artwork.artworkFor('Pooch Perfect'), { sources: ['https://tvmaze.test/4.jpg'], pending: false })

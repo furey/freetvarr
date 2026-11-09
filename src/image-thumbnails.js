@@ -4,6 +4,7 @@ import path from 'path'
 import sharp from 'sharp'
 
 import knexConfig from '../knexfile.js'
+import { isBackgroundWork } from './background-work.js'
 import { isRenderableSvg, mentionsSvg, rasterTypeOf } from './raster-type.js'
 
 export const PROGRAMME_IMAGE_WIDTHS = [192, 384, 768]
@@ -97,6 +98,7 @@ export const createThumbnailStore = ({
   now = Date.now,
 }) => {
   const files = new Map()
+  const warmNames = new Set()
   const inflight = new Map()
   const failedUntil = new Map()
   let totalBytes = 0
@@ -115,6 +117,7 @@ export const createThumbnailStore = ({
     if (!files.has(name)) return
     totalBytes -= files.get(name)
     files.delete(name)
+    warmNames.delete(name)
   }
 
   const touch = (name) => {
@@ -165,6 +168,7 @@ export const createThumbnailStore = ({
       return null
     }
     touch(name)
+    if (!isBackgroundWork()) warmNames.delete(name)
     return { body, contentType: WEBP }
   }
 
@@ -176,6 +180,7 @@ export const createThumbnailStore = ({
       throw err
     })
     track(name, body.length)
+    if (isBackgroundWork()) warmNames.add(name)
     await prune()
   }
 
@@ -226,9 +231,17 @@ export const createThumbnailStore = ({
     return pending
   }
 
+  const has = ({ key, width }) => usable && files.has(thumbnailNameFor({ key, width }))
+
+  const warmShare = () => {
+    let bytes = 0
+    for (const name of warmNames) bytes += files.get(name) ?? 0
+    return maxBytes > 0 ? bytes / maxBytes : 1
+  }
+
   const stats = () => ({ files: files.size, bytes: totalBytes })
 
-  return { prepare, thumbnailFor, stats }
+  return { prepare, thumbnailFor, has, warmShare, stats }
 }
 
 const busyError = () => Object.assign(new Error('SVG render queue is full'), { code: 'busy' })

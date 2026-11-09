@@ -265,3 +265,16 @@ test('resizeToWebp never enlarges a small source for a 1920 request', async () =
   const { body: out } = await resizeToWebp({ body, width: 1920 })
   assert.equal((await sharp(out).metadata()).width, 219)
 })
+
+test('thumbnail store: has finds a cached width, and warm-up files count toward the warm share until viewed', async () => {
+  const { runAsBackgroundWork } = await import('../src/background-work.js')
+  const store = createThumbnailStore({ dir, maxBytes: 1000, resize: fakeResize })
+  assert.equal(store.has({ key: 'a', width: 192 }), false)
+  await runAsBackgroundWork({}, () => store.thumbnailFor({ key: 'a', width: 192, loadOriginal: countingLoader() }))
+  await store.thumbnailFor({ key: 'b', width: 96, loadOriginal: countingLoader() })
+  assert.equal(store.has({ key: 'a', width: 192 }), true)
+  assert.equal(store.has({ key: 'a', width: 384 }), false)
+  assert.equal(store.warmShare(), 0.192)
+  await store.thumbnailFor({ key: 'a', width: 192, loadOriginal: countingLoader() })
+  assert.equal(store.warmShare(), 0)
+})

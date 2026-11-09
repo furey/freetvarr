@@ -10,6 +10,8 @@ import { storedPlexToken } from './plex.js'
 import { POSTER_SHAPE } from './show-poster.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import { artworkClient } from './fallback-artwork.js'
+import { createHostLimiter } from './outbound-http.js'
+import { isBackgroundWork, onlineLookupsAllowed } from './background-work.js'
 
 export const showTitleKey = (title) => String(title || '')
   .normalize('NFKD')
@@ -43,7 +45,7 @@ export const createShowArtwork = ({
   onTvmazeShow = () => {},
 } = {}) => {
   const plexShows = createExpiringValue({ load: loadPlexShows, ttlMs: plexTtlMs, fallback: new Map(), now })
-  const runSpaced = createSpacedQueue({ gapMs: lookupGapMs })
+  const tvmazeLimiter = createHostLimiter({ concurrency: 1, gapMs: lookupGapMs, maxQueue: TVMAZE_MAX_QUEUE })
   const inflight = new Map()
   const failedUntil = new Map()
   const findShow = findSeriesShow || seriesShowFinder({ searchTvmaze, countryCode })
@@ -83,17 +85,21 @@ export const createShowArtwork = ({
     const cached = await cachedTvmazeSources(lookup.cacheKey)
     refreshStale({ cached, lookup })
     if (cached.sources) return cached.sources
-    if (recentlyFailed(lookup.cacheKey)) return []
+    if (recentlyFailed(lookup.cacheKey) || !onlineLookupsAllowed()) return []
     return startTvmazeLookup(lookup)
   }
 
   const refreshStale = ({ cached, lookup }) => {
-    if (cached.stale && !recentlyFailed(lookup.cacheKey)) startTvmazeLookup({ ...lookup, refreshingHit: Boolean(cached.sources?.length) })
+    if (cached.stale && !recentlyFailed(lookup.cacheKey) && onlineLookupsAllowed()) startTvmazeLookup({ ...lookup, refreshingHit: Boolean(cached.sources?.length) })
   }
 
   const startTvmazeLookup = ({ cacheKey, ids, title, refreshingHit = false }) => {
-    if (inflight.has(cacheKey)) return inflight.get(cacheKey)
-    const pending = runSpaced(() => lookUpTvmaze({ title, ids }))
+    const isBackground = isBackgroundWork()
+    if (inflight.has(cacheKey)) {
+      if (!isBackground) tvmazeLimiter.promote(cacheKey)
+      return inflight.get(cacheKey)
+    }
+    const pending = tvmazeLimiter.run(() => lookUpTvmaze({ title, ids }), { isBackground, id: cacheKey })
       .then(async ({ sources, hinted }) => {
         if (!sources.length && refreshingHit && !hinted && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
         const missMs = hinted ? missTtlMs : unhintedMissTtlMs
@@ -101,8 +107,8 @@ export const createShowArtwork = ({
         await cache.write({ key: sizedKeyOf(cacheKey), sources, expiresAt }).catch(() => {})
         return sources
       })
-      .catch(() => {
-        failedUntil.set(cacheKey, now() + failureBackoffMs)
+      .catch((error) => {
+        if (error?.code !== 'queue-full') failedUntil.set(cacheKey, now() + failureBackoffMs)
         return []
       })
       .finally(() => inflight.delete(cacheKey))
@@ -153,6 +159,7 @@ export const createShowArtwork = ({
     refreshStale({ cached, lookup })
     if (cached.sources) return { sources: cached.sources, pending: false }
     if (recentlyFailed(lookup.cacheKey)) return NO_ARTWORK
+    if (!onlineLookupsAllowed()) return PENDING_ARTWORK
     startTvmazeLookup(lookup)
     return PENDING_ARTWORK
   }
@@ -169,7 +176,9 @@ export const createShowArtwork = ({
     plexShows.reset()
   }
 
-  return { sourcesFor, artworkFor, tvmazeArtworkFor, plexSourcesFor, plexArtworkFor, forget }
+  const backlog = () => tvmazeLimiter.size()
+
+  return { sourcesFor, artworkFor, tvmazeArtworkFor, plexSourcesFor, plexArtworkFor, forget, backlog }
 }
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
@@ -306,15 +315,6 @@ const createExpiringValue = ({ load, ttlMs, fallback, now }) => {
   return { get, reset }
 }
 
-const createSpacedQueue = ({ gapMs }) => {
-  let tail = Promise.resolve()
-  return (task) => {
-    const run = tail.then(task)
-    tail = run.catch(() => {}).then(() => wait(gapMs))
-    return run
-  }
-}
-
 let sharedGuideHints = null
 
 const originalWidthOf = (image) => Number(image?.resolutions?.original?.width) || 0
@@ -325,7 +325,6 @@ const TIMED_OUT = Symbol('timed out')
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_ARTWORK = { sources: [], pending: true }
 
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const TVMAZE_API = 'https://api.tvmaze.com'
 const PLEX_TIMEOUT_MS = 15000
@@ -336,6 +335,7 @@ const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
 const TVMAZE_LOOKUP_GAP_MS = 1000
+const TVMAZE_MAX_QUEUE = 300
 const TVMAZE_FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const PLEX_WAIT_MS = 1500
 const HERO_SOURCE_WIDTH = 1920
