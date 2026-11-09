@@ -29,11 +29,15 @@ export const TitleArt = {
     shape: { type: String, default: 'card' },
     src: { type: String, default: '' },
     fallbackSrc: { type: String, default: '' },
+    channelId: { type: [String, Number], default: null },
   },
   template: `
     <div :class="[shape === 'poster' ? 'ui-poster-art' : 'ui-card-art', 'ui-art-fallback']" :style="fallbackStyle">
       <img v-if="src && !failed" :key="attempt" :ref="showIfLoaded" :src="shownSrc" alt="" loading="lazy" decoding="async" @error="onError" />
-      <span v-else class="ui-art-title">{{ title }}</span>
+      <template v-else>
+        <span class="ui-art-title">{{ title }}</span>
+        <channel-corner-logo :channel-id="channelId" />
+      </template>
       <slot />
     </div>
   `,

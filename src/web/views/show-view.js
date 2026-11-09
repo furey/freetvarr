@@ -196,14 +196,14 @@ export const ShowView = {
               <button v-if="isTappable(e) && !selecting" type="button" class="show-episode-thumb ui-art-fallback" :style="artStyle" @click.stop="openEpisode(e)"
                 :aria-label="(e.inProgress ? 'Watch from the start: ' : 'Play ') + episodeHeading(e)">
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
-                <span v-else class="ui-art-title">{{ title }}</span>
+                <template v-else><span class="ui-art-title">{{ title }}</span><channel-corner-logo :channel-id="e.channelId" /></template>
                 <span class="show-episode-play" aria-hidden="true"><play-glyph /></span>
                 <span v-if="recordedPercent(e) != null" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
                 <span v-else-if="!e.inProgress && e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
               </button>
               <div v-else :class="['show-episode-thumb', 'ui-art-fallback', { 'is-unplayable': !selecting }]" :style="artStyle">
                 <img v-if="episodeImage(e) && !failedImages[e.recordingId]" :src="episodeImage(e)" alt="" loading="lazy" @error="markImageFailed(e)" />
-                <span v-else class="ui-art-title">{{ title }}</span>
+                <template v-else><span class="ui-art-title">{{ title }}</span><channel-corner-logo :channel-id="e.channelId" /></template>
                 <span v-if="recordedPercent(e) != null" class="ui-progress is-live show-episode-bar"><span class="ui-progress-fill" :style="{ width: recordedPercent(e) + '%' }"></span></span>
                 <span v-else-if="!e.inProgress && e.watchedPercent" class="ui-progress show-episode-bar"><span class="ui-progress-fill" :style="{ width: e.watchedPercent + '%' }"></span></span>
               </div>
