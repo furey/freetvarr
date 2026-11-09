@@ -11,6 +11,7 @@ export const JOB_KINDS = {
   import: { title: 'Import' },
   ads: { title: 'Ad removal' },
   guide: { title: 'TV guide refresh', quiet: true },
+  'guide-pictures': { title: 'Guide pictures', quiet: true },
   history: { title: 'Viewing history upkeep', quiet: true },
   'for-you': { title: 'For you rebuild', quiet: true },
   hero: { title: 'Home hero rebuild', quiet: true },

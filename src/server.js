@@ -134,6 +134,8 @@ import {
   localMidnightMs,
   keepGuideWarm,
   watchPendingSkips,
+  watchGuidePictures,
+  pruneGuidePictures,
   getGuideSnapshot,
   episodePictureOrder,
   publishStillsChange,
@@ -708,7 +710,11 @@ const knownLookupTitles = async () => {
   ].filter(Boolean)
 }
 useLookupGate(createLookupGate({ isKnownTitle: createKnownTitles({ loadTitles: knownLookupTitles }) }))
-const pruneCachesAndFrames = async () => ({ ...(await pruneLookupCaches()), frames: await pruneFrameGrabs().catch(() => 0) })
+const pruneCachesAndFrames = async () => ({
+  ...(await pruneLookupCaches()),
+  frames: await pruneFrameGrabs().catch(() => 0),
+  guidePictures: await pruneGuidePictures().catch(() => 0),
+})
 startCachePruning({ prune: pruneCachesAndFrames })
 
 app.get('/api/image-focus', async (req, res) => {
@@ -2468,6 +2474,7 @@ const server = app.listen(PORT, async () => {
   keepGuideWarm()
   getHealthSummary().catch((err) => console.warn(`[health] warm-up: ${err.message}`))
   watchPendingSkips()
+  watchGuidePictures()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
   anchorSeriesRulesQuietly()

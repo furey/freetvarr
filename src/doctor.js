@@ -13,7 +13,9 @@ import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
-import { getGuideSnapshot } from './epg.js'
+import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage } from './epg.js'
+import { guideImageHosts, hostOfSource } from './programme-images.js'
+import { showTitleKey } from './show-artwork.js'
 import { formatDiskSize } from './web/size-format.js'
 import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
 import { currentTimeZone, isKnownTimeZone, resolveTimeZone, timeZoneFromEnv } from './time-zone.js'
@@ -358,6 +360,20 @@ const LATER_CHECKS = [
     },
   },
   {
+    id: 'guide.pictures',
+    group: 'guide',
+    title: 'Guide pictures',
+    doc: 'guide/doctor#guide-pictures',
+    needsTvh: true,
+    run: async (ctx) => {
+      const guide = await settleWithin(ctx.deps.guide(), ctx.timeoutMs / 2)
+      const programmes = Object.values(guide?.programsByChannel ?? {}).flat()
+      if (!programmes.some((programme) => hostOfSource(programme.image))) return { status: 'skip', detail: 'The guide has no picture addresses.' }
+      const health = await ctx.deps.guidePictureHealth()
+      return guidePicturesCheck({ programmes, ...health })
+    },
+  },
+  {
     id: 'paths.recordings',
     group: 'storage',
     title: 'Recordings folder',
@@ -687,6 +703,59 @@ const LATER_CHECKS = [
   },
 ]
 
+export const guidePicturesCheck = ({
+  programmes = [],
+  hosts = new Map(),
+  savedTitleKeys = new Set(),
+  freeviewProblem = null,
+  minAirings = PICTURE_HOST_MIN_AIRINGS,
+  minTried = PICTURE_HOST_MIN_TRIED,
+  failShare = PICTURE_HOST_FAIL_SHARE,
+}) => {
+  const usage = pictureHostUsageOf(programmes)
+  const covered = (titleKeys) => [...titleKeys].filter((key) => savedTitleKeys.has(key)).length
+  const allTitles = new Set([...usage.values()].flatMap((use) => [...use.titleKeys]))
+  const failing = [...usage]
+    .map(([host, use]) => ({ host, ...use, ...(hosts.get(host) ?? { tried: 0, failed: 0 }) }))
+    .filter((use) => use.airings >= minAirings && use.tried >= minTried && use.failed / use.tried >= failShare)
+    .sort((a, b) => b.airings - a.airings)
+  if (!failing.length) {
+    return {
+      status: 'pass',
+      detail: withFreeviewProblem({ detail: `Guide pictures come from ${joinAnd([...usage.keys()])}. Saved copies cover ${covered(allTitles)} of ${plural(allTitles.size, 'title')}.`, freeviewProblem }),
+    }
+  }
+  const worst = failing[0]
+  return {
+    status: 'warn',
+    detail: withFreeviewProblem({ freeviewProblem, detail: failing.map((use) => `${use.host}: ${use.failed} of the last ${plural(use.tried, 'picture')} failed to load. Saved copies cover ${covered(use.titleKeys)} of the ${plural(use.titleKeys.size, 'title')} that use it.`).join(' ') }),
+    fix: 'Freetvarr shows its saved copies of these pictures, then pictures from other sources. If many titles have no picture, the guide source may have stopped serving them; ask the guide provider.',
+    summary: `Guide pictures from ${worst.host} fail to load.`,
+  }
+}
+
+const withFreeviewProblem = ({ detail, freeviewProblem }) => (freeviewProblem ? `${detail} ${freeviewProblem}` : detail)
+
+const pictureHostUsageOf = (programmes) => {
+  const usage = new Map()
+  for (const programme of programmes) {
+    const host = hostOfSource(programme.image)
+    if (!host) continue
+    const use = usage.get(host) ?? { airings: 0, titleKeys: new Set() }
+    use.airings += 1
+    const titleKey = showTitleKey(programme.title)
+    if (titleKey) use.titleKeys.add(titleKey)
+    usage.set(host, use)
+  }
+  return usage
+}
+
+const readGuidePictureHealth = async () => ({
+  hosts: guideImageHosts.stats(),
+  savedTitleKeys: await guidePictureCoverage().catch(() => new Set()),
+  freeviewProblem: freeviewPictureProblem(),
+})
+
 export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {
   if (!report) return { status: 'skip', detail: 'Only the running server knows the names it was opened as.' }
   if (report.anyHost) {
@@ -997,6 +1066,7 @@ const defaultDeps = () => ({
   dockerVm: () => detectDockerVm(),
   uid: () => process.getuid?.() ?? null,
   hostNames: async () => null,
+  guidePictureHealth: readGuidePictureHealth,
 })
 
 const URL_GRABBER_TITLE = /XMLTV URL grabber/i
@@ -1122,6 +1192,9 @@ const DAY_MS = 24 * HOUR_MS
 const GUIDE_FAIL_MS = 12 * HOUR_MS
 const GUIDE_WARN_MS = 48 * HOUR_MS
 const GUIDE_EMPTY_SHARE = 0.25
+const PICTURE_HOST_MIN_AIRINGS = 50
+const PICTURE_HOST_MIN_TRIED = 10
+const PICTURE_HOST_FAIL_SHARE = 0.5
 const GB = 1e9
 const NO_CHANNELS_YET = 'No channels yet.'
 const DISK_FAIL_BYTES = 10 * GB

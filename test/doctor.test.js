@@ -16,7 +16,9 @@ import {
   liveStreamsCheck,
   hostNamesCheck,
   withHostNamesCheck,
+  guidePicturesCheck,
 } from '../src/doctor.js'
+import { healthSummaryOf } from '../src/health-summary.js'
 
 const HOUR_MS = 60 * 60 * 1000
 const GB = 1e9
@@ -140,13 +142,13 @@ test('runDoctor: warns when TVHeadend did not save the whole-title change for a 
   assert.match(check.fix, /tries again after the next sync/)
 })
 
-const TVH_DEPENDENT = ['tvh.rights', 'tvh.open', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'paths.match']
+const TVH_DEPENDENT = ['tvh.rights', 'tvh.open', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'guide.pictures', 'paths.match']
 
 test('runDoctor: a healthy setup passes every check it can run, reading TVHeadend with GETs only', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 3 })
+  assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 4 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -743,4 +745,54 @@ test('keepOneOffFolder: leaves a missing one-off folder alone', async () => {
   const missing = path.join(os.tmpdir(), 'freetvarr-no-such-folder', 'one-offs')
   assert.equal(await keepOneOffFolder(missing), 'missing')
   assert.equal(await fs.access(missing).then(() => true, () => false), false)
+})
+
+const pictureAirings = ({ host, count, titles = 10 }) => Array.from({ length: count }, (_, index) => ({
+  title: `Show ${index % titles}`,
+  image: `https://${host}/show-${index % titles}.jpg`,
+}))
+
+test('guidePicturesCheck: warns when a host with 50 or more airings fails half its picture loads, naming the host and saved coverage', () => {
+  const programmes = [...pictureAirings({ host: 'images.example.com', count: 60 }), ...pictureAirings({ host: 'cdn.example.net', count: 5, titles: 1 })]
+  const check = guidePicturesCheck({
+    programmes,
+    hosts: new Map([['images.example.com', { tried: 40, failed: 20 }], ['cdn.example.net', { tried: 20, failed: 20 }]]),
+    savedTitleKeys: new Set(['show 1', 'show 2', 'show 3']),
+  })
+  assert.equal(check.status, 'warn')
+  assert.equal(check.detail, 'images.example.com: 20 of the last 40 pictures failed to load. Saved copies cover 3 of the 10 titles that use it.')
+  assert.equal(check.summary, 'Guide pictures from images.example.com fail to load.')
+  assert.equal(healthSummaryOf({ doctorChecks: [{ ...check, group: 'guide', title: 'Guide pictures' }] }).sentence, check.summary)
+})
+
+test('guidePicturesCheck: passes under 50 airings, under half failed, or with fewer than 10 tries', () => {
+  const failing = { tried: 40, failed: 30 }
+  const run = ({ count, stats }) => guidePicturesCheck({
+    programmes: pictureAirings({ host: 'images.example.com', count }),
+    hosts: new Map([['images.example.com', stats]]),
+    savedTitleKeys: new Set(['show 0']),
+  }).status
+  assert.equal(run({ count: 49, stats: failing }), 'pass')
+  assert.equal(run({ count: 50, stats: failing }), 'warn')
+  assert.equal(run({ count: 80, stats: { tried: 40, failed: 19 } }), 'pass')
+  assert.equal(run({ count: 80, stats: { tried: 9, failed: 9 } }), 'pass')
+  const passed = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 60 }), savedTitleKeys: new Set(['show 0']) })
+  assert.equal(passed.detail, 'Guide pictures come from images.example.com. Saved copies cover 1 of 10 titles.')
+})
+
+test('runDoctor: the guide pictures check reads the guide and the recorded host results, with no web request', async () => {
+  const now = Date.now()
+  const programmes = pictureAirings({ host: 'images.example.com', count: 60 })
+  const guide = async () => ({ channels: [], programsByChannel: { one: programmes } })
+  const guidePictureHealth = async () => ({ hosts: new Map([['images.example.com', { tried: 20, failed: 15 }]]), savedTitleKeys: new Set() })
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, guide, guidePictureHealth }))['guide.pictures']
+  assert.equal(check.status, 'warn')
+  assert.match(check.detail, /^images\.example\.com: 15 of the last 20 pictures failed to load\. Saved copies cover 0 of the 10 titles/)
+})
+
+test('guidePicturesCheck: says when Freeview pictures are off and why', () => {
+  const freeviewProblem = 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off. Give the Freetvarr user in TVHeadend the Admin right.'
+  const check = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 10 }), freeviewProblem })
+  assert.equal(check.status, 'pass')
+  assert.ok(check.detail.endsWith(freeviewProblem))
 })
