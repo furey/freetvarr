@@ -312,13 +312,9 @@ export const EpgView = {
           </div>
           </div>
           <teleport to="body">
-          <div v-if="narrow && !programmeSheetOpen && !channelsModal && !searchActive" class="epg-float-cluster" role="group" aria-label="Jump and zoom">
+          <div v-if="narrow && !programmeSheetOpen && !channelsModal && !searchActive" class="epg-float-cluster" role="group" aria-label="Jump to time">
             <button type="button" class="epg-float-btn" @click="jumpNow">Now</button>
             <button type="button" class="epg-float-btn" @click="jumpTonight">Tonight</button>
-            <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom out"
-              :disabled="zoomIndex === 0" @click="changeZoom(-1)"><minus-icon /></button>
-            <button type="button" class="epg-float-btn epg-float-icon" aria-label="Zoom in"
-              :disabled="zoomIndex === zoomLevelCount - 1" @click="changeZoom(1)"><plus-icon /></button>
           </div>
           </teleport>
         </div>

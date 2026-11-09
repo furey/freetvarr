@@ -998,9 +998,6 @@
   border-left: 0;
 }
 
-.epg-float-icon {
-  min-width: 44px;
-}
 
 .epg-float-btn:active:not(:disabled) {
   background: var(--color-surface-3);

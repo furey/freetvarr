@@ -167,7 +167,7 @@ If saving the listings fails, the dialog says so on its own line. Your favourite
 
 ## On a phone
 
-The TV guide works in a phone browser, with **Now**, **Tonight**, and the zoom buttons over the grid. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-save-it-as-an-app). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
+The TV guide works in a phone browser, with **Now** and **Tonight** over the grid; the **S**, **M**, and **L** size buttons sit with the filters. To run it full-screen, [add Freetvarr to your Home Screen](/guide/getting-started#_4-save-it-as-an-app). In that Home Screen app, pull down from the top of a page to refresh it (see [Pull to refresh](/guide/syncs#pull-to-refresh)).
 
 ## Live TV page
 
