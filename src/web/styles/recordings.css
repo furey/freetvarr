@@ -467,6 +467,20 @@
   justify-content: center;
 }
 
+.show-episode-thumb:has(> .ui-art-title) {
+  padding-bottom: 16px;
+}
+
+.show-episode-thumb:has(> .ui-art-title) .ui-art-title {
+  max-width: 100%;
+  -webkit-line-clamp: 1;
+}
+
+.show-episode-thumb:has(> .ui-art-title) .show-episode-play {
+  align-items: flex-start;
+  padding-top: 4px;
+}
+
 .show-episode-play svg {
   width: 36px;
   height: 36px;
