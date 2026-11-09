@@ -1,5 +1,4 @@
 import fs from 'fs/promises'
-import sharp from 'sharp'
 
 import { getSetting, setSetting } from './db.js'
 import { anyChannelLinkFor } from './web/series-link.js'
@@ -32,8 +31,7 @@ import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
-import { CARD_STAGE, LANDSCAPE_SHAPE, MOVIE_KIND, ONE_OFF_KIND, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
-import { CARD_VERSION, titleCardSvg } from './art-card.js'
+import { FINAL_STAGE, LANDSCAPE_SHAPE, MOVIE_KIND, ONE_OFF_KIND, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
 import { loadKindOverrides } from './programme-kind.js'
 import { createLibraryTitles } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
@@ -797,7 +795,7 @@ export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {})
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
 
-export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width, card = true } = {}) => {
+export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
   const programme = await programmeImageSources({ eventId, fallbackSource })
   if (!programme.title && !programme.own) return NO_IMAGE
   const resolution = await artResolver.resolve({
@@ -807,14 +805,14 @@ export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, w
     ownSource: programme.own,
     sameTitleSources: programme.sameTitle,
   })
-  return imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE, card, channelId: programme.channelId })
+  return imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE })
 }
 
-export const findShowThumbnail = ({ title, width, kind = null, card = true } = {}) =>
-  findTitleImage({ title, width, kind, shape: LANDSCAPE_SHAPE, card })
+export const findShowThumbnail = ({ title, width, kind = null } = {}) =>
+  findTitleImage({ title, width, kind, shape: LANDSCAPE_SHAPE })
 
-export const findShowPoster = ({ title, width, kind = null, card = true } = {}) =>
-  findTitleImage({ title, width, kind, shape: POSTER_SHAPE, card })
+export const findShowPoster = ({ title, width, kind = null } = {}) =>
+  findTitleImage({ title, width, kind, shape: POSTER_SHAPE })
 
 export const resolveShowArt = ({ title, kind = null, shape = null }) => artResolver.resolve({ title, kind, shape })
 
@@ -920,23 +918,24 @@ const showArtSources = async ({ title, kind = null }) => {
   return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
 }
 
-const findTitleImage = async ({ title, width, kind, shape, card }) => {
+const findTitleImage = async ({ title, width, kind, shape }) => {
   if (!title) return NO_IMAGE
   const resolution = await artResolver.resolve({ title, kind, shape })
-  const found = await imageOfResolution({ resolution, title, width, shape, card })
+  const found = await imageOfResolution({ resolution, title, width, shape })
   if (found.image || found.pending || resolution.stage !== CHOICE_STAGE) return found
   const automatic = await artResolver.resolve({ title, kind, shape, withoutChoice: true })
-  return imageOfResolution({ resolution: automatic, title, width, shape, card })
+  return imageOfResolution({ resolution: automatic, title, width, shape })
 }
 
-const imageOfResolution = async ({ resolution, title, width, shape, card, channelId = null }) => {
+const imageOfResolution = async ({ resolution, title, width, shape }) => {
   if (resolution.pending) return PENDING_IMAGE
-  if (resolution.stage === CARD_STAGE) return card && title ? titleCardImage({ title, kind: resolution.kind, shape, width, channelId }) : NO_IMAGE
+  if (resolution.stage === FINAL_STAGE) return FINAL_MISS
   const image = await resolveWithin(resolvedThumbnail({ resolution, width, shape }), SHOW_IMAGE_BUDGET_MS)
   if (image === TIMED_OUT) return PENDING_IMAGE
   if (image) return { image, pending: false }
-  if (resolution.stage !== CHOICE_STAGE) artResolver.invalidate({ title, kind: resolution.kind, shape })
-  return card && title && resolution.stage !== CHOICE_STAGE ? titleCardImage({ title, kind: resolution.kind, shape, width, channelId }) : NO_IMAGE
+  if (resolution.stage === CHOICE_STAGE) return NO_IMAGE
+  artResolver.invalidate({ title, kind: resolution.kind, shape })
+  return PENDING_IMAGE
 }
 
 const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) => thumbnailStore.thumbnailFor({
@@ -949,30 +948,6 @@ const resolvedOriginalOf = async ({ origin, transform, shape }) => {
   const image = await rawImageOfOrigin(origin)
   if (!image || transform !== 'pad') return image
   return (shape === POSTER_SHAPE ? portraitPadOf(image) : landscapeOf(image)).catch(() => image)
-}
-
-const titleCardImage = async ({ title, kind, shape, width, channelId }) => {
-  const year = kind === MOVIE_KIND ? await filmYearOf(title) : null
-  const image = await thumbnailStore.thumbnailFor({
-    key: `${CARD_VERSION}:${shape}:${channelId ?? ''}:${year ?? ''}:${title}`,
-    width,
-    loadOriginal: async () => titleCardSvg({ title, shape, year, logo: await cardLogoOf(channelId) }),
-  }).catch(() => null)
-  return image ? { image: { ...image, generated: true }, pending: false } : NO_IMAGE
-}
-
-const filmYearOf = async (title) => {
-  const hints = await artworkHintsFor(title).catch(() => null)
-  return hints?.releaseYears?.length === 1 ? hints.releaseYears[0] : null
-}
-
-const cardLogoOf = async (channelId) => {
-  if (channelId == null) return null
-  const logo = await getChannelImage({ channelId }).catch(() => null)
-  if (!logo?.body) return null
-  const body = await sharp(logo.body).resize({ height: CARD_LOGO_HEIGHT_PX, withoutEnlargement: true }).png().toBuffer().catch(() => null)
-  const size = body ? await sharp(body).metadata().catch(() => null) : null
-  return size?.width ? { body, width: size.width, height: size.height } : null
 }
 
 const chosenOriginOf = async ({ title, shape, withoutChoice }) => {
@@ -1257,11 +1232,11 @@ const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')
 const CHOICE_STAGE = 'choice'
-const CARD_LOGO_HEIGHT_PX = 96
 const KIND_OVERRIDES_TTL_MS = 30 * 1000
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_IMAGE = { image: null, pending: true }
+const FINAL_MISS = { image: null, pending: false, final: true }
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000

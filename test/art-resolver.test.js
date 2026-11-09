@@ -11,13 +11,10 @@ import {
   createArtResolver,
   guideKindsOf,
 } from '../src/art-resolver.js'
-import { titleCardSvg, titleFontPxOf, titleLinesOf, textWidthOf } from '../src/art-card.js'
-import { cardWantedFrom, imageRouteOf, serveImageRoute } from '../src/image-routes.js'
-import { rasterizeSvg } from '../src/image-thumbnails.js'
-import { isRenderableSvg } from '../src/raster-type.js'
+import { imageRouteOf, serveImageRoute } from '../src/image-routes.js'
 import { portraitPadOf } from '../src/show-poster.js'
 import { artKindHintOf, showImageUrlOf } from '../src/web/artwork-stamps.js'
-import { artHueOf } from '../src/web/art-fallback.js'
+import { artProbeStateOf } from '../src/web/art-fallback.js'
 
 const HOUR = 60 * 60 * 1000
 const POSTER = { width: 680, height: 1000 }
@@ -63,13 +60,13 @@ const throwingClient = () => {
   return client
 }
 
-test('chainOf: each kind runs its own chain, from the owner choice to the title card', () => {
+test('chainOf: each kind runs its own chain, from the owner choice to no picture', () => {
   const table = [
-    [{ kind: 'movie' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'card']],
-    [{ kind: 'series' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'card']],
-    [{ kind: 'one-off' }, ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', 'card']],
-    [{ kind: 'series', recordingId: 'r1' }, ['episode', 'title', 'frame', 'card']],
-    [{ kind: 'movie', eventId: 'e1' }, ['own', 'same-title', 'title', 'card']],
+    [{ kind: 'movie' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'none']],
+    [{ kind: 'series' }, ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'none']],
+    [{ kind: 'one-off' }, ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', 'none']],
+    [{ kind: 'series', recordingId: 'r1' }, ['episode', 'title', 'frame', 'none']],
+    [{ kind: 'movie', eventId: 'e1' }, ['own', 'same-title', 'title', 'none']],
     [{ kind: 'unknown' }, TITLE_CHAINS.series],
   ]
   for (const [request, chain] of table) assert.deepEqual(chainOf(request), chain, JSON.stringify(request))
@@ -202,7 +199,7 @@ test('a pending online lookup is reported and not saved, so the next request ask
   assert.equal(store.rows.size, 0)
 })
 
-test('the title card is the last step; it is saved with a 6 h to 7 d retry ladder, and new evidence retries at once', async () => {
+test('no picture is the last step; the miss is saved with a 6 h to 7 d retry ladder, and new evidence retries at once', async () => {
   let guide = []
   const { resolver, store, clock, calls } = resolverWith({
     stages: { guide: async () => ({ sources: guide }), online: async () => ({ sources: [] }) },
@@ -211,7 +208,7 @@ test('the title card is the last step; it is saved with a 6 h to 7 d retry ladde
   const waits = []
   for (let round = 0; round < 5; round += 1) {
     const found = await resolver.resolve({ title: 'Nowhere Show' })
-    assert.equal(found.stage, 'card')
+    assert.equal(found.stage, 'none')
     const row = store.rows.get('series|landscape|nowhere show')
     waits.push((row.next_check_at - clock.ms) / HOUR)
     if (round < 4) clock.ms = row.next_check_at + 1
@@ -236,7 +233,7 @@ test('the owner choice comes first and is never saved as a resolution', async ()
   assert.equal(store.rows.size, 0)
 })
 
-test('guide-only chain: the airing picture, then other airings, then the title chain, then the card', async () => {
+test('guide-only chain: the airing picture, then other airings, then the title chain, then no picture', async () => {
   const run = async ({ own = null, sameTitle = [], titleSources = [] }) => {
     const { resolver } = resolverWith({
       stages: {
@@ -252,10 +249,10 @@ test('guide-only chain: the airing picture, then other airings, then the title c
   assert.deepEqual(await run({ own: 'guide:own', sameTitle: ['guide:other'] }), ['own', 'guide:own'])
   assert.deepEqual(await run({ sameTitle: ['guide:other'] }), ['same-title', 'guide:other'])
   assert.deepEqual(await run({ titleSources: ['plex:/art'] }), ['plex', 'plex:/art'])
-  assert.deepEqual(await run({}), ['card', null])
+  assert.deepEqual(await run({}), ['none', null])
 })
 
-test('episode chain: the recording picture, then the series picture, then the card', async () => {
+test('episode chain: the recording picture, then the series picture, then no picture', async () => {
   const { resolver } = resolverWith({
     stages: {
       episode: async ({ recordingId }) => ({ sources: [`recording:${recordingId}`] }),
@@ -284,58 +281,8 @@ test('portraitPadOf: a landscape picture becomes a 2:3 poster with the picture a
   assert.equal(await portraitPadOf(poster), poster)
 })
 
-test('title card: the same hue as the page fallback, balanced lines with no lone last word, and a clamp at three lines', () => {
-  const { body } = titleCardSvg({ title: 'The Great Australian Bake Off', shape: 'poster' })
-  const svg = body.toString()
-  assert.ok(isRenderableSvg(body))
-  assert.match(svg, /viewBox="0 0 120 180"/)
-  assert.ok(svg.includes(`stop-color="${hexOfHue(artHueOf('The Great Australian Bake Off'))}"`))
-  const lines = titleLinesOf({ title: 'Escape to the Country: Back to the Farm', maxWidth: 260 })
-  assert.equal(lines.length, 2)
-  assert.ok(lines.at(-1).split(' ').length > 1)
-  const widths = lines.map((text) => textWidthOf({ text }))
-  assert.ok(Math.abs(widths[0] - widths[1]) < 80)
-  const clamped = titleLinesOf({ title: 'One Two Three Four Five Six Seven Eight Nine Ten Eleven Twelve', maxWidth: 80 })
-  assert.equal(clamped.length, 3)
-  assert.ok(clamped[2].endsWith('…'))
-  assert.equal(titleFontPxOf({ title: 'Bluey', maxWidth: 84 }), 19)
-  const shrunk = titleFontPxOf({ title: 'Gardening Australia', maxWidth: 84 })
-  assert.ok(shrunk < 19 && shrunk >= 13)
-  assert.equal(titleLinesOf({ title: 'Gardening Australia', maxWidth: 84, fontPx: shrunk }).length, 2)
-  assert.deepEqual(titleLinesOf({ title: 'Supercalifragilisticexpialidocious', maxWidth: 80 }).every((line) => textWidthOf({ text: line }) <= 80), true)
-})
-
-test('title card: renders to a WebP of the asked width in each shape, with the year for a film and a channel logo', async () => {
-  const logo = await sharp({ create: { width: 96, height: 48, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } } }).png().toBuffer()
-  const poster = titleCardSvg({ title: 'Heat', shape: 'poster', year: 1995 })
-  assert.equal((poster.body.toString().match(/fill-opacity/g) || []).length, 1)
-  const wide = titleCardSvg({ title: 'Bluey', logo: { body: logo, width: 96, height: 48 } })
-  assert.match(wide.body.toString(), /<image [^>]*href="data:image\/png;base64,/)
-  for (const [card, width, height] of [[poster, 384, 576], [wide, 768, 432]]) {
-    const rendered = await rasterizeSvg({ body: card.body, width })
-    const size = await sharp(rendered.body).metadata()
-    assert.deepEqual([size.format, size.width, size.height], ['webp', width, height])
-  }
-})
-
-test('a generated card is sent with no-cache and an ETag, and a matching If-None-Match gets 304', async () => {
-  const body = (await rasterizeSvg({ body: titleCardSvg({ title: 'Bluey' }).body, width: 192 })).body
-  const route = imageRouteOf({ path: '/api/epg/show-image', widthOf: () => 192, loadImage: async () => ({ image: { body, contentType: 'image/webp', generated: true }, pending: false }) })
-  const serve = serveImageRoute({ route, imageMaxAgeS: 86400 })
-  const first = recorder()
-  await serve({ params: {}, query: {}, headers: {} }, first)
-  assert.equal(first.headers['cache-control'], 'no-cache')
-  assert.ok(first.headers.etag)
-  const again = recorder()
-  await serve({ params: {}, query: {}, headers: { 'if-none-match': first.headers.etag } }, again)
-  assert.equal(again.statusCode, 304)
-  assert.equal(cardWantedFrom('0'), false)
-  assert.equal(cardWantedFrom(undefined), true)
-})
-
-test('showImageUrlOf: one builder for every show picture URL, with kind hint, card switch, and stamp', () => {
+test('showImageUrlOf: one builder for every show picture URL, with kind hint and stamp', () => {
   assert.equal(showImageUrlOf({ title: 'Fargo', shape: 'poster', kind: artKindHintOf('series'), width: 384, stamp: 'k2' }), '/api/epg/show-image?title=Fargo&shape=poster&kind=series&w=384&c=k2')
-  assert.equal(showImageUrlOf({ title: 'Heat', width: 768, card: false }), '/api/epg/show-image?title=Heat&card=0&w=768')
   assert.deepEqual(['movie', 'series', 'oneoff', 'other'].map(artKindHintOf), ['movie', 'series', 'one-off', null])
 })
 
@@ -351,50 +298,15 @@ const recorder = () => {
   return res
 }
 
-const hexOfHue = (hue) => {
-  const l = 0.44
-  const chroma = 0.62 * Math.min(l, 1 - l)
-  const channel = (offset) => {
-    const k = (offset + hue / 30) % 12
-    return Math.round((l - chroma * Math.max(-1, Math.min(k - 3, 9 - k, 1))) * 255).toString(16).padStart(2, '0')
+test('a final miss answers 404 no-store with X-Art-State final, a pending one with pending, and TitleArt stops only on final', async () => {
+  const serveWith = (result) => serveImageRoute({ route: imageRouteOf({ path: '/api/epg/show-image', widthOf: () => 192, loadImage: async () => result }), imageMaxAgeS: 86400 })
+  for (const [result, state] of [[{ image: null, pending: false, final: true }, 'final'], [{ image: null, pending: true }, 'pending'], [null, undefined]]) {
+    const res = recorder()
+    await serveWith(result)({ params: {}, query: {}, headers: {} }, res)
+    assert.deepEqual([res.statusCode, res.headers['cache-control'], res.headers['x-art-state']], [404, 'no-store', state])
   }
-  return `#${channel(0)}${channel(8)}${channel(4)}`
-}
-
-test('a series hero gets the 1280 px TVmaze background over a 400 px guide still; the still is used only when nothing fits', async () => {
-  const still = { width: 400, height: 225 }
-  const run = async (online) => {
-    const { resolver } = resolverWith({
-      guideKind: 'series',
-      stages: { guide: async () => ({ sources: ['guide:still'] }), online: async () => ({ sources: online }) },
-      sizes: { 'guide:still': still, 'https://tvmaze.test/bg.jpg': WIDE },
-    })
-    const found = await resolver.resolve({ title: 'The Block' })
-    return [found.stage, found.origin]
-  }
-  assert.deepEqual(await run(['https://tvmaze.test/bg.jpg']), ['online', 'https://tvmaze.test/bg.jpg'])
-  assert.deepEqual(await run([]), ['derived', 'guide:still'])
-})
-
-test('home hero: every title that had a hero-sized picture under the 2.12.3 chain still resolves to one', async () => {
-  const fixture = [
-    { title: 'Plex Show', plex: ['plex:/art'], sizes: { 'plex:/art': WIDE } },
-    { title: 'Recorded Show', recording: ['recording:r1'], sizes: { 'recording:r1': { width: 960, height: 540 } } },
-    { title: 'Small Recording Show', recording: ['recording:r2'], online: ['https://tvmaze.test/a.jpg'], sizes: { 'recording:r2': { width: 400, height: 225 }, 'https://tvmaze.test/a.jpg': WIDE } },
-    { title: 'Guide Still Show', guide: ['guide:s'], online: ['https://tvmaze.test/b.jpg'], sizes: { 'guide:s': { width: 400, height: 225 }, 'https://tvmaze.test/b.jpg': WIDE } },
-    { title: 'Online Film', kind: 'movie', online: ['https://tmdb.test/c.jpg'], sizes: { 'https://tmdb.test/c.jpg': WIDE } },
-    { title: 'Portrait Plex Show', plex: ['plex:/thumb'], sizes: { 'plex:/thumb': POSTER } },
-  ]
-  const heroSized = []
-  for (const item of fixture) {
-    const { resolver } = resolverWith({
-      stages: Object.fromEntries(['plex', 'recording', 'guide', 'online'].map((stage) => [stage, async () => ({ sources: item[stage] ?? [] })])),
-      sizes: item.sizes,
-    })
-    const found = await resolver.resolve({ title: item.title, kind: item.kind })
-    const size = item.sizes[found.origin]
-    const shownWidth = found.transform === 'pad' ? Math.round(Math.min(size.height, 1080) * 16 / 9) : size?.width ?? 0
-    if (shownWidth >= 640) heroSized.push(item.title)
-  }
-  assert.deepEqual(heroSized, fixture.map((item) => item.title))
+  assert.equal(artProbeStateOf({ ok: false, state: 'final' }), 'final')
+  assert.equal(artProbeStateOf({ ok: false, state: 'pending' }), 'pending')
+  assert.equal(artProbeStateOf({ ok: false, state: null }), 'pending')
+  assert.equal(artProbeStateOf({ ok: true, state: null }), 'loaded')
 })

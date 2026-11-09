@@ -1152,20 +1152,19 @@ Pictures and programme info come from the guide, Plex, TVmaze, [Wikidata](https:
 
 ### Picture routes
 
-| Route                          | Parameters                                                                                           | Used by                                              |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `GET /api/epg/image/:eventId`  | `w`, `card`                                                                                          | Guide cells, Live TV thumbnails, the programme sheet |
-| `GET /api/epg/show-image`      | `title`, `shape` (`poster` or landscape), `kind` (`movie`, `series`, or `one-off`), `card`, `w`, `c` | For you, show pages, **Change picture**              |
-| `GET /api/epg/logo/:channelId` | `w` (`96` or `192`)                                                                                  | Channel logos                                        |
+| Route                          | Parameters                                                                                   | Used by                                              |
+| ------------------------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `GET /api/epg/image/:eventId`  | `w`                                                                                          | Guide cells, Live TV thumbnails, the programme sheet |
+| `GET /api/epg/show-image`      | `title`, `shape` (`poster` or landscape), `kind` (`movie`, `series`, or `one-off`), `w`, `c` | For you, show pages, **Change picture**              |
+| `GET /api/epg/logo/:channelId` | `w` (`96` or `192`)                                                                          | Channel logos                                        |
 
-`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. `card=0` turns off the title card: the route then answers `404` where it would send a card. Show pages, guide cells (`ProgrammeImage` in `src/web/components/images.js`), and the home hero proof (`createImageResolver` with `forcedQuery`) use `card=0`, because they show their own title.
+`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. A miss answers `404` with `no-store` and the header `X-Art-State`: `pending` while a lookup runs, `final` when the chain ended with no picture. `TitleArt` asks again after `4 s`, `12 s`, and `30 s` with a `HEAD` request, and stops at the first `final`. The page then shows its own fallback: the title on a gradient (`.ui-art-fallback` and `.ui-art-title` in `src/web/styles/base.css`).
 
-| Answer                 | Status | `Cache-Control`                               |
-| ---------------------- | ------ | --------------------------------------------- |
-| A found picture        | `200`  | `public, max-age=86400`                       |
-| A title card           | `200`  | `no-cache` with an `ETag`; `304` on a match   |
-| A lookup still running | `404`  | `no-store`; the client asks again after `5 s` |
-| No picture, `card=0`   | `404`  | `no-store`                                    |
+| Answer                 | Status | `Cache-Control`                    |
+| ---------------------- | ------ | ---------------------------------- |
+| A found picture        | `200`  | `public, max-age=86400`            |
+| A lookup still running | `404`  | `no-store`; `X-Art-State: pending` |
+| No picture             | `404`  | `no-store`; `X-Art-State: final`   |
 
 `showImageUrlOf` in `src/web/artwork-stamps.js` builds every show picture URL, on the server (`src/library.js`, `src/art-pool.js`, `src/for-you.js`) and in the client. `artKindHintOf` turns a library kind into the `kind` hint.
 
@@ -1183,13 +1182,13 @@ The server sets the kind (`canonicalKindOf`). The `kind` in the URL is a hint on
 
 Each kind runs its own chain of steps (`chainOf`). The steps are functions that `src/epg.js` passes in; each gives picture origins (`plex:<path>`, `recording:<id>`, `upload:<id>`, or a URL).
 
-| Request                  | Chain                                                                                         |
-| ------------------------ | --------------------------------------------------------------------------------------------- |
-| Film                     | choice, Plex, recording, guide, online, derived shape, frame, title card                      |
-| Series                   | choice, Plex, recording, guide, online, derived shape, frame, title card                      |
-| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, title card                      |
-| Episode (`recordingId`)  | recording picture, the title chain, frame, title card                                         |
-| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, title card with channel logo |
+| Request                  | Chain                                                                 |
+| ------------------------ | --------------------------------------------------------------------- |
+| Film                     | choice, Plex, recording, guide, online, derived shape, frame, none    |
+| Series                   | choice, Plex, recording, guide, online, derived shape, frame, none    |
+| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none    |
+| Episode (`recordingId`)  | recording picture, the title chain, frame, none                       |
+| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, none |
 
 ```mermaid
 flowchart TD
@@ -1204,7 +1203,7 @@ flowchart TD
     recording --> guide["Guide images<br>of the title"]
     guide --> online["Online: TVmaze, then Wikipedia and TMDB;<br>films: Wikipedia and TMDB"]
     online --> derived["Derived shape from the first<br>picture that did not fit"]
-    derived --> card["Title card"]
+    derived --> none["No picture"]
   end
   chain --> store["Save the row in art_resolutions"]
 ```
@@ -1215,14 +1214,14 @@ flowchart TD
 - The online step for a one-off runs only with lookup evidence: library presence, episode details, a release year, or cast names.
 - The guide step uses at most `4` images. Plex pictures come through the Plex photo transcoder at most `1920` px (`plexResizedSourceOf`), so originals over the `4 MB` image limit still load.
 - The chain has `3 s` (`RESOLVE_BUDGET_MS`); the airing and episode steps have `1.5 s` (`OUTER_BUDGET_MS`). A step that runs past it, a Plex list still loading, or an online lookup still running makes the answer pending; nothing is saved.
-- `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to load deletes its row (`invalidate`) and gets the title card.
+- `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to load deletes its row (`invalidate`) and answers pending, so the client asks again.
 
 `art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
 
 | Result                    | Next check                                                         |
 | ------------------------- | ------------------------------------------------------------------ |
 | A picture that fits       | `7 d`                                                              |
-| Derived shape, title card | `6 h`, `24 h`, `3 d`, then `7 d` while the fingerprint is the same |
+| Derived shape, no picture | `6 h`, `24 h`, `3 d`, then `7 d` while the fingerprint is the same |
 | A changed fingerprint     | At once                                                            |
 
 `forgetShowArtwork` (**Refresh artwork**) deletes the rows of the title. The daily prune deletes rows whose `next_check_at` is more than `90 d` past.
@@ -1241,19 +1240,6 @@ A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE
 | Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                                                                                                                                                        |
 
 `plexShowSources` lists each section with a `15 s` timeout. A section that fails keeps its entries from the last good list, and a refresh where every section fails keeps the whole list for another `10` min. The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources.
-
-### Title card
-
-`titleCardSvg` in `src/art-card.js` draws the last step of every chain as an SVG. The image cache turns it into WebP with `rasterizeSvg`, one render at a time. The card matches the client fallback (`.ui-art-fallback` and `.ui-art-title` in `src/web/styles/base.css`):
-
-- The canvas is `256×144` for landscape and `120×180` for posters (the size of a card and a poster on a phone), scaled to `w`.
-- The fill is a `135°` gradient from the hue of `artHueOf` in `src/web/art-fallback.js`: `hsl(h 62% 44%)`, then `hsl(h 55% 18%)` at `60%`, then `#1c2630`.
-- The title is white Figtree at weight `800` and `19` px (down to `13` px so that the longest word fits on one line), line height `1.05`, at the bottom left with `12` px padding and `88%` of the width. Lines are balanced, so no line holds one word alone. A title that needs more than `3` lines ends with `…`.
-- A film adds its release year under the title when its hints give one year. A guide airing adds its channel logo, `22` px high, at the top right.
-
-The glyphs are SVG paths from `src/art-card-glyphs.json`, so the card needs no fonts on the server. `scripts/build-card-glyphs.py` makes the file from the Figtree fonts in `src/web/fonts/` with [fontTools](https://fonttools.readthedocs.io/). A character with no glyph takes the space of a space.
-
-In the client, `TitleArt` shows the gradient while the picture loads, then fades in the card, so the title appears once. `TitleArt` shows its own title only when the picture fails.
 
 ### Online lookup
 

@@ -103,8 +103,8 @@ export const ProgrammeImage = {
       titleCardTimer = setTimeout(() => { titleCardShown.value = status.value !== 'loaded' }, TITLE_CARD_DELAY_MS)
     }
     const guideImageUrl = computed(() => {
-      if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}?card=0`
-      if (props.title) return stampedShowImage(showImageUrlOf({ title: props.title, card: false }))
+      if (props.eventId != null) return `/api/epg/image/${encodeURIComponent(props.eventId)}`
+      if (props.title) return stampedShowImage(showImageUrlOf({ title: props.title }))
       return null
     })
     const guideImageWidths = computed(() => PROGRAMME_IMAGE_WIDTHS[props.variant] || PROGRAMME_IMAGE_WIDTHS.thumb)

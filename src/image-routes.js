@@ -1,6 +1,5 @@
-import crypto from 'crypto'
-
 import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
+import { ART_FINAL, ART_STATE_HEADER } from './web/art-fallback.js'
 
 export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params }) => params, widthError = 'w is not a supported width' }) => ({
   path,
@@ -11,8 +10,6 @@ export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params })
   widthError,
 })
 
-export const cardWantedFrom = (value) => value !== '0'
-
 export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
   const width = route.widthOf(query.w)
   if (width === null) return { image: null, pending: false, badWidth: true }
@@ -21,14 +18,13 @@ export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
 
 export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => {
   try {
-    const { image, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
+    const { image, pending, final, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
     if (badWidth) return res.status(400).json({ error: route.widthError })
-    if (!image) return sendMissing(res)
+    if (!image) return sendMissing(res, artStateOf({ pending, final }))
     const contentType = rasterTypeOf(image.body)
     if (!contentType) return sendMissing(res)
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
-    if (image.generated) return sendGenerated({ req, res, body: image.body })
     res.setHeader('Cache-Control', `public, max-age=${imageMaxAgeS}`)
     res.send(image.body)
   } catch {
@@ -36,18 +32,20 @@ export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => 
   }
 }
 
-export const createImageResolver = (routes, { forcedQuery = {} } = {}) => async (url) => {
+export const createImageResolver = (routes) => async (url) => {
   const { pathname, query } = requestOf(url)
   for (const route of routes) {
     const params = paramsFrom({ pattern: route.pattern, pathname })
-    if (params) return loadRouteImage({ route, params, query: { ...query, ...forcedQuery } })
+    if (params) return loadRouteImage({ route, params, query })
   }
   return { image: null, pending: false, unknownRoute: true }
 }
 
-export const imageResultOf = (result) => (result?.body
-  ? { image: result, pending: false }
-  : { image: result?.image ?? null, pending: Boolean(result?.pending) })
+export const imageResultOf = (result) => {
+  if (result?.body) return { image: result, pending: false }
+  const image = result?.image ?? null
+  return result?.final && !image ? { image, pending: false, final: true } : { image, pending: Boolean(result?.pending) }
+}
 
 const requestOf = (url) => {
   const parsed = new URL(String(url), LOCAL_BASE)
@@ -79,18 +77,16 @@ const paramsFrom = ({ pattern, pathname }) => {
   }
 }
 
-const sendGenerated = ({ req, res, body }) => {
-  const etag = `"${crypto.createHash('sha256').update(body).digest('base64url').slice(0, ETAG_LENGTH)}"`
-  res.setHeader('Cache-Control', 'no-cache')
-  res.setHeader('ETag', etag)
-  if (req.headers?.['if-none-match'] === etag) return res.status(304).end()
-  res.send(body)
+const artStateOf = ({ pending, final }) => {
+  if (final) return ART_FINAL
+  return pending ? ART_PENDING : null
 }
 
-const sendMissing = (res) => {
+const sendMissing = (res, state = null) => {
   res.setHeader('Cache-Control', 'no-store')
+  if (state) res.setHeader(ART_STATE_HEADER, state)
   res.status(404).end()
 }
 
 const LOCAL_BASE = 'http://localhost'
-const ETAG_LENGTH = 27
+const ART_PENDING = 'pending'

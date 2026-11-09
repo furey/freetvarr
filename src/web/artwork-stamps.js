@@ -54,11 +54,10 @@ export const withChoiceStamp = ({ url, stamp }) => {
   return kept.length ? `${path}?${kept.join('&')}` : path
 }
 
-export const showImageUrlOf = ({ title, width = null, shape = null, kind = null, card = true, stamp = null }) => [
+export const showImageUrlOf = ({ title, width = null, shape = null, kind = null, stamp = null }) => [
   `${SHOW_IMAGE_PATH}?title=${encodeURIComponent(title)}`,
   shape ? `&shape=${shape}` : '',
   kind ? `&kind=${kind}` : '',
-  card ? '' : '&card=0',
   width ? `&w=${width}` : '',
   stamp ? `&c=${encodeURIComponent(stamp)}` : '',
 ].join('')

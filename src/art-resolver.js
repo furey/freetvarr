@@ -11,15 +11,15 @@ export const SERIES_KIND = 'series'
 export const ONE_OFF_KIND = 'one-off'
 export const TITLE_KINDS = [MOVIE_KIND, SERIES_KIND, ONE_OFF_KIND]
 export const LANDSCAPE_SHAPE = 'landscape'
-export const CARD_STAGE = 'card'
+export const FINAL_STAGE = 'none'
 
 export const TITLE_CHAINS = {
-  [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', CARD_STAGE],
-  [SERIES_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', CARD_STAGE],
-  [ONE_OFF_KIND]: ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', CARD_STAGE],
+  [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', FINAL_STAGE],
+  [SERIES_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', FINAL_STAGE],
+  [ONE_OFF_KIND]: ['choice', 'plex', 'recording', 'guide', 'frame', 'online', 'derived', FINAL_STAGE],
 }
-export const EPISODE_CHAIN = ['episode', 'title', 'frame', CARD_STAGE]
-export const GUIDE_ONLY_CHAIN = ['own', 'same-title', 'title', CARD_STAGE]
+export const EPISODE_CHAIN = ['episode', 'title', 'frame', FINAL_STAGE]
+export const GUIDE_ONLY_CHAIN = ['own', 'same-title', 'title', FINAL_STAGE]
 
 export const chainOf = ({ kind, recordingId = null, eventId = null }) => {
   if (recordingId != null) return EPISODE_CHAIN
@@ -92,7 +92,7 @@ export const createArtResolver = ({
   }
 
   const resolveTitle = async (ctx) => {
-    if (!ctx.titleKey) return CARD_RESULT
+    if (!ctx.titleKey) return FINAL_RESULT
     const deadline = now() + budgetMs
     const chosen = await stageWithin({ stage: 'choice', ctx, deadline })
     if (chosen.sources[0]) return { stage: 'choice', origin: chosen.sources[0], transform: chosenTransformOf(ctx.shape), pending: false }
@@ -121,7 +121,7 @@ export const createArtResolver = ({
     let weak = null
     for (const stage of chainOf({ kind: ctx.kind })) {
       if (stage === 'choice') continue
-      if (stage === CARD_STAGE) return remember({ ctx, fingerprint, saved, result: CARD_RESULT })
+      if (stage === FINAL_STAGE) return remember({ ctx, fingerprint, saved, result: FINAL_RESULT })
       if (stage === 'derived') {
         if (weak) return remember({ ctx, fingerprint, saved, result: derivedResultOf(weak) })
         continue
@@ -135,18 +135,18 @@ export const createArtResolver = ({
         if (verdict.loaded && !weak) weak = { origin, rightShape: verdict.rightShape }
       }
     }
-    return remember({ ctx, fingerprint, saved, result: CARD_RESULT })
+    return remember({ ctx, fingerprint, saved, result: FINAL_RESULT })
   }
 
   const runOuterChain = async ({ chain, ctx }) => {
     const deadline = now() + outerBudgetMs
     let pendingSeen = false
     for (const stage of chain) {
-      if (stage === CARD_STAGE) return pendingSeen ? PENDING_RESULT : CARD_RESULT
+      if (stage === FINAL_STAGE) return pendingSeen ? PENDING_RESULT : FINAL_RESULT
       if (stage === 'title') {
         const fromTitle = await resolveTitle(ctx)
         if (fromTitle.pending) pendingSeen = true
-        else if (fromTitle.stage !== CARD_STAGE) return fromTitle
+        else if (fromTitle.stage !== FINAL_STAGE) return fromTitle
         continue
       }
       const found = await stageWithin({ stage, ctx, deadline })
@@ -155,7 +155,7 @@ export const createArtResolver = ({
       if (loaded.origin) return { stage, origin: loaded.origin, transform: 'none', pending: false }
       if (loaded.pending) pendingSeen = true
     }
-    return pendingSeen ? PENDING_RESULT : CARD_RESULT
+    return pendingSeen ? PENDING_RESULT : FINAL_RESULT
   }
 
   const firstLoaded = async ({ sources, deadline }) => {
@@ -273,10 +273,10 @@ const databaseStore = {
 const NOT_MOVIE_OVERRIDE = 'not-movie'
 const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OFF_KIND }
 const LOCAL_STAGES = ['plex', 'recording', 'guide']
-const SETTLED_STAGES = new Set(['derived', CARD_STAGE])
+const SETTLED_STAGES = new Set(['derived', FINAL_STAGE])
 const TIMED_OUT = Symbol('timed out')
 const NO_SOURCES = { sources: [], pending: false }
-const CARD_RESULT = { stage: CARD_STAGE, origin: null, transform: CARD_STAGE, pending: false }
+const FINAL_RESULT = { stage: FINAL_STAGE, origin: null, transform: 'none', pending: false }
 const PENDING_RESULT = { stage: null, origin: null, transform: null, pending: true }
 const FINGERPRINT_VERSION = 'art-v1'
 const FINGERPRINT_LENGTH = 24
