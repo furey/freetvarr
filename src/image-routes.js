@@ -1,13 +1,14 @@
 import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
 import { ART_FINAL, ART_STATE_HEADER } from './web/art-fallback.js'
 
-export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params }) => params, widthError = 'w is not a supported width' }) => ({
+export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params }) => params, widthError = 'w is not a supported width', isWarm = null }) => ({
   path,
   pattern: patternOf(path),
   widthOf,
   loadImage,
   paramsOf,
   widthError,
+  isWarm,
 })
 
 export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
@@ -39,6 +40,18 @@ export const createImageResolver = (routes) => async (url) => {
     if (params) return loadRouteImage({ route, params, query })
   }
   return { image: null, pending: false, unknownRoute: true }
+}
+
+export const createImageWarmCheck = (routes) => async (url) => {
+  const { pathname, query } = requestOf(url)
+  for (const route of routes) {
+    const params = paramsFrom({ pattern: route.pattern, pathname })
+    if (!params) continue
+    const width = route.widthOf(query.w)
+    if (width === null || !route.isWarm) return false
+    return Boolean(await route.isWarm({ ...route.paramsOf({ params, query }), width }))
+  }
+  return false
 }
 
 export const imageResultOf = (result) => {

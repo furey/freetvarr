@@ -1,7 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createVisitPattern, decayedBinsOf, hourOfWeekOf, isVisitRequest } from '../src/visit-pattern.js'
+import { readFileSync } from 'node:fs'
+
+import { POLL_HEADER, VIEW_HEADER, createVisitPattern, decayedBinsOf, hourOfWeekOf, isVisitRequest } from '../src/visit-pattern.js'
 
 const MINUTE = 60 * 1000
 const HOUR = 60 * MINUTE
@@ -42,7 +44,6 @@ test('noteRequest: a visit is the first UI read after 20 minutes idle', async ()
   clock.ms += 10 * MINUTE
   assert.equal(visits.noteRequest({ method: 'GET', path: '/api/epg/guide' }), true)
   await settle()
-  assert.equal(writes.length, 2)
   assert.equal(JSON.parse(writes.at(-1)).visits, 2)
 })
 
@@ -105,4 +106,59 @@ test('ready: loads the saved pattern and ignores a damaged one', async () => {
   await damaged.ready()
   assert.equal(damaged.modeAt(), 'active')
   assert.equal(damaged.nextWindowAt(), null)
+})
+
+test('a hidden tab never counts, and a background poll keeps the mode active without a visit', async () => {
+  const start = new Date(2026, 10, 1, 20, 0).getTime()
+  const clock = { ms: start }
+  const writes = []
+  const visits = patternWith({ clock, writes })
+  assert.equal(visits.noteRequest({ method: 'GET', path: '/api/home/hero', hidden: true }), false)
+  assert.equal(visits.snapshot().lastActiveAt, null)
+  assert.equal(visits.noteRequest({ method: 'GET', path: '/api/home/hero' }), true)
+  await settle()
+  for (let day = 1; day <= 20; day += 1) {
+    clock.ms = start + day * DAY
+    assert.equal(visits.noteRequest({ method: 'GET', path: '/api/recording-now', poll: true }), false)
+    assert.equal(visits.noteRequest({ method: 'GET', path: '/api/recording-now', poll: true, hidden: true }), false)
+  }
+  assert.equal(visits.modeAt(), 'active')
+  assert.equal(visits.snapshot().visits, 1)
+  clock.ms += 3 * DAY
+  assert.equal(visits.modeAt(), 'quiet')
+  await settle()
+  assert.equal(JSON.parse(writes.at(-1)).lastActiveAt, start + 20 * DAY)
+})
+
+test('active time is saved at most once an hour, and a restart keeps it', async () => {
+  const start = new Date(2026, 10, 1, 20, 0).getTime()
+  const clock = { ms: start }
+  const writes = []
+  const visits = patternWith({ clock, writes })
+  visits.noteRequest({ method: 'GET', path: '/api/home/hero' })
+  await settle()
+  const afterVisit = writes.length
+  for (let minute = 1; minute <= 50; minute += 1) {
+    clock.ms = start + minute * MINUTE
+    visits.noteRequest({ method: 'GET', path: '/api/library/shows' })
+  }
+  await settle()
+  assert.equal(writes.length, afterVisit)
+  clock.ms = start + 61 * MINUTE
+  visits.noteRequest({ method: 'GET', path: '/api/library/shows' })
+  await settle()
+  assert.equal(writes.length, afterVisit + 1)
+  clock.ms = start + 61 * MINUTE + 13 * DAY
+  const restarted = patternWith({ clock, saved: writes.at(-1) })
+  await restarted.ready()
+  assert.equal(restarted.modeAt(), 'quiet')
+})
+
+test('the client marks hidden tabs and polls with the headers the server reads', () => {
+  const api = readFileSync(new URL('../src/web/shared/api.js', import.meta.url), 'utf8')
+  assert.ok(api.includes(`VIEW_HEADER = '${VIEW_HEADER}'`))
+  assert.ok(api.includes(`POLL_HEADER = '${POLL_HEADER}'`))
+  for (const file of ['recording-now.js', 'sync-status.js', 'activity-summary.js']) {
+    assert.match(readFileSync(new URL(`../src/web/shared/${file}`, import.meta.url), 'utf8'), /pollApi\(/)
+  }
 })

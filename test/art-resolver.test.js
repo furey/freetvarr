@@ -673,7 +673,7 @@ test('guide airing chain: the airing picture, its saved copy, the title copy, ot
   assert.deepEqual(await run({ sizes: { 'https://freeview.example.com/1.jpg': WIDE }, freeview: 'https://freeview.example.com/1.jpg' }), ['freeview', 'https://freeview.example.com/1.jpg'])
 })
 
-test('peek: due with no row or a due retry, else the saved or chosen picture, with no chain run', async () => {
+test('peek: due with no row or a due retry, else the saved or chosen picture, with only the local steps run', async () => {
   const { resolver, calls, clock } = resolverWith({
     stages: { plex: async () => ({ sources: ['plex:/wide'] }) },
     sizes: { 'plex:/wide': WIDE },
@@ -682,9 +682,23 @@ test('peek: due with no row or a due retry, else the saved or chosen picture, wi
   await resolver.resolve({ title: 'Bluey' })
   calls.length = 0
   assert.deepEqual(await resolver.peek({ title: 'Bluey' }), { due: false, stage: 'plex', origin: 'plex:/wide', transform: 'none', pending: false })
-  assert.deepEqual(calls, [])
+  assert.deepEqual(calls, ['plex'])
   clock.ms += 8 * 24 * HOUR
   assert.deepEqual(await resolver.peek({ title: 'Bluey' }), { due: true })
   const chosen = resolverWith({ stages: { choice: async () => ({ sources: ['upload:1'] }) } })
   assert.deepEqual(await chosen.resolver.peek({ title: 'Bluey', shape: 'poster' }), { due: false, stage: 'choice', origin: 'upload:1', transform: 'none' })
+})
+
+test('peek: due when the local evidence changed since the saved row, so a new recording picture is warmed', async () => {
+  let recordingSources = []
+  const { resolver } = resolverWith({
+    stages: { recording: async () => ({ sources: recordingSources }), online: async () => ({ sources: [] }) },
+    sizes: { 'recording:9': WIDE },
+  })
+  await resolver.resolve({ title: 'Gogglebox' })
+  assert.equal((await resolver.peek({ title: 'Gogglebox' })).due, false)
+  recordingSources = ['recording:9']
+  assert.deepEqual(await resolver.peek({ title: 'Gogglebox' }), { due: true })
+  await resolver.resolve({ title: 'Gogglebox' })
+  assert.deepEqual(await resolver.peek({ title: 'Gogglebox' }), { due: false, stage: 'recording', origin: 'recording:9', transform: 'none', pending: false })
 })

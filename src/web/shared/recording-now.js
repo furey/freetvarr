@@ -1,5 +1,5 @@
 import { ref, computed, watch } from '/vendor/vue.esm-browser.prod.js'
-import { api } from '/shared/api.js'
+import { pollApi } from '/shared/api.js'
 import { setFaviconRecording } from '/shared/favicon.js'
 import { live } from '/shared/player-shared.js'
 import { recordingSetKeyOf } from '/in-progress-display.js'
@@ -16,7 +16,7 @@ export const recordingSetKey = computed(() => recordingSetKeyOf(recordingNow.val
 
 const loadRecordingNow = async () => {
   try {
-    recordingNow.value = await api('GET', '/api/recording-now')
+    recordingNow.value = await pollApi('/api/recording-now')
   } catch {
     recordingNow.value = { active: [], journeys: [], finishing: [] }
   }

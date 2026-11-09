@@ -233,3 +233,18 @@ test('startWarmSchedule asks for the nightly run and for a predicted visit windo
   assert.deepEqual(requests, ['visit-window', 'nightly'])
   stop()
 })
+
+test('stop ends a run between pictures and refuses new requests', async () => {
+  let warmer = null
+  const setup = warmerWith({
+    urls: { home: ['/a?w=384', '/b?w=384', '/c?w=384'] },
+    outcome: () => {
+      warmer.stop()
+      return { image: { body: Buffer.from('x') } }
+    },
+  })
+  warmer = setup.warmer
+  await runOnce(warmer, 'sync')
+  assert.deepEqual(setup.calls.warmed, ['/a?w=384'])
+  assert.equal(warmer.request('sync'), false)
+})

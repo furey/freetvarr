@@ -107,9 +107,11 @@ export const createArtWarmer = ({
   let queuedTrigger = null
   let timer = null
   let running = null
+  let stopped = false
   let progress = { state: 'idle', trigger: null, done: 0, total: 0, startedAt: null, finishedAt: null, counts: null }
 
   const request = (trigger, { urls = null } = {}) => {
+    if (stopped) return false
     const plan = runPlanOf({ trigger, mode: modeOf() })
     if (!plan) return false
     queued = mergeRunPlans(queued, urls ? { ...plan, tiers: [], urls } : plan)
@@ -161,14 +163,14 @@ export const createArtWarmer = ({
       progress.total += urls.length
       job.total(progress.total, 'pictures')
       for (const url of urls) {
-        if (counts.capped) break
+        if (counts.capped || stopped) break
         await warmOne({ url, plan, counts, pending })
         progress.done += 1
         job.advance()
         notify()
       }
     }
-    if (pending.length && !plan.offline && !counts.capped) await retryPending({ pending, plan, counts })
+    if (pending.length && !plan.offline && !counts.capped && !stopped) await retryPending({ pending, plan, counts })
     const finishedAt = now()
     setProgress({ ...progress, state: 'done', finishedAt, counts })
     const summary = { trigger, plan, counts, ms: finishedAt - startedAt }
@@ -179,6 +181,7 @@ export const createArtWarmer = ({
 
   const warmOne = async ({ url, plan, counts, pending, retry = false }) => {
     counts.pausedMs += await waitUntilClear({ plan })
+    if (stopped) return
     if (!retry) counts.checked += 1
     if (isMemoWarm(url) || await isWarmSafely(url)) {
       counts.warm += 1
@@ -206,12 +209,12 @@ export const createArtWarmer = ({
   const retryPending = async ({ pending, plan, counts }) => {
     const deadline = now() + retryWaitMs
     while (lookupBacklog() > 0 && now() < deadline) await sleep(pollMs)
-    for (const url of pending) await warmOne({ url, plan, counts, pending, retry: true })
+    for (const url of pending) if (!stopped) await warmOne({ url, plan, counts, pending, retry: true })
   }
 
   const waitUntilClear = async ({ plan }) => {
     const startedAt = now()
-    while (await pauseReasonOf({ plan })) await sleep(pollMs)
+    while (!stopped && await pauseReasonOf({ plan })) await sleep(pollMs)
     return now() - startedAt
   }
 
@@ -261,6 +264,7 @@ export const createArtWarmer = ({
   const current = () => ({ ...progress, counts: progress.counts && { ...progress.counts } })
 
   const stop = () => {
+    stopped = true
     clearTimer(timer)
     timer = null
     queued = null

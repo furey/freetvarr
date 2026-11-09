@@ -108,7 +108,8 @@ export const createThumbnailStore = ({
   const fileOf = (name) => path.join(dir, name)
 
   const track = (name, bytes) => {
-    forget(name)
+    if (files.has(name)) totalBytes -= files.get(name)
+    files.delete(name)
     files.set(name, bytes)
     totalBytes += bytes
   }
@@ -117,7 +118,16 @@ export const createThumbnailStore = ({
     if (!files.has(name)) return
     totalBytes -= files.get(name)
     files.delete(name)
-    warmNames.delete(name)
+    setWarm(name, false)
+  }
+
+  const setWarm = (name, warm) => {
+    if (warmNames.has(name) === warm) return
+    if (warm) warmNames.add(name)
+    else warmNames.delete(name)
+    const marker = fileOf(`${name}${WARM_SUFFIX}`)
+    const change = warm ? fs.writeFile(marker, '') : fs.rm(marker, { force: true })
+    change.catch(() => {})
   }
 
   const touch = (name) => {
@@ -147,6 +157,11 @@ export const createThumbnailStore = ({
       .filter(Boolean)
       .sort((a, b) => a.mtimeMs - b.mtimeMs)
       .forEach(({ name, size }) => track(name, size))
+    await Promise.all(names.filter(isWarmMarker).map(async (marker) => {
+      const name = marker.slice(0, -WARM_SUFFIX.length)
+      if (files.has(name)) warmNames.add(name)
+      else await fs.rm(fileOf(marker), { force: true })
+    }))
     await prune()
   }
 
@@ -168,7 +183,7 @@ export const createThumbnailStore = ({
       return null
     }
     touch(name)
-    if (!isBackgroundWork()) warmNames.delete(name)
+    if (!isBackgroundWork()) setWarm(name, false)
     return { body, contentType: WEBP }
   }
 
@@ -180,7 +195,7 @@ export const createThumbnailStore = ({
       throw err
     })
     track(name, body.length)
-    if (isBackgroundWork()) warmNames.add(name)
+    setWarm(name, isBackgroundWork())
     await prune()
   }
 
@@ -267,6 +282,8 @@ const isThumbnailName = (name) => THUMBNAIL_NAME.test(name)
 
 const isPartialWrite = (name) => name.endsWith(PARTIAL_SUFFIX)
 
+const isWarmMarker = (name) => WARM_MARKER.test(name)
+
 const WEBP = 'image/webp'
 const MIN_LANDSCAPE_RATIO = 1.3
 const LANDSCAPE_MAX_HEIGHT = 1080
@@ -284,5 +301,7 @@ const BYTES_PER_MB = 1024 * 1024
 const DEFAULT_IMAGE_CACHE_BYTES = 100 * BYTES_PER_MB
 const PARTIAL_SUFFIX = '.partial'
 const THUMBNAIL_NAME = /^[0-9a-f]{64}\.webp$/
+const WARM_SUFFIX = '.warm'
+const WARM_MARKER = /^[0-9a-f]{64}\.webp\.warm$/
 
 const sharedSvgQueue = createRenderQueue()

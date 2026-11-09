@@ -49,7 +49,7 @@ const getCsrf = sharedCsrfToken(fetchCsrf)
 const apiCall = async (method, url, body, headersExtra = {}) => {
   const isFile = typeof Blob !== 'undefined' && body instanceof Blob
   const contentType = isFile ? body.type || 'application/octet-stream' : 'application/json'
-  const headers = { 'Content-Type': contentType, ...headersExtra }
+  const headers = { 'Content-Type': contentType, ...viewHeaders(), ...headersExtra }
   const res = noteBuild(await reachServer(() => fetch(url, {
     method,
     headers,
@@ -59,6 +59,13 @@ const apiCall = async (method, url, body, headersExtra = {}) => {
   if (!res.ok) throw responseErrorOf({ status: res.status, data })
   return data
 }
+
+export const VIEW_HEADER = 'X-Freetvarr-View'
+export const POLL_HEADER = 'X-Freetvarr-Poll'
+
+const viewHeaders = () => (document.visibilityState === 'hidden' ? { [VIEW_HEADER]: 'hidden' } : {})
+
+export const pollApi = (url) => apiCall('GET', url, undefined, { [POLL_HEADER]: '1' })
 
 export const prefetchGet = (url) => {
   if (freshPrefetchOf(url)) return

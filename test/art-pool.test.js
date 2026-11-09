@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { serveImageRoute } from '../src/image-routes.js'
 import {
-  composeShowPool, contentKeyOf, createArtPool, guideEpisodePoolOf, imageIdOf, plexArtsPoolOf, plexEpisodePoolOf, plexSourceOf,
+  artPoolImageRoutes, composeShowPool, contentKeyOf, createArtPool, guideEpisodePoolOf, imageIdOf, plexArtsPoolOf, plexEpisodePoolOf, plexSourceOf,
   plexTranscodeOrigin, poolImagesOf, recordingImageRoute as recordingImageRouteOf, tvmazePoolOf, warmHomeArtPools,
 } from '../src/art-pool.js'
 
@@ -418,4 +418,53 @@ test('an expired TVmaze pool refreshed with no guide details keeps the old pictu
   }).showSources('the-block')
   assert.deepEqual(sources.tvmaze, kept)
   assert.deepEqual(cache.rows.get(key), { sources: kept, expiresAt: 900 })
+})
+
+test('the recording image route keys a saved picture by its file version and checks warmth with no file read', async () => {
+  const { createImageWarmCheck } = await import('../src/image-routes.js')
+  const cached = new Set(['recording:r1:120-5|384'])
+  const reads = []
+  const episodeChecks = []
+  const route = recordingImageRouteOf({
+    versionOf: async (id) => (id === 'r1' ? '120-5' : null),
+    loadOriginal: async (id) => {
+      reads.push(id)
+      return id === 'r1' ? { body: jpegOf('jpeg'), contentType: 'image/jpeg' } : null
+    },
+    thumbnails: () => ({
+      has: ({ key, width }) => cached.has(`${key}|${width}`),
+      thumbnailFor: async ({ key, width, loadOriginal }) => ({ body: webpOf(`${key}|${width}|${Boolean(await loadOriginal())}`), contentType: 'image/webp' }),
+    }),
+    isEpisodeWarm: async (request) => {
+      episodeChecks.push(request)
+      return false
+    },
+  })
+  const isWarm = createImageWarmCheck([route])
+  assert.equal(await isWarm('/api/recordings/r1/image?w=384'), true)
+  assert.equal(await isWarm('/api/recordings/r1/image?w=768'), false)
+  assert.equal(await isWarm('/api/recordings/r2/image?w=384'), false)
+  assert.equal(await isWarm('/api/recordings/r1/image?w=500'), false)
+  assert.deepEqual(reads, [])
+  assert.deepEqual(episodeChecks, [{ recordingId: 'r2', width: 384 }])
+  const image = await route.loadImage({ recording_id: 'r1', width: 768 })
+  assert.equal(textAfter(WEBP_START, image.body), 'recording:r1:120-5|768|true')
+})
+
+test('art pool routes are warm when the pool source thumbnail is cached', async () => {
+  const { createImageWarmCheck } = await import('../src/image-routes.js')
+  const checked = []
+  const artPool = poolWith({
+    isSourceWarm: async ({ source, width }) => {
+      checked.push({ source, width })
+      return width === 768
+    },
+  })
+  const pool = await artPool.showPool('the-block')
+  const entry = pool.entries.find((candidate) => candidate.origin)
+  const isWarm = createImageWarmCheck(artPoolImageRoutes({ artPool }))
+  assert.equal(await isWarm(`/api/library/shows/the-block/art-pool/${entry.id}?w=768`), true)
+  assert.equal(await isWarm(`/api/library/shows/the-block/art-pool/${entry.id}?w=1280`), false)
+  assert.equal(await isWarm('/api/library/shows/the-block/art-pool/missing?w=768'), false)
+  assert.equal(checked.length, 2)
 })

@@ -45,6 +45,7 @@ import {
   stillsAllowed,
   isGuessedFilmKind,
   kindHintFrom,
+  EPISODE_FRAME_FIRST,
   onlineArtworkOf,
   stampKindOf,
 } from './art-resolver.js'
@@ -896,6 +897,42 @@ export const isProgrammeArtWarm = async ({ eventId, width }) => {
   return origins.length ? false : isShowArtWarm({ title: programme.title, kind: programme.kind, width })
 }
 
+export const isEpisodeArtWarm = async ({ recordingId, width, loadRow = recordingRowOf, episodeOrder = episodePictureOrder }) => {
+  const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
+  const title = row?.show_title_override ?? row?.title
+  if (!title) return true
+  const order = episodePictureOrderFrom(await episodeOrder().catch(() => undefined))
+  const titleState = await titleArtStateOf({ title, width })
+  if (!stillsAllowed(order)) return titleState !== COLD
+  const fileReady = !row.purged_at && isCompleteRow(row)
+  const frame = fileReady ? await frameGrabs.savedFrameOf(row.file_path) : { origin: null, none: true }
+  const frameState = frameStateOf({ frame, width })
+  const states = order === EPISODE_FRAME_FIRST ? [frameState, titleState] : [titleState, frameState]
+  for (const state of states) {
+    if (state === WARM) return true
+    if (state === COLD) return false
+  }
+  return true
+}
+
+export const isArtSourceWarm = ({ source, width }) => thumbnailStore.has({ key: showThumbnailKeyOf(source), width })
+
+const titleArtStateOf = async ({ title, width }) => {
+  const peeked = await artResolver.peek({ title, shape: LANDSCAPE_SHAPE })
+  if (peeked.due) return COLD
+  if (peeked.stage === FINAL_STAGE) return EMPTY
+  return thumbnailStore.has({ key: resolvedThumbnailKeyOf({ ...peeked, shape: LANDSCAPE_SHAPE }), width }) ? WARM : COLD
+}
+
+const frameStateOf = ({ frame, width }) => {
+  if (frame.origin) return thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin: frame.origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }) ? WARM : COLD
+  return frame.none ? EMPTY : COLD
+}
+
+const WARM = 'warm'
+const COLD = 'cold'
+const EMPTY = 'empty'
+
 export const artLookupBacklog = () => fallbackArtwork.backlog().background + showArtwork.backlog().background
 
 export const frameGrabsBusy = () => frameGrabs.queuedCount() > 0
@@ -1233,8 +1270,10 @@ const artworkHintsFor = async (title) => {
   return library ? { ...guide, inLibrary: true } : guide
 }
 
+const showThumbnailKeyOf = (source) => `show-1080:${source}`
+
 const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
-  key: `show-1080:${source}`,
+  key: showThumbnailKeyOf(source),
   width,
   loadOriginal: () => showArtOriginal(source),
 })

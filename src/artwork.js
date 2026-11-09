@@ -31,6 +31,13 @@ export const findArtwork = async ({ kind, id, root = getArtworkRoot() }) => {
   return relative ? readArtwork({ relative, root }) : null
 }
 
+export const artworkVersionOf = async ({ kind, id, root = getArtworkRoot() }) => {
+  const relative = await existingArtworkPath({ kind, id, root })
+  if (!relative) return null
+  const stat = await fs.stat(path.join(root, relative)).catch(() => null)
+  return stat ? `${stat.size}-${Math.round(stat.mtimeMs)}` : null
+}
+
 export const removeArtwork = async ({ kind, id, root = getArtworkRoot() }) => {
   const relative = await existingArtworkPath({ kind, id, root })
   if (relative) await fs.rm(path.join(root, relative), { force: true })

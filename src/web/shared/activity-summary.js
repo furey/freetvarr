@@ -1,5 +1,5 @@
 import { ref } from '/vendor/vue.esm-browser.prod.js'
-import { api } from '/shared/api.js'
+import { pollApi } from '/shared/api.js'
 
 export const runningJobs = ref(0)
 
@@ -10,7 +10,7 @@ let timer = null
 const loadSummary = async () => {
   if (document.visibilityState !== 'visible') return
   try {
-    runningJobs.value = (await api('GET', '/api/activity/summary')).running ?? 0
+    runningJobs.value = (await pollApi('/api/activity/summary')).running ?? 0
   } catch {}
 }
 

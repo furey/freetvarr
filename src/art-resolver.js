@@ -319,11 +319,15 @@ export const createArtResolver = ({
     const kind = await kindOf({ title, hint })
     const ctx = { title, titleKey: showTitleKey(title), kind, shape: shape === POSTER_SHAPE ? POSTER_SHAPE : LANDSCAPE_SHAPE }
     if (!ctx.titleKey) return { due: false, ...FINAL_RESULT }
-    const chosen = await stageWithin({ stage: 'choice', ctx, deadline: now() + budgetMs })
+    const deadline = now() + budgetMs
+    const chosen = await stageWithin({ stage: 'choice', ctx, deadline })
     if (chosen.sources[0]) return { due: false, stage: 'choice', origin: chosen.sources[0], transform: chosenTransformOf(ctx.shape) }
     const saved = await store.read(resolutionKeyOf(ctx)).catch(() => null)
-    if (!saved || Number(saved.next_check_at) <= now()) return { due: true }
-    return { due: false, ...resultOfRow(saved) }
+    if (!saved || Number(saved.next_check_at) <= now()) return PEEK_DUE
+    const local = await localEvidenceOf({ ctx, deadline })
+    if (local.pending) return PEEK_DUE
+    const fingerprint = fingerprintOf({ ctx, local, settingsKey: await settingsKeyOf(ctx).catch(() => '') })
+    return saved.fingerprint === fingerprint ? { due: false, ...resultOfRow(saved) } : PEEK_DUE
   }
 
   const forget = (title) => store.removeTitle(showTitleKey(title)).catch(() => {})
@@ -414,6 +418,7 @@ const databaseStore = {
 }
 
 const NOT_MOVIE_OVERRIDE = 'not-movie'
+const PEEK_DUE = { due: true }
 const UNSETTLED_FILM_LOOKUP = { sources: [], pending: true }
 const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OFF_KIND }
 const LOCAL_STAGES = ['plex', 'recording', 'guide']

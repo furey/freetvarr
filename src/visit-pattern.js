@@ -1,5 +1,7 @@
 export const HOURS_PER_WEEK = 168
 export const VISIT_PATTERN_SETTING = 'visit_pattern'
+export const VIEW_HEADER = 'X-Freetvarr-View'
+export const POLL_HEADER = 'X-Freetvarr-Poll'
 
 export const hourOfWeekOf = (ms) => {
   const at = new Date(ms)
@@ -26,10 +28,13 @@ export const createVisitPattern = ({
   leadMs = WINDOW_LEAD_MS,
   quietAfterMs = QUIET_AFTER_MS,
   dormantAfterMs = DORMANT_AFTER_MS,
+  activeSaveEveryMs = ACTIVE_SAVE_EVERY_MS,
   log = console.warn,
 } = {}) => {
   let state = emptyState()
   let lastRequestAt = null
+  let activeAt = null
+  let activeSavedAt = null
   let loading = null
 
   const ready = () => {
@@ -40,22 +45,41 @@ export const createVisitPattern = ({
     return loading
   }
 
-  const noteRequest = ({ method, path }) => {
-    if (!isVisitRequest({ method, path })) return false
+  const noteRequest = ({ method, path, hidden = false, poll = false }) => {
+    if (hidden || !isVisitRequest({ method, path })) return false
     const at = now()
+    noteActive(at)
+    if (poll) return false
     const isVisit = lastRequestAt === null || at - lastRequestAt >= idleMs
     lastRequestAt = at
     if (isVisit) ready().then(() => recordVisit(at))
     return isVisit
   }
 
+  const noteActive = (at) => {
+    activeAt = at
+    if (activeSavedAt !== null && at - activeSavedAt < activeSaveEveryMs) return
+    activeSavedAt = at
+    ready().then(() => persist({ ...state, lastActiveAt: Math.max(at, state.lastActiveAt ?? 0) }))
+  }
+
   const recordVisit = (at) => {
     const bins = decayedBinsOf({ bins: state.bins, fromMs: state.decayedAt ?? at, toMs: at, halfLifeMs })
     bins[binOf(at)] += 1
-    state = { bins, decayedAt: at, lastVisitAt: at, visits: state.visits + 1 }
+    activeSavedAt = at
+    return persist({ bins, decayedAt: at, lastVisitAt: at, lastActiveAt: Math.max(at, state.lastActiveAt ?? 0), visits: state.visits + 1 })
+  }
+
+  const persist = (next) => {
+    state = next
     return Promise.resolve()
       .then(() => save(JSON.stringify(state)))
       .catch((err) => log(`[visits] could not save the visit pattern: ${err.message}`))
+  }
+
+  const lastSeenAt = () => {
+    const seen = [activeAt, state.lastActiveAt, state.lastVisitAt].filter(Number.isFinite)
+    return seen.length ? Math.max(...seen) : null
   }
 
   const weightsAt = (at) => decayedBinsOf({ bins: state.bins, fromMs: state.decayedAt ?? at, toMs: at, halfLifeMs })
@@ -72,18 +96,19 @@ export const createVisitPattern = ({
   }
 
   const modeAt = (at = now()) => {
-    if (state.lastVisitAt === null) return 'active'
-    const idle = at - state.lastVisitAt
+    const seenAt = lastSeenAt()
+    if (seenAt === null) return 'active'
+    const idle = at - seenAt
     if (idle >= dormantAfterMs) return 'dormant'
     return idle >= quietAfterMs ? 'quiet' : 'active'
   }
 
-  const snapshot = (at = now()) => ({ mode: modeAt(at), lastVisitAt: state.lastVisitAt, visits: state.visits, nextWindowAt: nextWindowAt(at) })
+  const snapshot = (at = now()) => ({ mode: modeAt(at), lastVisitAt: state.lastVisitAt, lastActiveAt: lastSeenAt(), visits: state.visits, nextWindowAt: nextWindowAt(at) })
 
   return { ready, noteRequest, nextWindowAt, modeAt, snapshot }
 }
 
-const emptyState = () => ({ bins: Array(HOURS_PER_WEEK).fill(0), decayedAt: null, lastVisitAt: null, visits: 0 })
+const emptyState = () => ({ bins: Array(HOURS_PER_WEEK).fill(0), decayedAt: null, lastVisitAt: null, lastActiveAt: null, visits: 0 })
 
 const stateFrom = (text) => {
   const saved = typeof text === 'string' ? safeJson(text) : text
@@ -93,6 +118,7 @@ const stateFrom = (text) => {
     bins,
     decayedAt: Number.isFinite(saved.decayedAt) ? saved.decayedAt : null,
     lastVisitAt: Number.isFinite(saved.lastVisitAt) ? saved.lastVisitAt : null,
+    lastActiveAt: Number.isFinite(saved.lastActiveAt) ? saved.lastActiveAt : null,
     visits: Number.isFinite(saved.visits) ? saved.visits : 0,
   }
 }
@@ -129,3 +155,4 @@ const WINDOW_THRESHOLD = 0.5
 const WINDOW_LEAD_MS = 45 * 60 * 1000
 const QUIET_AFTER_MS = 3 * DAY_MS
 const DORMANT_AFTER_MS = 14 * DAY_MS
+const ACTIVE_SAVE_EVERY_MS = HOUR_MS

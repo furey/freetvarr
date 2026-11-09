@@ -214,7 +214,7 @@ import { mountLibraryRoutes } from './library-routes.js'
 import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWatchSync, savePlexWatchToggles } from './plex-watch.js'
 import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
-import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
+import { createImageResolver, createImageWarmCheck, imageRouteOf, serveImageRoute } from './image-routes.js'
 import { episodePictureOrderFrom, kindHintFrom, stillsAllowed } from './art-resolver.js'
 import { artFeed } from './art-feed.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
@@ -256,9 +256,9 @@ import { createKnownTitles, createLookupGate, libraryLookupTitles, useLookupGate
 import { pruneLookupCaches, startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import { activity } from './activity.js'
-import { createArtWarmer, createLoopPressure, pictureRequestOf, startWarmSchedule } from './art-warmer.js'
+import { createArtWarmer, createLoopPressure, startWarmSchedule } from './art-warmer.js'
 import { createWarmUrls, forYouUrlsOf } from './art-warm-plan.js'
-import { VISIT_PATTERN_SETTING, createVisitPattern } from './visit-pattern.js'
+import { POLL_HEADER, VIEW_HEADER, VISIT_PATTERN_SETTING, createVisitPattern } from './visit-pattern.js'
 import { createJobRunStore } from './activity-store.js'
 import { ACTIVITY_STREAM_PATH, cachedFor, mountActivityRoutes, recordingRowsOf } from './activity-routes.js'
 import {
@@ -390,7 +390,12 @@ const visitPattern = createVisitPattern({
 })
 
 app.use('/api', (req, res, next) => {
-  visitPattern.noteRequest({ method: req.method, path: req.originalUrl.split('?')[0] })
+  visitPattern.noteRequest({
+    method: req.method,
+    path: req.originalUrl.split('?')[0],
+    hidden: req.get(VIEW_HEADER) === 'hidden',
+    poll: req.get(POLL_HEADER) === '1',
+  })
   next()
 })
 
@@ -670,8 +675,8 @@ app.get('/api/epg/state', (req, res) => sendTvheadendRead({
   whenUnconfigured: unconfiguredRecordingState,
 }))
 
-const imageRouteFor = ({ path, widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf }) =>
-  imageRouteOf({ path, widthOf, loadImage, paramsOf, widthError: `w must be one of ${widths.join(', ')}` })
+const imageRouteFor = ({ path, widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf, isWarm }) =>
+  imageRouteOf({ path, widthOf, loadImage, paramsOf, isWarm, widthError: `w must be one of ${widths.join(', ')}` })
 
 const serveImage = (route) => serveImageRoute({ route, imageMaxAgeS: IMAGE_MAX_AGE_S })
 
@@ -687,6 +692,7 @@ const programmeImageRoute = imageRouteFor({
   widthOf: heroWidthFrom,
   loadImage: ({ eventId, width }) =>
     findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+  isWarm: isProgrammeArtWarm,
 })
 
 const personImageRoute = imageRouteFor({
@@ -703,6 +709,7 @@ const showImageRoute = imageRouteFor({
   loadImage: ({ width, title, shape, kind }) => (shape === POSTER_SHAPE
     ? findShowPoster({ title, width, kind })
     : findShowThumbnail({ title, width, kind })),
+  isWarm: isShowArtWarm,
   paramsOf: ({ query }) => ({
     title: String(query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
     shape: showImageShapeFrom(query.shape),
@@ -1373,7 +1380,8 @@ const resultWithin = ({ promise, ms }) => Promise.race([
   new Promise((resolve) => setTimeout(() => resolve(null), ms).unref()),
 ])
 
-const pictureResolver = createImageResolver([programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })])
+const pictureRoutes = [programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })]
+const pictureResolver = createImageResolver(pictureRoutes)
 
 const heroPictureProof = createHeroPictureProof({
   resolve: pictureResolver,
@@ -1412,14 +1420,6 @@ const homeHero = createHomeHero({
   timeZone: currentTimeZone,
 })
 
-const isPictureWarm = async (url) => {
-  const request = pictureRequestOf(url)
-  const width = heroWidthFrom(request.width == null ? undefined : String(request.width))
-  if (request.route === 'show') return isShowArtWarm({ title: request.title, kind: request.kind, shape: showImageShapeFrom(request.shape), width })
-  if (request.route === 'programme') return isProgrammeArtWarm({ eventId: request.eventId, width })
-  return false
-}
-
 const warmBusyReason = () => {
   if (liveSessions.activeCount() + playbackSessions.activeCount() > 0) return 'playback'
   if (adScansRunning() > 0) return 'ad scan'
@@ -1444,7 +1444,7 @@ const artWarmer = createArtWarmer({
     loadFrameRecordings: () => db('recordings').whereNull('purged_at').whereNull('image_path').whereNotNull('file_path')
       .orderBy('imported_at', 'desc').select('recording_id'),
   }),
-  isWarm: isPictureWarm,
+  isWarm: createImageWarmCheck(pictureRoutes),
   warm: pictureResolver,
   modeOf: () => visitPattern.modeAt(),
   busyReason: warmBusyReason,
@@ -2569,8 +2569,10 @@ const watchArtWarmTriggers = () => {
   activity.subscribe((run) => {
     if (run.kind === 'plex-watch' && run.state === 'done') artWarmer.request('plex-scan')
   })
-  startWarmSchedule({ request: artWarmer.request, nextWindowAt: visitPattern.nextWindowAt })
+  stopArtWarmSchedule = startWarmSchedule({ request: artWarmer.request, nextWindowAt: visitPattern.nextWindowAt })
 }
+
+let stopArtWarmSchedule = () => {}
 
 let stopAutoImport = () => {}
 
@@ -2598,6 +2600,8 @@ const liveReaper = setInterval(() => {
 const shutdown = async () => {
   stopScheduler()
   stopAutoImport()
+  stopArtWarmSchedule()
+  artWarmer.stop()
   clearInterval(liveReaper)
   loopMonitor.stop()
   await liveSessions.stopAll().catch(() => {})
