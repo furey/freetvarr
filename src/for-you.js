@@ -1,4 +1,5 @@
 import { showKeyOf as rawShowKeyOf } from './web/show-key.js'
+import { showImageUrlOf } from './web/artwork-stamps.js'
 import { airingCoverCheckOf, airingIdentityOf, coveredProgrammeIdsOf, preferredAiringsOf } from './airing-identity.js'
 import { orderChannels } from './channel-order.js'
 import {
@@ -580,7 +581,7 @@ export const airingItemOf = ({ programme, context, movie, categories, kind, reas
     synopsis: programme.synopsis || '',
     image: programme.image
       ? `/api/epg/image/${encodeURIComponent(programme.program_id)}`
-      : showImageUrlOf({ title, isFilm: movie || programme.kind === 'movie' }),
+      : showImageUrlOf({ title, kind: movie || programme.kind === 'movie' ? 'movie' : null }),
     channelId,
     channelName: context.channelNames.get(channelId) || null,
     start: Number(programme.start),
@@ -796,7 +797,7 @@ const readyItemOf = ({ row, key, title, count }) => ({
   synopsis: row.synopsis || '',
   image: row.image_path
     ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${READY_IMAGE_WIDTH}`
-    : showImageUrlOf({ title, isFilm: false }),
+    : showImageUrlOf({ title }),
   channelId: null,
   channelName: null,
   start: null,
@@ -818,9 +819,6 @@ const episodeLabelOf = ({ season, episode }) => {
   if (season != null && episode != null) return `S${season} E${episode}`
   return episode != null ? `Episode ${episode}` : null
 }
-
-const showImageUrlOf = ({ title, isFilm }) =>
-  `/api/epg/show-image?title=${encodeURIComponent(title)}${isFilm ? '&kind=movie' : ''}`
 
 const affinityReasonOf = ({ source, title }) => {
   if (source === 'liked') return `More like ${title}`

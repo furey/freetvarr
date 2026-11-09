@@ -10,9 +10,9 @@ import sharp from 'sharp'
 
 const jpegOf = async ({ width, height }) => sharp({ create: { width, height, channels: 3, background: { r: 20, g: 40, b: 60 } } }).jpeg().toBuffer()
 
-const PORTRAIT = await jpegOf({ width: 200, height: 300 })
+const PORTRAIT = await jpegOf({ width: 400, height: 600 })
 const OVERSIZED = Buffer.concat([PORTRAIT, Buffer.alloc(5 * 1024 * 1024)])
-const LANDSCAPE = await jpegOf({ width: 320, height: 180 })
+const LANDSCAPE = await jpegOf({ width: 1280, height: 720 })
 const CHANNEL = 'ch-1'
 
 let tmpDir
@@ -115,4 +115,12 @@ test('a series with a recording picture and no Plex entry uses the recording pic
   assert.equal(found.pending, false)
   assert.equal(found.image.contentType, 'image/webp')
   assert.deepEqual(outbound, [])
+})
+
+test('art_resolutions never holds a Plex token, and a Plex source from another server is skipped', async () => {
+  const origins = (await db('art_resolutions').select('origin')).map((row) => row.origin)
+  assert.ok(origins.includes('plex:/library/metadata/7/thumb/1'))
+  assert.equal(origins.some((origin) => /X-Plex-Token/i.test(origin ?? '')), false)
+  assert.equal(epg.plexOriginOf({ source: 'http://other:32400/library/metadata/1/art?X-Plex-Token=t', url: base }), null)
+  assert.equal(epg.plexOriginOf({ source: `${base}/library/metadata/1/art?X-Plex-Token=t`, url: base }), 'plex:/library/metadata/1/art')
 })

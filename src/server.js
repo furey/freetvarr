@@ -204,6 +204,7 @@ import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWat
 import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
 import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
+import { kindHintFrom } from './art-resolver.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
 import { mountLibraryDeleteRoutes } from './library-delete-routes.js'
 import { mountPlexLibraryRoutes } from './plex-library-routes.js'
@@ -679,7 +680,7 @@ const showImageRoute = imageRouteFor({
   paramsOf: ({ query }) => ({
     title: String(query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
     shape: showImageShapeFrom(query.shape),
-    kind: artworkKindOf(query.kind),
+    kind: kindHintFrom(query.kind),
   }),
 })
 

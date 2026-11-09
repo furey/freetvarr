@@ -67,6 +67,8 @@ export const createRenderQueue = ({ maxWaiting = SVG_QUEUE_MAX_WAITING } = {}) =
   return { run }
 }
 
+export const isLandscapeSize = ({ width, height } = {}) => Boolean(width && height && width / height >= MIN_LANDSCAPE_RATIO)
+
 export const landscapeOf = async (image) => {
   if (!rasterTypeOf(image.body)) return image
   const { width, height } = await sharp(image.body).metadata()

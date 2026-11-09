@@ -10,6 +10,7 @@ export const LOOKUP_CACHE_TABLES = [
   { table: 'art_pools', key: 'pool_key' },
   { table: 'title_genres', key: 'title_key' },
   { table: 'title_known_as', key: 'title_key' },
+  { table: 'art_resolutions', key: 'resolution_key', expiresColumn: 'next_check_at' },
 ]
 
 export const CACHE_PRUNE_GRACE_MS = 90 * 24 * 60 * 60 * 1000
@@ -23,9 +24,9 @@ export const pruneLookupCaches = async ({
   tables = LOOKUP_CACHE_TABLES,
 } = {}) => {
   const removed = {}
-  for (const { table, key } of tables) {
+  for (const { table, key, expiresColumn = 'expires_at' } of tables) {
     currentJob()?.step(table)
-    removed[table] = await pruneTable({ database, table, key, before: nowMs - graceMs, maxRows }).catch(() => 0)
+    removed[table] = await pruneTable({ database, table, key, expiresColumn, before: nowMs - graceMs, maxRows }).catch(() => 0)
   }
   return removed
 }
@@ -43,13 +44,13 @@ export const startCachePruning = ({ prune = pruneLookupCaches, delayMs = PRUNE_S
   }
 }
 
-const pruneTable = async ({ database, table, key, before, maxRows }) => {
+const pruneTable = async ({ database, table, key, expiresColumn, before, maxRows }) => {
   if (!(await database.schema.hasTable(table))) return 0
-  const expired = await deleteInChunks({ database, table, where: (query) => query.where('expires_at', '<', before) })
+  const expired = await deleteInChunks({ database, table, where: (query) => query.where(expiresColumn, '<', before) })
   const { count } = await database(table).count({ count: '*' }).first()
   if (Number(count) <= maxRows) return expired
   const overflow = await database(table)
-    .whereNotIn(key, database(table).select(key).orderBy('expires_at', 'desc').limit(maxRows))
+    .whereNotIn(key, database(table).select(key).orderBy(expiresColumn, 'desc').limit(maxRows))
     .del()
   return expired + overflow
 }

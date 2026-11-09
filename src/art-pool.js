@@ -16,7 +16,7 @@ import { isPlexRow } from './plex-library.js'
 import { loadLibraryItemRows } from './plex-library-store.js'
 import { guideHintsFor, seriesShowFinder, showTitleKey, tvmazeImages, tvmazeLookupEnabled, widestFirst } from './show-artwork.js'
 import { currentTimeZone } from './time-zone.js'
-import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
+import { SERIES_MATCH_VERSION, showImageUrlOf } from './web/artwork-stamps.js'
 import { countryForTimeZone } from './zone-countries.js'
 
 export { plexSourceOf }
@@ -298,7 +298,7 @@ export const guideEpisodePoolOf = ({ row, saved = null }) => {
 }
 
 export const composeShowPool = ({ title, plex = { found: false, entries: [] }, tvmaze = [], stamp = null }) => {
-  const library = { url: showImageUrlOf({ title, stamp }), kind: 'background', source: 'library' }
+  const library = { url: showImageUrlOf({ title, width: HERO_WIDTH, stamp }), kind: 'background', source: 'library' }
   const plexAlternates = plex.entries.filter((entry) => !entry.selected)
   const tvmazeBackgrounds = tvmaze.filter((entry) => entry.kind === 'background')
   const libraryUsesTvmaze = !plex.found
@@ -388,8 +388,6 @@ const plexShowRatingKeyOf = (rows) => rows
 
 const newestTitleOf = (rows) => [...rows]
   .sort((a, b) => Number(b.aired_at ?? 0) - Number(a.aired_at ?? 0))[0].title
-
-const showImageUrlOf = ({ title, stamp }) => `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${HERO_WIDTH}${stamp ? `&c=${stamp}` : ''}`
 
 const showPoolBase = (key) => `/api/library/shows/${encodeURIComponent(key)}/art-pool`
 

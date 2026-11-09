@@ -1,9 +1,16 @@
 import { ref, computed, watch, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { primeImageFocus, showLoadedImage } from '/shared/image-focus.js'
-import { artFallbackStyle } from '/art-fallback.js'
+import { ART_FINAL, ART_PROBE_CANCELLED, ART_PROBE_LOADED, ART_STATE_HEADER, artFallbackStyle, artProbeStateOf } from '/art-fallback.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
 
 const RETRY_DELAYS_MS = [4000, 12000, 30000]
+const artStateProbe = (url) => {
+  const controller = new AbortController()
+  const done = fetch(url, { method: 'HEAD', cache: 'no-store', signal: controller.signal })
+    .then((response) => artProbeStateOf({ ok: response.ok, state: response.headers.get(ART_STATE_HEADER) }))
+    .catch(() => (controller.signal.aborted ? ART_PROBE_CANCELLED : 'pending'))
+  return { done, cancel: () => controller.abort() }
+}
 
 export const TitleArt = {
   props: {
@@ -32,32 +39,22 @@ export const TitleArt = {
     const cancelRetry = () => {
       clearTimeout(retryTimer)
       retryTimer = null
-      if (!probe) return
-      probe.onload = null
-      probe.onerror = null
-      probe.src = ''
+      probe?.cancel()
       probe = null
     }
     const retryLater = () => {
       const delay = RETRY_DELAYS_MS[attempt.value]
       if (delay == null) return
       const url = primarySrc.value
-      retryTimer = setTimeout(() => {
+      retryTimer = setTimeout(async () => {
         retryTimer = null
-        probe = new Image()
-        probe.onload = () => {
-          probe = null
-          if (primarySrc.value !== url) return
-          attempt.value += 1
-          primaryFailed.value = false
-        }
-        probe.onerror = () => {
-          probe = null
-          if (primarySrc.value !== url) return
-          attempt.value += 1
-          retryLater()
-        }
-        probe.src = url
+        probe = artStateProbe(url)
+        const state = await probe.done
+        probe = null
+        if (primarySrc.value !== url || state === ART_PROBE_CANCELLED) return
+        attempt.value += 1
+        if (state === ART_PROBE_LOADED) primaryFailed.value = false
+        else if (state !== ART_FINAL) retryLater()
       }, delay)
     }
     const onError = () => {

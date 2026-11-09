@@ -32,7 +32,9 @@ export const createLibraryTitles = ({ loadRows = loadLibraryTitleRows, ttlMs = L
 
   const recordingImagesFor = async (title) => recordingImageSourcesOf(await rowsFor(title))
 
-  return { hintsFor, recordingImagesFor }
+  const kindsFor = async (title) => libraryKindsOf(await rowsFor(title))
+
+  return { hintsFor, recordingImagesFor, kindsFor }
 }
 
 export const libraryHintsOf = (rows = []) => {
@@ -50,6 +52,8 @@ export const libraryHintsOf = (rows = []) => {
   }
 }
 
+export const libraryKindsOf = (rows = []) => [...new Set(rows.map((row) => row.library_kind).filter(Boolean))]
+
 export const recordingImageSourcesOf = (rows = []) => newestFirst(rows)
   .filter((row) => row.recording_id && row.has_image)
   .map((row) => `${RECORDING_ORIGIN_PREFIX}${row.recording_id}`)
@@ -63,8 +67,9 @@ export const libraryTitleRowsOf = ({ items = [], recordings = [] }) => [
         episode_no: item.episode,
         synopsis: item.synopsis,
         aired_at: item.aired_at,
+        library_kind: 'series',
       }
-    : { title: item.title, synopsis: item.synopsis, year: item.year, aired_at: item.aired_at })),
+    : { title: item.title, synopsis: item.synopsis, year: item.year, aired_at: item.aired_at, library_kind: 'movie' })),
   ...recordings.map((recording) => ({
     title: recording.show_title_override ?? recording.title,
     episode_title: recording.episode_title,

@@ -1,4 +1,5 @@
 import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
+import { ART_FINAL, ART_STATE_HEADER } from './web/art-fallback.js'
 
 export const imageRouteOf = ({ path, widthOf, loadImage, paramsOf = ({ params }) => params, widthError = 'w is not a supported width' }) => ({
   path,
@@ -17,9 +18,9 @@ export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
 
 export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => {
   try {
-    const { image, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
+    const { image, pending, final, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
     if (badWidth) return res.status(400).json({ error: route.widthError })
-    if (!image) return sendMissing(res)
+    if (!image) return sendMissing(res, artStateOf({ pending, final }))
     const contentType = rasterTypeOf(image.body)
     if (!contentType) return sendMissing(res)
     res.setHeader('Content-Type', contentType)
@@ -40,9 +41,11 @@ export const createImageResolver = (routes) => async (url) => {
   return { image: null, pending: false, unknownRoute: true }
 }
 
-export const imageResultOf = (result) => (result?.body
-  ? { image: result, pending: false }
-  : { image: result?.image ?? null, pending: Boolean(result?.pending) })
+export const imageResultOf = (result) => {
+  if (result?.body) return { image: result, pending: false }
+  const image = result?.image ?? null
+  return result?.final && !image ? { image, pending: false, final: true } : { image, pending: Boolean(result?.pending) }
+}
 
 const requestOf = (url) => {
   const parsed = new URL(String(url), LOCAL_BASE)
@@ -74,9 +77,16 @@ const paramsFrom = ({ pattern, pathname }) => {
   }
 }
 
-const sendMissing = (res) => {
+const artStateOf = ({ pending, final }) => {
+  if (final) return ART_FINAL
+  return pending ? ART_PENDING : null
+}
+
+const sendMissing = (res, state = null) => {
   res.setHeader('Cache-Control', 'no-store')
+  if (state) res.setHeader(ART_STATE_HEADER, state)
   res.status(404).end()
 }
 
 const LOCAL_BASE = 'http://localhost'
+const ART_PENDING = 'pending'

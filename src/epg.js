@@ -22,15 +22,17 @@ import {
   seriesKey,
   resolveConnection,
   getChannelIcon,
-  fetchProgrammeImage,
+  fetchProgrammeImageOrThrow,
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
 import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
-import { POSTER_SHAPE, portraitOf } from './show-poster.js'
+import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
-import { createShowArtwork, showTitleKey } from './show-artwork.js'
-import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
+import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
+import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
+import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
+import { loadKindOverrides } from './programme-kind.js'
 import { createLibraryTitles } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
 import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
@@ -786,38 +788,33 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
 }
 
 export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
-  const { sources, title, kind } = await programmeImageSources({ eventId, fallbackSource })
-  return await firstImageOf({ sources, load: (source) => programmeImages.imageFor(source) })
+  const { own, sameTitle, title, kind } = await programmeImageSources({ eventId, fallbackSource })
+  return await firstImageOf({ sources: [own, ...sameTitle].filter(Boolean), load: (source) => programmeImages.imageFor(source) })
     || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
 }
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
 
 export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
-  const { sources, title, kind } = await programmeImageSources({ eventId, fallbackSource })
-  const fromGuide = await firstImageWithin({
-    sources,
-    load: guideThumbnailLoader(width),
-    budgetMs: GUIDE_IMAGE_BUDGET_MS,
+  const programme = await programmeImageSources({ eventId, fallbackSource })
+  if (!programme.title && !programme.own) return NO_IMAGE
+  const resolution = await artResolver.resolve({
+    title: programme.title,
+    kind: programme.kind,
+    eventId,
+    ownSource: programme.own,
+    sameTitleSources: programme.sameTitle,
   })
-  if (fromGuide.image) return fromGuide
-  const fromShow = await findShowThumbnail({ title, width, kind })
-  return { image: fromShow.image, pending: fromGuide.pending || fromShow.pending }
+  return imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE })
 }
 
-export const findShowThumbnail = async ({ title, width, kind = null } = {}) => {
-  if (!title) return NO_IMAGE
-  const chosen = await chosenShowImage({ title, kind: 'background', width })
-  if (chosen) return chosen
-  return findShowImage({ title, kind, shape: null, load: showThumbnailLoader(width) })
-}
+export const findShowThumbnail = ({ title, width, kind = null } = {}) =>
+  findTitleImage({ title, width, kind, shape: LANDSCAPE_SHAPE })
 
-export const findShowPoster = async ({ title, width, kind = null } = {}) => {
-  if (!title) return NO_IMAGE
-  const chosen = await chosenShowImage({ title, kind: 'poster', width })
-  if (chosen) return chosen
-  return findShowImage({ title, kind, shape: POSTER_SHAPE, load: posterThumbnailLoader(width) })
-}
+export const findShowPoster = ({ title, width, kind = null } = {}) =>
+  findTitleImage({ title, width, kind, shape: POSTER_SHAPE })
+
+export const resolveShowArt = ({ title, kind = null, shape = null }) => artResolver.resolve({ title, kind, shape })
 
 export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
 
@@ -843,38 +840,23 @@ const guideImagesFor = async (title) => {
   return guide?.imagesByTitle?.get(titleKeyOf(title)) || []
 }
 
-const chosenShowImage = async ({ title, kind, width }) => {
-  const chosen = await artworkChoices.chosenFor({ key: showKeyOf(title), kind }).catch(() => null)
-  if (!chosen) return null
-  const image = await resolveWithin(
-    Promise.resolve(artworkOriginImage({ origin: chosen.origin, kind, width })).catch(() => null),
-    SHOW_IMAGE_BUDGET_MS,
-  )
-  if (image === TIMED_OUT) return PENDING_IMAGE
-  return image ? { image, pending: false } : null
-}
-
 const originalOfOrigin = async ({ origin, kind }) => {
   const image = await rawImageOfOrigin(origin)
   if (!image || kind !== 'background') return image
   return landscapeOf(image).catch(() => image)
 }
 
-const rawImageOfOrigin = async (origin) => {
+const rawImageOfOrigin = (origin) => rawImageOrErrorOf(origin).catch(() => null)
+
+const rawImageOrErrorOf = async (origin) => {
   if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
   if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
     return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
   }
-  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageFor(origin)
+  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageOrErrorFor(origin)
   const connection = await getPlexConnection().catch(() => null)
-  return connection ? showSourceImage(plexSourceOf({ origin, ...connection })) : null
+  return connection ? programmeImages.imageOrErrorFor(plexResizedSourceOf(plexSourceOf({ origin, ...connection }))) : null
 }
-
-const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
-  key: `show-poster:${source}`,
-  width,
-  loadOriginal: async () => portraitOf(await showSourceImage(source)),
-})
 
 const showSourceImage = (source) => (source.startsWith(RECORDING_ORIGIN_PREFIX)
   ? findArtwork({ kind: 'recording', id: source.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
@@ -915,11 +897,16 @@ const programmeImageSources = async ({ eventId, fallbackSource }) => {
   const saved = inGuide || fallbackSource
     ? null
     : await savedProgramFor({ programId: eventId }).catch(logHistoryError('image'))
-  const own = inGuide?.image || fallbackSource || saved?.image
-  const title = inGuide?.title ?? saved?.title
-  const sameTitle = guide?.imagesByTitle.get(titleKeyOf(title)) || []
-  const sources = [...new Set([own, ...sameTitle].filter(Boolean))].slice(0, MAX_IMAGE_SOURCES)
-  return { sources, title, kind: inGuide?.kind ?? null }
+  const own = inGuide?.image || fallbackSource || saved?.image || null
+  const title = inGuide?.title ?? saved?.title ?? null
+  const sameTitle = (guide?.imagesByTitle.get(titleKeyOf(title)) || []).filter((source) => source !== own).slice(0, MAX_IMAGE_SOURCES - 1)
+  const programme = inGuide ?? saved
+  return { own, sameTitle, title, kind: inGuide?.kind ?? null, channelId: channelIdOfProgramme({ guide, programme }) }
+}
+
+const channelIdOfProgramme = ({ guide, programme }) => {
+  if (programme?.channel_id == null) return null
+  return guide?.channels.find((channel) => String(channel.epgId) === String(programme.channel_id))?.id ?? null
 }
 
 const showArtSources = async ({ title, kind = null }) => {
@@ -933,47 +920,97 @@ const showArtSources = async ({ title, kind = null }) => {
   return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
 }
 
-const findShowImage = async ({ title, kind, shape, load }) => {
-  const deadline = Date.now() + SHOW_IMAGE_BUDGET_MS
-  const artworkKind = kind ?? await guideKindFor(title)
-  const local = await localArtworkFor({ title, kind: artworkKind, shape })
-  if (local.pending) {
-    showArtSources({ title, kind: artworkKind })
-    return PENDING_IMAGE
-  }
-  const fromLocal = await firstImageWithin({ sources: local.sources, load, budgetMs: deadline - Date.now() })
-  if (fromLocal.image || fromLocal.pending) return fromLocal
-  const online = await onlineArtworkFor({ title, kind: artworkKind })
-  const found = await firstImageWithin({ sources: online.sources, load, budgetMs: deadline - Date.now() })
-  return { image: found.image, pending: online.pending || found.pending }
+const findTitleImage = async ({ title, width, kind, shape }) => {
+  if (!title) return NO_IMAGE
+  const resolution = await artResolver.resolve({ title, kind, shape })
+  const found = await imageOfResolution({ resolution, title, width, shape })
+  if (found.image || found.pending || resolution.stage !== CHOICE_STAGE) return found
+  const automatic = await artResolver.resolve({ title, kind, shape, withoutChoice: true })
+  return imageOfResolution({ resolution: automatic, title, width, shape })
 }
 
-const localArtworkFor = async ({ title, kind, shape }) => {
-  const fromPlex = await showArtwork.plexArtworkFor(title, { kind, shape }).catch(() => NO_ARTWORK)
-  if (fromPlex.sources.length || shape === POSTER_SHAPE) return fromPlex
-  const recorded = await recordingImagesFor(title)
-  return recorded.length ? { sources: recorded, pending: false } : fromPlex
+const imageOfResolution = async ({ resolution, title, width, shape }) => {
+  if (resolution.pending) return PENDING_IMAGE
+  if (resolution.stage === FINAL_STAGE) return FINAL_MISS
+  const image = await resolveWithin(resolvedThumbnail({ resolution, width, shape }), SHOW_IMAGE_BUDGET_MS)
+  if (image === TIMED_OUT) return PENDING_IMAGE
+  if (image) return { image, pending: false }
+  return resolution.stage === CHOICE_STAGE ? NO_IMAGE : FINAL_MISS
 }
 
-const onlineArtworkFor = async ({ title, kind }) => {
-  if (isFilmKind(kind)) return filmArtworkFor({ title, kind })
-  const artwork = await showArtwork.artworkFor(title).catch(() => NO_ARTWORK)
-  if (artwork.sources.length) return artwork
-  if (artwork.pending) {
+const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) => thumbnailStore.thumbnailFor({
+  key: `art:${shape}:${transform}:${origin}`,
+  width,
+  loadOriginal: () => resolvedOriginalOf({ origin, transform, shape }),
+}).catch(() => null)
+
+const resolvedOriginalOf = async ({ origin, transform, shape }) => {
+  const image = await rawImageOfOrigin(origin)
+  if (!image || transform !== 'pad') return image
+  return (shape === POSTER_SHAPE ? portraitPadOf(image) : landscapeOf(image)).catch(() => image)
+}
+
+const chosenOriginOf = async ({ title, shape, withoutChoice }) => {
+  if (withoutChoice) return null
+  const kind = shape === POSTER_SHAPE ? 'poster' : 'background'
+  return (await artworkChoices.chosenFor({ key: showKeyOf(title), kind }).catch(() => null))?.origin ?? null
+}
+
+const plexStage = async ({ title, kind, shape }) => {
+  const found = await showArtwork.plexArtworkFor(title, { kind, shape: shape === POSTER_SHAPE ? POSTER_SHAPE : null }).catch(() => NO_ARTWORK)
+  if (!found.sources.length) return found
+  const connection = await getPlexConnection().catch(() => null)
+  const origins = found.sources.map((source) => plexOriginOf({ source, url: connection?.url })).filter(Boolean)
+  return { sources: origins, pending: found.pending }
+}
+
+export const plexOriginOf = ({ source, url }) => {
+  if (!url || !source.startsWith(`${url}/`)) return null
+  const [path, query = ''] = source.slice(url.length).split('?')
+  const kept = new URLSearchParams(query)
+  kept.delete('X-Plex-Token')
+  const rest = kept.toString()
+  return `${PLEX_ORIGIN_PREFIX}${path}${rest ? `?${rest}` : ''}`
+}
+
+const onlineStage = async ({ title, kind }) => {
+  if (isFilmKind(kind)) return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
+  const tvmaze = await showArtwork.tvmazeArtworkFor(title).catch(() => NO_ARTWORK)
+  if (tvmaze.sources.length) return tvmaze
+  if (tvmaze.pending) {
     showArtSources({ title, kind })
-    return artwork
+    return tvmaze
   }
   return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
 }
 
-const recordingImagesFor = (title) => libraryTitles.recordingImagesFor(title).catch(() => [])
+const onlineSettingsKey = async () => `${await tvmazeLookupEnabled().catch(() => false)}|${Boolean(await storedTmdbKey().catch(() => null))}`
 
-const filmArtworkFor = async ({ title, kind }) => {
-  const artwork = await fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
-  if (artwork.sources.length || artwork.pending) return artwork
-  const otherAirings = await guideImagesFor(title)
-  return otherAirings.length ? { ...artwork, sources: otherAirings } : artwork
+const canonicalKindFor = async ({ title, hint }) => {
+  const [libraryKinds, overrides, guideKind] = await Promise.all([
+    libraryTitles.kindsFor(title).catch(() => []),
+    kindOverrides(),
+    guideDisplayKindFor(title),
+  ])
+  return canonicalKindOf({ libraryKinds, override: overrides.get(showKeyOf(title)) ?? null, guideKind, hint })
 }
+
+const kindOverrides = async () => {
+  if (overridesCache.expiresAt > Date.now()) return overridesCache.value
+  const value = await loadKindOverrides().catch(() => overridesCache.value)
+  overridesCache.value = value
+  overridesCache.expiresAt = Date.now() + KIND_OVERRIDES_TTL_MS
+  return value
+}
+
+const guideDisplayKindFor = async (title) => {
+  const guide = await getCachedGuide().catch(() => null)
+  if (!guide) return null
+  if (!displayKindsByGuide.has(guide)) displayKindsByGuide.set(guide, guideKindsOf([...guide.programByEventId.values()]))
+  return displayKindsByGuide.get(guide).get(showTitleKey(title)) ?? null
+}
+
+const recordingImagesFor = (title) => libraryTitles.recordingImagesFor(title).catch(() => [])
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
 
@@ -1002,29 +1039,11 @@ const artworkHintsFor = async (title) => {
   return library ? { ...guide, inLibrary: true } : guide
 }
 
-const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
-  key: `programme:${source}`,
-  width,
-  loadOriginal: () => programmeImages.imageFor(source),
-})
-
 const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
   key: `show-1080:${source}`,
   width,
   loadOriginal: () => showArtOriginal(source),
 })
-
-const firstImageWithin = async ({ sources, load, budgetMs }) => {
-  const deadline = Date.now() + budgetMs
-  for (const source of sources) {
-    const remainingMs = deadline - Date.now()
-    if (remainingMs <= 0) return PENDING_IMAGE
-    const image = await resolveWithin(Promise.resolve(load(source)).catch(() => null), remainingMs)
-    if (image === TIMED_OUT) return PENDING_IMAGE
-    if (image) return { image, pending: false }
-  }
-  return NO_IMAGE
-}
 
 const resolveWithin = (promise, ms) => Promise.race([
   promise,
@@ -1160,7 +1179,7 @@ export const clearGuideCache = () => guideCache.clear()
 
 const imageCache = new Map()
 const programmeImages = createProgrammeImages({
-  fetchImage: (source) => (isFallbackImageSource(source) ? fetchFallbackImage(source) : fetchProgrammeImage({ source })),
+  fetchImage: (source) => (isFallbackImageSource(source) ? artworkClient.getImage({ url: source }) : fetchProgrammeImageOrThrow({ source })),
 })
 const PERSON_IMAGE_MEMORY_ENTRIES = 48
 const PERSON_IMAGE_MEMORY_BYTES = 4 * 1024 * 1024
@@ -1177,8 +1196,25 @@ const libraryTitles = createLibraryTitles()
 const fallbackArtwork = createFallbackArtwork({ hintsFor: artworkHintsFor, externalIdsFor: loadExternalIds })
 const hintsByGuide = new WeakMap()
 const kindsByGuide = new WeakMap()
+const displayKindsByGuide = new WeakMap()
+const overridesCache = { value: new Map(), expiresAt: 0 }
+const artResolver = createArtResolver({
+  stages: {
+    choice: async (ctx) => ({ sources: [await chosenOriginOf(ctx)].filter(Boolean) }),
+    plex: plexStage,
+    recording: async ({ title }) => ({ sources: await recordingImagesFor(title) }),
+    guide: async ({ title }) => ({ sources: (await guideImagesFor(title)).slice(0, MAX_IMAGE_SOURCES) }),
+    online: onlineStage,
+    own: async ({ ownSource }) => ({ sources: [ownSource].filter(Boolean) }),
+    'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
+    episode: async ({ recordingId }) => ({ sources: [`${RECORDING_ORIGIN_PREFIX}${recordingId}`] }),
+  },
+  kindOf: canonicalKindFor,
+  loadImage: rawImageOrErrorOf,
+  settingsKeyOf: onlineSettingsKey,
+})
 const guideSearchFor = createGuideSearchCache()
-export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title)])
+export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title), artResolver.forget(title)])
 const thumbnailStore = createThumbnailStore({
   dir: getThumbnailRoot(),
   maxBytes: imageCacheBytesFrom(process.env.IMAGE_CACHE_MAX_MB),
@@ -1187,14 +1223,16 @@ const thumbnailStore = createThumbnailStore({
 const CHANNEL_SORTS = ['default', 'number', 'name']
 const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
-const GUIDE_IMAGE_BUDGET_MS = 1500
 const SHOW_IMAGE_BUDGET_MS = 3000
 const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')
+const CHOICE_STAGE = 'choice'
+const KIND_OVERRIDES_TTL_MS = 30 * 1000
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_IMAGE = { image: null, pending: true }
+const FINAL_MISS = { image: null, pending: false, final: true }
 const EPG_SPILL_MIN = 180
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const GUIDE_TTL_MS = 60 * 60 * 1000

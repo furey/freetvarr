@@ -31,6 +31,7 @@ import { recordingNow, refreshAfterRecordingChange } from '/shared/recording-now
 import { navigate } from '/shared/router.js'
 import { toast } from '/shared/toast.js'
 import { showHrefOf } from '/show-key.js'
+import { showImageUrlOf } from '/artwork-stamps.js'
 import { tz } from '/shared/time.js'
 
 export const SELECT_TIP = 'Tip: tap Select on the show page to mark or delete several episodes at once.'
@@ -202,7 +203,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   })
 
   const leadOf = (episode) => ({
-    image: episode.image || `/api/epg/show-image?title=${encodeURIComponent(show.value?.title || '')}&w=384`,
+    image: episode.image || showImageUrlOf({ title: show.value?.title || '', width: 384 }),
     title: episodeHeading(episode),
     meta: [show.value?.title, episodeMetaOf({ episode: { ...episode, watched: false, positionS: null, status: null, libraryState: null }, timeZone: tz.value })].filter(Boolean).join(' · '),
     fallbackTitle: show.value?.title || '',

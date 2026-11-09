@@ -42,7 +42,7 @@ import { createResponseOrder } from '/response-order.js'
 import { AD_JOB_POLL_MS, hasAdJobRunning } from '/ad-confirm.js'
 import { createPoll } from '/poll.js'
 import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
-import { showImageUrlOf } from '/artwork-stamps.js'
+import { artKindHintOf, showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
 import { playback } from '/shared/player-shared.js'
@@ -343,7 +343,7 @@ export const ShowView = {
     const heroStyle = computed(() => artFallbackStyle(titleHint.value))
     const artStyle = heroStyle
     const versionSuffix = computed(() => (artworkVersion.value ? `&v=${artworkVersion.value}` : ''))
-    const imageKind = computed(() => (show.value?.kind === 'movie' ? 'movie' : null))
+    const imageKind = computed(() => artKindHintOf(show.value?.kind))
     const heroSrc = computed(() => (show.value ? `${stampedShowImage(showImageUrlOf({ title: show.value.title, width: 768, kind: imageKind.value }))}${versionSuffix.value}` : ''))
     const episodeFallbackSrc = computed(() => (show.value ? stampedShowImage(showImageUrlOf({ title: show.value.title, width: 384, kind: imageKind.value })) : ''))
     const posterSrc = computed(() => (show.value ? `${stampedShowImage(`${show.value.poster}&w=192`)}${versionSuffix.value}` : ''))

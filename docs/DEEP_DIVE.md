@@ -237,6 +237,7 @@ Freetvarr stores state in SQLite through Knex and [better-sqlite3](https://githu
 | `library_items`             | `0035`                           | Plex library items keyed by `rating_key` and `part_id`                                                                                                                                                                                                                                                                                     | `src/plex-library-store.js`            |
 | `external_ids`              | `0036`                           | TVDB, TMDB, and IMDb ids per `title_key`, `kind`, and `source`                                                                                                                                                                                                                                                                             | `src/external-ids-store.js`            |
 | `show_identity_picks`       | `0037`                           | The picked or declined identity per `title_key` and `network_family`                                                                                                                                                                                                                                                                       | `src/show-identity-store.js`           |
+| `art_resolutions`           | `0044`                           | The resolved picture per title key, kind, and shape: `stage`, `origin`, `transform`, evidence `fingerprint`, `miss_step`, and `next_check_at`                                                                                                                                                                                              | `src/art-resolver.js`                  |
 
 ### Config folder
 
@@ -1151,50 +1152,96 @@ Pictures and programme info come from the guide, Plex, TVmaze, [Wikidata](https:
 
 ### Picture routes
 
-| Route                          | Parameters                                                      | Used by                                              |
-| ------------------------------ | --------------------------------------------------------------- | ---------------------------------------------------- |
-| `GET /api/epg/image/:eventId`  | `w`                                                             | Guide cells, Live TV thumbnails, the programme sheet |
-| `GET /api/epg/show-image`      | `title`, `shape` (`poster` or landscape), `kind` (`movie`), `w` | For you, show pages, **Change picture**              |
-| `GET /api/epg/logo/:channelId` | `w` (`96` or `192`)                                             | Channel logos                                        |
+| Route                          | Parameters                                                                                   | Used by                                              |
+| ------------------------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `GET /api/epg/image/:eventId`  | `w`                                                                                          | Guide cells, Live TV thumbnails, the programme sheet |
+| `GET /api/epg/show-image`      | `title`, `shape` (`poster` or landscape), `kind` (`movie`, `series`, or `one-off`), `w`, `c` | For you, show pages, **Change picture**              |
+| `GET /api/epg/logo/:channelId` | `w` (`96` or `192`)                                                                          | Channel logos                                        |
 
-`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. A found picture answers `200` with `Cache-Control: public, max-age=86400`. A lookup still running answers `404` with `no-store`, and the client asks again after `5 s`. No picture answers `404` with `no-store`.
+`w` is one of `192`, `384`, `768`, `1280`, or `1920`; the default is `768`. A miss answers `404` with `no-store` and the header `X-Art-State`: `pending` while a lookup runs, `final` when the chain ended with no picture. `TitleArt` asks again after `4 s`, `12 s`, and `30 s` with a `HEAD` request, and stops at the first `final`. The page then shows its own fallback: the title on a gradient (`.ui-art-fallback` and `.ui-art-title` in `src/web/styles/base.css`).
+
+| Answer                 | Status | `Cache-Control`                    |
+| ---------------------- | ------ | ---------------------------------- |
+| A found picture        | `200`  | `public, max-age=86400`            |
+| A lookup still running | `404`  | `no-store`; `X-Art-State: pending` |
+| No picture             | `404`  | `no-store`; `X-Art-State: final`   |
+
+`showImageUrlOf` in `src/web/artwork-stamps.js` builds every show picture URL, on the server (`src/library.js`, `src/art-pool.js`, `src/for-you.js`) and in the client. `artKindHintOf` turns a library kind into the `kind` hint.
+
+### Picture resolver
+
+`createArtResolver` in `src/art-resolver.js` picks one picture per title key, kind, and shape. `findShowThumbnail`, `findShowPoster`, and `findProgrammeThumbnail` in `src/epg.js` call `resolve`, then serve the result. So a list and a show page get the same picture for the same title and kind.
+
+The server sets the kind (`canonicalKindOf`). The `kind` in the URL is a hint only:
+
+1. Library kind: the Plex library items of the title (`kindsFor` in `src/library-titles.js`). With a hint, the hint when the library has that kind. Without a hint, the one library kind.
+2. The `programme_kind_overrides` row of the title (`movie`, `show`, `one-off`). `not-movie` removes `movie` from every step.
+3. The guide kind (`guideKindsOf`): `movie` when every airing is a film, else the commoner of `series` and `one-off`.
+4. The hint.
+5. The one library kind, else `series`.
+
+Each kind runs its own chain of steps (`chainOf`). The steps are functions that `src/epg.js` passes in; each gives picture origins (`plex:<path>`, `recording:<id>`, `upload:<id>`, or a URL).
+
+| Request                  | Chain                                                                 |
+| ------------------------ | --------------------------------------------------------------------- |
+| Film                     | choice, Plex, recording, guide, online, derived shape, frame, none    |
+| Series                   | choice, Plex, recording, guide, online, derived shape, frame, none    |
+| One-off                  | choice, Plex, recording, guide, frame, online, derived shape, none    |
+| Episode (`recordingId`)  | recording picture, the title chain, frame, none                       |
+| Guide airing (`eventId`) | the airing's image, other airings of the title, the title chain, none |
+
+```mermaid
+flowchart TD
+  request["resolve(title, kind hint, shape)"] --> kind["canonicalKindOf"]
+  kind --> choice{"Chosen picture?"}
+  choice -- yes --> serveChoice["Serve the chosen picture"]
+  choice -- no --> saved{"art_resolutions row with the same<br>fingerprint and next_check_at not due?"}
+  saved -- yes --> serveSaved["Serve the saved origin"]
+  saved -- no --> chain
+  subgraph chain["Chain for the kind"]
+    plex["Plex item for the kind"] --> recording["Recording pictures,<br>newest first"]
+    recording --> guide["Guide images<br>of the title"]
+    guide --> online["Online: TVmaze, then Wikipedia and TMDB;<br>films: Wikipedia and TMDB"]
+    online --> derived["Derived shape from the first<br>picture that did not fit"]
+    derived --> none["No picture"]
+  end
+  chain --> store["Save the row in art_resolutions"]
+```
+
+- A picture fits when it has the asked shape (`poster`: taller than wide; landscape: at least `1.3:1`) and is wide enough (`MIN_WIDTHS`): `300` px for a poster or a Plex picture, `640` px for any other landscape picture, the width the home hero check needs. The first picture that fits ends the chain, so a Plex or recording picture that fits makes no web request.
+- A picture that loads but does not fit is kept. When no later step finds a picture that fits, the derived step uses it: as it is when it has the asked shape, else on a blurred canvas (`portraitPadOf` in `src/show-poster.js` for `2:3` posters, `landscapeOf` in `src/image-thumbnails.js` for `16:9`).
+- The frame step gives nothing yet.
+- The online step for a one-off is the same as for a series; the TVmaze and [online lookup](#online-lookup) match rules decide.
+- A picture that fails to load with an error (a timeout, `429`, or `5xx`) is not a miss. `createProgrammeImages` waits `60 s` before it asks that source again, and keeps misses (`404`, not an image) for `10` min. When an earlier step failed with an error, a later picture that fits is saved for `5` min only (`ERROR_RETRY_MS`), and a derived shape or no picture answers pending and is not saved.
+- A Plex picture is saved as `plex:<path>` without the token (`plexOriginOf`); a Plex source from another server is skipped, and `remember` never saves an origin that holds `X-Plex-Token`. Every Plex picture loads through the photo transcoder.
+- The guide step uses at most `4` images. Plex pictures come through the Plex photo transcoder at most `1920` px (`plexResizedSourceOf`), so originals over the `4 MB` image limit still load.
+- The chain has `3 s` (`RESOLVE_BUDGET_MS`); the airing and episode steps have `1.5 s` (`OUTER_BUDGET_MS`). A step that runs past it, a Plex list still loading, or an online lookup still running makes the answer pending; nothing is saved.
+- `findTitleImage` serves a chosen picture that fails to load from the chain without the choice. A saved origin that fails to resize keeps its row and answers `final` for that request.
+
+`art_resolutions` keeps one row per `<kind>|<shape>|<title key>`. The fingerprint is a hash of the kind, the shape, the origins from the Plex, recording, and guide steps, `show_artwork_lookup`, and whether a TMDB key is set. A row is used while its fingerprint matches and `next_check_at` is not due:
+
+| Result                    | Next check                                                         |
+| ------------------------- | ------------------------------------------------------------------ |
+| A picture that fits       | `7 d`                                                              |
+| Derived shape, no picture | `6 h`, `24 h`, `3 d`, then `7 d` while the fingerprint is the same |
+| A changed fingerprint     | At once                                                            |
+
+`forgetShowArtwork` (**Refresh artwork**) deletes the rows of the title. The daily prune deletes rows whose `next_check_at` is more than `90 d` past.
 
 ### Picture sources
 
 A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE_MAX_REDIRECTS`). A redirect to another host, or from `https` to `http`, gives no image and no request to that host.
 
-`findProgrammeThumbnail` in `src/epg.js` serves the event route. It tries guide images (the event's image, then other airings of the title) within `1.5 s` (`GUIDE_IMAGE_BUDGET_MS`), then the show chain within `3 s` (`SHOW_IMAGE_BUDGET_MS`). The show route starts at the show chain: `findShowThumbnail` for landscape, `findShowPoster` for posters.
+| Source             | Code                                                 | Rule                                                                                                                                                                                                                                                                                                   |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Chosen picture     | `chosenOriginOf` in `src/epg.js`                     | Reads `show_artwork_choices`; posters as they are, backgrounds on a `16:9` canvas when narrower                                                                                                                                                                                                        |
+| Plex               | `plexShowSources` in `src/show-artwork.js`           | `art` then `thumb` (posters: `thumb` then `art`). Each title key keeps one entry per section, so a film and a series with the same title keep their own pictures. A film takes the movies entry; another kind takes the TV entry, else the movies entry when the guide airings have no episode details |
+| Recording          | `createLibraryTitles` in `src/library-titles.js`     | Saved recording pictures of the title, newest first                                                                                                                                                                                                                                                    |
+| Guide              | `imagesByTitle` of the guide                         | Images of the title's airings, earliest first                                                                                                                                                                                                                                                          |
+| TVmaze             | `tvmazeArtworkFor` in `src/show-artwork.js`          | The widest `background` image, then the show image; not for films                                                                                                                                                                                                                                      |
+| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                                                                                                                                                        |
 
-```mermaid
-flowchart TD
-  request["GET /api/epg/show-image"] --> chosen{"Chosen picture<br>for show and kind?"}
-  chosen -- yes --> chosenImage["Serve the chosen picture"]
-  chosen -- no --> local
-  subgraph local["Local pictures"]
-    plex["Plex item<br>for the kind"] --> recording["Recording pictures<br>(landscape only)"]
-  end
-  local -- none --> kind{"kind"}
-  subgraph series["Series"]
-    tvmaze["TVmaze"] --> online["Wikipedia and TMDB"]
-  end
-  subgraph film["Film"]
-    onlineFilm["Wikipedia and TMDB"] --> airings["Guide images of other airings"]
-  end
-  kind -- series --> tvmaze
-  kind -- film --> onlineFilm
-```
-
-A Plex or recording picture that loads in the asked shape ends the chain, so the title gets no TVmaze or online request. Plex pictures come through the Plex photo transcoder at most `1920` px (`plexResizedSourceOf` in `src/epg.js`), so originals over the `4 MB` image limit still load.
-
-| Source             | Code                                                 | Rule                                                                                                                                                                                                                                |
-| ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chosen picture     | `chosenShowImage` in `src/epg.js`                    | Reads `show_artwork_choices`                                                                                                                                                                                                        |
-| Plex               | `plexShowSources` in `src/show-artwork.js`           | `art` then `thumb` (posters: `thumb` then `art`) of the item with the same title key in the TV and movies sections; a film takes a movies item only; a movies item is skipped for a series whose guide airings have episode details |
-| Recording          | `createLibraryTitles` in `src/library-titles.js`     | Saved recording pictures of the title, newest first; landscape only                                                                                                                                                                 |
-| TVmaze             | `createShowArtwork` in `src/show-artwork.js`         | The widest `background` image, then the show image; series only                                                                                                                                                                     |
-| Wikipedia and TMDB | `createFallbackArtwork` in `src/fallback-artwork.js` | [Online lookup](#online-lookup)                                                                                                                                                                                                     |
-
-`plexShowSources` lists each section with a `15 s` timeout. A section that fails keeps its entries from the last good list, and a refresh where every section fails keeps the whole list for another `10` min. The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources. The poster loader accepts portrait images only. The landscape loader puts an image narrower than `1.3:1` on a blurred `16:9` canvas.
+`plexShowSources` lists each section with a `15 s` timeout. A section that fails keeps its entries from the last good list, and a refresh where every section fails keeps the whole list for another `10` min. The setting `show_artwork_lookup` (default on) switches off the TVmaze and online sources.
 
 ### Online lookup
 

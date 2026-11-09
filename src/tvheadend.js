@@ -690,7 +690,7 @@ export const fetchProgrammeImage = (options) => fetchProgrammeImageOrThrow(optio
 
 export const fetchProgrammeImageOrThrow = async ({ source, conn } = {}) => {
   if (!source) return null
-  const c = conn || (await resolveConnection())
+  const c = conn || (isAbsoluteUrl(source) ? null : await resolveConnection())
   return fetchImage({
     source,
     conn: c,
@@ -941,6 +941,7 @@ const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes
       responseType: 'arraybuffer',
       ...limits,
     }, conn)
+  if (res && isTransientStatus(res.status)) throw Object.assign(new Error(`image HTTP ${res.status}`), { code: IMAGE_UNAVAILABLE })
   if (!res || res.status >= 400) return null
   const body = Buffer.from(res.data)
   const contentType = sourceImageTypeOf(body)
@@ -948,6 +949,8 @@ const fetchImage = async ({ source, conn, timeout = REQUEST_TIMEOUT_MS, maxBytes
 }
 
 const isAbsoluteUrl = (source) => /^https?:\/\//i.test(source)
+
+const isTransientStatus = (status) => status === 429 || status >= 500
 
 const fetchGuideImage = ({ source, limits }) => {
   const origin = new URL(source)
@@ -1189,5 +1192,6 @@ const DUPLICATE_DETECTION_EPISODE_NUMBER = 1
 const RETAIN_FOREVER = 2147483647
 const IMAGE_MAX_REDIRECTS = 3
 const IMAGE_REDIRECT_REFUSED = 'image-redirect-refused'
+const IMAGE_UNAVAILABLE = 'image-unavailable'
 const DEFAULT_LEAD_MINUTES = 2
 const DEFAULT_LAG_MINUTES = 10

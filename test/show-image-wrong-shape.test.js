@@ -81,4 +81,8 @@ test('a film whose Plex pictures are all landscape goes on down the chain for a 
   assert.ok(requested.includes('/guide/obsession.jpg'))
   assert.equal(found.pending, false)
   assert.equal(found.image.contentType, 'image/webp')
+  const { width, height } = await sharp(found.image.body).metadata()
+  assert.deepEqual([width, height], [192, 288])
+  const resolution = await epg.resolveShowArt({ title: 'Obsession', kind: 'movie', shape: 'poster' })
+  assert.deepEqual([resolution.stage, resolution.transform], ['derived', 'pad'])
 })
