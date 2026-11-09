@@ -315,7 +315,6 @@ const textAfter = (start, body) => body.subarray(start.length).toString()
 const recordingImageRoute = () => {
   const widths = []
   const route = serveImageRoute({
-    missingMaxAgeS: 300,
     imageMaxAgeS: 86400,
     route: recordingImageRouteOf({
       loadOriginal: async (id) => (id === 'r1' ? { body: jpegOf('jpeg'), contentType: 'image/jpeg' } : null),
@@ -353,7 +352,7 @@ test('the recording image route keeps the original without w and rejects other w
   assert.equal((await call({ query: { w: '500' } })).statusCode, 400)
   const missing = await call({ id: 'gone', query: { w: '192' } })
   assert.equal(missing.statusCode, 404)
-  assert.equal(missing.headers['cache-control'], 'public, max-age=300')
+  assert.equal(missing.headers['cache-control'], 'no-store')
   assert.equal(widths.length, 0)
 })
 

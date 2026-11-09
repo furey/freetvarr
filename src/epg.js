@@ -27,10 +27,11 @@ import {
 } from './tvheadend.js'
 import { createProgrammeImages } from './programme-images.js'
 import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
-import { portraitOf } from './show-poster.js'
+import { POSTER_SHAPE, portraitOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey } from './show-artwork.js'
 import { createFallbackArtwork, fetchFallbackImage, isFallbackImageSource } from './fallback-artwork.js'
+import { createLibraryTitles } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
 import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
 import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
@@ -821,7 +822,7 @@ export const findShowPoster = async ({ title, width, kind = null } = {}) => {
   if (!title) return NO_IMAGE
   const chosen = await chosenShowImage({ title, kind: 'poster', width })
   if (chosen) return chosen
-  const artwork = await showArtworkFor({ title, kind })
+  const artwork = await showArtworkFor({ title, kind, shape: POSTER_SHAPE })
   const found = await firstImageWithin({
     sources: artwork.sources,
     load: posterThumbnailLoader(width),
@@ -842,7 +843,7 @@ export const automaticShowSources = async ({ title, kind = null }) => {
   if (!title) return { library: [], fallback: [], guide: [] }
   const artworkKind = kind ?? await guideKindFor(title)
   const [library, fallback, guide] = await Promise.all([
-    isFilmKind(artworkKind) ? [] : showArtwork.sourcesFor(title).catch(() => []),
+    showArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
     fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
     guideImagesFor(title),
   ])
@@ -884,8 +885,12 @@ const rawImageOfOrigin = async (origin) => {
 const posterThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
   key: `show-poster:${source}`,
   width,
-  loadOriginal: async () => portraitOf(await programmeImages.imageFor(source)),
+  loadOriginal: async () => portraitOf(await showSourceImage(source)),
 })
+
+const showSourceImage = (source) => (source.startsWith(RECORDING_ORIGIN_PREFIX)
+  ? findArtwork({ kind: 'recording', id: source.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
+  : programmeImages.imageFor(source))
 
 export const prepareThumbnailCache = () => thumbnailStore.prepare()
 
@@ -910,21 +915,44 @@ const programmeImageSources = async ({ eventId, fallbackSource }) => {
 const showArtSources = async ({ title, kind = null }) => {
   if (!title) return []
   const artworkKind = kind ?? await guideKindFor(title)
+  const fromPlex = await showArtwork.plexSourcesFor(title, { kind: artworkKind }).catch(() => [])
+  if (fromPlex.length) return fromPlex
+  const recorded = await recordingImagesFor(title)
+  if (recorded.length) return recorded
   const sources = isFilmKind(artworkKind) ? [] : await showArtwork.sourcesFor(title).catch(() => [])
   return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
 }
 
-const showArtworkFor = async ({ title, kind = null }) => {
+const showArtworkFor = async ({ title, kind = null, shape = null }) => {
   const artworkKind = kind ?? await guideKindFor(title)
-  if (isFilmKind(artworkKind)) return filmArtworkFor({ title, kind: artworkKind })
+  const local = await localArtworkFor({ title, kind: artworkKind, shape })
+  if (local.sources.length) return local
+  if (local.pending) {
+    showArtSources({ title, kind: artworkKind })
+    return local
+  }
+  return onlineArtworkFor({ title, kind: artworkKind })
+}
+
+const localArtworkFor = async ({ title, kind, shape }) => {
+  const fromPlex = await showArtwork.plexArtworkFor(title, { kind, shape }).catch(() => NO_ARTWORK)
+  if (fromPlex.sources.length || shape === POSTER_SHAPE) return fromPlex
+  const recorded = await recordingImagesFor(title)
+  return recorded.length ? { sources: recorded, pending: false } : fromPlex
+}
+
+const onlineArtworkFor = async ({ title, kind }) => {
+  if (isFilmKind(kind)) return filmArtworkFor({ title, kind })
   const artwork = await showArtwork.artworkFor(title).catch(() => NO_ARTWORK)
   if (artwork.sources.length) return artwork
   if (artwork.pending) {
-    showArtSources({ title, kind: artworkKind })
+    showArtSources({ title, kind })
     return artwork
   }
-  return fallbackArtwork.artworkFor(title, { kind: artworkKind }).catch(() => NO_ARTWORK)
+  return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
 }
+
+const recordingImagesFor = (title) => libraryTitles.recordingImagesFor(title).catch(() => [])
 
 const filmArtworkFor = async ({ title, kind }) => {
   const artwork = await fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
@@ -949,6 +977,15 @@ const programmeHintsFor = async (title) => {
     hintsByGuide.set(guide, programmeHintsByTitle([...guide.programByEventId.values()], { channels: guide.channels || [] }))
   }
   return hintsByGuide.get(guide).get(showTitleKey(title)) || null
+}
+
+const artworkHintsFor = async (title) => {
+  const [guide, library] = await Promise.all([
+    programmeHintsFor(title).catch(() => null),
+    libraryTitles.hintsFor(title).catch(() => null),
+  ])
+  if (!guide) return library
+  return library ? { ...guide, inLibrary: true } : guide
 }
 
 const guideThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
@@ -981,7 +1018,7 @@ const resolveWithin = (promise, ms) => Promise.race([
 ])
 
 const showArtOriginal = async (source) => {
-  const image = await programmeImages.imageFor(source)
+  const image = await showSourceImage(source)
   return image && landscapeOf(image).catch(() => image)
 }
 
@@ -1122,7 +1159,8 @@ const showArtwork = createShowArtwork({
   externalIdsFor: loadExternalIds,
   onTvmazeShow: (found) => Promise.all([rememberTvmazeShow(found), rememberKnownAsFromTvmaze(found)]),
 })
-const fallbackArtwork = createFallbackArtwork({ hintsFor: programmeHintsFor, externalIdsFor: loadExternalIds })
+const libraryTitles = createLibraryTitles()
+const fallbackArtwork = createFallbackArtwork({ hintsFor: artworkHintsFor, externalIdsFor: loadExternalIds })
 const hintsByGuide = new WeakMap()
 const kindsByGuide = new WeakMap()
 const guideSearchFor = createGuideSearchCache()

@@ -356,7 +356,7 @@ const withinMs = (promise, ms) => Promise.race([
 ])
 
 const sendMissingImage = (res) => {
-  res.setHeader('Cache-Control', `public, max-age=${MISSING_IMAGE_MAX_AGE_S}`)
+  res.setHeader('Cache-Control', 'no-store')
   res.status(404).end()
 }
 
@@ -369,4 +369,3 @@ const MAX_MEMO_ENTRIES = 200
 const CANDIDATES_TTL_MS = 10 * 60 * 1000
 const LOOKUP_BUDGET_MS = 6000
 const IMAGE_MAX_AGE_S = 24 * 60 * 60
-const MISSING_IMAGE_MAX_AGE_S = 5 * 60

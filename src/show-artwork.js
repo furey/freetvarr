@@ -1,12 +1,13 @@
 import axios from 'axios'
 
 import { db, getSetting } from './db.js'
-import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
+import { artworkKindOf, cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { createGuideHints, createTitleMatcher } from './programme-ratings.js'
 import { externalIdsOf, hasExternalIds, idKeyedCacheKeyOf } from './external-ids.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { storedPlexToken } from './plex.js'
+import { POSTER_SHAPE } from './show-poster.js'
 import { SERIES_MATCH_VERSION } from './web/artwork-stamps.js'
 import { artworkClient } from './fallback-artwork.js'
 
@@ -47,11 +48,12 @@ export const createShowArtwork = ({
   const failedUntil = new Map()
   const findShow = findSeriesShow || seriesShowFinder({ searchTvmaze, countryCode })
 
-  const plexSourcesFor = async ({ key, title }) => {
+  const plexEntrySources = async ({ key, title, kind, shape }) => {
     const entry = (await plexShows.get()).get(key)
     if (!entry) return []
-    if (entry.section === PLEX_MOVIES && await hasEpisodeDetails(title)) return []
-    return entry.sources
+    if (isFilmKind(kind) && entry.section !== PLEX_MOVIES) return []
+    if (!isFilmKind(kind) && entry.section === PLEX_MOVIES && await hasEpisodeDetails(title)) return []
+    return shape === POSTER_SHAPE ? entry.posters ?? entry.sources : entry.sources
   }
 
   const hasEpisodeDetails = async (title) => Boolean((await Promise.resolve().then(() => hintsFor(title)).catch(() => null))?.isEpisode)
@@ -111,21 +113,30 @@ export const createShowArtwork = ({
     return { sources: tvmazeSourcesOf({ show, images }), hinted: Boolean(hints) }
   }
 
-  const sourcesFor = async (title) => {
+  const sourcesFor = async (title, { kind = null, shape = null } = {}) => {
     const key = showTitleKey(title)
     if (!key) return []
-    const fromPlex = await plexSourcesFor({ key, title }).catch(() => [])
-    if (fromPlex.length) return fromPlex
+    const fromPlex = await plexEntrySources({ key, title, kind, shape }).catch(() => [])
+    if (fromPlex.length || isFilmKind(kind)) return fromPlex
     return tvmazeSourcesFor({ key, title })
   }
 
-  const artworkFor = async (title) => {
+  const plexSourcesFor = async (title, { kind = null, shape = null } = {}) => {
+    const key = showTitleKey(title)
+    return key ? plexEntrySources({ key, title, kind, shape }).catch(() => []) : []
+  }
+
+  const plexArtworkFor = async (title, { kind = null, shape = null } = {}) => {
+    const fromPlex = await withinMs(plexSourcesFor(title, { kind, shape }), plexWaitMs)
+    return fromPlex === TIMED_OUT ? PENDING_ARTWORK : { sources: fromPlex, pending: false }
+  }
+
+  const artworkFor = async (title, { kind = null, shape = null } = {}) => {
     const key = showTitleKey(title)
     if (!key) return NO_ARTWORK
-    const fromPlex = await withinMs(plexSourcesFor({ key, title }).catch(() => []), plexWaitMs)
-    if (fromPlex === TIMED_OUT) return PENDING_ARTWORK
-    if (fromPlex.length) return { sources: fromPlex, pending: false }
-    if (!(await isTvmazeEnabled())) return NO_ARTWORK
+    const fromPlex = await plexArtworkFor(title, { kind, shape })
+    if (fromPlex.pending || fromPlex.sources.length) return fromPlex
+    if (isFilmKind(kind) || !(await isTvmazeEnabled())) return NO_ARTWORK
     const lookup = await tvmazeLookupOf({ key, title })
     const cached = await cachedTvmazeSources(lookup.cacheKey)
     refreshStale({ cached, lookup })
@@ -147,8 +158,10 @@ export const createShowArtwork = ({
     plexShows.reset()
   }
 
-  return { sourcesFor, artworkFor, forget }
+  return { sourcesFor, artworkFor, plexSourcesFor, plexArtworkFor, forget }
 }
+
+const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
 
 const withinMs = (promise, ms) => Promise.race([
   promise,
@@ -189,7 +202,8 @@ export const plexSourcesOf = ({ items = [], url, token }) => {
   for (const item of items) {
     const key = showTitleKey(item.title)
     const sources = [item.art, item.thumb].filter(Boolean).map(sourceOf)
-    if (key && sources.length && !byTitle.has(key)) byTitle.set(key, sources)
+    const posters = [item.thumb, item.art].filter(Boolean).map(sourceOf)
+    if (key && sources.length && !byTitle.has(key)) byTitle.set(key, { sources, posters })
   }
   return byTitle
 }
@@ -205,8 +219,8 @@ export const plexShowSources = async ({ previous = new Map(), loadSettings = ple
       for (const [key, entry] of previous) if (entry.section === section.kind && !entries.has(key)) entries.set(key, entry)
       return
     }
-    for (const [key, sources] of plexSourcesOf({ items: listed[at].value, url, token })) {
-      if (!entries.has(key)) entries.set(key, { sources, section: section.kind })
+    for (const [key, found] of plexSourcesOf({ items: listed[at].value, url, token })) {
+      if (!entries.has(key)) entries.set(key, { ...found, section: section.kind })
     }
   })
   return entries

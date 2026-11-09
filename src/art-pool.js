@@ -333,7 +333,7 @@ const poolEntryImage = async ({ artPool, entries, imageId, width }) => {
   return entry?.origin ? artPool.imageFor({ origin: entry.origin, width }) : null
 }
 
-const serveArtImage = (route) => serveImageRoute({ route, missingMaxAgeS: MISSING_IMAGE_MAX_AGE_S, imageMaxAgeS: IMAGE_MAX_AGE_S })
+const serveArtImage = (route) => serveImageRoute({ route, imageMaxAgeS: IMAGE_MAX_AGE_S })
 
 const sourceOfOrigin = async ({ origin, plexConnection }) => {
   if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return origin
@@ -507,7 +507,6 @@ const MAX_POSTERS = 3
 const MAX_MEMO_ENTRIES = 500
 const REQUEST_TIMEOUT_MS = 5000
 const IMAGE_MAX_AGE_S = 24 * 60 * 60
-const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const PLEX_TTL_MS = 10 * 60 * 1000
 const POOL_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const POOL_MISS_TTL_MS = 60 * 60 * 1000

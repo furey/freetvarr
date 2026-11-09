@@ -53,7 +53,7 @@ test('the resolver finds the route for a url and loads the same picture the rout
   assert.equal(textOf(resolved.image.body), 'a b@1920')
   assert.deepEqual(calls, [{ eventId: 'a b', width: 1920 }])
   const res = recorder()
-  await serveImageRoute({ route: programme, missingMaxAgeS: 300, imageMaxAgeS: 86400 })({ params: { eventId: 'a b' }, query: { w: '1920' } }, res)
+  await serveImageRoute({ route: programme, imageMaxAgeS: 86400 })({ params: { eventId: 'a b' }, query: { w: '1920' } }, res)
   assert.equal(textOf(res.body), textOf(resolved.image.body))
   assert.equal(res.headers['cache-control'], 'public, max-age=86400')
   assert.equal(textOf((await resolve('/api/epg/show-image?title=Bluey&w=768')).image.body), 'Bluey@1920')
@@ -69,16 +69,22 @@ test('the resolver reports pending, missing, bad widths, and unknown paths', asy
   assert.equal((await resolve('/api/epg/image/%E0%A4%A?w=768')).unknownRoute, true)
 })
 
-test('the served route sends 404 with no-store while pending and a short cache when missing', async () => {
+test('the served route sends 404 with no-store while pending, when missing, and for a non-image', async () => {
   const { programme } = routes()
-  const serve = serveImageRoute({ route: programme, missingMaxAgeS: 300, imageMaxAgeS: 86400 })
+  const serve = serveImageRoute({ route: programme, imageMaxAgeS: 86400 })
   const pending = recorder()
   await serve({ params: { eventId: 'slow' }, query: {} }, pending)
   assert.equal(pending.statusCode, 404)
   assert.equal(pending.headers['cache-control'], 'no-store')
   const missing = recorder()
   await serve({ params: { eventId: 'gone' }, query: {} }, missing)
-  assert.equal(missing.headers['cache-control'], 'public, max-age=300')
+  assert.equal(missing.statusCode, 404)
+  assert.equal(missing.headers['cache-control'], 'no-store')
+  const thrown = recorder()
+  const failing = imageRouteOf({ path: '/api/x/:id', widthOf: () => 192, loadImage: async () => { throw new Error('boom') } })
+  await serveImageRoute({ route: failing, imageMaxAgeS: 86400 })({ params: { id: '1' }, query: {} }, thrown)
+  assert.equal(thrown.statusCode, 404)
+  assert.equal(thrown.headers['cache-control'], 'no-store')
   const bad = recorder()
   await serve({ params: { eventId: 'a' }, query: { w: '500' } }, bad)
   assert.equal(bad.statusCode, 400)
@@ -87,7 +93,7 @@ test('the served route sends 404 with no-store while pending and a short cache w
 const servedBy = async (loaded) => {
   const route = imageRouteOf({ path: '/api/x/:id', widthOf: () => 192, loadImage: async () => loaded })
   const res = recorder()
-  await serveImageRoute({ route, missingMaxAgeS: 300, imageMaxAgeS: 86400 })({ params: { id: '1' }, query: {} }, res)
+  await serveImageRoute({ route, imageMaxAgeS: 86400 })({ params: { id: '1' }, query: {} }, res)
   return res
 }
 
@@ -99,6 +105,7 @@ test('the served route answers 404 for any image that is not JPEG, PNG, WebP, or
   }
   const disguised = await servedBy({ body: Buffer.from('<html><body>page</body></html>'), contentType: 'image/png' })
   assert.equal(disguised.statusCode, 404)
+  assert.equal(disguised.headers['cache-control'], 'no-store')
 })
 
 test('the served route takes the type from the image bytes and adds a sandbox CSP', async () => {

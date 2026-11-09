@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { db, getSetting } from './db.js'
 import { showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createOutboundClient, createHostLimiter } from './outbound-http.js'
@@ -14,7 +16,6 @@ import {
   entityQueryOf,
   entityRowsOf,
   hintsForKind,
-  lookupExpiryOf,
   matchEvidenceOf,
   pageArtOf,
   rankEntities,
@@ -44,7 +45,7 @@ export const createFallbackArtwork = ({
   externalIdsFor = async () => null,
   now = Date.now,
   hitTtlMs = HIT_TTL_MS,
-  missTtlMs = MISS_TTL_MS,
+  missRetryMs = MISS_RETRY_MS,
   tmdbRetryTtlMs = TMDB_RETRY_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
@@ -81,38 +82,66 @@ export const createFallbackArtwork = ({
     return { key, apiKey, kind: artworkKind, ids, cacheKey }
   }
 
-  const cachedSources = async (cacheKey) => {
-    const cached = await readSizedCache({ read: cache.read, key: cacheKey })
+  const lookupHintsFor = async ({ title, kind }) => hintsForKind({
+    hints: await Promise.resolve().then(() => hintsFor(title)).catch(() => null),
+    kind,
+  })
+
+  const fingerprintFor = async ({ title, kind, ids, apiKey }) => evidenceFingerprintOf({
+    kind,
+    hints: await lookupHintsFor({ title, kind }),
+    ids,
+    apiKey,
+  })
+
+  const cachedSources = async ({ title, settings }) => {
+    const cached = await readSizedCache({ read: cache.read, key: settings.cacheKey })
     const hasValue = Boolean(cached?.sources?.length)
     const savedTtlMs = isRetryReference(cached?.reference) ? tmdbRetryTtlMs : hitTtlMs
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs: savedTtlMs, hasValue, staleBeforeMs })
-    if (state === 'missing' || (!hasValue && cached.reference !== MISS_REFERENCE)) return { stale: false, sources: null }
+    if (state === 'missing') return NOT_CACHED
+    if (!hasValue && !(await isCurrentMiss({ cached, title, settings }))) return NOT_CACHED
     return { stale: state === 'stale', sources: cached.sources }
+  }
+
+  const isCurrentMiss = async ({ cached, title, settings }) => {
+    const miss = missOf(cached.reference)
+    return Boolean(miss) && miss.fingerprint === await fingerprintFor({ title, ...settings })
+  }
+
+  const missExpiryOf = async ({ cacheKey, fingerprint }) => {
+    const previous = await readSizedCache({ read: cache.read, key: cacheKey }).catch(() => null)
+    const miss = previous?.sources?.length ? null : missOf(previous?.reference)
+    const step = miss?.fingerprint === fingerprint ? miss.step + 1 : 0
+    return { step, expiresAt: now() + missRetryMs[Math.min(step, missRetryMs.length - 1)] }
+  }
+
+  const savedRowOf = async ({ cacheKey, sources, found, fingerprint }) => {
+    if (sources.length) return { sources, reference: referenceOf({ sources, found }), expiresAt: expiryOf({ sources, found }) }
+    const { step, expiresAt } = await missExpiryOf({ cacheKey, fingerprint })
+    return { sources, reference: missReferenceOf({ step, fingerprint }), expiresAt }
   }
 
   const refreshStale = ({ cached, title, settings }) => {
     if (cached.stale && !recentlyFailed(settings.cacheKey)) startLookup({ title, ...settings, refreshingHit: Boolean(cached.sources?.length) })
   }
 
-  const expiryOf = ({ sources, found }) => (sources.length && found?.retrySoon
-    ? now() + tmdbRetryTtlMs
-    : lookupExpiryOf({ found: sources.length > 0, nowMs: now(), hitTtlMs, missTtlMs }))
+  const expiryOf = ({ found }) => (found?.retrySoon ? now() + tmdbRetryTtlMs : now() + hitTtlMs)
 
-  const referenceOf = ({ sources, found }) => {
-    if (!sources.length) return MISS_REFERENCE
-    return found?.retrySoon ? `${TMDB_RETRY_REFERENCE}${found.reference || ''}` : found?.reference || null
-  }
+  const referenceOf = ({ found }) => (found?.retrySoon ? `${TMDB_RETRY_REFERENCE}${found.reference || ''}` : found?.reference || null)
 
   const startLookup = ({ title, kind, apiKey, ids = null, cacheKey, refreshingHit = false }) => {
     if (inflight.has(cacheKey)) return inflight.get(cacheKey)
     const pending = lookupLimiter.run(async () => {
-      const hints = hintsForKind({ hints: await hintsFor(title), kind })
+      const hints = await lookupHintsFor({ title, kind })
       return { hints, found: await lookUp({ title, kind, ids, hints, apiKey }) }
     })
       .then(async ({ hints, found }) => {
         const sources = found?.sources || []
         if (!sources.length && refreshingHit && !hints && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
-        await cache.write({ key: sizedKeyOf(cacheKey), sources, reference: referenceOf({ sources, found }), expiresAt: expiryOf({ sources, found }) }).catch(() => {})
+        const fingerprint = evidenceFingerprintOf({ kind, hints, ids, apiKey })
+        const row = await savedRowOf({ cacheKey, sources, found, fingerprint })
+        await cache.write({ key: sizedKeyOf(cacheKey), ...row }).catch(() => {})
         return sources
       })
       .catch((error) => {
@@ -127,7 +156,7 @@ export const createFallbackArtwork = ({
   const sourcesFor = async (title, { kind = null } = {}) => {
     const settings = await settingsFor({ title, kind })
     if (!settings) return []
-    const cached = await cachedSources(settings.cacheKey)
+    const cached = await cachedSources({ title, settings })
     refreshStale({ cached, title, settings })
     if (cached.sources) return cached.sources
     if (recentlyFailed(settings.cacheKey)) return []
@@ -138,7 +167,7 @@ export const createFallbackArtwork = ({
   const artworkFor = async (title, { kind = null } = {}) => {
     const settings = await settingsFor({ title, kind })
     if (!settings) return NO_ARTWORK
-    const cached = await cachedSources(settings.cacheKey)
+    const cached = await cachedSources({ title, settings })
     refreshStale({ cached, title, settings })
     if (cached.sources) return { sources: cached.sources, pending: false }
     if (recentlyFailed(settings.cacheKey)) return NO_ARTWORK
@@ -340,6 +369,36 @@ export const createArtworkLookup = ({
   }
 }
 
+export const evidenceFingerprintOf = ({ kind = null, hints = null, ids = null, apiKey = null }) => createHash('sha256')
+  .update(JSON.stringify([
+    MISS_REFERENCE,
+    artworkKindOf(kind),
+    hints ? evidenceOfHints(hints) : null,
+    hasExternalIds(ids) ? Object.entries(ids).filter(([, id]) => id != null).sort(([a], [b]) => a.localeCompare(b)) : null,
+    Boolean(apiKey),
+  ]))
+  .digest('hex')
+  .slice(0, FINGERPRINT_LENGTH)
+
+export const missReferenceOf = ({ step = 0, fingerprint }) => `${MISS_REFERENCE}:${step}:${fingerprint}`
+
+export const missOf = (reference) => {
+  const text = String(reference || '')
+  if (!text.startsWith(`${MISS_REFERENCE}:`)) return null
+  const [step, fingerprint] = text.slice(MISS_REFERENCE.length + 1).split(':')
+  return { step: Number.parseInt(step, 10) || 0, fingerprint: fingerprint || null }
+}
+
+const evidenceOfHints = (hints) => [
+  sortedUniqueOf(hints.years),
+  sortedUniqueOf(hints.releaseYears),
+  sortedUniqueOf(hints.channelNames),
+  Boolean(hints.isEpisode),
+  Boolean(hints.inLibrary),
+]
+
+const sortedUniqueOf = (values = []) => [...new Set(values || [])].map(String).sort()
+
 const isRetryReference = (reference) => String(reference || '').startsWith(TMDB_RETRY_REFERENCE)
 
 export const validateTmdbKey = async ({ apiKey, client = artworkClient }) => {
@@ -402,10 +461,13 @@ export const artworkClient = createOutboundClient({
   },
 })
 
+const NOT_CACHED = { stale: false, sources: null }
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_ARTWORK = { sources: [], pending: true }
 const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
-const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const HOUR_MS = 60 * 60 * 1000
+const MISS_RETRY_MS = [6 * HOUR_MS, 24 * HOUR_MS, 3 * 24 * HOUR_MS, 7 * 24 * HOUR_MS]
+const FINGERPRINT_LENGTH = 16
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const TMDB_RETRY_TTL_MS = 6 * 60 * 60 * 1000
 const TMDB_RETRY_REFERENCE = 'tmdb-retry:'

@@ -13,6 +13,7 @@ import { rowAiringOf, seriesKindOf } from './series-kind.js'
 import { getMoviesRoot, matchShow } from './sync.js'
 import { looksLikeFilm } from './film-rule.js'
 import { showKeyOf } from './web/show-key.js'
+import { showImageUrlOf } from './web/artwork-stamps.js'
 import { isUserFolderRow } from './show-origin.js'
 import { artworkChoices } from './artwork-choices.js'
 import { backupKeptUntil, originalRetentionDays } from './commercials.js'
@@ -487,7 +488,7 @@ const showSummaryOf = ({ key, rows, series, recordingNow, moviesRoot, stamps = N
     kind,
     classification: newestFirst.find((row) => row.classification)?.classification ?? nextAiring?.classification ?? null,
     year: kind === 'movie' ? newestFirst.find((row) => row.year)?.year ?? null : null,
-    poster: `/api/epg/show-image?title=${encodeURIComponent(title)}&shape=poster${stampParamOf(stamps.poster)}`,
+    poster: `${showImageUrlOf({ title, shape: 'poster', kind: imageKindOf(kind) })}${stampParamOf(stamps.poster)}`,
     image: chosenBackgroundOf({ title, stamp: stamps.background }) || newestFirst.map(recordingImageOf).find(Boolean) || null,
     artworkStamps: { background: stamps.background ?? null, poster: stamps.poster ?? null },
     counts: {
@@ -631,6 +632,8 @@ const genresOf = (row) => {
 const chosenBackgroundOf = ({ title, stamp }) => (stamp
   ? `/api/epg/show-image?title=${encodeURIComponent(title)}&w=${CARD_IMAGE_WIDTH}${stampParamOf(stamp)}`
   : null)
+
+const imageKindOf = (kind) => (kind === 'movie' ? 'movie' : null)
 
 const stampParamOf = (stamp) => (stamp ? `&c=${stamp}` : '')
 

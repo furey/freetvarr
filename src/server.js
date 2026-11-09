@@ -305,7 +305,6 @@ const liveEncoderReady = Promise.all([
 const LIVE_REAPER_MS = 5_000
 const GUIDE_IMPORT_SETTLE_MS = 2 * 60_000
 const IMAGE_MAX_AGE_S = 24 * 60 * 60
-const MISSING_IMAGE_MAX_AGE_S = 5 * 60
 const CONNECT_ATTEMPT_TIMEOUT_MS = 2500
 const MAX_SHOW_TITLE_LENGTH = 200
 const HERO_FOR_YOU_WAIT_MS = 5000
@@ -647,7 +646,7 @@ app.get('/api/epg/state', (req, res) => sendTvheadendRead({
 const imageRouteFor = ({ path, widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf }) =>
   imageRouteOf({ path, widthOf, loadImage, paramsOf, widthError: `w must be one of ${widths.join(', ')}` })
 
-const serveImage = (route) => serveImageRoute({ route, missingMaxAgeS: MISSING_IMAGE_MAX_AGE_S, imageMaxAgeS: IMAGE_MAX_AGE_S })
+const serveImage = (route) => serveImageRoute({ route, imageMaxAgeS: IMAGE_MAX_AGE_S })
 
 const channelLogoRoute = imageRouteFor({
   path: '/api/epg/logo/:channelId',

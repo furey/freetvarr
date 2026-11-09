@@ -10,6 +10,7 @@ export const TitleArt = {
     title: { type: String, default: '' },
     shape: { type: String, default: 'card' },
     src: { type: String, default: '' },
+    fallbackSrc: { type: String, default: '' },
   },
   template: `
     <div :class="[shape === 'poster' ? 'ui-poster-art' : 'ui-card-art', 'ui-art-fallback']" :style="fallbackStyle">
@@ -19,8 +20,12 @@ export const TitleArt = {
     </div>
   `,
   setup(props) {
-    const shownSrc = computed(() => stampedShowImage(props.src))
-    const failed = ref(false)
+    const primarySrc = computed(() => stampedShowImage(props.src))
+    const primaryFailed = ref(false)
+    const fallbackFailed = ref(false)
+    const showsFallback = computed(() => primaryFailed.value && Boolean(props.fallbackSrc) && !fallbackFailed.value)
+    const shownSrc = computed(() => (showsFallback.value ? stampedShowImage(props.fallbackSrc) : primarySrc.value))
+    const failed = computed(() => primaryFailed.value && !showsFallback.value)
     const attempt = ref(0)
     let retryTimer = null
     let probe = null
@@ -36,19 +41,19 @@ export const TitleArt = {
     const retryLater = () => {
       const delay = RETRY_DELAYS_MS[attempt.value]
       if (delay == null) return
-      const url = shownSrc.value
+      const url = primarySrc.value
       retryTimer = setTimeout(() => {
         retryTimer = null
         probe = new Image()
         probe.onload = () => {
           probe = null
-          if (shownSrc.value !== url) return
+          if (primarySrc.value !== url) return
           attempt.value += 1
-          failed.value = false
+          primaryFailed.value = false
         }
         probe.onerror = () => {
           probe = null
-          if (shownSrc.value !== url) return
+          if (primarySrc.value !== url) return
           attempt.value += 1
           retryLater()
         }
@@ -56,14 +61,19 @@ export const TitleArt = {
       }, delay)
     }
     const onError = () => {
-      failed.value = true
-      if (!retryTimer) retryLater()
+      if (showsFallback.value) {
+        fallbackFailed.value = true
+        return
+      }
+      primaryFailed.value = true
+      if (!retryTimer && !probe) retryLater()
     }
-    watch(shownSrc, () => {
+    watch(primarySrc, () => {
       cancelRetry()
       attempt.value = 0
-      failed.value = false
+      primaryFailed.value = false
     })
+    watch(() => props.fallbackSrc, () => { fallbackFailed.value = false })
     watch(shownSrc, (url) => { if (url) primeImageFocus(url) }, { immediate: true })
     const showIfLoaded = (img) => { if (img) showLoadedImage(img) }
     onUnmounted(cancelRetry)

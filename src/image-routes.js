@@ -15,19 +15,19 @@ export const loadRouteImage = async ({ route, params = {}, query = {} }) => {
   return imageResultOf(await route.loadImage({ ...route.paramsOf({ params, query }), width }))
 }
 
-export const serveImageRoute = ({ route, missingMaxAgeS, imageMaxAgeS }) => async (req, res) => {
+export const serveImageRoute = ({ route, imageMaxAgeS }) => async (req, res) => {
   try {
-    const { image, pending, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
+    const { image, badWidth } = await loadRouteImage({ route, params: req.params, query: req.query })
     if (badWidth) return res.status(400).json({ error: route.widthError })
-    if (!image) return pending ? sendPending(res) : sendMissing({ res, maxAgeS: missingMaxAgeS })
+    if (!image) return sendMissing(res)
     const contentType = rasterTypeOf(image.body)
-    if (!contentType) return sendMissing({ res, maxAgeS: missingMaxAgeS })
+    if (!contentType) return sendMissing(res)
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Security-Policy', IMAGE_RESPONSE_CSP)
     res.setHeader('Cache-Control', `public, max-age=${imageMaxAgeS}`)
     res.send(image.body)
   } catch {
-    sendMissing({ res, maxAgeS: missingMaxAgeS })
+    sendMissing(res)
   }
 }
 
@@ -74,12 +74,7 @@ const paramsFrom = ({ pattern, pathname }) => {
   }
 }
 
-const sendMissing = ({ res, maxAgeS }) => {
-  res.setHeader('Cache-Control', `public, max-age=${maxAgeS}`)
-  res.status(404).end()
-}
-
-const sendPending = (res) => {
+const sendMissing = (res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.status(404).end()
 }
