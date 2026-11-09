@@ -511,3 +511,51 @@ test('a Wikipedia picture kept because TMDB failed counts as saved now, so it is
   await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 1)
 })
+
+test('a warm-up lookup waits in the background queue, and a viewed title promotes it', async () => {
+  const { createHostLimiter } = await import('../src/outbound-http.js')
+  const { runAsBackgroundWork } = await import('../src/background-work.js')
+  const releases = []
+  const looked = []
+  const lookupLimiter = createHostLimiter({ concurrency: 2, reservedForUrgent: 1 })
+  const artwork = createFallbackArtwork({
+    lookUp: async ({ title }) => {
+      looked.push(title)
+      await new Promise((resolve) => releases.push(resolve))
+      return { sources: [`https://upload.wikimedia.org/${title}.jpg`] }
+    },
+    cache: memoryCache(),
+    isEnabled: async () => true,
+    tmdbKey: async () => null,
+    hintsFor: async (title) => ({ title }),
+    isAllowed: async () => true,
+    lookupLimiter,
+  })
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 5))
+  await runAsBackgroundWork({}, async () => {
+    for (const title of ['One', 'Two', 'Three']) assert.deepEqual(await artwork.artworkFor(title), { sources: [], pending: true })
+  })
+  await tick()
+  assert.deepEqual(looked, ['One'])
+  assert.equal(artwork.backlog().background, 2)
+  assert.deepEqual(await artwork.artworkFor('Three'), { sources: [], pending: true })
+  await tick()
+  assert.deepEqual(looked, ['One', 'Three'])
+  assert.equal(artwork.backlog().background, 1)
+  releases.splice(0).forEach((release) => release())
+  await tick()
+  releases.splice(0).forEach((release) => release())
+  await tick()
+  assert.deepEqual(looked, ['One', 'Three', 'Two'])
+})
+
+test('an offline warm-up starts no lookup and saves no miss', async () => {
+  const { runAsBackgroundWork } = await import('../src/background-work.js')
+  let calls = 0
+  const { artwork, cache } = fallbackWith({ lookUp: async () => { calls += 1; return null } })
+  const answer = await runAsBackgroundWork({ offline: true }, () => artwork.artworkFor('Quiet Title'))
+  assert.deepEqual(answer, { sources: [], pending: true })
+  assert.deepEqual(await runAsBackgroundWork({ offline: true }, () => artwork.sourcesFor('Quiet Title')), [])
+  assert.equal(calls, 0)
+  assert.equal(cache.rows.size, 0)
+})

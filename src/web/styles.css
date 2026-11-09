@@ -2524,10 +2524,6 @@ section[id^="section-"] {
   border-left: 1px solid var(--color-hairline);
 }
 
-.epg-float-icon {
-  min-width: 2.75rem;
-  padding: 0;
-}
 
 .epg-float-btn svg {
   width: 1rem;

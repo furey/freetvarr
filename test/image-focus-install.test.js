@@ -28,7 +28,7 @@ const { installImageFocus, primeImageFocus, rememberImageFocus, showLoadedImage 
 
 const FACE_LEFT = { x: 0.2, y: 0.425, box: [0.096, 0.184, 0.304, 0.752] }
 
-const fakeImage = (path) => Object.assign(new HTMLImageElement(), {
+const fakeImage = (path) => Object.assign(new globalThis.HTMLImageElement(), {
   src: path,
   currentSrc: `http://nas:3744${path}?w=1280`,
   complete: true,

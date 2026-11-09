@@ -1,12 +1,12 @@
 import { ref, watch } from '/vendor/vue.esm-browser.prod.js'
-import { api } from '/shared/api.js'
+import { pollApi } from '/shared/api.js'
 
 export const syncStatus = ref({ activeSyncId: null, cron: '' })
 let syncPollTimer = null
 
 export const loadSyncStatus = async () => {
   try {
-    syncStatus.value = await api('GET', '/api/sync-status')
+    syncStatus.value = await pollApi('/api/sync-status')
   } catch {
     /* leave previous value */
   }

@@ -3,10 +3,10 @@ import crypto from 'crypto'
 import path from 'path'
 
 import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
-import { findArtwork } from './artwork.js'
+import { artworkVersionOf, findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
-import { findArtSourceThumbnail, findEpisodeThumbnail } from './epg.js'
+import { findArtSourceThumbnail, findEpisodeThumbnail, isArtSourceWarm, isEpisodeArtWarm } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { imageRouteOf, serveImageRoute } from './image-routes.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf, withPlexRows } from './library.js'
@@ -29,6 +29,8 @@ export const artPoolImageRoutes = ({ artPool }) => [
     widthError: HERO_WIDTH_ERROR,
     loadImage: async ({ key, image_id: imageId, width }) =>
       poolEntryImage({ artPool, entries: (await artPool.showPool(key))?.entries, imageId, width }),
+    isWarm: async ({ key, image_id: imageId, width }) =>
+      isPoolEntryWarm({ artPool, entries: (await artPool.showPool(key))?.entries, imageId, width }),
   }),
   imageRouteOf({
     path: '/api/library/recordings/:recording_id/art/:image_id',
@@ -36,6 +38,8 @@ export const artPoolImageRoutes = ({ artPool }) => [
     widthError: HERO_WIDTH_ERROR,
     loadImage: async ({ recording_id: recordingId, image_id: imageId, width }) =>
       poolEntryImage({ artPool, entries: (await artPool.recordingArt(recordingId))?.entries, imageId, width }),
+    isWarm: async ({ recording_id: recordingId, image_id: imageId, width }) =>
+      isPoolEntryWarm({ artPool, entries: (await artPool.recordingArt(recordingId))?.entries, imageId, width }),
   }),
 ]
 
@@ -83,23 +87,40 @@ export const warmHomeArtPools = async ({ artPool, loadCandidates = homeCandidate
 
 export const recordingImageRoute = ({
   loadOriginal = (recordingId) => findArtwork({ kind: 'recording', id: recordingId }),
+  versionOf = (recordingId) => artworkVersionOf({ kind: 'recording', id: recordingId }),
   thumbnails = recordingThumbnails,
   episodePicture = findEpisodeThumbnail,
+  isEpisodeWarm = isEpisodeArtWarm,
 } = {}) => imageRouteOf({
   path: '/api/recordings/:recording_id/image',
   widthOf: (requested) => (requested === undefined ? ORIGINAL_WIDTH : heroWidthFrom(requested)),
   widthError: HERO_WIDTH_ERROR,
   loadImage: async ({ recording_id: recordingId, width }) => {
-    const original = await loadOriginal(recordingId).catch(() => null)
-    if (!original) return episodePicture({ recordingId, width: width === ORIGINAL_WIDTH ? EPISODE_FALLBACK_WIDTH : width })
-    if (width === ORIGINAL_WIDTH) return original
+    const version = await Promise.resolve().then(() => versionOf(recordingId)).catch(() => null)
+    const original = version ? null : await loadOriginal(recordingId).catch(() => null)
+    if (!version && !original) return episodePicture({ recordingId, width: episodeWidthOf(width) })
+    if (width === ORIGINAL_WIDTH) return original ?? await loadOriginal(recordingId).catch(() => null)
     return thumbnails().thumbnailFor({
-      key: `recording:${recordingId}:${contentKeyOf(original.body)}`,
+      key: recordingThumbnailKeyOf({ recordingId, version: version ?? contentKeyOf(original.body) }),
       width,
-      loadOriginal: async () => original,
+      loadOriginal: async () => original ?? loadOriginal(recordingId).catch(() => null),
     })
   },
+  isWarm: async ({ recording_id: recordingId, width }) => {
+    const version = await Promise.resolve().then(() => versionOf(recordingId)).catch(() => null)
+    if (!version) return isEpisodeWarm({ recordingId, width: episodeWidthOf(width) })
+    return width === ORIGINAL_WIDTH || thumbnails().has({ key: recordingThumbnailKeyOf({ recordingId, version }), width })
+  },
 })
+
+const recordingThumbnailKeyOf = ({ recordingId, version }) => `recording:${recordingId}:${version}`
+
+const episodeWidthOf = (width) => (width === ORIGINAL_WIDTH ? EPISODE_FALLBACK_WIDTH : width)
+
+const isPoolEntryWarm = async ({ artPool, entries, imageId, width }) => {
+  const entry = (entries || []).find((candidate) => candidate.id === imageId)
+  return entry?.origin ? artPool.isImageWarm({ origin: entry.origin, width }) : false
+}
 
 export const createArtPool = ({
   loadShowRows = libraryShowRows,
@@ -119,6 +140,7 @@ export const createArtPool = ({
   cache = databaseCache,
   poolStore = databasePoolStore,
   thumbnailFor = findArtSourceThumbnail,
+  isSourceWarm = isArtSourceWarm,
   loadSavedArtwork = findArtwork,
   chosenBackground = (key) => artworkChoices.chosenFor({ key, kind: 'background' }),
   now = Date.now,
@@ -240,7 +262,12 @@ export const createArtPool = ({
     return source ? thumbnailFor({ source, width }) : null
   }
 
-  return { showPool, showSources, recordingArt, imageFor }
+  const isImageWarm = async ({ origin, width }) => {
+    const source = await sourceOfOrigin({ origin, plexConnection })
+    return source ? isSourceWarm({ source, width }) : false
+  }
+
+  return { showPool, showSources, recordingArt, imageFor, isImageWarm }
 }
 
 export const tvmazePoolOf = ({ show, images = [] }) => {

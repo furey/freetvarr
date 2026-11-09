@@ -157,6 +157,8 @@ export const frameLevelsOf = async (body) => {
   }
 }
 
+const NO_SAVED_FRAME = { origin: null, none: false }
+
 export const createFrameGrabs = ({
   root = getFrameRoot(),
   grab = runFfmpegFrame,
@@ -350,7 +352,19 @@ export const createFrameGrabs = ({
 
   const metaPathOf = (id) => path.join(root, `${id}${META_EXTENSION}`)
 
-  return { frameFor, reconsider, read, prune, idle }
+  const savedFrameOf = async (filePath) => {
+    if (!filePath) return NO_SAVED_FRAME
+    const id = frameIdOf(filePath)
+    if (await exists(framePathOf(id))) {
+      const meta = await readMeta(id)
+      return isTrustedFrameMeta(meta) ? { origin: frameVersionOriginOf({ id, version: meta.version ?? 0 }), none: false } : NO_SAVED_FRAME
+    }
+    return { origin: null, none: await exists(missPathOf(id)) }
+  }
+
+  const queuedCount = () => queued.size
+
+  return { frameFor, reconsider, read, prune, idle, queuedCount, savedFrameOf }
 }
 
 export const runFfmpegFrame = (args, { timeoutMs = FFMPEG_TIMEOUT_MS, spawnProcess = spawn } = {}) => new Promise((resolve, reject) => {

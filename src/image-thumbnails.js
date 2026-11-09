@@ -4,6 +4,7 @@ import path from 'path'
 import sharp from 'sharp'
 
 import knexConfig from '../knexfile.js'
+import { isBackgroundWork } from './background-work.js'
 import { isRenderableSvg, mentionsSvg, rasterTypeOf } from './raster-type.js'
 
 export const PROGRAMME_IMAGE_WIDTHS = [192, 384, 768]
@@ -97,6 +98,7 @@ export const createThumbnailStore = ({
   now = Date.now,
 }) => {
   const files = new Map()
+  const warmNames = new Set()
   const inflight = new Map()
   const failedUntil = new Map()
   let totalBytes = 0
@@ -106,7 +108,8 @@ export const createThumbnailStore = ({
   const fileOf = (name) => path.join(dir, name)
 
   const track = (name, bytes) => {
-    forget(name)
+    if (files.has(name)) totalBytes -= files.get(name)
+    files.delete(name)
     files.set(name, bytes)
     totalBytes += bytes
   }
@@ -115,6 +118,16 @@ export const createThumbnailStore = ({
     if (!files.has(name)) return
     totalBytes -= files.get(name)
     files.delete(name)
+    setWarm(name, false)
+  }
+
+  const setWarm = (name, warm) => {
+    if (warmNames.has(name) === warm) return
+    if (warm) warmNames.add(name)
+    else warmNames.delete(name)
+    const marker = fileOf(`${name}${WARM_SUFFIX}`)
+    const change = warm ? fs.writeFile(marker, '') : fs.rm(marker, { force: true })
+    change.catch(() => {})
   }
 
   const touch = (name) => {
@@ -144,6 +157,11 @@ export const createThumbnailStore = ({
       .filter(Boolean)
       .sort((a, b) => a.mtimeMs - b.mtimeMs)
       .forEach(({ name, size }) => track(name, size))
+    await Promise.all(names.filter(isWarmMarker).map(async (marker) => {
+      const name = marker.slice(0, -WARM_SUFFIX.length)
+      if (files.has(name)) warmNames.add(name)
+      else await fs.rm(fileOf(marker), { force: true })
+    }))
     await prune()
   }
 
@@ -165,6 +183,7 @@ export const createThumbnailStore = ({
       return null
     }
     touch(name)
+    if (!isBackgroundWork()) setWarm(name, false)
     return { body, contentType: WEBP }
   }
 
@@ -176,6 +195,7 @@ export const createThumbnailStore = ({
       throw err
     })
     track(name, body.length)
+    setWarm(name, isBackgroundWork())
     await prune()
   }
 
@@ -226,9 +246,17 @@ export const createThumbnailStore = ({
     return pending
   }
 
+  const has = ({ key, width }) => usable && files.has(thumbnailNameFor({ key, width }))
+
+  const warmShare = () => {
+    let bytes = 0
+    for (const name of warmNames) bytes += files.get(name) ?? 0
+    return maxBytes > 0 ? bytes / maxBytes : 1
+  }
+
   const stats = () => ({ files: files.size, bytes: totalBytes })
 
-  return { prepare, thumbnailFor, stats }
+  return { prepare, thumbnailFor, has, warmShare, stats }
 }
 
 const busyError = () => Object.assign(new Error('SVG render queue is full'), { code: 'busy' })
@@ -254,6 +282,8 @@ const isThumbnailName = (name) => THUMBNAIL_NAME.test(name)
 
 const isPartialWrite = (name) => name.endsWith(PARTIAL_SUFFIX)
 
+const isWarmMarker = (name) => WARM_MARKER.test(name)
+
 const WEBP = 'image/webp'
 const MIN_LANDSCAPE_RATIO = 1.3
 const LANDSCAPE_MAX_HEIGHT = 1080
@@ -271,5 +301,7 @@ const BYTES_PER_MB = 1024 * 1024
 const DEFAULT_IMAGE_CACHE_BYTES = 100 * BYTES_PER_MB
 const PARTIAL_SUFFIX = '.partial'
 const THUMBNAIL_NAME = /^[0-9a-f]{64}\.webp$/
+const WARM_SUFFIX = '.warm'
+const WARM_MARKER = /^[0-9a-f]{64}\.webp\.warm$/
 
 const sharedSvgQueue = createRenderQueue()

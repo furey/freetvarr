@@ -15,6 +15,7 @@ export const JOB_KINDS = {
   history: { title: 'Viewing history upkeep', quiet: true },
   'for-you': { title: 'For you rebuild', quiet: true },
   hero: { title: 'Home hero rebuild', quiet: true },
+  artwork: { title: 'Artwork warm-up', quiet: true },
   focus: { title: 'Picture focus', quiet: true },
   ratings: { title: 'Ratings warm-up', quiet: true },
   prune: { title: 'Cache prune' },

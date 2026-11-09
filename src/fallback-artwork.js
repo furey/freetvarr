@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { db, getSetting } from './db.js'
 import { showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { createOutboundClient, createHostLimiter } from './outbound-http.js'
+import { isBackgroundWork, onlineLookupsAllowed } from './background-work.js'
 import { currentTimeZone } from './time-zone.js'
 import { lookupAllowed } from './lookup-gate.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -48,7 +49,7 @@ export const createFallbackArtwork = ({
   missRetryMs = MISS_RETRY_MS,
   tmdbRetryTtlMs = TMDB_RETRY_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
-  lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE }),
+  lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE, reservedForUrgent: LOOKUP_RESERVED_FOR_VIEWS }),
   staleBeforeMs = TMDB_FIRST_SAVED_AFTER_MS,
   isAllowed = lookupAllowed,
 } = {}) => {
@@ -123,7 +124,7 @@ export const createFallbackArtwork = ({
   }
 
   const refreshStale = ({ cached, title, settings }) => {
-    if (cached.stale && !recentlyFailed(settings.cacheKey)) startLookup({ title, ...settings, refreshingHit: Boolean(cached.sources?.length) })
+    if (cached.stale && !recentlyFailed(settings.cacheKey) && onlineLookupsAllowed()) startLookup({ title, ...settings, refreshingHit: Boolean(cached.sources?.length) })
   }
 
   const expiryOf = ({ found }) => (found?.retrySoon ? now() + tmdbRetryTtlMs : now() + hitTtlMs)
@@ -131,11 +132,15 @@ export const createFallbackArtwork = ({
   const referenceOf = ({ found }) => (found?.retrySoon ? `${TMDB_RETRY_REFERENCE}${found.reference || ''}` : found?.reference || null)
 
   const startLookup = ({ title, kind, apiKey, ids = null, cacheKey, refreshingHit = false }) => {
-    if (inflight.has(cacheKey)) return inflight.get(cacheKey)
+    const isBackground = isBackgroundWork()
+    if (inflight.has(cacheKey)) {
+      if (!isBackground) lookupLimiter.promote?.(cacheKey)
+      return inflight.get(cacheKey)
+    }
     const pending = lookupLimiter.run(async () => {
       const hints = await lookupHintsFor({ title, kind })
       return { hints, found: await lookUp({ title, kind, ids, hints, apiKey }) }
-    })
+    }, { isBackground, id: cacheKey })
       .then(async ({ hints, found }) => {
         const sources = found?.sources || []
         if (!sources.length && refreshingHit && !hints && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
@@ -159,7 +164,7 @@ export const createFallbackArtwork = ({
     const cached = await cachedSources({ title, settings })
     refreshStale({ cached, title, settings })
     if (cached.sources) return cached.sources
-    if (recentlyFailed(settings.cacheKey)) return []
+    if (recentlyFailed(settings.cacheKey) || !onlineLookupsAllowed()) return []
     if (!(await mayStart({ title, cacheKey: settings.cacheKey }))) return []
     return startLookup({ title, ...settings })
   }
@@ -171,6 +176,7 @@ export const createFallbackArtwork = ({
     refreshStale({ cached, title, settings })
     if (cached.sources) return { sources: cached.sources, pending: false, settled: true }
     if (recentlyFailed(settings.cacheKey)) return NO_ARTWORK
+    if (!onlineLookupsAllowed()) return PENDING_ARTWORK
     if (!(await mayStart({ title, cacheKey: settings.cacheKey }))) return NO_ARTWORK
     startLookup({ title, ...settings })
     return PENDING_ARTWORK
@@ -192,7 +198,9 @@ export const createFallbackArtwork = ({
     }
   }
 
-  return { sourcesFor, artworkFor, forget }
+  const backlog = () => lookupLimiter.size?.() ?? { background: 0 }
+
+  return { sourcesFor, artworkFor, forget, backlog }
 }
 
 export const createArtworkLookup = ({
@@ -474,6 +482,7 @@ const TMDB_RETRY_TTL_MS = 6 * 60 * 60 * 1000
 const TMDB_RETRY_REFERENCE = 'tmdb-retry:'
 const MISS_REFERENCE = 'miss:guide-network-v2'
 const LOOKUP_CONCURRENCY = 2
+const LOOKUP_RESERVED_FOR_VIEWS = 1
 const LOOKUP_MAX_QUEUE = 300
 const MAX_FAILED_KEYS = 2000
 const WIKIDATA_SEARCH_LIMIT = 10

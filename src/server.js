@@ -140,6 +140,12 @@ import {
   episodePictureOrder,
   publishStillsChange,
   pruneFrameGrabs,
+  isShowArtWarm,
+  onGuideLoaded,
+  isProgrammeArtWarm,
+  artLookupBacklog,
+  frameGrabsBusy,
+  thumbnailWarmShare,
 } from './epg.js'
 import {
   adScansRunning,
@@ -208,7 +214,7 @@ import { mountLibraryRoutes } from './library-routes.js'
 import { loadPlexWatchConfig, loadPlexWatchStatus, loadPlexWatchToggles, plexWatchSync, savePlexWatchToggles } from './plex-watch.js'
 import { mountPlexWatchRoutes } from './plex-watch-routes.js'
 import { artPoolImageRoutes, createArtPool, mountArtPoolRoutes, recordingArtImages, showPoolImages } from './art-pool.js'
-import { createImageResolver, imageRouteOf, serveImageRoute } from './image-routes.js'
+import { createImageResolver, createImageWarmCheck, imageRouteOf, serveImageRoute } from './image-routes.js'
 import { episodePictureOrderFrom, kindHintFrom, stillsAllowed } from './art-resolver.js'
 import { artFeed } from './art-feed.js'
 import { mountArtworkChoiceRoutes } from './artwork-choice-routes.js'
@@ -250,6 +256,9 @@ import { createKnownTitles, createLookupGate, libraryLookupTitles, useLookupGate
 import { pruneLookupCaches, startCachePruning } from './cache-prune.js'
 import { LOOP_STATS_PATH, loopMonitor, measureJob, trackRequests } from './event-loop-lag.js'
 import { activity } from './activity.js'
+import { createArtWarmer, createLoopPressure, startWarmSchedule } from './art-warmer.js'
+import { createWarmUrls, forYouUrlsOf } from './art-warm-plan.js'
+import { POLL_HEADER, VIEW_HEADER, VISIT_PATTERN_SETTING, createVisitPattern } from './visit-pattern.js'
 import { createJobRunStore } from './activity-store.js'
 import { ACTIVITY_STREAM_PATH, cachedFor, mountActivityRoutes, recordingRowsOf } from './activity-routes.js'
 import {
@@ -317,6 +326,7 @@ const MAX_SHOW_TITLE_LENGTH = 200
 const HERO_FOR_YOU_WAIT_MS = 5000
 const MAX_FOCUS_KEYS = 40
 const MAX_PERSON_IMAGE_SOURCE_LENGTH = 300
+const WARM_PAUSE_JOB_KINDS = ['sync', 'import', 'ads', 'guide-pictures']
 
 dns.setDefaultResultOrder('ipv4first')
 net.setDefaultAutoSelectFamilyAttemptTimeout(CONNECT_ATTEMPT_TIMEOUT_MS)
@@ -373,6 +383,21 @@ app.use('/api', (req, res, next) => {
 })
 
 app.use('/api', trackRequests({ skip: (req) => req.path === LOOP_STATS_PATH || req.path === ACTIVITY_STREAM_PATH }))
+
+const visitPattern = createVisitPattern({
+  load: () => getSetting(VISIT_PATTERN_SETTING),
+  save: (text) => setSetting(VISIT_PATTERN_SETTING, text),
+})
+
+app.use('/api', (req, res, next) => {
+  visitPattern.noteRequest({
+    method: req.method,
+    path: req.originalUrl.split('?')[0],
+    hidden: req.get(VIEW_HEADER) === 'hidden',
+    poll: req.get(POLL_HEADER) === '1',
+  })
+  next()
+})
 
 app.use(imageFocus.tap)
 
@@ -650,8 +675,8 @@ app.get('/api/epg/state', (req, res) => sendTvheadendRead({
   whenUnconfigured: unconfiguredRecordingState,
 }))
 
-const imageRouteFor = ({ path, widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf }) =>
-  imageRouteOf({ path, widthOf, loadImage, paramsOf, widthError: `w must be one of ${widths.join(', ')}` })
+const imageRouteFor = ({ path, widths, widthOf = (requested) => thumbnailWidthFrom({ requested, allowed: widths }), loadImage, paramsOf, isWarm }) =>
+  imageRouteOf({ path, widthOf, loadImage, paramsOf, isWarm, widthError: `w must be one of ${widths.join(', ')}` })
 
 const serveImage = (route) => serveImageRoute({ route, imageMaxAgeS: IMAGE_MAX_AGE_S })
 
@@ -667,6 +692,7 @@ const programmeImageRoute = imageRouteFor({
   widthOf: heroWidthFrom,
   loadImage: ({ eventId, width }) =>
     findProgrammeThumbnail({ eventId, width, fallbackSource: recordingImageSource(eventId) }),
+  isWarm: isProgrammeArtWarm,
 })
 
 const personImageRoute = imageRouteFor({
@@ -683,6 +709,7 @@ const showImageRoute = imageRouteFor({
   loadImage: ({ width, title, shape, kind }) => (shape === POSTER_SHAPE
     ? findShowPoster({ title, width, kind })
     : findShowThumbnail({ title, width, kind })),
+  isWarm: isShowArtWarm,
   paramsOf: ({ query }) => ({
     title: String(query.title || '').slice(0, MAX_SHOW_TITLE_LENGTH),
     shape: showImageShapeFrom(query.shape),
@@ -1353,8 +1380,11 @@ const resultWithin = ({ promise, ms }) => Promise.race([
   new Promise((resolve) => setTimeout(() => resolve(null), ms).unref()),
 ])
 
+const pictureRoutes = [programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })]
+const pictureResolver = createImageResolver(pictureRoutes)
+
 const heroPictureProof = createHeroPictureProof({
-  resolve: createImageResolver([programmeImageRoute, showImageRoute, ...artPoolImageRoutes({ artPool })]),
+  resolve: pictureResolver,
   noteServed: imageFocus.noteServed,
   focusStatusOf: imageFocus.focusStatusOf,
   onFocusWaitOver: () => homeHero.invalidate(),
@@ -1388,6 +1418,41 @@ const homeHero = createHomeHero({
   loadSaved: async () => JSON.parse((await getSetting(HERO_SNAPSHOT_SETTING)) || 'null'),
   save: createSnapshotSaver({ write: (text) => setSetting(HERO_SNAPSHOT_SETTING, text) }),
   timeZone: currentTimeZone,
+})
+
+const warmBusyReason = () => {
+  if (liveSessions.activeCount() + playbackSessions.activeCount() > 0) return 'playback'
+  if (adScansRunning() > 0) return 'ad scan'
+  const running = new Set(activity.snapshot().running.map((run) => run.kind))
+  return WARM_PAUSE_JOB_KINDS.find((kind) => running.has(kind)) ?? null
+}
+
+const loadWarmShows = async () => (await getLibraryShows()).shows ?? []
+
+const artWarmer = createArtWarmer({
+  urlsFor: createWarmUrls({
+    loadHero: () => homeHero.read(),
+    loadEpisodes: async () => [
+      ...(await getLibraryEpisodes({ state: 'in-progress', limit: 1 })).episodes,
+      ...(await getLibraryEpisodes({ state: 'new', limit: NEW_RECORDINGS_LIMIT })).episodes,
+    ],
+    loadOnNow: async () => (await getOnNowAll()).entries,
+    loadForYou: async () => ((await isForYouEnabled()) ? getForYou() : null),
+    loadShows: loadWarmShows,
+    loadGuideProgrammes: async () => [...((await getGuideSnapshot())?.programByEventId?.values() ?? [])],
+    loadUpcoming: async () => (await getRecordingState()).upcomingRecordings ?? [],
+    loadFrameRecordings: () => db('recordings').whereNull('purged_at').whereNull('image_path').whereNotNull('file_path')
+      .orderBy('imported_at', 'desc').select('recording_id'),
+  }),
+  isWarm: createImageWarmCheck(pictureRoutes),
+  warm: pictureResolver,
+  modeOf: () => visitPattern.modeAt(),
+  busyReason: warmBusyReason,
+  loopP99Ms: createLoopPressure().p99Ms,
+  cacheShare: thumbnailWarmShare,
+  lookupBacklog: artLookupBacklog,
+  framesBusy: frameGrabsBusy,
+  track: ({ kind, trigger }, work) => activity.track({ kind, trigger }, work),
 })
 
 app.get('/api/home/hero', async (req, res) => {
@@ -2486,6 +2551,7 @@ const server = app.listen(PORT, async () => {
   onSyncFinished(() => applyInProgressPositions({ watchedAtFor: watchedAtAfterPosition })
     .catch((err) => console.warn(`[positions] failed to apply in-progress positions: ${err.message}`)))
   onForYouResult(() => homeHero.invalidate())
+  watchArtWarmTriggers()
   startUserEvents().catch((err) => console.warn(`[events] failed to start: ${err.message}`))
   try {
     await startScheduler()
@@ -2494,6 +2560,19 @@ const server = app.listen(PORT, async () => {
   }
   startAutoImport()
 })
+
+const watchArtWarmTriggers = () => {
+  visitPattern.ready()
+  onForYouResult((result) => artWarmer.noteForYou(forYouUrlsOf(result)))
+  onGuideLoaded(() => artWarmer.request('guide'))
+  onSyncFinished(() => artWarmer.request('sync'))
+  activity.subscribe((run) => {
+    if (run.kind === 'plex-watch' && run.state === 'done') artWarmer.request('plex-scan')
+  })
+  stopArtWarmSchedule = startWarmSchedule({ request: artWarmer.request, nextWindowAt: visitPattern.nextWindowAt })
+}
+
+let stopArtWarmSchedule = () => {}
 
 let stopAutoImport = () => {}
 
@@ -2521,6 +2600,8 @@ const liveReaper = setInterval(() => {
 const shutdown = async () => {
   stopScheduler()
   stopAutoImport()
+  stopArtWarmSchedule()
+  artWarmer.stop()
   clearInterval(liveReaper)
   loopMonitor.stop()
   await liveSessions.stopAll().catch(() => {})

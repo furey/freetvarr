@@ -44,6 +44,8 @@ import {
   guideSourcesOf,
   stillsAllowed,
   isGuessedFilmKind,
+  kindHintFrom,
+  EPISODE_FRAME_FIRST,
   onlineArtworkOf,
   stampKindOf,
 } from './art-resolver.js'
@@ -877,6 +879,70 @@ export const findShowPoster = ({ title, width, kind = null } = {}) =>
 
 export const resolveShowArt = ({ title, kind = null, shape = null }) => artResolver.resolve({ title, kind, shape })
 
+export const isShowArtWarm = async ({ title, kind = null, shape = null, width }) => {
+  if (!title) return true
+  const peeked = await artResolver.peek({ title, kind: kindHintFrom(kind), shape })
+  if (peeked.due) return false
+  if (peeked.stage === FINAL_STAGE) return true
+  return thumbnailStore.has({ key: resolvedThumbnailKeyOf({ ...peeked, shape: shapeOf(shape) }), width })
+}
+
+export const isProgrammeArtWarm = async ({ eventId, width }) => {
+  const programme = await programmeImageSources({ eventId, fallbackSource: null })
+  if (!programme.title && !programme.own) return true
+  const ownOrigins = programme.own ? [programme.own, await guidePictures.originForSource(programme.own)] : []
+  const titleOrigins = programme.own ? [] : [await guidePictures.originFor(programme.title), ...programme.sameTitle]
+  const origins = [...ownOrigins, ...titleOrigins].filter(Boolean)
+  if (origins.some((origin) => thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }))) return true
+  return origins.length ? false : isShowArtWarm({ title: programme.title, kind: programme.kind, width })
+}
+
+export const isEpisodeArtWarm = async ({ recordingId, width, loadRow = recordingRowOf, episodeOrder = episodePictureOrder }) => {
+  const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
+  const title = row?.show_title_override ?? row?.title
+  if (!title) return true
+  const order = episodePictureOrderFrom(await episodeOrder().catch(() => undefined))
+  const titleState = await titleArtStateOf({ title, width })
+  if (!stillsAllowed(order)) return titleState !== COLD
+  const fileReady = !row.purged_at && isCompleteRow(row)
+  const frame = fileReady ? await frameGrabs.savedFrameOf(row.file_path) : { origin: null, none: true }
+  const frameState = frameStateOf({ frame, width })
+  const states = order === EPISODE_FRAME_FIRST ? [frameState, titleState] : [titleState, frameState]
+  for (const state of states) {
+    if (state === WARM) return true
+    if (state === COLD) return false
+  }
+  return true
+}
+
+export const isArtSourceWarm = ({ source, width }) => thumbnailStore.has({ key: showThumbnailKeyOf(source), width })
+
+const titleArtStateOf = async ({ title, width }) => {
+  const peeked = await artResolver.peek({ title, shape: LANDSCAPE_SHAPE })
+  if (peeked.due) return COLD
+  if (peeked.stage === FINAL_STAGE) return EMPTY
+  return thumbnailStore.has({ key: resolvedThumbnailKeyOf({ ...peeked, shape: LANDSCAPE_SHAPE }), width }) ? WARM : COLD
+}
+
+const frameStateOf = ({ frame, width }) => {
+  if (frame.origin) return thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin: frame.origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }) ? WARM : COLD
+  return frame.none ? EMPTY : COLD
+}
+
+const WARM = 'warm'
+const COLD = 'cold'
+const EMPTY = 'empty'
+
+export const artLookupBacklog = () => fallbackArtwork.backlog().background + showArtwork.backlog().background
+
+export const frameGrabsBusy = () => frameGrabs.queuedCount() > 0
+
+export const thumbnailWarmShare = () => thumbnailStore.warmShare()
+
+const shapeOf = (shape) => (shape === POSTER_SHAPE ? POSTER_SHAPE : LANDSCAPE_SHAPE)
+
+const resolvedThumbnailKeyOf = ({ origin, transform, shape }) => `art:${shape}:${transform}:${origin}`
+
 export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
 
 export const artworkOriginImage = ({ origin, kind, width }) => thumbnailStore.thumbnailFor({
@@ -1010,7 +1076,7 @@ export const publishWhenRendered = ({ rendering, title, shape, publish = artFeed
 }).catch(() => {})
 
 const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) => thumbnailStore.thumbnailFor({
-  key: `art:${shape}:${transform}:${origin}`,
+  key: resolvedThumbnailKeyOf({ origin, transform, shape }),
   width,
   loadOriginal: () => resolvedOriginalOf({ origin, transform, shape }),
 }).catch(() => null)
@@ -1204,8 +1270,10 @@ const artworkHintsFor = async (title) => {
   return library ? { ...guide, inLibrary: true } : guide
 }
 
+const showThumbnailKeyOf = (source) => `show-1080:${source}`
+
 const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
-  key: `show-1080:${source}`,
+  key: showThumbnailKeyOf(source),
   width,
   loadOriginal: () => showArtOriginal(source),
 })
