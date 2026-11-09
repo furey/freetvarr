@@ -38,7 +38,7 @@ test('a hit is cached for the hit TTL and served without another lookup', async 
   assert.deepEqual(await artwork.sourcesFor('Cool Runnings'), ['https://upload.wikimedia.org/a.jpg'])
   assert.equal(cache.rows.get('wide-v1:open:cool runnings').expiresAt, 1100)
   clock.ms = 1099
-  assert.deepEqual(await artwork.artworkFor('Cool Runnings'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Cool Runnings'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false, settled: true })
   assert.equal(calls, 1)
 })
 
@@ -163,7 +163,7 @@ test('artworkFor answers pending at once and shares one lookup between callers',
 test('nothing is looked up when lookups are off', async () => {
   let calls = 0
   const { artwork } = fallbackWith({ enabled: false, lookUp: async () => { calls += 1 } })
-  assert.deepEqual(await artwork.artworkFor('Anything'), { sources: [], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Anything'), { sources: [], pending: false, off: true })
   assert.deepEqual(await artwork.sourcesFor('Anything'), [])
   assert.equal(calls, 0)
 })
@@ -316,7 +316,7 @@ test('an expired hit keeps answering while the refresh fails, until the data is 
   assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://image.tmdb.org/t/p/w1280/a.jpg'])
   down = true
   clock.ms = 1101
-  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: ['https://image.tmdb.org/t/p/w1280/a.jpg'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: ['https://image.tmdb.org/t/p/w1280/a.jpg'], pending: false, settled: true })
   await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 2)
   assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://image.tmdb.org/t/p/w1280/a.jpg'])
@@ -419,7 +419,7 @@ test('a refresh with no guide details does not wipe a cached picture', async () 
   assert.deepEqual(await artwork.sourcesFor('Fisk'), ['https://upload.wikimedia.org/a.jpg'])
   hinted = false
   clock.ms = 1101
-  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Fisk'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false, settled: true })
   await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 2)
   assert.equal(writes.length, 1)
@@ -507,7 +507,7 @@ test('a Wikipedia picture kept because TMDB failed counts as saved now, so it is
   })
   await artwork.sourcesFor('Training Day')
   clock.ms = 1060
-  assert.deepEqual(await artwork.artworkFor('Training Day'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false })
+  assert.deepEqual(await artwork.artworkFor('Training Day'), { sources: ['https://upload.wikimedia.org/a.jpg'], pending: false, settled: true })
   await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(calls, 1)
 })

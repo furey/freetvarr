@@ -518,7 +518,7 @@ test('onlineArtworkOf: a guessed film with no film match asks again as a series 
     lookUpSeries: async () => { asked.push('series'); return series },
     isGuessedFilm: async () => guessed,
   })
-  const none = { sources: [], pending: false }
+  const none = { sources: [], pending: false, settled: true }
   const backdrop = { sources: ['https://image.tmdb.org/t/p/original/esc-asia.jpg'], pending: false }
   assert.deepEqual(await onlineArtworkOf({ kind: 'movie', ...lookUps({ film: none, series: backdrop, guessed: true }) }), backdrop)
   assert.deepEqual(asked, ['film', 'series'])
@@ -540,7 +540,7 @@ test('a guessed film resolves to the series picture the series lookup finds, and
     stages: {
       online: ({ kind }) => onlineArtworkOf({
         kind,
-        lookUpFilm: async () => ({ sources: [], pending: false }),
+        lookUpFilm: async () => ({ sources: [], pending: false, settled: true }),
         lookUpSeries: async () => ({ sources: ['https://tmdb/esc-asia-backdrop.jpg'], pending: false }),
         isGuessedFilm: async () => isGuessedFilmKind({ libraryKinds: [] }),
       }),
@@ -595,4 +595,34 @@ test('a provisional picture is served with no-cache, a final one for a day', asy
   const settled = recorder()
   await serve({ image, pending: false })({ params: {}, query: {} }, settled)
   assert.equal(settled.headers['cache-control'], 'public, max-age=86400')
+})
+
+test('onlineArtworkOf: a film lookup that was refused or failed recently waits; the lookup switch off keeps the film answer', async () => {
+  const asked = []
+  const lookUps = (film) => ({
+    lookUpFilm: async () => film,
+    lookUpSeries: async () => { asked.push('series'); return { sources: ['https://tmdb/series.jpg'], pending: false } },
+    isGuessedFilm: async () => true,
+  })
+  assert.deepEqual(await onlineArtworkOf({ kind: 'movie', ...lookUps({ sources: [], pending: false }) }), { sources: [], pending: true })
+  const off = { sources: [], pending: false, off: true }
+  assert.deepEqual(await onlineArtworkOf({ kind: 'movie', ...lookUps(off) }), off)
+  assert.deepEqual(asked, [])
+})
+
+test('a guessed film whose film lookup has not settled saves nothing, so a real film never keeps series art', async () => {
+  const { resolver, store } = resolverWith({
+    guideKind: 'movie',
+    stages: {
+      online: ({ kind }) => onlineArtworkOf({
+        kind,
+        lookUpFilm: async () => ({ sources: [], pending: false }),
+        lookUpSeries: async () => ({ sources: ['https://tmdb/fargo-series.jpg'], pending: false }),
+        isGuessedFilm: async () => true,
+      }),
+    },
+    sizes: { 'https://tmdb/fargo-series.jpg': WIDE },
+  })
+  assert.equal((await resolver.resolve({ title: 'Fargo' })).pending, true)
+  assert.equal(store.rows.size, 0)
 })

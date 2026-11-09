@@ -45,7 +45,7 @@ import {
 import { createFrameGrabs, isFrameOrigin } from './frame-grabs.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
-import { createLibraryTitles } from './library-titles.js'
+import { createLibraryTitles, isCompleteRow } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
 import { artworkKindOf, guideKindsByTitle, programmeHintsByTitle } from './artwork-match.js'
 import { loadTitleGenres, rememberTvmazeShow } from './genre-enrichment.js'
@@ -824,11 +824,12 @@ export const findEpisodeThumbnail = async ({ recordingId, width, loadRow = recor
   const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
   const title = row?.show_title_override ?? row?.title
   if (!title) return NO_IMAGE
+  const fileReady = !row.purged_at && isCompleteRow(row)
   const resolution = await artResolver.resolve({
     title,
     recordingId,
     episodeOrder: await episodeOrder().catch(() => undefined),
-    episodeFile: { filePath: row.purged_at ? null : row.file_path, programmeDurationS: row.duration_s ?? null },
+    episodeFile: { filePath: fileReady ? row.file_path : null, programmeDurationS: row.duration_s ?? null, expectedBytes: row.size ?? null },
   })
   return imageOfResolution({ resolution, title, width, shape: LANDSCAPE_SHAPE })
 }

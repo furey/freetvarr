@@ -166,10 +166,10 @@ export const createFallbackArtwork = ({
 
   const artworkFor = async (title, { kind = null } = {}) => {
     const settings = await settingsFor({ title, kind })
-    if (!settings) return NO_ARTWORK
+    if (!settings) return LOOKUP_OFF
     const cached = await cachedSources({ title, settings })
     refreshStale({ cached, title, settings })
-    if (cached.sources) return { sources: cached.sources, pending: false }
+    if (cached.sources) return { sources: cached.sources, pending: false, settled: true }
     if (recentlyFailed(settings.cacheKey)) return NO_ARTWORK
     if (!(await mayStart({ title, cacheKey: settings.cacheKey }))) return NO_ARTWORK
     startLookup({ title, ...settings })
@@ -463,6 +463,7 @@ export const artworkClient = createOutboundClient({
 
 const NOT_CACHED = { stale: false, sources: null }
 const NO_ARTWORK = { sources: [], pending: false }
+const LOOKUP_OFF = { sources: [], pending: false, off: true }
 const PENDING_ARTWORK = { sources: [], pending: true }
 const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000

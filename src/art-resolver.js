@@ -70,8 +70,9 @@ export const isGuessedFilmKind = ({ libraryKinds = [], override = null }) =>
 export const onlineArtworkOf = async ({ kind, lookUpFilm, lookUpSeries, isGuessedFilm }) => {
   if (kind !== MOVIE_KIND) return lookUpSeries()
   const film = await lookUpFilm()
-  if (film?.sources?.length || film?.pending) return film
-  return (await isGuessedFilm()) ? lookUpSeries() : film
+  if (film?.sources?.length || film?.pending || film?.off) return film
+  if (!(await isGuessedFilm())) return film
+  return film?.settled ? lookUpSeries() : UNSETTLED_FILM_LOOKUP
 }
 
 export const resolutionKeyOf = ({ titleKey, kind, shape }) => `${kind}|${shape}|${titleKey}`
@@ -389,6 +390,7 @@ const databaseStore = {
 }
 
 const NOT_MOVIE_OVERRIDE = 'not-movie'
+const UNSETTLED_FILM_LOOKUP = { sources: [], pending: true }
 const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OFF_KIND }
 const LOCAL_STAGES = ['plex', 'recording', 'guide']
 const SETTLED_STAGES = new Set(['derived', FINAL_STAGE])
