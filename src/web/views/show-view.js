@@ -41,7 +41,7 @@ import { knownShowTitleOf } from '/show-key.js'
 import { createResponseOrder } from '/response-order.js'
 import { AD_JOB_POLL_MS, hasAdJobRunning } from '/ad-confirm.js'
 import { createPoll } from '/poll.js'
-import { rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
+import { artResolvedTickOf, rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
 import { artKindHintOf, showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
@@ -475,6 +475,11 @@ export const ShowView = {
     watch([credits, creditsAnswered, show], settleAboutSynopsis)
     watch(selecting, (on) => document.body.classList.toggle('library-selecting', on))
     watch(heroSrc, () => { heroFailed.value = false })
+    const heroResolvedTick = computed(() => (show.value ? artResolvedTickOf({ title: show.value.title }) : 0))
+    watch(heroResolvedTick, () => {
+      heroFailed.value = false
+      failedImages.value = {}
+    })
     watch(key, () => {
       show.value = cachedDetails.get(key.value) || null
       loaded.value = Boolean(show.value)

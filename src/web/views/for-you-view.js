@@ -15,6 +15,7 @@ import {
   sectionsOf,
 } from '/for-you.js'
 import { artFallbackStyle } from '/art-fallback.js'
+import { artResolvedTickOf, stampedShowImage } from '/shared/artwork-stamps.js'
 import { api, loadedBuild } from '/shared/api.js'
 import { forYouHiddenKeys, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { recordingChangeTick } from '/shared/recording-now.js'
@@ -97,7 +98,7 @@ export const ForYouView = {
             <button v-for="show in pickable" :key="show.seriesKey" type="button" class="for-you-pick"
               :aria-pressed="String(picked.has(show.seriesKey))" @click="togglePick(show.seriesKey)">
               <span class="ui-poster-art ui-art-fallback for-you-pick-art" :style="fallbackStyleOf(show.title)">
-                <img v-if="show.image && !failedArt[show.seriesKey]" :src="show.image" alt="" loading="lazy" @error="markFailed(show.seriesKey)" />
+                <img v-if="show.image && !failedArt[pickArtKeyOf(show)]" :src="stampedShowImage(show.image)" alt="" loading="lazy" @error="markFailed(pickArtKeyOf(show))" />
                 <span class="ui-art-title for-you-pick-title">{{ show.title }}</span>
                 <span class="for-you-pick-check" aria-hidden="true"><for-you-icon name="check" /></span>
               </span>
@@ -243,13 +244,14 @@ export const ForYouView = {
 
     const fallbackStyleOf = (title) => artFallbackStyle(title)
     const markFailed = (key) => { failedArt.value = { ...failedArt.value, [key]: true } }
+    const pickArtKeyOf = (show) => `${show.seriesKey}|${stampedShowImage(show.image)}|${artResolvedTickOf({ url: show.image, title: show.title, shape: 'poster' })}`
 
     onMounted(load)
     watch(recordingChangeTick, load)
 
     return {
       payload, loaded, unavailable, sections, intro, chooserShown, pickable, picked, doneLabel, savingPicks, failedArt, refreshFailed, picksError,
-      ctl, togglePick, skipChooser, savePicks, fallbackStyleOf, markFailed, suggestionsHref: SUGGESTIONS_HREF,
+      ctl, togglePick, skipChooser, savePicks, fallbackStyleOf, markFailed, pickArtKeyOf, stampedShowImage, suggestionsHref: SUGGESTIONS_HREF,
       genreLookup,
     }
   },

@@ -2,6 +2,8 @@ import { JOB_KINDS } from './activity.js'
 
 export const ACTIVITY_STREAM_PATH = '/activity/stream'
 export const ACTIVITY_PUSH_MS = 500
+export const ART_PUSH_MS = 2000
+export const STREAM_TOPICS = ['jobs', 'art']
 export const ACTIVITY_HEARTBEAT_MS = 15_000
 export const SERVER_FACTS_TTL_MS = 15_000
 
@@ -12,7 +14,9 @@ export const mountActivityRoutes = ({
   loadRecordings = async () => [],
   loadServer = async () => ({}),
   pushMs = ACTIVITY_PUSH_MS,
+  artPushMs = ART_PUSH_MS,
   heartbeatMs = ACTIVITY_HEARTBEAT_MS,
+  artFeed = null,
 }) => {
   app.get('/api/activity', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
@@ -39,15 +43,15 @@ export const mountActivityRoutes = ({
       res.write(text)
       res.flush?.()
     }
-    const push = () => send(`event: jobs\ndata: ${JSON.stringify(jobsPayloadOf(activity))}\n\n`)
-    const pushLater = throttle({ run: push, waitMs: pushMs })
-    const unsubscribe = activity.subscribe(pushLater.call)
+    const topics = streamTopicsOf(req.query.topics)
+    const stops = [
+      topics.has('jobs') && streamJobs({ activity, send, pushMs }),
+      topics.has('art') && artFeed && streamArt({ artFeed, send, since: req.query.since, pushMs: artPushMs }),
+    ].filter(Boolean)
     const heartbeat = setInterval(() => send(': ping\n\n'), heartbeatMs)
     heartbeat.unref?.()
-    push()
     req.on('close', () => {
-      unsubscribe()
-      pushLater.cancel()
+      stops.forEach((stop) => stop())
       clearInterval(heartbeat)
     })
   })
@@ -58,6 +62,39 @@ export const mountActivityRoutes = ({
     if (!run) return res.status(404).json({ error: 'That job is no longer in the activity list.' })
     res.json(run)
   })
+}
+
+export const streamTopicsOf = (value) => {
+  if (value == null || value === '') return new Set(['jobs'])
+  return new Set(String(value).split(',').filter((topic) => STREAM_TOPICS.includes(topic)))
+}
+
+const streamJobs = ({ activity, send, pushMs }) => {
+  const push = () => send(`event: jobs\ndata: ${JSON.stringify(jobsPayloadOf(activity))}\n\n`)
+  const pushLater = throttle({ run: push, waitMs: pushMs })
+  const unsubscribe = activity.subscribe(pushLater.call)
+  push()
+  return () => {
+    unsubscribe()
+    pushLater.cancel()
+  }
+}
+
+const streamArt = ({ artFeed, send, since, pushMs }) => {
+  let cursor = since ? String(since) : artFeed.cursor()
+  const push = ({ always = false } = {}) => {
+    const batch = artFeed.since(cursor)
+    cursor = batch.cursor
+    if (!always && !batch.reset && !batch.stamps.length) return
+    send(`event: art\ndata: ${JSON.stringify(batch)}\n\n`)
+  }
+  const pushLater = batchFor({ run: push, waitMs: pushMs })
+  const unsubscribe = artFeed.subscribe(pushLater.call)
+  push({ always: true })
+  return () => {
+    unsubscribe()
+    pushLater.cancel()
+  }
 }
 
 export const jobsPayloadOf = (activity) => {
@@ -117,6 +154,23 @@ const throttle = ({ run, waitMs }) => {
     },
     cancel: () => {
       if (timer) clearTimeout(timer)
+      timer = null
+    },
+  }
+}
+
+const batchFor = ({ run, waitMs }) => {
+  let timer = null
+  return {
+    call: () => {
+      if (timer) return
+      timer = setTimeout(() => {
+        timer = null
+        run()
+      }, waitMs)
+    },
+    cancel: () => {
+      clearTimeout(timer)
       timer = null
     },
   }

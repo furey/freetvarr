@@ -4,7 +4,8 @@ import express from 'express'
 import knexFactory from 'knex'
 
 import { createActivity } from '../src/activity.js'
-import { busyCountOf, cachedFor, mountActivityRoutes, recordingRowsOf } from '../src/activity-routes.js'
+import { busyCountOf, cachedFor, mountActivityRoutes, recordingRowsOf, streamTopicsOf } from '../src/activity-routes.js'
+import { createArtFeed } from '../src/art-feed.js'
 import { createJobRunStore } from '../src/activity-store.js'
 import { up as createJobRuns } from '../migrations/0032_job_runs.js'
 
@@ -120,4 +121,76 @@ test('the job run store saves, loads, and prunes failed runs', async () => {
   await store.save({ ...run, id: 'guide-2', kind: 'guide', finishedAt: 700 }, { replaceKind: true })
   assert.deepEqual((await store.load({ since: 0 })).map((row) => row.id), ['health-1', 'guide-2'])
   await database.destroy()
+})
+
+const openStream = async ({ base, query }) => {
+  const controller = new AbortController()
+  const res = await fetch(`${base}/api/activity/stream?${query}`, { signal: controller.signal })
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  const events = (name) => text.split('\n\n')
+    .filter((block) => block.startsWith(`event: ${name}\n`))
+    .map((block) => JSON.parse(block.split('\n')[1].replace(/^data: /, '')))
+  const waitFor = async (name, count) => {
+    while (events(name).length < count) text += decoder.decode((await reader.read()).value)
+    return events(name)
+  }
+  return { events, waitFor, close: () => controller.abort() }
+}
+
+test('streamTopicsOf: jobs by default, and only known topics', () => {
+  assert.deepEqual([...streamTopicsOf(undefined)], ['jobs'])
+  assert.deepEqual([...streamTopicsOf('art,jobs,nope')], ['art', 'jobs'])
+  assert.deepEqual([...streamTopicsOf('art')], ['art'])
+})
+
+test('the art topic sends a cursor at once, then batches resolved pictures with no jobs events', async () => {
+  const artFeed = createArtFeed({ bootId: 'b00t' })
+  const { server, base } = await serve(createActivity(), { artFeed, artPushMs: 60 })
+  const stream = await openStream({ base, query: 'topics=art' })
+  try {
+    const [first] = await stream.waitFor('art', 1)
+    assert.deepEqual(first, { cursor: 'b00t.0', reset: false, stamps: [] })
+    artFeed.publish({ key: 'bluey', kind: 'poster', stamp: null })
+    artFeed.publish({ key: 'bluey', kind: 'poster', stamp: 's2' })
+    artFeed.publish({ key: 'heat', kind: 'background', stamp: null })
+    const [, batch] = await stream.waitFor('art', 2)
+    assert.deepEqual(batch, {
+      cursor: 'b00t.3',
+      reset: false,
+      stamps: [{ key: 'bluey', kind: 'poster', stamp: 's2' }, { key: 'heat', kind: 'background', stamp: null }],
+    })
+    assert.equal(stream.events('jobs').length, 0)
+  } finally {
+    stream.close()
+    server.close()
+  }
+})
+
+test('a reconnect with since gets what it missed; an unknown or too old cursor gets a reset', async () => {
+  const artFeed = createArtFeed({ bootId: 'b00t', size: 2 })
+  const { server, base } = await serve(createActivity(), { artFeed, artPushMs: 20 })
+  artFeed.publish({ key: 'a', kind: 'poster', stamp: null })
+  artFeed.publish({ key: 'b', kind: 'poster', stamp: null })
+  artFeed.publish({ key: 'c', kind: 'background', stamp: 'x' })
+  try {
+    const missed = await openStream({ base, query: 'topics=art,jobs&since=b00t.1' })
+    const [catchUp] = await missed.waitFor('art', 1)
+    missed.close()
+    assert.deepEqual(catchUp, {
+      cursor: 'b00t.3',
+      reset: false,
+      stamps: [{ key: 'b', kind: 'poster', stamp: null }, { key: 'c', kind: 'background', stamp: 'x' }],
+    })
+    assert.equal((await missed.waitFor('jobs', 1)).length, 1)
+    for (const since of ['b00t.0', 'other.3', 'b00t.9', 'junk']) {
+      const stream = await openStream({ base, query: `topics=art&since=${since}` })
+      const [first] = await stream.waitFor('art', 1)
+      stream.close()
+      assert.deepEqual(first, { cursor: 'b00t.3', reset: true, stamps: [] }, since)
+    }
+  } finally {
+    server.close()
+  }
 })

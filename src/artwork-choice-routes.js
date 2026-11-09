@@ -17,12 +17,22 @@ import {
   artworkUploads,
   prepareUpload,
 } from './artwork-uploads.js'
-import { artworkOriginImage, automaticShowSources } from './epg.js'
+import { artworkOriginImage, automaticShowSources, resolvedArtStamps } from './epg.js'
 import { storedTmdbKey } from './fallback-artwork.js'
 import { PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
 import { kindOf } from './library.js'
 import { getPlexConnection } from './plex.js'
 import { IMAGE_RESPONSE_CSP, rasterTypeOf } from './raster-type.js'
+
+export const mergedStampsOf = ({ chosen = new Map(), resolved = new Map() }) => {
+  const merged = {}
+  for (const key of new Set([...resolved.keys(), ...chosen.keys()])) {
+    const background = chosen.get(key)?.background || resolved.get(key)?.background || null
+    const poster = chosen.get(key)?.poster || resolved.get(key)?.poster || null
+    if (background || poster) merged[key] = { background, poster }
+  }
+  return merged
+}
 
 export const mountArtworkChoiceRoutes = ({
   app,
@@ -35,6 +45,7 @@ export const mountArtworkChoiceRoutes = ({
   loadImage = artworkOriginImage,
   uploads = artworkUploads,
   prepare = prepareUpload,
+  resolvedStamps = resolvedArtStamps,
 }) => {
   const showKeyFrom = (req, res) => {
     if (isShowKey(req.params.key)) return req.params.key
@@ -70,7 +81,11 @@ export const mountArtworkChoiceRoutes = ({
 
   app.get('/api/library/artwork-stamps', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    res.json({ stamps: Object.fromEntries(await choices.stampsByKey().catch(() => new Map())) })
+    const [chosen, resolved] = await Promise.all([
+      choices.stampsByKey().catch(() => new Map()),
+      resolvedStamps().catch(() => new Map()),
+    ])
+    res.json({ stamps: mergedStampsOf({ chosen, resolved }) })
   })
 
   app.get('/api/library/shows/:key/artwork-candidates', readLimiter, async (req, res) => {

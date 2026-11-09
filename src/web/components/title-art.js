@@ -1,7 +1,8 @@
 import { ref, computed, watch, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { primeImageFocus, showLoadedImage } from '/shared/image-focus.js'
 import { ART_FINAL, ART_PROBE_CANCELLED, ART_PROBE_LOADED, ART_STATE_HEADER, artFallbackStyle, artProbeStateOf } from '/art-fallback.js'
-import { stampedShowImage } from '/shared/artwork-stamps.js'
+import { artResolvedTickOf, stampedShowImage } from '/shared/artwork-stamps.js'
+import { artStreamConnected, artStreamResets } from '/shared/art-stream.js'
 
 const RETRY_DELAYS_MS = [4000, 12000, 30000]
 const artStateProbe = (url) => {
@@ -10,6 +11,16 @@ const artStateProbe = (url) => {
     .then((response) => artProbeStateOf({ ok: response.ok, state: response.headers.get(ART_STATE_HEADER) }))
     .catch(() => (controller.signal.aborted ? ART_PROBE_CANCELLED : 'pending'))
   return { done, cancel: () => controller.abort() }
+}
+
+const preloadedPicture = (url) => {
+  const image = new Image()
+  const done = new Promise((resolve) => {
+    image.onload = () => resolve(true)
+    image.onerror = () => resolve(false)
+  })
+  image.src = url
+  return { done, cancel: () => { image.src = '' } }
 }
 
 export const TitleArt = {
@@ -28,23 +39,38 @@ export const TitleArt = {
   `,
   setup(props) {
     const primarySrc = computed(() => stampedShowImage(props.src))
+    const resolvedTick = computed(() => artResolvedTickOf({ url: props.src, title: props.title, shape: props.shape }))
     const primaryFailed = ref(false)
     const fallbackFailed = ref(false)
     const showsFallback = computed(() => primaryFailed.value && Boolean(props.fallbackSrc) && !fallbackFailed.value)
     const shownSrc = computed(() => (showsFallback.value ? stampedShowImage(props.fallbackSrc) : primarySrc.value))
     const failed = computed(() => primaryFailed.value && !showsFallback.value)
     const attempt = ref(0)
+    let tickAtAttempt = resolvedTick.value
+    let finalSeen = false
+    let retryIndex = 0
     let retryTimer = null
     let probe = null
+    let preload = null
     const cancelRetry = () => {
       clearTimeout(retryTimer)
       retryTimer = null
       probe?.cancel()
       probe = null
     }
+    const cancelPreload = () => {
+      preload?.cancel()
+      preload = null
+    }
+    const showAgain = () => {
+      cancelRetry()
+      tickAtAttempt = resolvedTick.value
+      attempt.value += 1
+      primaryFailed.value = false
+    }
     const retryLater = () => {
-      const delay = RETRY_DELAYS_MS[attempt.value]
-      if (delay == null) return
+      const delay = RETRY_DELAYS_MS[retryIndex]
+      if (delay == null || finalSeen || artStreamConnected.value || retryTimer || probe) return
       const url = primarySrc.value
       retryTimer = setTimeout(async () => {
         retryTimer = null
@@ -52,10 +78,21 @@ export const TitleArt = {
         const state = await probe.done
         probe = null
         if (primarySrc.value !== url || state === ART_PROBE_CANCELLED) return
-        attempt.value += 1
-        if (state === ART_PROBE_LOADED) primaryFailed.value = false
-        else if (state !== ART_FINAL) retryLater()
+        retryIndex += 1
+        if (state === ART_PROBE_LOADED) showAgain()
+        else if (state === ART_FINAL) finalSeen = true
+        else retryLater()
       }, delay)
+    }
+    const showWhenLoaded = async () => {
+      if (!primaryFailed.value || preload) return
+      const url = primarySrc.value
+      preload = preloadedPicture(url)
+      const loaded = await preload.done
+      preload = null
+      if (primarySrc.value !== url || !primaryFailed.value) return
+      if (loaded) showAgain()
+      else retryLater()
     }
     const onError = () => {
       if (showsFallback.value) {
@@ -63,17 +100,33 @@ export const TitleArt = {
         return
       }
       primaryFailed.value = true
-      if (!retryTimer && !probe) retryLater()
+      if (resolvedTick.value !== tickAtAttempt) showWhenLoaded()
+      else retryLater()
     }
     watch(primarySrc, () => {
       cancelRetry()
-      attempt.value = 0
+      cancelPreload()
+      finalSeen = false
+      retryIndex = 0
+      tickAtAttempt = resolvedTick.value
       primaryFailed.value = false
+    })
+    watch(resolvedTick, () => {
+      finalSeen = false
+      showWhenLoaded()
+    })
+    watch(artStreamResets, () => { if (!finalSeen) showWhenLoaded() })
+    watch(artStreamConnected, (connected) => {
+      if (connected) cancelRetry()
+      else if (primaryFailed.value) retryLater()
     })
     watch(() => props.fallbackSrc, () => { fallbackFailed.value = false })
     watch(shownSrc, (url) => { if (url) primeImageFocus(url) }, { immediate: true })
     const showIfLoaded = (img) => { if (img) showLoadedImage(img) }
-    onUnmounted(cancelRetry)
+    onUnmounted(() => {
+      cancelRetry()
+      cancelPreload()
+    })
     return { shownSrc, failed, attempt, onError, showIfLoaded, fallbackStyle: computed(() => artFallbackStyle(props.title)) }
   },
 }

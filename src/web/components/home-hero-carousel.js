@@ -14,6 +14,7 @@ import {
 import { adoptedOrderOf, sameKeySet } from '/hero-remix.js'
 import { focusEntriesOf, focusKeyOf } from '/image-focus.js'
 import { rememberImageFocus } from '/shared/image-focus.js'
+import { artResolvedTickOf, stampedShowImage, stampedSrcset } from '/shared/artwork-stamps.js'
 import { HERO_SIZES } from '/home-hero.js'
 import { overlayStack } from '/overlay-stack.js'
 import {
@@ -81,8 +82,8 @@ export const HomeHeroCarousel = {
             :style="slideStyle(i)" :ref="(el) => setSlideRef(el, slide.key)">
             <div :class="['hero-slide-backdrop', { 'ui-art-fallback': failedArt[artKeyOf(slide)] }]"
               :style="failedArt[artKeyOf(slide)] ? fallbackStyleOf(slide) : null">
-              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="slide.art.image"
-                :srcset="slide.art.srcset" :sizes="heroSizes" alt="" decoding="async"
+              <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="artSrcOf(slide)"
+                :srcset="stampedSrcset(slide.art.srcset)" :sizes="heroSizes" alt="" decoding="async"
                 :fetchpriority="i === 0 ? 'high' : null" :loading="isNearActive(i) ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
@@ -513,7 +514,8 @@ export const HomeHeroCarousel = {
 
     const emitAction = (slide, button) => emit('action', { slide, action: button.action })
     const fallbackStyleOf = (slide) => artFallbackStyle(slide.art.title)
-    const artKeyOf = (slide) => `${slide.key}|${slide.art.image}`
+    const artSrcOf = (slide) => stampedShowImage(slide.art.image)
+    const artKeyOf = (slide) => `${slide.key}|${artSrcOf(slide)}|${artResolvedTickOf({ url: slide.art.image, title: slide.art.title })}`
     const markArtFailed = (slide) => {
       failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true }
     }
@@ -522,7 +524,7 @@ export const HomeHeroCarousel = {
       heroSizes: HERO_SIZES,
       rotation, stage, failedArt, leavingKey, isNearActive, setSlideRef, orderedSlides, advancing, pauseShown, pauseButton, dispatch, goTo, onDotKey,
       onPointerOver, onPointerLeave, onFocusIn, onFocusOut, onPointerDown, onPointerMove, onPointerUp, slideStyle, slideId,
-      setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, markArtFailed,
+      setFillRef, setDotRef, emitAction, fallbackStyleOf, artKeyOf, artSrcOf, stampedSrcset, markArtFailed,
     }
   },
 }

@@ -1,3 +1,5 @@
+import { unstampedUrl } from './artwork-stamps.js'
+
 export const LIVE_CACHE = {
   key: 'freetvarr.live',
   version: 1,
@@ -34,10 +36,11 @@ export const FOR_YOU_CACHE = {
 
 export const LIBRARY_CACHE = {
   key: 'freetvarr.libraryShows',
-  version: 1,
+  version: 2,
   maxAgeMs: 24 * 60 * 60 * 1000,
   maxChars: 400_000,
   isValid: (library) => isPlainObject(library) && Array.isArray(library.shows),
+  stored: (library) => ({ ...library, shows: library.shows.map(unstampedShowOf) }),
   freshen: ({ value, nowMs }) => ({ ...value, shows: value.shows.map((show) => withoutEndedRecordingOf({ show, nowMs })) }),
 }
 
@@ -67,7 +70,7 @@ export const readViewCache = ({ storage, spec, build, nowMs = Date.now() }) => {
 
 export const writeViewCache = ({ storage, spec, build, value, nowMs = Date.now() }) => {
   try {
-    const text = JSON.stringify({ version: spec.version, build, savedAt: nowMs, value })
+    const text = JSON.stringify({ version: spec.version, build, savedAt: nowMs, value: spec.stored?.(value) ?? value })
     if (text.length > spec.maxChars) return storage.removeItem(spec.key)
     storage.setItem(spec.key, text)
   } catch {
@@ -100,6 +103,10 @@ export const withoutEndedRecordingOf = ({ show, nowMs }) => {
   if (!Number.isFinite(stop) || stop > nowMs) return show
   return { ...show, recordingNow: false, inProgress: { ...item, phase: 'finishing' } }
 }
+
+export const unstampedShowOf = (show) => (isPlainObject(show)
+  ? { ...show, poster: unstampedUrl(show.poster), image: unstampedUrl(show.image) }
+  : show)
 
 export const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 

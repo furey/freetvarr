@@ -32,6 +32,7 @@ import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeO
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
 import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackImageSource, storedTmdbKey } from './fallback-artwork.js'
 import { FINAL_STAGE, LANDSCAPE_SHAPE, canonicalKindOf, createArtResolver, guideKindsOf } from './art-resolver.js'
+import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
 import { createLibraryTitles } from './library-titles.js'
 import { isPersonImageSource } from './programme-credits.js'
@@ -1212,7 +1213,9 @@ const artResolver = createArtResolver({
   kindOf: canonicalKindFor,
   loadImage: rawImageOrErrorOf,
   settingsKeyOf: onlineSettingsKey,
+  onResolved: artFeed.publish,
 })
+export const resolvedArtStamps = () => artResolver.stampsByKey()
 const guideSearchFor = createGuideSearchCache()
 export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title), artResolver.forget(title)])
 const thumbnailStore = createThumbnailStore({
