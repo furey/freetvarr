@@ -1184,7 +1184,7 @@ flowchart TD
   kind -- film --> onlineFilm
 ```
 
-A Plex or recording picture ends the chain, so the title gets no TVmaze or online request.
+A Plex or recording picture that loads in the asked shape ends the chain, so the title gets no TVmaze or online request. Plex pictures come through the Plex photo transcoder at most `1920` px (`plexResizedSourceOf` in `src/epg.js`), so originals over the `4 MB` image limit still load.
 
 | Source             | Code                                                 | Rule                                                                                                                                                                                                                                |
 | ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

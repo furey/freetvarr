@@ -11,6 +11,7 @@ import sharp from 'sharp'
 const jpegOf = async ({ width, height }) => sharp({ create: { width, height, channels: 3, background: { r: 20, g: 40, b: 60 } } }).jpeg().toBuffer()
 
 const PORTRAIT = await jpegOf({ width: 200, height: 300 })
+const OVERSIZED = Buffer.concat([PORTRAIT, Buffer.alloc(5 * 1024 * 1024)])
 const LANDSCAPE = await jpegOf({ width: 320, height: 180 })
 const CHANNEL = 'ch-1'
 
@@ -26,9 +27,10 @@ const routes = {
   '/api/channel/grid': () => ({ json: { entries: [{ uuid: CHANNEL, name: 'Channel One', number: 1 }] } }),
   '/api/epggrab/channel/grid': () => ({ json: { entries: [] } }),
   '/api/epg/events/grid': () => ({ json: { entries: [] } }),
-  '/library/sections/2/all': () => ({ json: { MediaContainer: { Metadata: [{ title: 'Dune', art: '/art/dune', thumb: '/thumb/dune' }] } } }),
-  '/art/dune': () => ({ contentType: 'image/jpeg', body: LANDSCAPE }),
-  '/thumb/dune': () => ({ contentType: 'image/jpeg', body: PORTRAIT }),
+  '/library/sections/2/all': () => ({ json: { MediaContainer: { Metadata: [{ title: 'Dune', art: '/library/metadata/7/art/1', thumb: '/library/metadata/7/thumb/1' }] } } }),
+  '/library/metadata/7/art/1': () => ({ contentType: 'image/jpeg', body: LANDSCAPE }),
+  '/library/metadata/7/thumb/1': () => ({ contentType: 'image/jpeg', body: OVERSIZED }),
+  '/photo/:/transcode': (params) => ({ contentType: 'image/jpeg', body: params.get('url').includes('/thumb/') ? PORTRAIT : LANDSCAPE }),
 }
 
 const recordOutbound = () => {
@@ -46,14 +48,14 @@ before(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-local-art-'))
   process.env.DB_PATH = path.join(tmpDir, 'state.db')
   server = http.createServer((req, res) => {
-    const pathname = new URL(req.url, 'http://x').pathname
-    requested.push(pathname)
+    const { pathname, searchParams } = new URL(req.url, 'http://x')
+    requested.push(searchParams.get('url') || pathname)
     const route = routes[pathname]
     if (!route) {
       res.writeHead(404, { 'Content-Type': 'text/plain' })
       return res.end('missing')
     }
-    const { json, contentType, body } = route()
+    const { json, contentType, body } = route(searchParams)
     res.writeHead(200, { 'Content-Type': json ? 'application/json' : contentType })
     res.end(json ? JSON.stringify(json) : body)
   })
@@ -81,12 +83,12 @@ after(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true })
 })
 
-test('a film with kind=movie still gets its Plex poster, thumb first, with no web request', async () => {
+test('a film with kind=movie still gets its Plex poster, thumb first and resized by Plex past the 4 MB original, with no web request', async () => {
   const found = await epg.findShowPoster({ title: 'Dune', width: 192, kind: 'movie' })
   assert.equal(found.pending, false)
   assert.equal(found.image.contentType, 'image/webp')
-  assert.ok(requested.includes('/thumb/dune'))
-  assert.equal(requested.includes('/art/dune'), false)
+  assert.ok(requested.includes('/library/metadata/7/thumb/1'))
+  assert.equal(requested.includes('/library/metadata/7/art/1'), false)
   assert.deepEqual(outbound, [])
 })
 
@@ -94,8 +96,18 @@ test('a film with kind=movie gets its Plex background art with no web request', 
   const found = await epg.findShowThumbnail({ title: 'Dune', width: 192, kind: 'movie' })
   assert.equal(found.pending, false)
   assert.equal(found.image.contentType, 'image/webp')
-  assert.ok(requested.includes('/art/dune'))
+  assert.ok(requested.includes('/library/metadata/7/art/1'))
   assert.deepEqual(outbound, [])
+})
+
+test('plexResizedSourceOf: a Plex library picture goes through the Plex photo transcoder; other sources stay as they are', () => {
+  const resized = new URL(epg.plexResizedSourceOf('http://plex:32400/library/metadata/5/thumb/9?X-Plex-Token=a%20b'))
+  assert.equal(resized.pathname, '/photo/:/transcode')
+  assert.equal(resized.searchParams.get('url'), '/library/metadata/5/thumb/9')
+  assert.equal(resized.searchParams.get('width'), '1920')
+  assert.equal(resized.searchParams.get('X-Plex-Token'), 'a b')
+  assert.equal(epg.plexResizedSourceOf('https://image.tmdb.org/t/p/w780/a.jpg'), 'https://image.tmdb.org/t/p/w780/a.jpg')
+  assert.equal(epg.plexResizedSourceOf('http://plex:32400/library/metadata/5/thumb/9'), 'http://plex:32400/library/metadata/5/thumb/9')
 })
 
 test('a series with a recording picture and no Plex entry uses the recording picture with no web request', async () => {
