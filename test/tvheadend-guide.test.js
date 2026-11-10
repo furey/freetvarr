@@ -15,6 +15,7 @@ import {
   parseXmltvTime,
   planGuideRelinks,
   findTimeshifts,
+  guideChannelTripletsOf,
   readGuideLinks,
   suggestGuide,
   waitForNewListings,
@@ -760,4 +761,25 @@ const serve = (body) => new Promise((resolve) => {
     next()
   })
   server.listen(0, '127.0.0.1', () => resolve({ port: server.address().port, close: () => server.close() }))
+})
+
+test('guideChannelTripletsOf: each guide channel gets the DVB triplets of the TV channels linked to it', () => {
+  const triplets = guideChannelTripletsOf({
+    guideChannels: [
+      { id: 'g7', xmltvId: 'mjh-seven-syd', channels: ['c71'] },
+      { id: 'g9', xmltvId: 'mjh-channel-9-nsw', channels: [] },
+      { id: 'gx', xmltvId: 'mjh-bbc-news-fast', channels: [] },
+    ],
+    channels: [
+      { id: 'c71', guide: [] },
+      { id: 'c9', guide: ['g9'] },
+      { id: 'c99', guide: ['g9'] },
+    ],
+    triplets: new Map([['c71', ['1013:0502:0521']], ['c9', ['1012:0420:0421']], ['c99', ['1012:0420:0421', '1012:0420:0422']]]),
+  })
+  assert.deepEqual([...triplets], [
+    ['mjh-seven-syd', ['1013:0502:0521']],
+    ['mjh-channel-9-nsw', ['1012:0420:0421', '1012:0420:0422']],
+    ['mjh-bbc-news-fast', []],
+  ])
 })

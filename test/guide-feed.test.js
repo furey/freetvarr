@@ -1,7 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
 import http from 'node:http'
+import os from 'node:os'
+import path from 'node:path'
 import { Readable } from 'node:stream'
+import zlib from 'node:zlib'
 
 import {
   createRequestWatch,
@@ -10,6 +14,7 @@ import {
   isGuideFeedUrl,
   localAddressToward,
   programmeClassifications,
+  serveGuideFeed,
   serveShiftedFeed,
   shiftXmltvTime,
 } from '../src/guide-feed.js'
@@ -186,4 +191,89 @@ test('createRequestWatch reports a guide request that arrives in time', async ()
   assert.equal(await waiting, true)
   assert.equal(await watch.waitSince({ since: 120, limitMs: 1000 }), true)
   assert.equal(await watch.waitSince({ since: 200, limitMs: 5 }), false)
+})
+
+const serveOnce = async (handler) => {
+  const server = http.createServer(handler)
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/guide/xmltv.xml`)
+    return { status: response.status, text: await response.text() }
+  } finally {
+    server.close()
+  }
+}
+
+const quietClassifications = { record: async () => {}, prune: async () => {} }
+
+const feedDir = async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-guide-feed-'))
+  return { dir, done: () => fs.rm(dir, { recursive: true, force: true }) }
+}
+
+test('serveGuideFeed serves the merged file with +1 copies and never opens the source', async () => {
+  const { dir, done } = await feedDir()
+  try {
+    const mergedPath = path.join(dir, 'merged.xml.gz')
+    await fs.writeFile(mergedPath, zlib.gzipSync(FEED))
+    const { status, text } = await serveOnce((req, res) => serveGuideFeed({
+      mergedPath,
+      sourceUrl: 'https://i.mjh.nz/au/Sydney/epg.xml',
+      res,
+      planShifts: async () => [TEN_PLUS_ONE],
+      openFeed: async () => { throw new Error('the source must not be read') },
+      classifications: quietClassifications,
+    }))
+    assert.equal(status, 200)
+    assert.equal(text.match(/channel="mjh-10-nsw\.plus1"/g).length, 2)
+    assert.ok(text.includes('<channel id="mjh-10-nsw.plus1">'))
+  } finally {
+    await done()
+  }
+})
+
+test('serveGuideFeed keeps a copy of a complete source download and serves it when the source fails', async () => {
+  const { dir, done } = await feedDir()
+  try {
+    const lastSourcePath = path.join(dir, 'last-source.xml.gz')
+    const live = await serveOnce((req, res) => serveGuideFeed({
+      sourceUrl: 'https://example.test/epg.xml',
+      lastSourcePath,
+      res,
+      planShifts: async () => [],
+      openFeed: async () => Readable.from([FEED]),
+      classifications: quietClassifications,
+    }))
+    assert.equal(live.text, FEED)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.equal(zlib.gunzipSync(await fs.readFile(lastSourcePath)).toString('utf8'), FEED)
+    const fallback = await serveOnce((req, res) => serveGuideFeed({
+      sourceUrl: 'https://example.test/epg.xml',
+      lastSourcePath,
+      res,
+      planShifts: async () => [TEN_PLUS_ONE],
+      openFeed: async () => { throw new Error('HTTP 503') },
+      classifications: quietClassifications,
+    }))
+    assert.equal(fallback.status, 200)
+    assert.ok(fallback.text.includes('channel="mjh-10-nsw.plus1"'))
+  } finally {
+    await done()
+  }
+})
+
+test('serveGuideFeed with no copy and a failed source still throws, so the route answers 502', async () => {
+  const { dir, done } = await feedDir()
+  try {
+    await assert.rejects(serveGuideFeed({
+      sourceUrl: 'https://example.test/epg.xml',
+      lastSourcePath: path.join(dir, 'last-source.xml.gz'),
+      res: { headersSent: false, setHeader: () => {} },
+      planShifts: async () => [],
+      openFeed: async () => { throw new Error('HTTP 503') },
+      classifications: quietClassifications,
+    }), /HTTP 503/)
+  } finally {
+    await done()
+  }
 })

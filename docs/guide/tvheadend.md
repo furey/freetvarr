@@ -200,11 +200,23 @@ In TVHeadend's web interface, go to **Configuration → Channel/EPG → EPG Grab
 
 ### +1 channels
 
-The mjh feed has no +1 channels. For each channel whose name ends in `+1` or `+2`, Freetvarr serves TVHeadend a copy of the feed at `http://<freetvarr-host>:3733/guide/xmltv.xml`. The copy adds a guide channel with the name of the +1 channel and its channel number. That guide channel lists every programme of the main channel, one or two hours later. Freetvarr downloads the feed you chose each time TVHeadend asks for the copy.
+The mjh feed has no +1 channels. For each channel whose name ends in `+1` or `+2`, Freetvarr serves TVHeadend a copy of the feed at `http://<freetvarr-host>:3733/guide/xmltv.xml`. The copy adds a guide channel with the name of the +1 channel and its channel number. That guide channel lists every programme of the main channel, one or two hours later. In Australia and New Zealand the copy is [Freetvarr's guide file](#freetvarr-s-guide-file). Elsewhere, Freetvarr downloads the feed you chose each time TVHeadend asks for the copy, and keeps the last complete download for when that feed fails.
 
 Setup sets **Extra arguments** of the XMLTV URL grabber to that address, then links the +1 channel to its guide channel. If TVHeadend does not ask for the copy within `150` seconds, setup sets **Extra arguments** back to the feed address, and +1 channels stay without listings. To use the copy without Freetvarr setup, set **Extra arguments** to the Freetvarr address, press **Re-run internal EPG grabbers**, and link the +1 channel to its new row in **EPG Grabber Channels**.
 
 If Freetvarr is stopped when TVHeadend downloads the guide, TVHeadend keeps the listings it has until the next download. If a +1 channel leaves out a programme that the main channel shows, the copy still lists that programme.
+
+### Freetvarr's guide file
+
+In Australia and New Zealand, Freetvarr builds its own guide file every `6` hours, and again after the **Guide** step of setup. TVHeadend reads it at `http://<freetvarr-host>:3733/guide/xmltv.xml` when the XMLTV URL grabber has that address.
+
+- **Australia**: Freetvarr reads [Freeview](https://www.freeview.com.au/) (the free-to-air broadcasters' own guide, no account or key) for the next `9` days, and the mjh feed for your region. Freeview sets each programme's times. The mjh feed fills what Freeview leaves empty (episode title, description, episode number, category, rating, picture), and gives the days after the Freeview days. The file keeps the mjh channel names, so your channel links stay. A Freeview channel that the mjh feed does not carry is added as a new row in **EPG Grabber Channels**.
+- **New Zealand**: the file is the mjh feed.
+- **Titles**: when Freeview and the mjh feed list the same programme under two titles, the file keeps the mjh title, so your series recordings keep matching.
+- **Region**: both regions come from your time zone. When setup pointed TVHeadend at Freetvarr for +1 channels, the mjh region is the one of the feed you chose. If that feed is not an mjh feed, Freetvarr serves it as is.
+- **Failures**: when a source fails, the file keeps the listings of the other. When every source fails, Freetvarr serves the last file it built.
+
+The files are in the `guide/` folder of the config folder.
 
 Check the result in TVHeadend's **Electronic Program Guide** tab. Every channel you care about should show seven days of programmes with names. A channel showing nothing is an unlinked row here.
 
