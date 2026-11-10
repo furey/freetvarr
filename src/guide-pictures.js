@@ -90,30 +90,48 @@ export const createGuidePictures = ({
     return index
   }
 
-  const originFor = async (title) => {
+  const isStandInCopy = async (row) => Boolean(await screen({
+    source: row.source_url,
+    title: row.title_key,
+    image: () => read(guidePictureOriginOf(row)),
+  }).catch(() => null))
+
+  const usableCopiesOf = async (title) => {
     const titleKey = showTitleKey(title)
-    const row = titleKey ? (await load()).byTitle.get(titleKey) : null
-    return row ? guidePictureOriginOf(row) : null
+    const rows = titleKey ? (await load()).rowsByTitle.get(titleKey) ?? [] : []
+    const usable = []
+    for (const row of rows) if (!(await isStandInCopy(row))) usable.push(row)
+    return usable
+  }
+
+  const originFor = async (title) => {
+    const [best] = await usableCopiesOf(title)
+    return best ? guidePictureOriginOf(best) : null
   }
 
   const titleOriginsFor = async (title) => {
-    const titleKey = showTitleKey(title)
-    const saved = titleKey ? await load() : null
-    const best = saved?.byTitle.get(titleKey)
+    const usable = await usableCopiesOf(title)
+    const best = usable[0]
     if (!best) return []
-    const fallback = preferred.has(hostOfRow(best)) ? saved.fallbackByTitle.get(titleKey) : null
+    const fallback = preferred.has(hostOfRow(best))
+      ? usable.filter((row) => !preferred.has(hostOfRow(row))).sort((a, b) => Number(b.saved_at) - Number(a.saved_at))[0]
+      : null
     return [best, fallback].filter(Boolean).map(guidePictureOriginOf)
   }
 
   const preferredOriginFor = async (title) => {
-    const titleKey = showTitleKey(title)
-    const best = titleKey ? (await load()).byTitle.get(titleKey) : null
+    const [best] = await usableCopiesOf(title)
     return best && preferred.has(hostOfRow(best)) ? guidePictureOriginOf(best) : null
   }
 
   const originForSource = async (source) => {
     const row = source ? (await load()).bySource.get(source) : null
-    return row ? guidePictureOriginOf(row) : null
+    return row && !(await isStandInCopy(row)) ? guidePictureOriginOf(row) : null
+  }
+
+  const sourceOfOrigin = async (origin) => {
+    const id = idOfOrigin(origin)
+    return id ? (await load()).byId.get(id)?.source_url ?? null : null
   }
 
   const read = async (origin) => {
@@ -251,7 +269,17 @@ export const createGuidePictures = ({
     for (const source of sources) await fs.rm(path.join(root, `${guidePictureIdOf(source)}${EXTENSION}`), { force: true })
   }
 
-  const savedTitleKeys = async () => new Set((await load()).byTitle.keys())
+  const savedTitleKeys = async () => {
+    const keys = new Set()
+    for (const [titleKey, rows] of (await load()).rowsByTitle) {
+      for (const row of rows) {
+        if (await screen({ source: row.source_url, title: row.title_key }).catch(() => null)) continue
+        keys.add(titleKey)
+        break
+      }
+    }
+    return keys
+  }
 
   const dropPlaceholders = async ({ keepTitleKeys = new Set(), keepOrigins = new Set() } = {}) => {
     const chosenIds = new Set([...keepOrigins].map(idOfOrigin).filter(Boolean))
@@ -268,7 +296,7 @@ export const createGuidePictures = ({
     return [...new Set(placeholders.map((row) => row.title_key))]
   }
 
-  return { saveAll, originFor, titleOriginsFor, preferredOriginFor, originForSource, read, prune, savedTitleKeys, dropPlaceholders }
+  return { saveAll, originFor, titleOriginsFor, preferredOriginFor, originForSource, sourceOfOrigin, read, prune, savedTitleKeys, dropPlaceholders }
 }
 
 const isStrayFile = ({ name, kept }) => STRAY_FILE.test(name) && !kept.has(name)
@@ -290,7 +318,11 @@ export const titleIndexOf = ({ rows, preferred = new Set() }) => {
     const fallback = fallbackByTitle.get(row.title_key)
     if (!fallback || Number(row.saved_at) > Number(fallback.saved_at)) fallbackByTitle.set(row.title_key, row)
   }
-  return { bySource, byTitle, fallbackByTitle }
+  const rowsByTitle = new Map()
+  for (const row of bySource.values()) rowsByTitle.set(row.title_key, [...(rowsByTitle.get(row.title_key) ?? []), row])
+  for (const rows of rowsByTitle.values()) rows.sort((a, b) => (isBetter(a, b) ? -1 : 1))
+  const byId = new Map([...bySource.values()].map((row) => [guidePictureIdOf(row.source_url), row]))
+  return { bySource, byTitle, fallbackByTitle, rowsByTitle, byId }
 }
 
 const hostOfRow = (row) => hostOfSource(row.source_url) ?? LOCAL_HOST

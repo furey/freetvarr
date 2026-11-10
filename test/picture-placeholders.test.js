@@ -172,3 +172,52 @@ test('guide pictures never saves a placeholder copy, drops saved copies that lat
   assert.equal(await pictures.originFor('Big Brother'), null)
   assert.equal((await fs.readdir(root)).length, 1)
 })
+
+test('a saved stand-in copy is never offered, even before the guide pictures job checked it and when a recorded title keeps it', async () => {
+  const database = await memoryDatabase()
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-placeholders-'))
+  cleanups.push(() => fs.rm(root, { recursive: true, force: true }))
+  const answers = {
+    'https://img-store-prod.switch.tv/bb/p34381102.jpg': await sceneOf(8),
+    'https://img-store-prod.switch.tv/bb/837799_3840_x_2160.png': transparentLogo,
+    'https://img-store-prod.switch.tv/kids/755218.png': transparentLogo,
+  }
+  const options = {
+    database,
+    root,
+    fetchImage: async (source) => ({ body: answers[source], contentType: 'image/png' }),
+    sleep: async () => {},
+    hostTally: null,
+    preferredHosts: ['img-store-prod.switch.tv'],
+  }
+  const clock = { ms: 1000 }
+  const before = createGuidePictures({ ...options, now: () => clock.ms++ })
+  await before.saveAll({ candidates: new Map([['big brother', { title: 'Big Brother', titleKey: 'big brother', sources: Object.keys(answers).slice(0, 2) }]]) })
+  await before.saveAll({ candidates: new Map([['the loud house', { title: 'The Loud House', titleKey: 'the loud house', sources: [Object.keys(answers)[2]] }]]) })
+  assert.match(await before.originFor('Big Brother'), /^guide-picture:/)
+  const placeholders = createPlaceholderPictures({ database })
+  const pictures = createGuidePictures({ ...options, screen: (picture) => placeholders.check(picture) })
+  const realCopy = await pictures.originForSource('https://img-store-prod.switch.tv/bb/p34381102.jpg')
+  assert.equal(await pictures.dropPlaceholders({ keepTitleKeys: new Set(['big brother']) }).then((titles) => titles.includes('big brother')), false)
+  assert.deepEqual(await pictures.titleOriginsFor('Big Brother'), [realCopy])
+  assert.equal(await pictures.originFor('Big Brother'), realCopy)
+  assert.equal(await pictures.preferredOriginFor('Big Brother'), realCopy)
+  assert.equal(await pictures.originForSource('https://img-store-prod.switch.tv/bb/837799_3840_x_2160.png'), null)
+  assert.equal(await database('picture_checks').where({ source_url: 'https://img-store-prod.switch.tv/bb/837799_3840_x_2160.png' }).first().then(Boolean), true)
+  assert.deepEqual([...await pictures.savedTitleKeys()], ['big brother'])
+})
+
+test('serving a saved copy checks it on first sight, with no guide pictures job run', async () => {
+  const database = await memoryDatabase()
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-placeholders-'))
+  cleanups.push(() => fs.rm(root, { recursive: true, force: true }))
+  const source = 'https://img-store-prod.switch.tv/jd/611157_91.png'
+  const unscreened = createGuidePictures({ database, root, fetchImage: async () => ({ body: transparentLogo }), sleep: async () => {}, hostTally: null })
+  await unscreened.saveAll({ candidates: new Map([['jamie', { title: 'Jamie', titleKey: 'jamie', sources: [source] }]]) })
+  const placeholders = createPlaceholderPictures({ database })
+  const pictures = createGuidePictures({ database, root, fetchImage: async () => null, sleep: async () => {}, hostTally: null, screen: (picture) => placeholders.check(picture) })
+  const origin = await unscreened.originFor('Jamie')
+  assert.equal(await pictures.sourceOfOrigin(origin), source)
+  assert.equal(await pictures.originFor('Jamie'), null)
+  assert.equal(placeholders.isPlaceholder(source), true)
+})
