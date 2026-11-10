@@ -1,6 +1,8 @@
 import { ref, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import {
   addedChannelsOf,
+  broadcastIntroOf,
+  broadcastMetaOf,
   channelChoicesOf,
   channelStateOf,
   channelsChangeOf,
@@ -11,6 +13,9 @@ import {
   pinnableChannelsOf,
   repointReasonTextOf,
   sourceMetaOf,
+  feedProvidersOf,
+  suggestedFeedsHintOf,
+  suggestedFeedsNoteOf,
 } from '/guide-sources-text.js'
 import { api } from '/shared/api.js'
 import { fmtClockTz } from '/shared/time.js'
@@ -23,7 +28,7 @@ export const GuideSettingsView = {
     <div v-page-reveal class="settings-page guide-settings">
       <teleport defer to="#settings-page-info">
         <info-button title="Guide" doc="guide/settings#guide" piece="guide">
-          <p>Freetvarr merges the free guide sources for your country into one guide, and serves it to TVHeadend at <code>/guide/xmltv.xml</code>. In Australia, Freeview gives the listings for the next 9 days, and i.mjh.nz gives the channel names and the days after.</p>
+          <p>Freetvarr merges the free guide sources for your country into one guide, and serves it to TVHeadend at <code>/guide/xmltv.xml</code>. In Australia and New Zealand, Freeview gives the listings for the next 8 to 9 days, and i.mjh.nz gives the channel names and the days after. In other countries, TVHeadend keeps its own guide, and this page lists XMLTV feeds that other people publish for your country.</p>
           <p>Each time it builds the merged guide, Freetvarr scores each source on each channel: the hours of the next 2 days it covers, how many days ahead it goes, how many listings have a description, and how many listings the other source agrees with.</p>
         </info-button>
       </teleport>
@@ -32,7 +37,19 @@ export const GuideSettingsView = {
         <div v-for="i in 4" :key="i" class="ui-group-row"><span class="ui-skeleton is-line"></span></div>
       </div>
       <template v-else-if="status">
-        <p v-if="!status.available" class="settings-note">Freetvarr has no guide sources for your time zone yet. TVHeadend keeps the guide it has.</p>
+        <div v-if="!status.available" class="settings-group" data-setting="broadcast-guide">
+          <h3 class="ui-group-label">Broadcast guide</h3>
+          <p class="settings-note guide-settings-text guide-settings-lead">{{ broadcastIntro }}</p>
+          <div v-if="status.broadcast" class="ui-group">
+            <div class="ui-group-row guide-source-row">
+              <span class="health-check-mark"><span :class="['ui-dot', status.broadcast.short ? 'is-warn' : 'is-ok']" role="img" :aria-label="status.broadcast.short ? 'Short' : 'Healthy'"></span></span>
+              <span class="ui-group-row-main">
+                <span class="ui-group-row-title">TVHeadend guide</span>
+                <span class="ui-group-row-meta">{{ broadcastMeta }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
         <template v-else>
           <div class="settings-group" data-setting="merged-guide">
             <h3 class="ui-group-label">Merged guide</h3>
@@ -161,6 +178,16 @@ export const GuideSettingsView = {
             </div>
           </template>
         </template>
+        <div v-if="suggestedFeeds.length" class="settings-group" data-setting="suggested-feeds">
+          <h3 class="ui-group-label">Third-party feeds</h3>
+          <p class="settings-note guide-settings-text">{{ suggestedNote }}</p>
+          <div class="ui-group">
+            <template v-for="feed in suggestedFeeds" :key="feed.url">
+              <copy-row :label="feed.name" :value="feed.url" />
+            </template>
+          </div>
+          <p class="settings-note guide-settings-text">{{ suggestedHint }} <span>Listed by: <template v-for="(provider, index) in feedProviders" :key="provider.name"><a :href="provider.source" target="_blank" rel="noopener noreferrer">{{ provider.name }}</a><template v-if="index < feedProviders.length - 1">, </template></template>.</span></p>
+        </div>
       </template>
     </div>
   `,
@@ -198,6 +225,13 @@ export const GuideSettingsView = {
     const modeHint = computed(() => listingModeHintOf({ mode: status.value.choice.mode, sources: status.value.sources }))
     const listedChannels = computed(() => listedChannelsOf(status.value?.channels))
     const pinnable = computed(() => pinnableChannelsOf(status.value?.channels))
+    const suggestions = computed(() => status.value?.suggestions ?? { feeds: [] })
+    const suggestedFeeds = computed(() => suggestions.value.feeds ?? [])
+    const suggestedNote = computed(() => suggestedFeedsNoteOf(suggestions.value))
+    const suggestedHint = computed(() => suggestedFeedsHintOf(suggestions.value))
+    const feedProviders = computed(() => feedProvidersOf(suggestedFeeds.value))
+    const broadcastIntro = computed(() => broadcastIntroOf({ country: suggestions.value.country, broadcast: status.value?.broadcast }))
+    const broadcastMeta = computed(() => broadcastMetaOf(status.value?.broadcast))
     const newPinChannel = computed(() => pinnable.value.find((channel) => channel.id === newPin.value) ?? null)
 
     const load = async () => {
@@ -293,6 +327,7 @@ export const GuideSettingsView = {
     return {
       status, error, actionError, saving, starting, repoint, steps, result, showSteps, confirmed, kept,
       primaryLabel, reasonText, channelsText, addedText, daysText, planIntro, doneText,
+      suggestedFeeds, suggestedNote, suggestedHint, feedProviders, broadcastIntro, broadcastMeta,
       modeChoices, modeHint, listedChannels, pinnable, newPin, newPinSource, newPinChannel,
       confirm, keep, setMode, setPin, pinNew, choicesOf, stateOf, metaOf, dotOf,
     }

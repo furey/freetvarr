@@ -90,12 +90,14 @@ In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview
 
 ## Guide sources {#guide-sources}
 
-Shows each guide source with the share of channels that have healthy listings, how many days ahead it goes, and when Freetvarr last read it ([Guide](/guide/settings#guide)). It skips when your time zone has no guide sources. Before you confirm the merged guide, it passes and says where to turn it on.
+Shows each guide source with the share of channels that have healthy listings, how many days ahead it goes, and when Freetvarr last read it ([Guide](/guide/settings#guide)). Before you confirm the merged guide, it passes and says where to turn it on.
+
+In a country with no listings source (any country except Australia and New Zealand), it measures the TVHeadend guide instead: how many channels have listings for the next `48` hours, and how many days ahead the guide goes (the median of the channels). It warns when fewer than half the channels have listings, or the median is less than `3` days. The fix names a third-party XMLTV feed for your country from **SETTINGS → GUIDE**; Freetvarr has not checked the licences of these feeds. It skips when Freetvarr cannot read the TVHeadend guide.
 
 It warns when:
 
 - The merged guide file is more than `12` hours old, while TVHeadend reads it.
-- The first source (Freeview in Australia) is degraded.
+- The first source (Freeview in Australia and New Zealand) is degraded.
 - You chose a source, for all channels or for one channel, and that source is degraded. **Switch to Automatic** sets **Use first** to **Automatic** and removes the pins to degraded sources.
 - You confirmed the merged guide, but the TVHeadend XMLTV URL grabber no longer reads the Freetvarr address. Running the **Guide** step of setup again with another address does this.
 

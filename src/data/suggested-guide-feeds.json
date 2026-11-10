@@ -1,0 +1,247 @@
+{
+  "checked": "2026-11-10",
+  "countries": {
+    "au": "Australia",
+    "nz": "New Zealand",
+    "uk": "the United Kingdom",
+    "ie": "Ireland",
+    "us": "the United States",
+    "ca": "Canada",
+    "de": "Germany",
+    "fr": "France",
+    "nl": "the Netherlands",
+    "es": "Spain",
+    "it": "Italy",
+    "za": "South Africa",
+    "se": "Sweden",
+    "no": "Norway",
+    "dk": "Denmark"
+  },
+  "feeds": [
+    {
+      "country": "au",
+      "name": "epgshare01 Australia",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_AU1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "au",
+      "name": "epg.pw Australia",
+      "url": "https://epg.pw/xmltv/epg_AU.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "au",
+      "region": "Adelaide",
+      "name": "xmltv.net Adelaide",
+      "url": "https://xmltv.net/xml_files/Adelaide.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Brisbane",
+      "name": "xmltv.net Brisbane",
+      "url": "https://xmltv.net/xml_files/Brisbane.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Canberra",
+      "name": "xmltv.net Canberra",
+      "url": "https://xmltv.net/xml_files/Canberra.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Darwin",
+      "name": "xmltv.net Darwin",
+      "url": "https://xmltv.net/xml_files/Darwin.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Hobart",
+      "name": "xmltv.net Hobart",
+      "url": "https://xmltv.net/xml_files/Hobart.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Melbourne",
+      "name": "xmltv.net Melbourne",
+      "url": "https://xmltv.net/xml_files/Melbourne.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Perth",
+      "name": "xmltv.net Perth",
+      "url": "https://xmltv.net/xml_files/Perth.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "au",
+      "region": "Sydney",
+      "name": "xmltv.net Sydney",
+      "url": "https://xmltv.net/xml_files/Sydney.xml",
+      "provider": "xmltv.net",
+      "source": "https://xmltv.net/"
+    },
+    {
+      "country": "nz",
+      "name": "epgshare01 New Zealand",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_NZ1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "nz",
+      "name": "epg.pw New Zealand",
+      "url": "https://epg.pw/xmltv/epg_NZ.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "uk",
+      "name": "epgshare01 United Kingdom",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_UK1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "uk",
+      "name": "epg.pw United Kingdom",
+      "url": "https://epg.pw/xmltv/epg_GB.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "ie",
+      "name": "epgshare01 Ireland",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_IE1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "us",
+      "name": "epgshare01 United States",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_US2.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "us",
+      "name": "epg.pw United States",
+      "url": "https://epg.pw/xmltv/epg_US.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "ca",
+      "name": "epgshare01 Canada",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_CA2.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "ca",
+      "name": "epg.pw Canada",
+      "url": "https://epg.pw/xmltv/epg_CA.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "de",
+      "name": "epgshare01 Germany",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_DE1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "de",
+      "name": "epg.pw Germany",
+      "url": "https://epg.pw/xmltv/epg_DE.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "fr",
+      "name": "epgshare01 France",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "fr",
+      "name": "epg.pw France",
+      "url": "https://epg.pw/xmltv/epg_FR.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "nl",
+      "name": "epgshare01 Netherlands",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_NL1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "es",
+      "name": "epgshare01 Spain",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_ES1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "it",
+      "name": "epgshare01 Italy",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "za",
+      "name": "epgshare01 South Africa",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_ZA1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "za",
+      "name": "epg.pw South Africa",
+      "url": "https://epg.pw/xmltv/epg_ZA.xml.gz",
+      "provider": "epg.pw",
+      "source": "https://epg.pw/xmltv.html?lang=en"
+    },
+    {
+      "country": "se",
+      "name": "epgshare01 Sweden",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_SE1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "no",
+      "name": "epgshare01 Norway",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_NO1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    },
+    {
+      "country": "dk",
+      "name": "epgshare01 Denmark",
+      "url": "https://epgshare01.online/epgshare01/epg_ripper_DK1.xml.gz",
+      "provider": "epgshare01",
+      "source": "https://epgshare01.online/epgshare01/0_READ_ME_FIRST_AS_I_CONTAIN_VERY_HELPFUL_INFO.html"
+    }
+  ]
+}

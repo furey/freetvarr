@@ -601,8 +601,16 @@ export const listChannelTriplets = async ({ channels = [], conn } = {}) => {
     .map((id) => services.get(id))
     .filter((service) => service && service.enabled !== false)
     .map((service) => dvbTripletOf({ ...muxes.get(service.muxId), sid: service.sid }))
-    .filter(Boolean))]]))
+    .filter(Boolean)
+    .flatMap(withServiceKey))]]))
 }
+
+export const serviceKeyOf = (triplet) => {
+  const [onid, , sid] = String(triplet).split(':')
+  return `${onid}::${sid}`
+}
+
+const withServiceKey = (triplet) => [triplet, serviceKeyOf(triplet)]
 
 export const dvbTripletOf = ({ onid, tsid, sid }) => {
   if ([onid, tsid, sid].some((part) => part == null || part === '')) return null

@@ -1,0 +1,77 @@
+{
+ "data": [
+  {
+   "id": "4d24bd6c-8564-4c95-ba48-4060af42c912",
+   "broadcaster_code": "georgefm.co.nz",
+   "channel_code": "GeorgeFM",
+   "channel_name": "GeorgeFM",
+   "dth_dvb_triplet": "002F:0015:078F",
+   "lcn": 70,
+   "dth_lcn": 70,
+   "tags": [
+    "platform_hbbtv",
+    "platform_hbbtv_dth"
+   ],
+   "updated_at": "2024-07-30T00:49:22+00:00"
+  },
+  {
+   "id": "5328445a-69e1-4c75-9186-c178e886736b",
+   "broadcaster_code": "shinetv.co.nz",
+   "channel_code": "ShineTV",
+   "channel_name": "Shine TV",
+   "dvb_triplet": "222A::1772",
+   "dth_dvb_triplet": "002F:0015:0787",
+   "lcn": 25,
+   "dth_lcn": 25,
+   "tags": [
+    "platform_ip",
+    "platform_hbbtv",
+    "platform_hbbtv_dtt",
+    "platform_hbbtv_dth"
+   ],
+   "updated_at": "2026-06-30T12:09:08+00:00"
+  },
+  {
+   "id": "96b3f2fb-3848-45b8-a65d-d7a40a49e196",
+   "broadcaster_code": "tv3.co.nz",
+   "channel_code": "TV3",
+   "channel_name": "Three",
+   "dvb_triplet": "222A::0514",
+   "dth_dvb_triplet": "00A9:0003:03F1",
+   "lcn": 3,
+   "dth_lcn": 3,
+   "tags": [
+    "platform_ip",
+    "platform_hbbtv",
+    "platform_hbbtv_dtt",
+    "platform_hbbtv_dth"
+   ],
+   "updated_at": "2026-06-10T00:25:59+00:00"
+  },
+  {
+   "id": "bf206011-0506-486f-9801-0050210d10bb",
+   "broadcaster_code": "tvnz.co.nz",
+   "channel_code": "TVONE",
+   "channel_name": "TVNZ 1",
+   "dvb_triplet": "222A::04B0",
+   "dth_dvb_triplet": "002F:0016:040B,002F:0016:0774,002F:0016:0775,002F:0016:0776",
+   "lcn": 1,
+   "dth_lcn": 1,
+   "tags": [
+    "platform_ip",
+    "platform_hbbtv",
+    "platform_hbbtv_dtt",
+    "platform_hbbtv_dth"
+   ],
+   "updated_at": "2026-05-28T01:28:45+00:00"
+  }
+ ],
+ "meta": {
+  "pagination": {
+   "offset": 0,
+   "limit": 100,
+   "more": false,
+   "total": 4
+  }
+ }
+}

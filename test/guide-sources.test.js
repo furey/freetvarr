@@ -5,6 +5,9 @@ import { createGuideSources, xmltvFeedsOf } from '../src/guide-sources/index.js'
 import { createFreeviewAuSource, freeviewProgrammeOf } from '../src/guide-sources/freeview-au.js'
 import { MJH_AU_FEEDS, createMjhAu } from '../src/guide-sources/mjh-au.js'
 import { MJH_NZ_FEEDS, createMjhNz } from '../src/guide-sources/mjh-nz.js'
+import { NZ_RATING_LABELS, createFreeviewNzSource } from '../src/guide-sources/freeview-nz.js'
+import { countryForTimeZone } from '../src/zone-countries.js'
+import { readFileSync } from 'node:fs'
 import { indexFeed } from '../src/guide-sources/mjh-feed.js'
 import { parseProgrammeElement, programmeXml } from '../src/guide-sources/xmltv.js'
 import { OutboundError } from '../src/outbound-http.js'
@@ -78,7 +81,22 @@ const freeviewAnswer = ({ url }) => {
   return { data: [freeviewListing()], meta: { pagination: { more: false } } }
 }
 
+const nzFixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/freeview-nz/${name}.json`, import.meta.url), 'utf8'))
+const NZ_NOW = Date.parse('2026-11-11T04:00:00Z')
+
+const freeviewNzAnswer = ({ url }) => {
+  if (url.endsWith('/content/v1/channels')) return nzFixture('channels')
+  if (url.endsWith('/epgs/222A::0514')) return nzFixture('epgs-three')
+  return { data: [], meta: { pagination: { more: false } } }
+}
+
 const contractCases = () => [
+  {
+    source: createFreeviewNzSource({ client: fakeFreeviewClient(freeviewNzAnswer), now: () => NZ_NOW }),
+    timeZone: 'Pacific/Auckland',
+    channel: '222a::0514',
+    from: NZ_NOW,
+  },
   {
     source: createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => NOW }),
     timeZone: 'Australia/Sydney',
@@ -90,7 +108,7 @@ const contractCases = () => [
 test('every guide source passes the adapter contract', async () => {
   const cases = contractCases()
   assert.deepEqual(cases.map(({ source }) => source.id).sort(), createGuideSources().all().map((source) => source.id).sort())
-  for (const { source, timeZone } of cases) {
+  for (const { source, timeZone, channel: wanted, from } of cases) {
     assert.equal(typeof source.id, 'string', source.id)
     assert.ok(Array.isArray(source.countries) && source.countries.length, source.id)
     assert.ok(Object.keys(source.hostLimits).length, `${source.id} names its hosts`)
@@ -105,10 +123,12 @@ test('every guide source passes the adapter contract', async () => {
       assert.ok(Array.isArray(channel.names), source.id)
       assert.ok(channel.lcn === null || Number.isInteger(channel.lcn), source.id)
     }
-    const programmes = await source.listings({ region, channel: channels[0].id, from: NOW - HOUR, to: NOW + 6 * HOUR })
+    const channel = wanted ?? channels[0].id
+    assert.ok(channels.some((candidate) => candidate.id === channel), source.id)
+    const programmes = await source.listings({ region, channel, from: (from ?? NOW) - HOUR, to: (from ?? NOW) + 6 * HOUR })
     assert.ok(programmes.length, source.id)
     for (const programme of programmes) {
-      assert.equal(programme.channel, channels[0].id, source.id)
+      assert.equal(programme.channel, channel, source.id)
       assert.ok(Number.isFinite(programme.start) && programme.stop > programme.start, source.id)
       assert.ok(programme.title, source.id)
       assert.ok(Array.isArray(programme.categories) && Array.isArray(programme.episodeNums) && Array.isArray(programme.extras), source.id)
@@ -117,10 +137,10 @@ test('every guide source passes the adapter contract', async () => {
   }
 })
 
-test('registry: Australia ranks Freeview before mjh, New Zealand has mjh only, and the feed list comes from the mjh source', () => {
+test('registry: Australia and New Zealand rank Freeview before mjh, and the feed list comes from the mjh source', () => {
   const sources = createGuideSources()
   assert.deepEqual(sources.forCountry('au').map((s) => s.id), ['freeview-au', 'mjh-au'])
-  assert.deepEqual(sources.forCountry('nz').map((s) => s.id), ['mjh-nz'])
+  assert.deepEqual(sources.forCountry('nz').map((s) => s.id), ['freeview-nz', 'mjh-nz'])
   assert.deepEqual(sources.forCountry('de'), [])
   assert.deepEqual(xmltvFeedsOf('au'), MJH_AU_FEEDS)
   assert.deepEqual(xmltvFeedsOf('nz'), MJH_NZ_FEEDS)
@@ -287,4 +307,70 @@ test('xmltv: a written programme keeps the XMLTV DTD element order, extras inclu
   })
   const names = [...xml.matchAll(/^ {4}<([a-z-]+)/gm)].map((m) => m[1])
   assert.deepEqual(names, ['title', 'desc', 'date', 'category', 'icon', 'country', 'episode-num', 'video', 'rating', 'star-rating'])
+})
+
+test('suggested feeds: each country gets its own third-party feeds, and city feeds only for the time-zone city', async () => {
+  const { suggestedFeedsOf, suggestionsOf } = await import('../src/guide-sources/suggested-feeds.js')
+  const uk = suggestionsOf({ country: 'uk', timeZone: 'Europe/London' })
+  assert.equal(uk.country, 'the United Kingdom')
+  assert.equal(uk.checked, '2026-11-10')
+  assert.deepEqual(uk.feeds.map((feed) => feed.provider), ['epgshare01', 'epg.pw'])
+  const perth = suggestedFeedsOf({ country: 'au', timeZone: 'Australia/Perth' })
+  assert.deepEqual(perth.filter((feed) => feed.provider === 'xmltv.net').map((feed) => feed.url), ['https://xmltv.net/xml_files/Perth.xml'])
+  assert.equal(suggestedFeedsOf({ country: 'au', timeZone: 'Australia/Lord_Howe' }).some((feed) => feed.provider === 'xmltv.net'), false)
+  assert.deepEqual(suggestedFeedsOf({ country: 'xx' }), [])
+  assert.equal(suggestionsOf({ country: '' }).country, null)
+})
+
+test('suggested feeds: every entry names a country, an https feed address, a provider, and the page that documents it', async () => {
+  const { default: data } = await import('../src/data/suggested-guide-feeds.json', { with: { type: 'json' } })
+  assert.match(data.checked, /^\d{4}-\d{2}-\d{2}$/)
+  const urls = new Set()
+  for (const feed of data.feeds) {
+    assert.ok(data.countries[feed.country], `${feed.url} has a known country`)
+    assert.match(feed.url, /^https:\/\/\S+\.xml(\.gz)?$/)
+    assert.match(feed.source, /^https:\/\//)
+    assert.ok(feed.provider && feed.name)
+    assert.ok(!urls.has(feed.url), `${feed.url} is listed once`)
+    urls.add(feed.url)
+  }
+})
+
+test('country routing: the time zone picks the ranked sources, and every other country is broadcast-only', () => {
+  const sources = createGuideSources()
+  const idsFor = (timeZone) => sources.forCountry(countryForTimeZone(timeZone)).map((source) => source.id)
+  assert.deepEqual(idsFor('Australia/Perth'), ['freeview-au', 'mjh-au'])
+  assert.deepEqual(idsFor('Pacific/Auckland'), ['freeview-nz', 'mjh-nz'])
+  assert.deepEqual(idsFor('Pacific/Chatham'), ['freeview-nz', 'mjh-nz'])
+  for (const zone of ['Europe/London', 'Europe/Berlin', 'America/New_York', 'Africa/Johannesburg', 'Etc/UTC']) assert.deepEqual(idsFor(zone), [], zone)
+  const nz = sources.forCountry('nz')[0]
+  assert.equal(nz.regionOf('Pacific/Auckland'), 'nz')
+  assert.equal(nz.regionOf('Australia/Sydney'), null)
+  assert.deepEqual(Object.keys(nz.hostLimits), ['fvnz-capi-prod.switch.tv'])
+})
+
+test('freeview-nz: channels keep the empty-TSID triplet, and a listing takes its own episode, not the first one', async () => {
+  const client = fakeFreeviewClient(freeviewNzAnswer)
+  const source = createFreeviewNzSource({ client, now: () => NZ_NOW })
+  const channels = await source.channels('nz')
+  assert.deepEqual(channels.map((channel) => channel.id), ['222a::1772', '222a::0514', '222a::04b0'])
+  assert.equal(channels.find((channel) => channel.id === '222a::0514').lcn, 3)
+  const [bondi, news, hotSeat] = await source.listings({ region: 'nz', channel: '222a::0514', from: NZ_NOW, to: NZ_NOW + 3 * HOUR })
+  assert.equal(bondi.title, 'Bondi Rescue')
+  assert.equal(bondi.episode, 4)
+  assert.equal(bondi.subTitle, null)
+  assert.equal(bondi.rating, 'PG')
+  assert.deepEqual(bondi.categories, ['Reality'])
+  assert.match(bondi.icon, /^https:\/\/img-store-prod\.switch\.tv\//)
+  assert.deepEqual(news.categories, ['News'])
+  assert.equal(news.subTitle, 'Wednesday 11 November 2026')
+  assert.equal(hotSeat.rating, 'G')
+  assert.ok(client.calls.every(({ url }) => url.startsWith('https://fvnz-capi-prod.switch.tv/')))
+  assert.ok(client.calls.some(({ url }) => url.endsWith('/epgs/222A::0514')))
+  assert.ok(NZ_RATING_LABELS.has('16') && NZ_RATING_LABELS.has('18'))
+})
+
+test('freeview: an impossible season number is dropped, not written to the guide', () => {
+  const listing = freeviewListing({ episode: { categories: ['genres/Entertainment', 'season_number/1039546'] } })
+  assert.equal(freeviewProgrammeOf({ listing }).season, null)
 })

@@ -60,6 +60,27 @@ export const pinnableChannelsOf = (channels = []) => channels
   .filter((channel) => channel.sources.length > 1 && !channel.pin)
   .sort((a, b) => (a.lcn ?? Infinity) - (b.lcn ?? Infinity) || a.name.localeCompare(b.name))
 
+export const broadcastIntroOf = ({ country, broadcast }) => {
+  const place = country ?? 'your time zone'
+  if (!broadcast) return `Freetvarr has no listings source for ${place}, so TVHeadend keeps the guide it has. Freetvarr could not read that guide just now.`
+  return `Freetvarr has no listings source for ${place}, so TVHeadend keeps the guide it has: the broadcast guide (EIT), plus any XMLTV grabber you set up.`
+}
+
+export const broadcastMetaOf = (broadcast) => {
+  if (!broadcast) return ''
+  return [
+    `${broadcast.listed} of ${broadcast.channels} ${broadcast.channels === 1 ? 'channel' : 'channels'} listed for the next 48 h`,
+    `${broadcast.horizonDays} ${broadcast.horizonDays === 1 ? 'day' : 'days'} ahead (median)`,
+    ...(broadcast.describedShare === null ? [] : [`${Math.round(broadcast.describedShare * 100)}% described`]),
+  ].join(' · ')
+}
+
+export const suggestedFeedsNoteOf = ({ country }) => `Other people publish these XMLTV guide feeds for ${country ?? 'your country'} (third-party, licence not checked by Freetvarr). Freetvarr reads one only when you choose it. To use one, copy its address into the XMLTV URL grabber in TVHeadend, or into Another address under SETTINGS → SETUP → Guide.`
+
+export const suggestedFeedsHintOf = ({ checked }) => (checked ? `Each address answered on ${checked}.` : '')
+
+export const feedProvidersOf = (feeds = []) => [...new Map(feeds.map((feed) => [feed.provider, { name: feed.provider, source: feed.source }])).values()]
+
 const joinAnd = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
 
 const ADDED_SHOWN = 4

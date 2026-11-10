@@ -25,6 +25,8 @@ export const createGuideSourceService = ({
   guideMerge,
   rankedSources,
   health,
+  suggestions = () => ({ country: null, checked: null, feeds: [] }),
+  broadcastGuide = async () => null,
   inspect = async () => null,
   feedUrl = async () => null,
   isFeedUrl = () => false,
@@ -66,6 +68,7 @@ export const createGuideSourceService = ({
     const builtAt = regions ? fileAt : null
     const sources = sourceRowsOf({ ranked: rankedSources(), latest, nowMs: now() })
     const [inspection, address] = withTvheadend ? await Promise.all([inspect().catch(() => null), feedUrl().catch(() => null)]) : [null, null]
+    const broadcast = !plan && withTvheadend ? await broadcastGuide().catch(() => null) : null
     const regionOfUrl = (url) => plan?.secondary?.source.regionOfUrl?.(url) ?? null
     const grabberUrl = inspection?.module?.enabled ? inspection.module.url : ''
     const region = (grabberUrl && !isFeedUrl(grabberUrl) && regionOfUrl(grabberUrl)) || plan?.secondary?.region || null
@@ -85,6 +88,8 @@ export const createGuideSourceService = ({
     })
     return {
       available: Boolean(plan),
+      suggestions: suggestions(),
+      broadcast,
       mergedOn,
       builtAt,
       lastBuild: guideMerge.latest(),

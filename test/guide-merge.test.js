@@ -19,6 +19,7 @@ import {
   planSources,
   writeMergedGuide,
 } from '../src/guide-merge.js'
+import { serviceKeyOf } from '../src/tvheadend.js'
 import { createMjhAu } from '../src/guide-sources/mjh-au.js'
 import { parseProgrammeElement } from '../src/guide-sources/xmltv.js'
 import { VARIANT_CANDIDATE, createTitleAliases } from '../src/title-aliases.js'
@@ -396,4 +397,15 @@ test('built regions: the build records its regions, so a repoint knows when the 
   assert.deepEqual(await merge.builtRegions(), { primaryRegion: 'region_nsw_sydney', secondaryRegion: 'Sydney' })
   url = 'https://i.mjh.nz/au/Perth/epg.xml'
   assert.equal(await merge.matchesPlan(), false)
+})
+
+test('mapChannels: a Freeview NZ channel with no TSID maps to the mjh channel whose TVHeadend service has the same network and service ids', () => {
+  const channels = mapChannels({
+    primaryChannels: [{ id: '222a::0514', names: ['Three'], lcn: 13 }],
+    secondaryChannels: [{ id: 'mjh-three', names: ['Three'], lcn: 3 }],
+    channelTriplets: new Map([['mjh-three', ['222a:0019:0514', serviceKeyOf('222a:0019:0514')]]]),
+    prefix: 'freeview',
+  })
+  assert.equal(channels.length, 1)
+  assert.equal(channels[0].primaryId, '222a::0514')
 })

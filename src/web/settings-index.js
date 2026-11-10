@@ -40,6 +40,8 @@ const ENTRIES = [
   { label: 'Listings source', page: 'guide', setting: 'listings-source', description: 'Automatic, or one source first for every channel.', tags: ['freeview', 'mjh', 'automatic', 'fallback'] },
   { label: 'Source health', page: 'guide', setting: 'source-health', description: 'How many channels each guide source covers well, and how many days ahead.', tags: ['degraded', 'score', 'horizon'] },
   { label: 'Channel sources', page: 'guide', setting: 'channel-sources', description: 'Pin a channel to one guide source.', tags: ['pin', 'fallback', 'per channel'] },
+  { label: 'Broadcast guide', page: 'guide', setting: 'broadcast-guide', description: 'How many channels the TVHeadend guide covers, and how many days ahead, where Freetvarr has no listings source.', tags: ['eit', 'epg', 'horizon', 'uk', 'europe'] },
+  { label: 'Third-party feeds', page: 'guide', setting: 'suggested-feeds', description: 'XMLTV feed addresses for your country that other people publish, to copy into TVHeadend.', tags: ['xmltv', 'epg', 'epgshare01', 'epg.pw', 'xmltv.net', 'suggested feeds'] },
   { label: 'Pin a channel', page: 'guide', setting: 'pin-channel', description: 'Makes one channel use one guide source first.', tags: ['pin', 'per channel'] },
 
   { page: 'film-tv-info', description: 'Pictures, ratings, reviews, cast, and genres from online film and TV databases.', tags: ['metadata', 'tvmaze', 'tmdb', 'wikipedia'] },

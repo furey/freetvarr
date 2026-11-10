@@ -112,7 +112,10 @@ import {
 } from './guide-feed.js'
 import { GUIDE_MERGED_FEED_KEY, createGuideMerge } from './guide-merge.js'
 import { createGuideSources } from './guide-sources/index.js'
+import { suggestionsOf } from './guide-sources/suggested-feeds.js'
+import { broadcastGuideHealthOf } from './broadcast-guide-health.js'
 import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
+import { createFreeviewNzSource } from './guide-sources/freeview-nz.js'
 import { createTitleAliases } from './title-aliases.js'
 import { createSourceHealthStore } from './guide-source-health.js'
 import { readListingChoice } from './guide-listings.js'
@@ -2266,7 +2269,10 @@ const guideChannelTriplets = async () => readGuideChannelTriplets({
   listTriplets: listChannelTriplets,
 })
 
-const guideSources = createGuideSources({ freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }) })
+const guideSources = createGuideSources({
+  freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }),
+  freeviewNz: createFreeviewNzSource({ onWindow: seedFreeviewWindow }),
+})
 
 const guideSourceHealth = createSourceHealthStore()
 
@@ -2307,6 +2313,8 @@ const guideSourceService = createGuideSourceService({
   guideMerge,
   rankedSources: () => guideSources.forCountry(countryForTimeZone(currentTimeZone())),
   health: guideSourceHealth,
+  suggestions: () => suggestionsOf({ country: countryForTimeZone(currentTimeZone()), timeZone: currentTimeZone() }),
+  broadcastGuide: async () => broadcastGuideHealthOf({ guide: await getGuideSnapshot() }),
   inspect: async () => inspectGuide({ http: setupHttp, conn: await resolveConnection() }),
   feedUrl: async () => ownGuideFeedUrl(await resolveConnection()),
   isFeedUrl: isGuideFeedUrl,
