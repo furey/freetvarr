@@ -287,3 +287,12 @@ test('listChannelTriplets reads the service and mux grids and maps each channel 
     await new Promise((resolve) => server.close(resolve))
   }
 })
+
+test('seedWindow: a window read by the merged guide build answers matchAirings with no request', async () => {
+  const client = fakeClient(({ url }) => (url.includes('/channels/region/') ? channelsBody : { data: [] }))
+  const freeview = createFreeviewAu({ client, timeZone: () => 'Australia/Sydney', now: () => START })
+  freeview.seedWindow({ triplet: TRIPLET, windowStart: windowStartOf(START), listings: [listing({ title: 'Gruen', show: 'gruen.jpg' })] })
+  const matches = await freeview.matchAirings([{ key: 'a1', title: 'Gruen', start: START, triplets: [TRIPLET] }])
+  assert.equal(matches.get('a1').show, 'https://img-store-prod.switch.tv/images/gruen.jpg')
+  assert.equal(client.calls.filter(({ url }) => url.includes('/epgs/')).length, 0)
+})

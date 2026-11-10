@@ -3,7 +3,7 @@ import zlib from 'node:zlib'
 import axios from 'axios'
 
 import { countryForTimeZone } from './zone-countries.js'
-import GUIDE_SOURCES from './guide-sources.json' with { type: 'json' }
+import { xmltvFeedsOf } from './guide-sources/index.js'
 
 export const inspectGuide = async ({ http, conn }) => {
   const [module, guideChannels, channels] = await Promise.all([
@@ -18,7 +18,7 @@ export const inspectGuide = async ({ http, conn }) => {
 
 export const suggestGuide = ({ inspection, timeZone = '' }) => {
   const country = countryForTimeZone(timeZone)
-  const feeds = GUIDE_SOURCES[country]?.feeds || []
+  const feeds = xmltvFeedsOf(country)
   const city = String(timeZone).split('/').pop().replace(/_/g, ' ').toLowerCase()
   const regional = feeds.find((f) => f.region.toLowerCase() === city) || (feeds.length === 1 ? feeds[0] : null)
   const current = inspection.module?.enabled ? inspection.module.url : ''
@@ -106,6 +106,19 @@ export const readTimeshifts = async ({ http, conn, feedChannels }) => {
   const own = module ? guideChannels.filter((g) => g.moduleId === module.key) : []
   return findTimeshifts({ channels, guideChannels: own, feedChannels })
 }
+
+export const readGuideChannelTriplets = async ({ http, conn, listTriplets }) => {
+  const inspection = await inspectGuide({ http, conn })
+  const triplets = await listTriplets({ channels: inspection.channels.map((c) => ({ id: c.id, serviceIds: c.services })), conn })
+  return guideChannelTripletsOf({ ...inspection, triplets })
+}
+
+export const guideChannelTripletsOf = ({ guideChannels, channels, triplets }) => new Map(guideChannels.map((g) => [
+  g.xmltvId,
+  [...new Set(channels
+    .filter((c) => g.channels.includes(c.id) || c.guide.includes(g.id))
+    .flatMap((c) => triplets.get(String(c.id)) ?? []))],
+]))
 
 export const findTimeshifts = ({ channels, guideChannels, feedChannels }) => {
   const candidates = feedChannels.map((f) => ({ id: f.id, name: f.names[0] || f.id, feed: f }))

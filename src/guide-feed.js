@@ -1,7 +1,10 @@
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import net from 'node:net'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { StringDecoder } from 'node:string_decoder'
+import zlib from 'node:zlib'
 
 import { openFeedStream, parseFeedChannels, parseXmltvTime } from './tvheadend-guide.js'
 import {
@@ -26,6 +29,67 @@ export const serveShiftedFeed = async ({
   const recorder = createClassificationRecorder({ store: classifications })
   await pipeline(source, createShiftedFeedStream({ planShifts, onClassifications: recorder.add }), res)
   recorder.finish()
+}
+
+export const serveGuideFeed = async ({
+  mergedPath = null,
+  sourceUrl = null,
+  lastSourcePath = null,
+  res,
+  planShifts,
+  openFeed = openFeedStream,
+  classifications = defaultClassifications(),
+}) => {
+  const serveFile = (file) => serveShiftedFeed({ sourceUrl: file, res, planShifts, openFeed: openGzipFile, classifications })
+  if (mergedPath) return serveFile(mergedPath)
+  try {
+    if (!sourceUrl) throw new Error('no guide address')
+    return await serveShiftedFeed({
+      sourceUrl,
+      res,
+      planShifts,
+      openFeed: async (url) => keepLastCopy({ source: await openFeed(url), file: lastSourcePath }),
+      classifications,
+    })
+  } catch (err) {
+    if (res.headersSent || res.destroyed || !lastSourcePath || !(await isFile(lastSourcePath))) throw err
+    console.warn(`[guide-feed] serving the last good guide copy: ${err.message}`)
+    return serveFile(lastSourcePath)
+  }
+}
+
+export const openGzipFile = async (file) => {
+  await fsp.access(file)
+  return fs.createReadStream(file).pipe(zlib.createGunzip())
+}
+
+export const keepLastCopy = ({ source, file }) => {
+  if (!file) return source
+  const temporary = `${file}.${process.pid}.${(copyCount += 1)}.tmp`
+  const gzip = zlib.createGzip()
+  const output = fs.createWriteStream(temporary)
+  let complete = false
+  let discarded = false
+  const discard = () => {
+    if (discarded) return
+    discarded = true
+    source.unpipe(gzip)
+    gzip.unpipe(output)
+    gzip.destroy()
+    output.destroy()
+    fsp.rm(temporary, { force: true }).catch(() => {})
+  }
+  source.once('end', () => { complete = true })
+  source.once('error', discard)
+  source.once('close', () => { if (!complete) discard() })
+  gzip.once('error', discard)
+  output.once('error', discard)
+  source.pipe(gzip).pipe(output)
+  output.once('finish', () => {
+    if (!complete || discarded) return discard()
+    fsp.rename(temporary, file).catch(discard)
+  })
+  return source
 }
 
 export const createShiftedFeedStream = ({ planShifts, onClassifications = () => {} }) => {
@@ -169,6 +233,10 @@ export const createRequestWatch = ({ now = Date.now } = {}) => {
     },
   }
 }
+
+let copyCount = 0
+
+const isFile = (file) => fsp.access(file).then(() => true, () => false)
 
 let sharedClassifications = null
 const defaultClassifications = () => {

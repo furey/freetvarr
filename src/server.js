@@ -65,6 +65,7 @@ import {
   tvhWrite,
   verifyLogin as verifyTvheadendLogin,
   TvheadendError,
+  listChannelTriplets,
 } from './tvheadend.js'
 import {
   applyBootstrap,
@@ -91,6 +92,7 @@ import {
   readGuideLinks,
   planGuideSetup,
   readTimeshifts,
+  readGuideChannelTriplets,
   suggestGuide,
   waitForNewListings,
 } from './tvheadend-guide.js'
@@ -102,8 +104,12 @@ import {
   serverPort,
   isGuideFeedUrl,
   localAddressToward,
-  serveShiftedFeed,
+  serveGuideFeed,
 } from './guide-feed.js'
+import { GUIDE_MERGED_FEED_KEY, createGuideMerge } from './guide-merge.js'
+import { createGuideSources } from './guide-sources/index.js'
+import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
+import { createTitleAliases } from './title-aliases.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -146,6 +152,7 @@ import {
   artLookupBacklog,
   frameGrabsBusy,
   thumbnailWarmShare,
+  seedFreeviewWindow,
 } from './epg.js'
 import {
   adScansRunning,
@@ -2236,14 +2243,34 @@ const refreshGuideWhenListingsArrive = async ({ conn, channelIds }) => {
 
 const guideFeedRequests = createRequestWatch()
 
+const GUIDE_DIR = path.join(CONFIG_DIR, 'guide')
+
+const LAST_SOURCE_COPY = path.join(GUIDE_DIR, 'last-source.xml.gz')
+
+const guideChannelTriplets = async () => readGuideChannelTriplets({
+  http: setupHttp,
+  conn: await resolveConnection(),
+  listTriplets: listChannelTriplets,
+})
+
+const guideMerge = createGuideMerge({
+  dir: GUIDE_DIR,
+  sources: createGuideSources({ freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }) }),
+  timeZone: currentTimeZone,
+  sourceUrl: () => getSetting(GUIDE_SOURCE_KEY),
+  isServing: async () => (await getSetting(GUIDE_MERGED_FEED_KEY)) === 'on',
+  channelTriplets: guideChannelTriplets,
+  aliases: createTitleAliases(),
+})
+
 const guideFeedLimiter = createRateLimiter({ limit: 10 })
 
 app.get(GUIDE_FEED_PATH, guideFeedLimiter, async (req, res) => {
   guideFeedRequests.note()
-  const sourceUrl = await getSetting(GUIDE_SOURCE_KEY)
-  if (!sourceUrl) return res.status(404).type('text/plain').send('Freetvarr has no guide address yet.')
+  const [sourceUrl, mergedPath] = await Promise.all([getSetting(GUIDE_SOURCE_KEY), guideMerge.servablePath()])
+  if (!sourceUrl && !mergedPath) return res.status(404).type('text/plain').send('Freetvarr has no guide address yet.')
   try {
-    await serveShiftedFeed({ sourceUrl, res, planShifts: timeshiftsForFeed })
+    await serveGuideFeed({ mergedPath, sourceUrl, lastSourcePath: LAST_SOURCE_COPY, res, planShifts: timeshiftsForFeed })
   } catch (err) {
     console.warn(`[guide-feed] could not serve the guide from ${sourceUrl}: ${err.message}`)
     if (res.headersSent) return res.destroy()
@@ -2326,6 +2353,7 @@ app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (
     onProgress: (latest) => { guideRun.steps = latest },
   }).catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: guideRun.steps }))
   if (result.ok) refreshGuideAfterLinks()
+  if (result.ok) guideMerge.requestBuild()
   if (result.ok) console.log(`[tvh-guide] ${result.grabberUrl}: ${result.linked} of ${result.total} channels have a guide`)
   else console.warn(`[tvh-guide] stopped at ${result.failedStep}: ${result.error}`)
   guideRun = { running: false, steps: result.steps, result: result.ok ? result : { ...result, ...guideFailure(result) } }
@@ -2540,6 +2568,8 @@ const server = app.listen(PORT, async () => {
   getHealthSummary().catch((err) => console.warn(`[health] warm-up: ${err.message}`))
   watchPendingSkips()
   watchGuidePictures()
+  await fs.mkdir(GUIDE_DIR, { recursive: true }).catch((err) => console.warn(`[guide-merge] cannot make ${GUIDE_DIR}: ${err.message}`))
+  guideMerge.start()
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
   anchorSeriesRulesQuietly()
