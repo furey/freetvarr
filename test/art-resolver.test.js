@@ -24,7 +24,7 @@ import {
 } from '../src/art-resolver.js'
 import { imageRouteOf, serveImageRoute } from '../src/image-routes.js'
 import { portraitPadOf } from '../src/show-poster.js'
-import { artKindHintOf, showImageUrlOf } from '../src/web/artwork-stamps.js'
+import { artKindHintOf, createArtworkStamps, showImageUrlOf } from '../src/web/artwork-stamps.js'
 import { artProbeStateOf } from '../src/web/art-fallback.js'
 
 const HOUR = 60 * 60 * 1000
@@ -39,8 +39,12 @@ const memoryStore = () => {
     rows,
     read: async (key) => rows.get(key) ?? null,
     write: async (row) => { rows.set(row.resolution_key, row) },
-    remove: async (key) => { rows.delete(key) },
-    removeTitle: async (titleKey) => { for (const [key, row] of rows) if (row.title_key === titleKey) rows.delete(key) },
+    markDue: async ({ titleKey = null, resolutionKey = null }) => {
+      const due = [...rows.values()].filter((row) => (titleKey ? row.title_key === titleKey : row.resolution_key === resolutionKey))
+      const stamp = `due-${rows.size}-${due.length}-${Math.random().toString(16).slice(2, 8)}`
+      due.forEach((row) => Object.assign(row, { next_check_at: 0, miss_step: 0, stamp }))
+      return due.map((row) => ({ key: row.show_key, kind: row.shape === 'poster' ? 'poster' : 'background', stamp }))
+    },
     stamped: async () => [...rows.values()].filter((row) => row.stamp),
   }
 }
@@ -435,6 +439,50 @@ test('a first picture tells listeners with no stamp, and a changed picture gets 
   const stamp = pictureStampOf({ origin: 'plex:/new', transform: 'none' })
   assert.deepEqual(resolved[1], { key: 'the-block', kind: 'background', stamp })
   assert.deepEqual(Object.fromEntries(await resolver.stampsByKey()), { 'the-block': { background: stamp } })
+})
+
+test('a dropped stand-in keeps its row, marks it due with a new stamp, and the next picture gets its own stamp, so the URL changes each time', async () => {
+  const resolved = []
+  const standIn = 'https://img.example.com/9-logo.png'
+  const real = 'https://img.example.com/bluey.jpg'
+  const sizes = { [standIn]: WIDE, [real]: WIDE }
+  const screened = new Set()
+  const { resolver, store, clock } = resolverWith({
+    stages: { guide: async () => ({ sources: [standIn, real] }) },
+    sizes,
+    loadImage: async (origin) => (sizes[origin] && !screened.has(origin) ? { body: Buffer.from(origin) } : null),
+    onResolved: (change) => resolved.push(change),
+  })
+  const stamps = createArtworkStamps({ storage: null })
+  const url = showImageUrlOf({ title: 'Bluey', width: 384 })
+  const urls = [stamps.stampUrl(url)]
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).origin, standIn)
+  screened.add(standIn)
+  const [due] = await resolver.forget('Bluey')
+  const row = store.rows.get('series|landscape|bluey')
+  assert.deepEqual([row.origin, row.next_check_at, row.stamp], [standIn, 0, due.stamp])
+  stamps.setStamps(resolved)
+  urls.push(stamps.stampUrl(url))
+  clock.ms += 1
+  assert.equal((await resolver.resolve({ title: 'Bluey' })).origin, real)
+  assert.equal(store.rows.get('series|landscape|bluey').stamp, pictureStampOf({ origin: real, transform: 'none' }))
+  stamps.setStamps(resolved)
+  urls.push(stamps.stampUrl(url))
+  assert.equal(new Set(urls).size, 3)
+})
+
+test('forget marks every row of the title due and announces them in one call', async () => {
+  const announced = []
+  const { resolver, store } = resolverWith({
+    stages: { plex: async () => ({ sources: ['plex:/art'] }) },
+    sizes: { 'plex:/art': POSTER },
+    onMarkedDue: (changes) => { announced.push(changes) },
+  })
+  await resolver.resolve({ title: 'Bluey' })
+  await resolver.resolve({ title: 'Bluey', shape: 'poster' })
+  assert.equal(store.rows.size, 2)
+  await resolver.forget('Bluey')
+  assert.deepEqual(announced.map((changes) => changes.map((change) => change.kind).sort()), [['background', 'poster']])
 })
 
 test('pictureChangeOf: a stamp only when the browser may hold an older picture, and kept while the picture stays', () => {

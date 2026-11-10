@@ -3,6 +3,7 @@ import { showKeyOf } from './show-key.js'
 export const ARTWORK_STAMPS_KEY = 'freetvarr.artworkStamps'
 export const SHOW_IMAGE_PATH = '/api/epg/show-image'
 export const SERIES_MATCH_VERSION = 'series-v2'
+export const PROGRAMME_STAMP_KIND = 'programme'
 
 export const createArtworkStamps = ({ storage = null } = {}) => {
   const stamps = new Map(Object.entries(readSaved(storage)))
@@ -21,7 +22,7 @@ export const createArtworkStamps = ({ storage = null } = {}) => {
 
   const putStamp = ({ key, kind, stamp }) => {
     const next = { ...stamps.get(key), [kind]: stamp || null }
-    if (next.background || next.poster) stamps.set(key, next)
+    if (STAMP_KINDS.some((name) => next[name])) stamps.set(key, next)
     else stamps.delete(key)
   }
 
@@ -39,7 +40,8 @@ export const createArtworkStamps = ({ storage = null } = {}) => {
 
   const stampOf = ({ title, kind = 'background' }) => stamps.get(showKeyOf(title))?.[kind] || null
 
-  const stampUrl = (url) => {
+  const stampUrl = (url, title = null) => {
+    if (isProgrammeImageUrl(url)) return title ? withChoiceStamp({ url, stamp: stamps.get(showKeyOf(title))?.[PROGRAMME_STAMP_KIND] || null }) : url
     const picture = pictureOfShowImageUrl(url)
     if (!picture) return url
     return withChoiceStamp({ url, stamp: stamps.get(picture.key)?.[picture.kind] || SERIES_MATCH_VERSION })
@@ -62,6 +64,8 @@ export const pictureOfShowImageUrl = (url) => {
 export const unstampedUrl = (url) => (isShowImageUrl(url) ? withChoiceStamp({ url, stamp: null }) : url)
 
 export const artKindHintOf = (kind) => ART_KIND_HINTS[kind] ?? null
+
+export const isProgrammeImageUrl = (url) => typeof url === 'string' && PROGRAMME_IMAGE_URL.test(url)
 
 export const isShowImageUrl = (url) => typeof url === 'string' && url.startsWith(`${SHOW_IMAGE_PATH}?`)
 
@@ -105,5 +109,6 @@ const save = ({ storage, stamps }) => {
 
 export const artworkStamps = createArtworkStamps({ storage: browserStorage() })
 
-const STAMP_KINDS = ['background', 'poster']
+const STAMP_KINDS = ['background', 'poster', PROGRAMME_STAMP_KIND]
+const PROGRAMME_IMAGE_URL = /^\/api\/(epg\/image\/[^/?]+|recordings\/[^/?]+\/image)(\?|$)/
 const ART_KIND_HINTS = { movie: 'movie', series: 'series', oneoff: 'one-off', 'one-off': 'one-off' }

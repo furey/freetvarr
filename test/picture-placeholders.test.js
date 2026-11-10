@@ -118,7 +118,7 @@ test('the resolver chain skips a placeholder and moves on to the next picture', 
       const image = images[origin] ?? null
       return image && await placeholders.check({ source: origin, image }) ? null : image
     },
-    store: { read: async () => null, write: async () => {}, remove: async () => {}, removeTitle: async () => {}, stamped: async () => [] },
+    store: { read: async () => null, write: async () => {}, markDue: async () => [], stamped: async () => [] },
     followUpDelaysMs: [],
   })
   const found = await resolver.resolve({ title: 'Home and Away', eventId: '7', ownSource: 'https://img.example.com/own/home-and-away.jpg', freeviewFirst: true })

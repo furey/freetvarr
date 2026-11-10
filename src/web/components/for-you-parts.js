@@ -12,6 +12,7 @@ import {
   whyRowsOf,
 } from '/for-you.js'
 import { useLongPress } from '/shared/long-press.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { now, tz } from '/shared/time.js'
 
 export const ForYouIcon = {
@@ -111,7 +112,7 @@ export const ForYouOverlays = {
     <ui-sheet :open="Boolean(menuItem)" :title="menuItem?.title || ''" :subtitle="menuMeta" @close="ctl.closeMenu()">
       <template #header-lead>
         <span v-if="menuItem?.image && !failedArt[menuItem.image]" class="library-menu-art is-wide" aria-hidden="true">
-          <img :src="menuItem.image" alt="" @error="markFailed(menuItem.image)" />
+          <img :src="stampedShowImage(menuItem.image, menuItem.title)" alt="" @error="markFailed(menuItem.image)" />
         </span>
       </template>
       <div v-if="menuItem" class="library-menu for-you-menu">
@@ -155,7 +156,7 @@ export const ForYouOverlays = {
     <ui-sheet :open="Boolean(whyItem)" title="Why this?" :subtitle="whySubtitle" @close="ctl.closeWhy()">
       <template #header-lead>
         <span v-if="whyItem?.image && !failedArt[whyItem.image]" class="library-menu-art is-wide for-you-why-art" aria-hidden="true">
-          <img :src="whyItem.image" alt="" @error="markFailed(whyItem.image)" />
+          <img :src="stampedShowImage(whyItem.image, whyItem.title)" alt="" @error="markFailed(whyItem.image)" />
         </span>
       </template>
       <template #header-actions>
@@ -214,7 +215,7 @@ export const ForYouOverlays = {
     const signals = computed(() => props.ctl.why.data?.signals ?? [])
     const failedArt = ref({})
     const markFailed = (src) => { failedArt.value = { ...failedArt.value, [src]: true } }
-    return { failedArt, markFailed, menuItem, whyItem, rowTheme, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals }
+    return { failedArt, markFailed, stampedShowImage, menuItem, whyItem, rowTheme, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals }
   },
 }
 

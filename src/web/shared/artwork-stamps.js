@@ -7,15 +7,15 @@ export const artworkStampsVersion = ref(0)
 
 artworkStamps.subscribe(() => { artworkStampsVersion.value += 1 })
 
-export const stampedShowImage = (url) => {
+export const stampedShowImage = (url, title = null) => {
   artworkStampsVersion.value
-  return artworkStamps.stampUrl(url)
+  return artworkStamps.stampUrl(url, title)
 }
 
-export const stampedSrcset = (srcset) => (srcset
+export const stampedSrcset = (srcset, title = null) => (srcset
   ? srcset.split(', ').map((part) => {
     const [url, ...descriptor] = part.split(' ')
-    return [stampedShowImage(url), ...descriptor].join(' ')
+    return [stampedShowImage(url, title), ...descriptor].join(' ')
   }).join(', ')
   : srcset)
 
@@ -38,9 +38,10 @@ export const applyResolvedArt = (changes = []) => {
 export const artResolvedTickOf = (picture) => resolvedTicks.get(pictureIdOf(pictureOf(picture))) ?? 0
 
 export const episodePictureOf = (episode) => {
-  if (episode?.image || !episode?.picture) return episode?.image || null
+  if (episode?.image || !episode?.picture) return stampedShowImage(episode?.image || null, episode?.title)
+  const picture = stampedShowImage(episode.picture, episode.title)
   const tick = artResolvedTickOf({ title: episode.title || '' })
-  return tick ? `${episode.picture}${episode.picture.includes('?') ? '&' : '?'}r=${tick}` : episode.picture
+  return tick ? `${picture}${picture.includes('?') ? '&' : '?'}r=${tick}` : picture
 }
 
 export const rememberFinalMiss = ({ url, title = '', shape = 'card' }) => {

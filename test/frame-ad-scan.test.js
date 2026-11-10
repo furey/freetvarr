@@ -30,6 +30,7 @@ beforeEach(async () => {
   await fs.writeFile(FILE_PATH, 'programme')
   await db('recordings').delete()
   await db('art_resolutions').delete()
+  await db('programme_picture_stamps').delete()
   await db('shows').delete()
   const [showId] = await db('shows').insert({ show_pattern: 'Gruen', dest_folder: 'Gruen', ad_removal: 'detect' })
   await db('recordings').insert({
@@ -74,18 +75,24 @@ test('a finished ad scan tells listeners the breaks it found', async () => {
   await fs.rm(path.join(tmpDir, 'Gruen - S01E01.edl'), { force: true })
 })
 
-test('a frame in a break is grabbed again with the breaks, its resolutions asked again, and open pages told', async () => {
+test('a frame in a break is grabbed again with the breaks, its resolutions asked again with a new stamp, and open pages told', async () => {
   await db('art_resolutions').insert({
-    resolution_key: 'series|landscape|gruen', title_key: 'gruen', kind: 'series', shape: 'landscape', stage: 'frame',
-    origin: frameOriginOf(FILE_PATH), transform: 'none', fingerprint: 'f', resolved_at: 1, next_check_at: Date.now() + 1e9,
+    resolution_key: 'series|landscape|gruen', title_key: 'gruen', show_key: 'gruen', kind: 'series', shape: 'landscape', stage: 'frame',
+    origin: frameOriginOf(FILE_PATH), transform: 'none', fingerprint: 'f', resolved_at: 1, next_check_at: Date.now() + 1e9, stamp: 'old',
   })
   const grabs = fakeGrabs({ stale: true })
   const cursor = artFeed.cursor()
   const result = await refreshFrameAfterAdScan({ recordingId: RECORDING_ID, filePath: FILE_PATH, breaks: BREAKS }, { grabs })
   assert.deepEqual(result, { stale: true, awaited: false, grabbing: true })
-  assert.equal(Number((await db('art_resolutions').first()).next_check_at), 0)
+  const row = await db('art_resolutions').first()
+  assert.equal(Number(row.next_check_at), 0)
+  assert.equal(row.origin, frameOriginOf(FILE_PATH))
+  assert.notEqual(row.stamp, 'old')
   assert.deepEqual(grabs.asked.map((request) => request.adPlan), [{ state: 'marked', breaks: BREAKS }])
-  assert.deepEqual(publishedSince(cursor), ['background|gruen', 'poster|gruen'])
+  assert.deepEqual(publishedSince(cursor), ['background|gruen', 'poster|gruen', 'programme|gruen'])
+  const sent = artFeed.since(cursor).stamps
+  assert.equal(sent.find((change) => change.kind === 'background').stamp, row.stamp)
+  assert.equal(sent.find((change) => change.kind === 'programme').stamp, (await db('programme_picture_stamps').where({ show_key: 'gruen' }).first()).stamp)
 })
 
 test('a frame waiting for the ad scan is grabbed when the result arrives; a frame clear of breaks is left alone', async () => {
@@ -110,7 +117,7 @@ test('stills off: the frame step answers no picture, ad results grab nothing, an
   assert.equal(grabs.asked.length, 0)
   const cursor = artFeed.cursor()
   assert.equal(await publishStillsChange(), 1)
-  assert.deepEqual(publishedSince(cursor), ['background|gruen', 'poster|gruen'])
+  assert.deepEqual(publishedSince(cursor), ['background|gruen', 'poster|gruen', 'programme|gruen'])
 })
 
 test('filePlanOf: a library item from a recording takes the recording plan; a download is ad-free', () => {
@@ -120,7 +127,7 @@ test('filePlanOf: a library item from a recording takes the recording plan; a do
   assert.equal(filePlanOf({ file: { filePath: '/tv/download.mkv', recordingId: null, managed: true }, plans }).state, 'ad-free')
 })
 
-test('deleteFrameResolutions: 1000 pruned origins and their versions delete in batches', async () => {
+test('deleteFrameResolutions: 1000 pruned origins and their versions are marked due in batches and keep their rows', async () => {
   const origins = Array.from({ length: 1000 }, (_, at) => `frame:${String(at).padStart(24, '0')}`)
   const row = (key, origin) => ({
     resolution_key: key, title_key: key, kind: 'series', shape: 'landscape', stage: 'frame',
@@ -133,5 +140,8 @@ test('deleteFrameResolutions: 1000 pruned origins and their versions delete in b
   ]
   for (let at = 0; at < rows.length; at += 100) await db('art_resolutions').insert(rows.slice(at, at + 100))
   assert.equal(await deleteFrameResolutions({ origins }), 1300)
-  assert.deepEqual((await db('art_resolutions').select('resolution_key')).map((left) => left.resolution_key), ['kept'])
+  const left = await db('art_resolutions').select('resolution_key', 'next_check_at', 'stamp')
+  assert.equal(left.length, rows.length)
+  assert.deepEqual(left.filter((row) => Number(row.next_check_at) !== 0).map((row) => row.resolution_key), ['kept'])
+  assert.ok(left.filter((row) => row.resolution_key !== 'kept').every((row) => row.stamp))
 })

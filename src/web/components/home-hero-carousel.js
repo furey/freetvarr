@@ -83,7 +83,7 @@ export const HomeHeroCarousel = {
             <div :class="['hero-slide-backdrop', { 'ui-art-fallback': failedArt[artKeyOf(slide)] }]"
               :style="failedArt[artKeyOf(slide)] ? fallbackStyleOf(slide) : null">
               <img v-if="!failedArt[artKeyOf(slide)]" class="ui-hero-art" :src="artSrcOf(slide)"
-                :srcset="stampedSrcset(slide.art.srcset)" :sizes="heroSizes" alt="" decoding="async"
+                :srcset="stampedSrcset(slide.art.srcset, slide.art.title)" :sizes="heroSizes" alt="" decoding="async"
                 :fetchpriority="i === 0 ? 'high' : null" :loading="isNearActive(i) ? 'eager' : 'lazy'" @error="markArtFailed(slide)" />
             </div>
             <div class="ui-hero-scrim"></div>
@@ -514,7 +514,7 @@ export const HomeHeroCarousel = {
 
     const emitAction = (slide, button) => emit('action', { slide, action: button.action })
     const fallbackStyleOf = (slide) => artFallbackStyle(slide.art.title)
-    const artSrcOf = (slide) => stampedShowImage(slide.art.image)
+    const artSrcOf = (slide) => stampedShowImage(slide.art.image, slide.art.title)
     const artKeyOf = (slide) => `${slide.key}|${artSrcOf(slide)}|${artResolvedTickOf({ url: slide.art.image, title: slide.art.title })}`
     const markArtFailed = (slide) => {
       failedArt.value = { ...failedArt.value, [artKeyOf(slide)]: true }
