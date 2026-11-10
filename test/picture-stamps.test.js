@@ -46,6 +46,8 @@ const fakePictures = (dropped) => ({
 
 const fakePlaceholders = { saveFamilies: async () => 0, isPlaceholder: (source) => /logo/.test(String(source)) }
 
+const verdictOfOrigin = async (origin) => (/logo/.test(String(origin)) ? 'stand-in' : 'ok')
+
 test('a dropped stand-in keeps its row, is marked due with a new stamp, and tells open pages the new title and programme stamps', async () => {
   await db('art_resolutions').insert([
     resolution({ key: 'series|landscape|home and away', titleKey: 'home and away', showKey: 'home-and-away', origin: STAND_IN }),
@@ -56,7 +58,7 @@ test('a dropped stand-in keeps its row, is marked due with a new stamp, and tell
   const cursor = feed.cursor()
   const pictures = fakePictures(['gruen'])
   const airings = async () => [{ image: AIRING_STAND_IN, title: 'The Chase' }, { image: REAL, title: 'Home and Away' }]
-  const announced = await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, airings, feed })
+  const announced = await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, verdictOfOrigin, airings, feed })
   assert.equal(announced, 3)
   const rows = new Map((await db('art_resolutions').select()).map((row) => [row.title_key, row]))
   assert.equal(rows.size, 3)
@@ -77,13 +79,13 @@ test('a dropped stand-in keeps its row, is marked due with a new stamp, and tell
     `programme|home-and-away|${programme.get('home-and-away')}`,
     `programme|the-chase|${programme.get('the-chase')}`,
   ])
-  assert.equal(await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, airings, feed }), 0)
+  assert.equal(await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, verdictOfOrigin, airings, feed }), 0)
 })
 
 test('a restart with the same stand-in airing addresses bumps no programme stamp; a new stand-in address bumps its titles', async () => {
   await db('settings').insert({ key: 'stand_in_airing_sources', value: JSON.stringify([AIRING_STAND_IN]) })
   const feed = createArtFeed()
-  const run = (airings) => forgetPlaceholderPictures({ database: db, pictures: fakePictures([]), placeholders: fakePlaceholders, airings: async () => airings, feed })
+  const run = (airings) => forgetPlaceholderPictures({ database: db, pictures: fakePictures([]), placeholders: fakePlaceholders, verdictOfOrigin, airings: async () => airings, feed })
   assert.equal(await run([{ image: AIRING_STAND_IN, title: 'The Chase' }]), 0)
   assert.deepEqual([...(await createProgrammeStamps({ database: db }).stampsByKey()).keys()], [])
   assert.equal(await run([{ image: AIRING_STAND_IN, title: 'The Chase' }, { image: 'https://img.example.com/10-logo.png', title: 'Gogglebox' }]), 1)

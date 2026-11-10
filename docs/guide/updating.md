@@ -110,6 +110,13 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.24.0
+
+[Release notes for `2.24.0`](https://github.com/furey/freetvarr/releases/tag/2.24.0)
+
+- **Database**: the first start adds one database change (database change `0051`). `0051` adds two columns to the picture checks: where a channel logo or badge sits in each corner of a picture, and how much detail the picture has, so Freetvarr can find channel title cards and use them only when no better picture exists. A version that is older than `0051` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+- **Pictures**: the first start measures every saved guide and recording picture again, once, in the background, and chooses each title's picture again once.
+
 ### 2.23.0
 
 [Release notes for `2.23.0`](https://github.com/furey/freetvarr/releases/tag/2.23.0)
@@ -264,6 +271,8 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
+   - To go back from `2.24.0` to `2.23.x`, undo `0051`.
+   - To go back from `2.24.0` to `2.22.x`, undo `0051`, then `0050`.
    - To go back from `2.23.0` to `2.22.x`, undo `0050`.
    - To go back from `2.23.0` to `2.20.0` or `2.21.x`, undo `0050`, then `0049`.
    - To go back from `2.22.0` to `2.20.0` or `2.21.x`, undo `0049`.

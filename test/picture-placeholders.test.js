@@ -8,6 +8,7 @@ import sharp from 'sharp'
 
 import { up as upGuidePictures } from '../migrations/0046_guide_pictures.js'
 import { up as upPictureChecks } from '../migrations/0049_picture_checks.js'
+import { up as upPictureCheckMarks } from '../migrations/0051_picture_check_marks.js'
 import { createArtResolver } from '../src/art-resolver.js'
 import { createGuidePictures } from '../src/guide-pictures.js'
 import {
@@ -43,6 +44,7 @@ const memoryDatabase = async () => {
   const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
   await upGuidePictures(database)
   await upPictureChecks(database)
+  await upPictureCheckMarks(database)
   cleanups.push(() => database.destroy())
   return database
 }
@@ -104,7 +106,7 @@ test('createPlaceholderPictures flags the same image bytes used by unrelated tit
 test('the resolver chain skips a placeholder and moves on to the next picture', async () => {
   const database = await memoryDatabase()
   const placeholders = createPlaceholderPictures({ database })
-  placeholders.setLogoHashes([await pictureHashOf(sevenLogo)])
+  placeholders.setLogos([{ hash: await pictureHashOf(sevenLogo) }])
   const images = {
     'https://img.example.com/freeview/home-and-away-show.png': { body: logoOnCanvas },
     'https://img.example.com/own/home-and-away.jpg': { body: await sceneOf(4) },
@@ -146,7 +148,7 @@ test('guide pictures never saves a placeholder copy, drops saved copies that lat
     fetchImage: async (source) => ({ body: answers[source], contentType: 'image/png' }),
     sleep: async () => {},
     hostTally: null,
-    screen: (picture) => placeholders.check(picture),
+    screen: (picture) => placeholders.judge(picture),
   })
   const entry = (title, titleKey, sources) => [titleKey, { title, titleKey, sources }]
   await pictures.saveAll({ candidates: new Map([
@@ -161,7 +163,7 @@ test('guide pictures never saves a placeholder copy, drops saved copies that lat
     'https://img.example.com/home-and-away.jpg',
     'https://img.example.com/lingo/9.png',
   ])
-  placeholders.setLogoHashes([await pictureHashOf(sevenLogo)])
+  placeholders.setLogos([{ hash: await pictureHashOf(sevenLogo) }])
   placeholders.noteTitles(['Millionaire Hot Seat', 'The Graham Norton Show', 'Deal Or No Deal'].map((title) => ({ source: 'https://img.example.com/news/9.png', title })))
   await pictures.saveAll({ candidates: new Map([entry('10 News', '10 news', ['https://img.example.com/news/9.png'])]) })
   const keeps = { keepTitleKeys: new Set(['big brother', 'home and away']), keepOrigins: new Set(['https://img.example.com/lingo/9.png']) }
@@ -196,7 +198,7 @@ test('a saved stand-in copy is never offered, even before the guide pictures job
   await before.saveAll({ candidates: new Map([['the loud house', { title: 'The Loud House', titleKey: 'the loud house', sources: [Object.keys(answers)[2]] }]]) })
   assert.match(await before.originFor('Big Brother'), /^guide-picture:/)
   const placeholders = createPlaceholderPictures({ database })
-  const pictures = createGuidePictures({ ...options, screen: (picture) => placeholders.check(picture) })
+  const pictures = createGuidePictures({ ...options, screen: (picture) => placeholders.judge(picture) })
   const realCopy = await pictures.originForSource('https://img-store-prod.switch.tv/bb/p34381102.jpg')
   assert.equal(await pictures.dropPlaceholders({ keepTitleKeys: new Set(['big brother']) }).then((titles) => titles.includes('big brother')), false)
   assert.deepEqual(await pictures.titleOriginsFor('Big Brother'), [realCopy])
@@ -215,7 +217,7 @@ test('serving a saved copy checks it on first sight, with no guide pictures job 
   const unscreened = createGuidePictures({ database, root, fetchImage: async () => ({ body: transparentLogo }), sleep: async () => {}, hostTally: null })
   await unscreened.saveAll({ candidates: new Map([['jamie', { title: 'Jamie', titleKey: 'jamie', sources: [source] }]]) })
   const placeholders = createPlaceholderPictures({ database })
-  const pictures = createGuidePictures({ database, root, fetchImage: async () => null, sleep: async () => {}, hostTally: null, screen: (picture) => placeholders.check(picture) })
+  const pictures = createGuidePictures({ database, root, fetchImage: async () => null, sleep: async () => {}, hostTally: null, screen: (picture) => placeholders.judge(picture) })
   const origin = await unscreened.originFor('Jamie')
   assert.equal(await pictures.sourceOfOrigin(origin), source)
   assert.equal(await pictures.originFor('Jamie'), null)

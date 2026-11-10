@@ -27,8 +27,9 @@ import {
   TvheadendError,
 } from './tvheadend.js'
 import { createProgrammeImages, guideImageHosts, hostOfSource } from './programme-images.js'
-import { createGuidePictures, guidePictureCandidatesOf, isGuidePictureOrigin } from './guide-pictures.js'
-import { createPlaceholderPictures, pictureHashOf } from './picture-placeholders.js'
+import { createGuidePictures, guidePictureCandidatesOf } from './guide-pictures.js'
+import { logoTraitsOf } from './picture-placeholders.js'
+import { OK_VERDICT, STAND_IN_VERDICT, WEAK_VERDICT, createPictureGate, pictureChecks } from './picture-gate.js'
 import { FREEVIEW_IMAGE_HOST, createFreeviewAu, freeviewAiringsOf, freeviewCandidatesOf, freeviewClient, isFreeviewImageSource } from './freeview-au.js'
 import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
@@ -53,9 +54,10 @@ import {
   onlineArtworkOf,
   markResolutionsDue,
   stampKindOf,
+  WEAK_STAGE,
 } from './art-resolver.js'
 import { PROGRAMME_STAMP_KIND, createProgrammeStamps } from './programme-stamps.js'
-import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, isFrameOrigin } from './frame-grabs.js'
+import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf } from './frame-grabs.js'
 import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
@@ -73,7 +75,7 @@ import {
   savedProgramFor,
 } from './guide-history.js'
 import { findArtwork, saveArtwork } from './artwork.js'
-import { PLEX_ORIGIN_PREFIX, RECORDING_ORIGIN_PREFIX, UPLOAD_ORIGIN_PREFIX, artworkChoices, plexSourceOf } from './artwork-choices.js'
+import { PLEX_ORIGIN_PREFIX, RECORDING_ORIGIN_PREFIX, artworkChoices, plexSourceOf } from './artwork-choices.js'
 import { artworkUploads } from './artwork-uploads.js'
 import { getPlexConnection } from './plex.js'
 import { showKeyOf } from './web/show-key.js'
@@ -820,8 +822,10 @@ export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {})
   const { own, sameTitle, title, kind } = await programmeImageSources({ eventId, fallbackSource })
   const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title }) : NO_FREEVIEW_IMAGES
   const sources = recordingPictureOrderOf({ freeviewEpisode: freeview.episode, own, freeviewShow: freeview.show, freeviewTitle: freeview.title, sameTitle })
-  return await firstImageOf({ sources, load: screenedImageOfOrigin })
-    || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
+  return bestImageOf([
+    { sources, load: screenedImageOfOrigin },
+    { sources: await showArtSources({ title, kind }), load: showArtOriginal },
+  ])
 }
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
@@ -993,7 +997,7 @@ export const automaticShowSources = async ({ title, kind = null }) => {
   const [library, fallback, guide] = await Promise.all([
     showArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
     fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => []),
-    guideImagesFor(title),
+    guideImagesFor(title).then(withoutStandIns),
   ])
   return { library, fallback, guide }
 }
@@ -1003,42 +1007,42 @@ const guideImagesFor = async (title) => {
   return guide?.imagesByTitle?.get(titleKeyOf(title)) || []
 }
 
+const withoutStandIns = async (origins) => {
+  const kept = []
+  for (const origin of origins) if (!(await isStandInOrigin(origin))) kept.push(origin)
+  return kept
+}
+
 const originalOfOrigin = async ({ origin, kind }) => {
-  const image = await rawImageOfOrigin(origin)
+  const image = await pictureGate.loadOwnerChoice(origin)
   if (!image || kind !== 'background') return image
   return landscapeOf(image).catch(() => image)
 }
 
-const rawImageOfOrigin = (origin) => rawImageOrErrorOf(origin).catch(() => null)
+const screenedImageOfOrigin = (origin) => pictureGate.load(origin).catch(() => null)
 
-const screenedImageOfOrigin = (origin) => screenedImageOrErrorOf(origin).catch(() => null)
+export const isScreenedSource = (source) => !isFallbackImageSource(source)
+  && hostOfSource(source) !== TVMAZE_IMAGE_HOST
+  && !PLEX_TOKEN.test(String(source ?? ''))
 
-const screenedImageOrErrorOf = async (origin) => {
-  const image = await rawImageOrErrorOf(origin)
-  if (!image?.body) return image
-  const source = isGuidePictureOrigin(origin) ? await guidePictures.sourceOfOrigin(origin) : origin
-  if (!source || !isGuideImageOrigin(source)) return image
-  return await placeholderPictures.check({ source, image }) ? null : image
-}
+export const recordingCopyVerdict = (recordingId) => pictureGate.screen(`${RECORDING_ORIGIN_PREFIX}${recordingId}`).then(
+  (judged) => judged.verdict,
+  () => STAND_IN_VERDICT,
+)
 
-export const isGuideImageOrigin = (origin) => !OWN_ORIGIN.test(String(origin ?? '')) && !isFallbackImageSource(origin)
-  && hostOfSource(origin) !== TVMAZE_IMAGE_HOST
-
-const rawImageOrErrorOf = async (origin) => {
-  if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
-  if (isFrameOrigin(origin)) return frameGrabs.read(origin)
-  if (isGuidePictureOrigin(origin)) return guidePictures.read(origin)
-  if (origin.startsWith(RECORDING_ORIGIN_PREFIX)) {
-    return findArtwork({ kind: 'recording', id: origin.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
-  }
-  if (!origin.startsWith(PLEX_ORIGIN_PREFIX)) return programmeImages.imageOrErrorFor(origin)
+const plexImageOf = async (origin) => {
   const connection = await getPlexConnection().catch(() => null)
   return connection ? programmeImages.imageOrErrorFor(plexResizedSourceOf(plexSourceOf({ origin, ...connection }))) : null
 }
 
+const recordingCopyOf = (recordingId) => findArtwork({ kind: 'recording', id: recordingId }).catch(() => null)
+
+const recordingSourceOf = async (recordingId) =>
+  (await db('recordings').where({ recording_id: recordingId }).first('image_url'))?.image_url ?? null
+
 const showSourceImage = (source) => (source.startsWith(RECORDING_ORIGIN_PREFIX)
-  ? findArtwork({ kind: 'recording', id: source.slice(RECORDING_ORIGIN_PREFIX.length) }).catch(() => null)
-  : programmeImages.imageFor(plexResizedSourceOf(source)))
+  ? screenedImageOfOrigin(source)
+  : screenedImageOfOrigin(plexResizedSourceOf(source)))
 
 export const plexResizedSourceOf = (source) => {
   const parsed = parsedUrlOf(source)
@@ -1124,14 +1128,26 @@ export const publishWhenRendered = ({ rendering, title, shape, publish = artFeed
   if (image) publish({ key: showKeyOf(title), kind: stampKindOf(shape), stamp: null })
 }).catch(() => {})
 
-const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) => thumbnailStore.thumbnailFor({
-  key: resolvedThumbnailKeyOf({ origin, transform, shape }),
-  width,
-  loadOriginal: () => resolvedOriginalOf({ origin, transform, shape }),
-}).catch(() => null)
+const resolvedThumbnail = ({ resolution: { origin, transform, stage }, width, shape }) => {
+  const ownerChoice = stage === CHOICE_STAGE
+  return pictureGate.servedThumbnail({
+    origin,
+    ownerChoice,
+    thumbnails: thumbnailStore,
+    key: resolvedThumbnailKeyOf({ origin, transform, shape }),
+    width,
+    loadOriginal: () => resolvedOriginalOf({ origin, transform, shape, ownerChoice }),
+  }).catch(() => null)
+}
 
-const resolvedOriginalOf = async ({ origin, transform, shape }) => {
-  const image = await screenedImageOfOrigin(origin)
+export const isStandInCandidate = async (origin) => (String(origin ?? '').startsWith(RECORDING_ORIGIN_PREFIX)
+  ? await recordingCopyVerdict(origin.slice(RECORDING_ORIGIN_PREFIX.length)) === STAND_IN_VERDICT
+  : isStandInOrigin(origin))
+
+export const isStandInOrigin = async (origin) => await pictureGate.knownVerdict(origin).catch(() => null) === STAND_IN_VERDICT
+
+const resolvedOriginalOf = async ({ origin, transform, shape, ownerChoice = false }) => {
+  const image = ownerChoice ? await pictureGate.loadOwnerChoice(origin) : await screenedImageOfOrigin(origin)
   if (!image || transform !== 'pad') return image
   return (shape === POSTER_SHAPE ? portraitPadOf(image) : landscapeOf(image)).catch(() => image)
 }
@@ -1344,7 +1360,9 @@ const artworkHintsFor = async (title) => {
 
 const showThumbnailKeyOf = (source) => `show-1080:${source}`
 
-const showThumbnailLoader = (width) => (source) => thumbnailStore.thumbnailFor({
+const showThumbnailLoader = (width) => (source) => pictureGate.servedThumbnail({
+  origin: source,
+  thumbnails: thumbnailStore,
   key: showThumbnailKeyOf(source),
   width,
   loadOriginal: () => showArtOriginal(source),
@@ -1360,12 +1378,16 @@ const showArtOriginal = async (source) => {
   return image && landscapeOf(image).catch(() => image)
 }
 
-const firstImageOf = async ({ sources, load }) => {
-  for (const source of sources) {
-    const image = await load(source)
-    if (image) return image
+const bestImageOf = async (chains) => {
+  let titleCard = null
+  for (const { sources, load } of chains) {
+    for (const source of sources) {
+      const image = await load(source)
+      if (image?.verdict === WEAK_VERDICT) titleCard ??= image
+      else if (image) return image
+    }
   }
-  return null
+  return titleCard
 }
 
 const titleKeyOf = (title) => String(title || '').trim().toLowerCase()
@@ -1455,28 +1477,28 @@ const refreshLogoHashes = async (channels = []) => {
     const key = `${channel.id}|${(channel.logos ?? []).join('|')}`
     if (logoHashes.has(key)) continue
     const image = await getChannelImage({ channelId: channel.id }).catch(() => null)
-    const hash = image?.body ? await pictureHashOf(image.body).catch(() => null) : null
-    if (hash) logoHashes.set(key, hash)
+    const logo = image?.body ? await logoTraitsOf(image.body).catch(() => null) : null
+    if (logo?.hash) logoHashes.set(key, logo)
   }
-  placeholderPictures.setLogoHashes([...logoHashes.values()])
+  placeholderPictures.setLogos([...logoHashes.values()])
 }
 
 export const forgetPlaceholderPictures = async ({
   database = db,
   pictures = guidePictures,
   placeholders = placeholderPictures,
+  verdictOfOrigin = (origin) => pictureGate.knownVerdict(origin),
   airings = guideAirings,
   feed = artFeed,
 } = {}) => {
   await placeholders.saveFamilies()
   const dropped = await pictures.dropPlaceholders(await guidePictureKeepsOf(database))
   const rows = await database('art_resolutions')
-    .where((query) => query.where('origin', 'like', 'http%').orWhere('origin', 'like', 'guide-picture:%'))
+    .where((query) => query.where('origin', 'like', 'http%').orWhere('origin', 'like', 'guide-picture:%').orWhere('origin', 'like', 'recording:%'))
     .where('next_check_at', '>', 0)
-    .select('resolution_key', 'origin', 'title_key')
-  const sourceOf = async (origin) => (isGuidePictureOrigin(origin) ? pictures.sourceOfOrigin(origin) : origin)
+    .select('resolution_key', 'origin', 'title_key', 'stage')
   const stale = []
-  for (const row of rows) if (placeholders.isPlaceholder(await sourceOf(row.origin))) stale.push(row.resolution_key)
+  for (const row of rows) if (isOutranked({ verdict: await verdictOfOrigin(row.origin).catch(() => null), stage: row.stage })) stale.push(row.resolution_key)
   const changes = []
   for (let at = 0; at < stale.length; at += PLACEHOLDER_DUE_BATCH) {
     const batch = stale.slice(at, at + PLACEHOLDER_DUE_BATCH)
@@ -1486,6 +1508,8 @@ export const forgetPlaceholderPictures = async ({
   const keys = [...dropped.map(showKeyOf), ...airingTitles.map(showKeyOf)]
   return announcePictureChanges({ changes, keys, database, feed })
 }
+
+const isOutranked = ({ verdict, stage }) => verdict === STAND_IN_VERDICT || (verdict === WEAK_VERDICT && stage !== WEAK_STAGE)
 
 const newStandInAiringTitlesOf = async ({ airings, placeholders, database }) => {
   const standIns = new Map()
@@ -1647,12 +1671,27 @@ const fetchImageSource = (source) => {
   return fetchProgrammeImageOrThrow({ source })
 }
 const programmeImages = createProgrammeImages({ fetchImage: guideImageHosts.watch(fetchImageSource) })
-const placeholderPictures = createPlaceholderPictures()
+const placeholderPictures = pictureChecks
 const logoHashes = new Map()
 const guidePictures = createGuidePictures({
   fetchImage: fetchImageSource,
   preferredHosts: [FREEVIEW_IMAGE_HOST],
-  screen: (picture) => placeholderPictures.check(picture),
+  screen: (picture) => (isScreenedSource(picture.source) ? placeholderPictures.judge(picture) : OK_PICTURE),
+})
+const frameGrabs = createFrameGrabs()
+const pictureGate = createPictureGate({
+  checks: placeholderPictures,
+  readers: {
+    upload: (origin) => artworkUploads.read(origin),
+    frame: (origin) => frameGrabs.read(origin),
+    guideCopy: (origin) => guidePictures.read(origin),
+    recording: recordingCopyOf,
+    plex: plexImageOf,
+    url: (source) => programmeImages.imageOrErrorFor(source),
+  },
+  guideCopySourceOf: (origin) => guidePictures.sourceOfOrigin(origin),
+  recordingSourceOf,
+  isUnscreenedSource: (source) => !isScreenedSource(source),
 })
 const freeviewAu = createFreeviewAu()
 const freeviewByEvent = new Map()
@@ -1673,7 +1712,6 @@ const hintsByGuide = new WeakMap()
 const kindsByGuide = new WeakMap()
 const displayKindsByGuide = new WeakMap()
 const overridesCache = { value: new Map(), expiresAt: 0 }
-const frameGrabs = createFrameGrabs()
 onAdScanResult((result) => refreshFrameAfterAdScan(result))
 const artResolver = createArtResolver({
   stages: {
@@ -1693,7 +1731,7 @@ const artResolver = createArtResolver({
     frame: frameStage,
   },
   kindOf: canonicalKindFor,
-  loadImage: screenedImageOrErrorOf,
+  loadImage: (origin) => pictureGate.load(origin),
   settingsKeyOf: onlineSettingsKey,
   onResolved: announceResolvedArt,
   onMarkedDue: (changes) => announcePictureChanges({ changes }),
@@ -1721,7 +1759,8 @@ const MAX_TITLE_ART_EVENTS = 200
 const PLACEHOLDER_DUE_BATCH = 200
 const TITLE_STAMP_KINDS = ['background', 'poster']
 const STAND_IN_AIRING_SOURCES_SETTING = 'stand_in_airing_sources'
-const OWN_ORIGIN = /^(upload|frame|recording|plex|guide-picture):/
+const PLEX_TOKEN = /x-plex-token=/i
+const OK_PICTURE = { verdict: OK_VERDICT, reason: null }
 const TVMAZE_IMAGE_HOST = 'static.tvmaze.com'
 let guidePictureRun = null
 let freeviewProblem = null
