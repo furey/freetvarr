@@ -36,7 +36,7 @@ export const ArrSettings = {
           <label class="field-label" for="settings-sonarr-key">API key</label>
           <input v-no-autofill id="settings-sonarr-key" type="password" class="field-input" v-model="form.sonarr.apiKey"
             :placeholder="keyPlaceholderOf({ app: 'sonarr', saved: saved.sonarr })" autocomplete="off" spellcheck="false" />
-          <p v-if="saved.sonarr?.keySource === 'config.xml'" class="settings-hint">Read from Sonarr's config.xml.</p>
+          <p v-if="saved.sonarr?.keySource === 'config.xml'" class="settings-hint">Read from Sonarr's <code>config.xml</code>.</p>
         </div>
         <div class="settings-row settings-row-actions">
           <button type="button" :class="['ui-button', 'ui-button-sm', { 'is-pending': testing === 'sonarr' }]" :disabled="Boolean(testing)" @click="test('sonarr')">
@@ -64,7 +64,7 @@ export const ArrSettings = {
           <label class="field-label" for="settings-radarr-key">API key</label>
           <input v-no-autofill id="settings-radarr-key" type="password" class="field-input" v-model="form.radarr.apiKey"
             :placeholder="keyPlaceholderOf({ app: 'radarr', saved: saved.radarr })" autocomplete="off" spellcheck="false" />
-          <p v-if="saved.radarr?.keySource === 'config.xml'" class="settings-hint">Read from Radarr's config.xml.</p>
+          <p v-if="saved.radarr?.keySource === 'config.xml'" class="settings-hint">Read from Radarr's <code>config.xml</code>.</p>
         </div>
         <div class="settings-row settings-row-actions">
           <button type="button" :class="['ui-button', 'ui-button-sm', { 'is-pending': testing === 'radarr' }]" :disabled="Boolean(testing)" @click="test('radarr')">

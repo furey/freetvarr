@@ -56,7 +56,7 @@ export const DoctorView = {
       <header class="health-header">
         <div class="health-heading">
           <h2 class="settings-page-title">Health</h2>
-          <p class="settings-page-intro" aria-live="polite">{{ headlineLine }}</p>
+          <p class="settings-page-intro" aria-live="polite"><rich-text :text="headlineLine" /></p>
         </div>
         <div class="health-actions">
           <button type="button" :class="['ui-button', 'ui-button-secondary', { 'is-pending': checking }]" @click="runChecks" :disabled="checking" :aria-busy="checking">
@@ -104,7 +104,7 @@ export const DoctorView = {
           <div class="health-progress-line"><doctor-spinner /><span>{{ progressText }}</span></div>
           <div class="ui-progress"><div :class="['ui-progress-fill', { 'is-indeterminate': phase === 'scanning' }]" :style="phase === 'scanning' ? null : { width: progressPercent + '%' }"></div></div>
         </div>
-        <p v-if="error" class="status-readout err">The checks could not run: {{ error }}</p>
+        <p v-if="error" class="status-readout err">The checks could not run: <rich-text :text="error" /></p>
         <div v-if="orderedChecks.length" class="health-check-groups">
           <p v-if="allWorking" class="health-checks-summary">Everything's working</p>
           <div v-for="group in checkGroups" :key="group.key" class="health-check-group">
@@ -126,8 +126,8 @@ export const DoctorView = {
                 <span class="ui-group-row-main">
                   <span class="ui-group-row-title">{{ titleOf(c) }}</span>
                   <template v-if="rowState(c) === 'resolved'">
-                    <span class="ui-group-row-meta health-check-detail">{{ c.detail }}</span>
-                    <span v-if="needsFix(c) && c.fix" class="health-check-fix">{{ c.fix }}</span>
+                    <span class="ui-group-row-meta health-check-detail"><rich-text :text="c.detail" /></span>
+                    <span v-if="needsFix(c) && c.fix" class="health-check-fix"><rich-text :text="c.fix" /></span>
                     <span v-if="(needsFix(c) && c.doc) || c.action" class="health-check-links">
                       <button v-if="c.action && c.action.post" type="button" class="health-check-action"
                         :disabled="runningAction === c.id" @click="runAction(c)">{{ c.action.label }}</button>

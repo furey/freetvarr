@@ -716,6 +716,15 @@ code {
   font-weight: var(--weight-small);
 }
 
+.ui-code {
+  padding: 0 4px;
+  background: var(--color-surface-3);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .info-btn {
   display: inline-flex;
   align-items: center;

@@ -24,7 +24,7 @@ export const GuideSetupStep = {
       <setup-run-list v-if="loading && !status" :steps="READING_STEPS" />
 
       <div v-else-if="loadError" class="setup-block">
-        <p class="setup-hint is-error">{{ loadError }}</p>
+        <p class="setup-hint is-error"><rich-text :text="loadError" /></p>
         <button type="button" class="setup-quiet-link" @click="refresh">Check again</button>
       </div>
 
@@ -58,8 +58,8 @@ export const GuideSetupStep = {
             <button type="button" class="setup-quiet-link" @click="restart">Set up the guide again</button>
           </div>
           <div v-if="result && !result.ok" class="setup-block">
-            <p class="setup-hint is-error">{{ result.error }}</p>
-            <p v-if="result.next" class="setup-hint">{{ result.next }}</p>
+            <p class="setup-hint is-error"><rich-text :text="result.error" /></p>
+            <p v-if="result.next" class="setup-hint"><rich-text :text="result.next" /></p>
             <button type="button" class="setup-quiet-link" @click="restart">Try again</button>
           </div>
         </template>
@@ -96,7 +96,7 @@ export const GuideSetupStep = {
           </div>
           <p v-if="!suggestion.feeds.length" class="setup-hint">Freetvarr has no free guide feed for your country yet. TVHeadend uses the guide that comes with the broadcast. If you have an XMLTV guide address, enter it above.</p>
           <p v-if="suggestion.linked" class="setup-hint">Freetvarr keeps the guide links you already have.</p>
-          <p v-if="applyError" class="setup-hint is-error">{{ applyError }}</p>
+          <p v-if="applyError" class="setup-hint is-error"><rich-text :text="applyError" /></p>
           <div v-if="!actionInBar" class="setup-inline-actions">
             <button type="button" class="ui-button ui-button-primary" @click="apply" :disabled="!url || starting">Set up guide</button>
           </div>

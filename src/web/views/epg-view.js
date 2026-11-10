@@ -219,7 +219,7 @@ export const EpgView = {
         </div>
         <div v-else-if="error" class="ui-empty">
           <h2 class="ui-empty-title">The TV guide did not load</h2>
-          <p class="ui-empty-text">{{ error }} Check the TVHeadend connection in <a href="#/settings/system/tvheadend">Settings</a>.</p>
+          <p class="ui-empty-text"><rich-text :text="error" /> Check the TVHeadend connection in <a href="#/settings/system/tvheadend">Settings</a>.</p>
           <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
         </div>
         <template v-else-if="loading && !guide">

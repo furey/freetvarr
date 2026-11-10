@@ -37,7 +37,7 @@ export const HealthAlert = {
     <div v-if="alert && variant === 'banner'" class="ui-banner health-alert health-alert-banner ui-page-banner" role="status">
       <a :href="href" class="health-alert-link">
         <warning-glyph class="health-alert-icon" />
-        <span class="ui-banner-text health-alert-text">{{ alert.sentence }}</span>
+        <span class="ui-banner-text health-alert-text"><rich-text :text="alert.sentence" /></span>
         <chevron-glyph class="health-alert-chevron" />
       </a>
       <button type="button" class="health-alert-close" aria-label="Hide for a day" @click="dismiss"><close-glyph /></button>
@@ -45,7 +45,7 @@ export const HealthAlert = {
     <span v-else-if="alert" class="ui-header-chip health-alert-chip" role="status">
       <a :href="href" class="health-alert-link">
         <warning-glyph class="health-alert-icon" />
-        <span>{{ alert.sentence }}</span>
+        <span><rich-text :text="alert.sentence" /></span>
       </a>
       <button type="button" class="health-alert-close" aria-label="Hide for a day" @click="dismiss"><close-glyph /></button>
     </span>

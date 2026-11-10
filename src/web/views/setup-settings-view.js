@@ -23,7 +23,7 @@ export const SetupSettingsView = {
             <span :class="['ui-dot', row.tone ? 'is-' + row.tone : 'is-none']" aria-hidden="true"></span>
             <span class="ui-group-row-main">
               <span class="ui-group-row-title">{{ row.title }}</span>
-              <span class="ui-group-row-meta">{{ row.meta }}</span>
+              <span class="ui-group-row-meta"><rich-text :text="row.meta" /></span>
             </span>
             <span v-if="row.value" :class="['ui-group-row-value', { 'setup-mono': row.mono }]">{{ row.value }}</span>
           </button>
@@ -46,7 +46,7 @@ export const SetupSettingsView = {
               </div>
               <template v-for="p in folders?.problems || []" :key="p.text">
                 <p class="setup-hint is-error">{{ p.text }}</p>
-                <p class="setup-hint">{{ p.fix }}</p>
+                <p class="setup-hint"><rich-text :text="p.fix" /></p>
               </template>
               <p v-for="note in folders?.notes || []" :key="note" class="setup-hint">{{ note }}</p>
               <div class="setup-drawer-actions">

@@ -37,14 +37,14 @@ export const GuideSettingsView = {
           <p>Each time it builds the merged guide, Freetvarr scores each source on each channel: the hours of the next 2 days it covers, how many days ahead it goes, how many listings have a description, and how many listings the other source agrees with.</p>
         </info-button>
       </teleport>
-      <p v-if="error" class="ui-banner is-error" role="alert">{{ error }}</p>
+      <p v-if="error" class="ui-banner is-error" role="alert"><rich-text :text="error" /></p>
       <div v-if="!status && !error" class="ui-group ui-skeleton-surface" aria-hidden="true">
         <div v-for="i in 4" :key="i" class="ui-group-row"><span class="ui-skeleton is-line"></span></div>
       </div>
       <template v-else-if="status">
         <div v-if="!status.available" class="settings-group" data-setting="broadcast-guide">
           <h3 class="ui-group-label">Broadcast guide</h3>
-          <p class="settings-note guide-settings-text guide-settings-lead">{{ broadcastIntro }}</p>
+          <p class="settings-note guide-settings-text guide-settings-lead"><rich-text :text="broadcastIntro" /></p>
           <div v-if="status.broadcast" class="ui-group">
             <div class="ui-group-row guide-source-row">
               <span class="health-check-mark"><span :class="['ui-dot', status.broadcast.short ? 'is-warn' : 'is-ok']" role="img" :aria-label="status.broadcast.short ? 'Short' : 'Healthy'"></span></span>
@@ -61,11 +61,11 @@ export const GuideSettingsView = {
             <template v-if="showSteps && !unmergeDone">
               <setup-run-list :steps="steps" />
               <template v-if="result && result.ok">
-                <p class="settings-note guide-settings-text">{{ doneText }}</p>
+                <p class="settings-note guide-settings-text"><rich-text :text="doneText" /></p>
               </template>
               <template v-else-if="result">
-                <p class="settings-note guide-settings-text is-error" role="alert">{{ result.error }}</p>
-                <p v-if="result.next" class="settings-note guide-settings-text">{{ result.next }}</p>
+                <p class="settings-note guide-settings-text is-error" role="alert"><rich-text :text="result.error" /></p>
+                <p v-if="result.next" class="settings-note guide-settings-text"><rich-text :text="result.next" /></p>
                 <div class="settings-row-actions guide-settings-actions">
                   <button type="button" class="ui-button ui-button-primary" :disabled="starting || planning" @click="retry">Try again</button>
                   <button v-if="failedActions.showKeep" type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
@@ -81,17 +81,17 @@ export const GuideSettingsView = {
                   </span>
                 </div>
               </div>
-              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert">{{ actionError }}</p>
+              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert"><rich-text :text="actionError" /></p>
               <div class="settings-row-actions guide-settings-actions" data-setting="unmerge-offer">
                 <button type="button" class="setup-quiet-link" :disabled="planning || Boolean(confirming)" @click="askStop">Stop using the merged guide</button>
               </div>
             </template>
             <template v-else-if="repoint.reason">
-              <p v-if="unmergeDone" class="settings-note guide-settings-text" role="status">{{ doneText }}</p>
-              <p class="settings-note guide-settings-text">{{ reasonText }}</p>
+              <p v-if="unmergeDone" class="settings-note guide-settings-text" role="status"><rich-text :text="doneText" /></p>
+              <p class="settings-note guide-settings-text"><rich-text :text="reasonText" /></p>
             </template>
             <template v-else>
-              <p v-if="unmergeDone" class="settings-note guide-settings-text" role="status">{{ doneText }}</p>
+              <p v-if="unmergeDone" class="settings-note guide-settings-text" role="status"><rich-text :text="doneText" /></p>
               <p class="settings-note guide-settings-text guide-settings-lead">{{ planIntro }}</p>
               <div class="ui-group guide-plan">
                 <div class="ui-group-row">
@@ -123,7 +123,7 @@ export const GuideSettingsView = {
                 </div>
               </div>
               <p v-if="kept && !unmergeDone" class="settings-note guide-settings-text">You kept your grabber as it is. You can still use the merged guide.</p>
-              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert">{{ actionError }}</p>
+              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert"><rich-text :text="actionError" /></p>
               <div class="settings-row-actions guide-settings-actions">
                 <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting }]" :disabled="starting || Boolean(confirming)" @click="askUse">Use the merged guide</button>
                 <button v-if="!kept" type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
@@ -191,7 +191,7 @@ export const GuideSettingsView = {
         </template>
         <div v-if="suggestedFeeds.length" class="settings-group" data-setting="suggested-feeds">
           <h3 class="ui-group-label">Third-party feeds</h3>
-          <p class="settings-note guide-settings-text">{{ suggestedNote }}</p>
+          <p class="settings-note guide-settings-text"><rich-text :text="suggestedNote" /></p>
           <div class="ui-group">
             <template v-for="feed in suggestedFeeds" :key="feed.url">
               <copy-row :label="feed.name" :value="feed.url" one-line />

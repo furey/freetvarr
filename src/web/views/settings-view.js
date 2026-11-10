@@ -359,7 +359,7 @@ export const SettingsView = {
           <p class="settings-intro">The time zone Freetvarr uses, and when it checks TVHeadend for new recordings.</p>
           <teleport v-if="section === 'schedule'" defer to="#settings-page-info">
             <info-button title="Schedule" doc="guide/syncs#scheduled-and-manual">
-              <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your .env file only fills in the first choice; the zone you save here wins.</p>
+              <p>The time zone Freetvarr uses for the guide, recordings, and the sync schedule. A <code>TZ</code> value in your <code>.env</code> file only fills in the first choice; the zone you save here wins.</p>
               <p>How often Freetvarr checks TVHeadend for new recordings to import. <strong>Custom</strong> takes a cron expression, such as <code>0 */2 * * *</code> for every two hours.</p>
               <p>A change applies without a restart. <strong>Sync now</strong> on the <strong>Health</strong> page runs a sync at any time.</p>
             </info-button>
@@ -512,7 +512,7 @@ export const SettingsView = {
               </div>
               <div class="settings-row settings-row-inline" data-setting="ad-detection">
                 <span class="settings-row-title">Detection settings</span>
-                <span class="ui-group-row-value">{{ comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air' }}</span>
+                <span class="ui-group-row-value"><rich-text :text="comskipIniOverride ? 'your /config/comskip.ini' : 'built in, tuned for Australian free-to-air'" /></span>
               </div>
             </div>
             <p class="settings-note">

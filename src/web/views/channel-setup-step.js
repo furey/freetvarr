@@ -31,7 +31,7 @@ export const ChannelSetupStep = {
       <setup-run-list v-if="loading && !status" :steps="LOOKING_STEPS" />
 
       <div v-else-if="loadError" class="setup-block">
-        <p class="setup-hint is-error">{{ loadError }}</p>
+        <p class="setup-hint is-error"><rich-text :text="loadError" /></p>
         <button type="button" class="setup-quiet-link" @click="refresh">Check again</button>
       </div>
 
@@ -66,8 +66,8 @@ export const ChannelSetupStep = {
             <button type="button" class="setup-quiet-link" @click="restart">Scan again</button>
           </div>
           <div v-if="result && !result.ok" class="setup-block">
-            <p class="setup-hint is-error">{{ result.error }}</p>
-            <p v-if="result.next" class="setup-hint">{{ result.next }}</p>
+            <p class="setup-hint is-error"><rich-text :text="result.error" /></p>
+            <p v-if="result.next" class="setup-hint"><rich-text :text="result.next" /></p>
             <button type="button" class="setup-quiet-link" @click="restart">Try again</button>
           </div>
         </template>
@@ -152,7 +152,7 @@ export const ChannelSetupStep = {
               {{ transmitterHint }}
             </p>
             <div v-if="recordingNow" class="ui-banner is-warning"><span class="ui-banner-text">{{ recordingNow }}</span></div>
-            <p v-if="applyError" class="setup-hint is-error">{{ applyError }}</p>
+            <p v-if="applyError" class="setup-hint is-error"><rich-text :text="applyError" /></p>
             <div v-if="!actionInBar" class="setup-inline-actions">
               <button type="button" class="ui-button ui-button-primary" @click="runAction" :disabled="actionDisabled">{{ actionLabel }}</button>
             </div>
