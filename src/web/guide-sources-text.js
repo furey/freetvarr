@@ -85,43 +85,50 @@ export const useMergedGuideDialogOf = ({ repoint }) => ({
   title: 'Use the merged guide?',
   confirmLabel: 'Use the merged guide',
   busyLabel: 'Starting',
-  body: [
-    `TVHeadend's guide grabber will read the guide that Freetvarr merges, at ${repoint.feedUrl}.`,
-    ...(repoint.rebuild ? [`Freetvarr first builds the merged guide for ${repoint.region}, the region your grabber reads. This takes about 15 minutes.`] : []),
-    addedChannelsLineOf(repoint),
-    ...(repoint.days?.length ? [`Days ahead: ${daysAheadOf(repoint.days)}.`] : []),
-    'Series recordings keep matching, because the merged guide keeps the titles your series recordings use.',
-    'Freetvarr checks that TVHeadend fetched the guide and that its listings updated. If a step fails, Freetvarr puts the grabber, the channel links, and the save settings back as they were.',
-    'You can stop using the merged guide later under SETTINGS → GUIDE.',
+  lead: 'TVHeadend reads the merged guide from Freetvarr.',
+  rows: [
+    { label: 'Guide address', detail: repoint.feedUrl },
+    ...(repoint.rebuild ? [{ label: 'First build', value: 'About 15 minutes' }] : []),
+    ...(repoint.days?.length ? [{ label: 'Days ahead', value: compactDaysAheadOf(repoint.days) }] : []),
+    ...(repoint.added?.length ? [{ label: 'Channels that gain a guide', detail: repoint.added.join(', ') }] : []),
+    { label: 'Series recordings', value: 'Keep matching' },
   ],
+  note: 'If a step fails, Freetvarr puts everything back. You can stop using it later.',
 })
 
 export const stopMergedGuideDialogOf = ({ plan, sources = [], secondaryId = null }) => {
   const after = sources.find((source) => source.id === secondaryId)
+  const address = stopAddressOf(plan)
   return {
     title: 'Stop using the merged guide?',
     confirmLabel: 'Stop using the merged guide',
     busyLabel: 'Starting',
-    body: [
-      stopReadsLineOf(plan),
-      ...(plan.primaryChannelNames?.length ? [`These channels lose their guide, because only Freeview lists them: ${joinAnd(plan.primaryChannelNames)}.`] : []),
-      ...(plan.restoresLinks ? [`Freetvarr puts back the guide links of ${plan.restoresLinks} ${plan.restoresLinks === 1 ? 'channel' : 'channels'} that the switch changed.`] : []),
-      ...(after?.horizonDays ? [`Days ahead afterwards: ${after.label}: ${after.horizonDays} ${after.horizonDays === 1 ? 'day' : 'days'}.`] : []),
-      'Freetvarr checks that TVHeadend reloaded its guide. If a step fails, Freetvarr puts the merged guide back.',
-      'You can use the merged guide again later on this page.',
+    lead: stopLeadOf({ plan, after }),
+    rows: [
+      ...(after?.horizonDays ? [{ label: 'Days ahead', value: countOf(after.horizonDays, 'day') }] : []),
+      ...(plan.primaryChannelNames?.length ? [{ label: 'Channels that lose their guide', detail: plan.primaryChannelNames.join(', ') }] : []),
+      ...(plan.restoresLinks ? [{ label: 'Guide links put back', value: countOf(plan.restoresLinks, 'channel') }] : []),
+      ...(address ? [{ label: 'Guide address', detail: address }] : []),
     ],
+    note: 'If TVHeadend does not reload, Freetvarr puts the merged guide back. You can switch again later.',
   }
 }
 
-const stopReadsLineOf = (plan) => {
-  if (plan.sameUrl) return `TVHeadend keeps reading ${plan.grabberUrl} with the merged content off.`
+const stopLeadOf = ({ plan, after }) => {
   if (plan.enabled === false) return 'TVHeadend stops downloading a guide by address, as before you switched.'
-  return `TVHeadend's guide grabber will read ${plan.afterUrl} again.`
+  if (after?.label) return `TVHeadend goes back to the ${after.label} guide.`
+  if (plan.sameUrl) return 'TVHeadend keeps reading the same address with the merged content off.'
+  return "TVHeadend's guide grabber goes back to the address it read before."
 }
 
-const addedChannelsLineOf = (repoint) => (repoint.added?.length
-  ? `The guide gains ${repoint.added.length} ${repoint.added.length === 1 ? 'channel' : 'channels'} that only Freeview lists: ${addedChannelsOf({ names: repoint.added })}.`
-  : `The guide keeps its ${repoint.channels} ${repoint.channels === 1 ? 'channel' : 'channels'}.`)
+const stopAddressOf = (plan) => {
+  if (plan.sameUrl) return `No change: ${plan.grabberUrl}`
+  return plan.afterUrl ?? ''
+}
+
+const compactDaysAheadOf = (days) => days.map(({ label, days: count }) => `${label} ${count}`).join(' · ')
+
+const countOf = (count, noun) => `${count} ${count === 1 ? noun : `${noun}s`}`
 
 export const failedRunActionsOf = (result) => (result?.kind === 'unmerge'
   ? { retry: 'unmerge', showKeep: false }

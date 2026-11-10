@@ -46,33 +46,59 @@ test('a failed undo retries the undo and hides keep my grabber; a failed switch 
   assert.deepEqual(failedRunActionsOf({ ok: false }), { retry: 'repoint', showKeep: true })
 })
 
-test('the use dialog says what the merged guide changes, that series recordings keep matching, and how to stop', async () => {
+test('the use dialog leads with the merged guide and lists the address, days ahead, gained channels, and series recordings', async () => {
   const { useMergedGuideDialogOf } = await import('../src/web/guide-sources-text.js')
   const dialog = useMergedGuideDialogOf({ repoint: {
     feedUrl: 'http://192.168.1.10:3733/guide/xmltv.xml',
     added: ['ABC ME', '10 Peach'],
     channels: 40,
-    days: [{ label: 'Freeview', days: 9 }, { label: 'i.mjh.nz', days: 19 }],
+    days: [{ label: 'Freeview', days: 8 }, { label: 'i.mjh.nz', days: 19 }],
   } })
   assert.equal(dialog.confirmLabel, 'Use the merged guide')
-  assert.match(dialog.body[0], /at http:\/\/192\.168\.1\.10:3733\/guide\/xmltv\.xml\.$/)
-  assert.match(dialog.body[1], /gains 2 channels that only Freeview lists: ABC ME and 10 Peach\./)
-  assert.equal(dialog.body[2], 'Days ahead: Freeview: 9 days · i.mjh.nz: 19 days.')
-  assert.ok(dialog.body.some((line) => /Series recordings keep matching/.test(line)))
-  assert.ok(dialog.body.some((line) => /puts the grabber, the channel links, and the save settings back/.test(line)))
-  assert.match(dialog.body.at(-1), /SETTINGS → GUIDE/)
+  assert.equal(dialog.lead, 'TVHeadend reads the merged guide from Freetvarr.')
+  assert.deepEqual(dialog.rows, [
+    { label: 'Guide address', detail: 'http://192.168.1.10:3733/guide/xmltv.xml' },
+    { label: 'Days ahead', value: 'Freeview 8 · i.mjh.nz 19' },
+    { label: 'Channels that gain a guide', detail: 'ABC ME, 10 Peach' },
+    { label: 'Series recordings', value: 'Keep matching' },
+  ])
+  assert.equal(dialog.note, 'If a step fails, Freetvarr puts everything back. You can stop using it later.')
+  assert.equal(dialog.body, undefined)
 })
 
-test('the stop dialog names what TVHeadend reads after, the channels that lose their guide, and the days ahead after', async () => {
+test('the use dialog omits gained channels and days ahead when there are none, and shows the first build when it rebuilds', async () => {
+  const { useMergedGuideDialogOf } = await import('../src/web/guide-sources-text.js')
+  const dialog = useMergedGuideDialogOf({ repoint: { feedUrl: 'http://nas:3733/guide/xmltv.xml', added: [], channels: 40, days: [], rebuild: true, region: 'Sydney' } })
+  assert.deepEqual(dialog.rows.map((row) => row.label), ['Guide address', 'First build', 'Series recordings'])
+  assert.equal(dialog.rows[1].value, 'About 15 minutes')
+})
+
+test('the stop dialog leads with the guide TVHeadend goes back to and lists days ahead, lost channels, put-back links, and the address', async () => {
   const { stopMergedGuideDialogOf } = await import('../src/web/guide-sources-text.js')
   const url = 'http://192.168.1.10:3733/guide/xmltv.xml'
   const sources = [{ id: 'freeview-au', label: 'Freeview', horizonDays: 9 }, { id: 'mjh-au', label: 'i.mjh.nz', horizonDays: 19 }]
-  const same = stopMergedGuideDialogOf({ plan: { sameUrl: true, grabberUrl: url, enabled: true, primaryChannelNames: ['ABC ME'], restoresLinks: 0 }, sources, secondaryId: 'mjh-au' })
+  const same = stopMergedGuideDialogOf({ plan: { sameUrl: true, grabberUrl: url, enabled: true, primaryChannelNames: ['ABC ME', '10 Peach', 'SBS WorldWatch'], restoresLinks: 0 }, sources, secondaryId: 'mjh-au' })
   assert.equal(same.confirmLabel, 'Stop using the merged guide')
-  assert.equal(same.body[0], `TVHeadend keeps reading ${url} with the merged content off.`)
-  assert.equal(same.body[1], 'These channels lose their guide, because only Freeview lists them: ABC ME.')
-  assert.equal(same.body[2], 'Days ahead afterwards: i.mjh.nz: 19 days.')
+  assert.equal(same.lead, 'TVHeadend goes back to the i.mjh.nz guide.')
+  assert.deepEqual(same.rows, [
+    { label: 'Days ahead', value: '19 days' },
+    { label: 'Channels that lose their guide', detail: 'ABC ME, 10 Peach, SBS WorldWatch' },
+    { label: 'Guide address', detail: `No change: ${url}` },
+  ])
+  assert.equal(same.note, 'If TVHeadend does not reload, Freetvarr puts the merged guide back. You can switch again later.')
   const moved = stopMergedGuideDialogOf({ plan: { sameUrl: false, grabberUrl: url, afterUrl: 'https://i.mjh.nz/au/Sydney/epg.xml', enabled: true, primaryChannelNames: [], restoresLinks: 2 }, sources, secondaryId: 'mjh-au' })
-  assert.equal(moved.body[0], "TVHeadend's guide grabber will read https://i.mjh.nz/au/Sydney/epg.xml again.")
-  assert.match(moved.body[1], /puts back the guide links of 2 channels/)
+  assert.deepEqual(moved.rows, [
+    { label: 'Days ahead', value: '19 days' },
+    { label: 'Guide links put back', value: '2 channels' },
+    { label: 'Guide address', detail: 'https://i.mjh.nz/au/Sydney/epg.xml' },
+  ])
+})
+
+test('the stop dialog keeps the address and disabled-grabber leads when it has no secondary guide', async () => {
+  const { stopMergedGuideDialogOf } = await import('../src/web/guide-sources-text.js')
+  const disabled = stopMergedGuideDialogOf({ plan: { sameUrl: false, grabberUrl: 'http://nas:3733/guide/xmltv.xml', enabled: false, primaryChannelNames: [], restoresLinks: 1 } })
+  assert.equal(disabled.lead, 'TVHeadend stops downloading a guide by address, as before you switched.')
+  assert.deepEqual(disabled.rows, [{ label: 'Guide links put back', value: '1 channel' }])
+  const same = stopMergedGuideDialogOf({ plan: { sameUrl: true, grabberUrl: 'http://nas:3733/guide/xmltv.xml', enabled: true } })
+  assert.equal(same.lead, 'TVHeadend keeps reading the same address with the merged content off.')
 })

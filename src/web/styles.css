@@ -767,6 +767,15 @@ code {
 
 .confirm-dialog-line {
   overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.confirm-dialog-rows {
+  color: var(--color-text-1);
+}
+
+.confirm-dialog-rows .ui-group-row-title {
+  text-wrap: balance;
 }
 
 .doctor-spinner {
