@@ -4,6 +4,8 @@ import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
 
 export const FREEVIEW_API_HOST = 'fvau-api-prod.switch.tv'
+export const FREEVIEW_NZ_API_HOST = 'fvnz-capi-prod.switch.tv'
+export const FREEVIEW_NZ_REGION = 'nz'
 export const FREEVIEW_IMAGE_HOST = 'img-store-prod.switch.tv'
 export const FREEVIEW_WINDOW_MS = 6 * 60 * 60 * 1000
 export const FREEVIEW_MATCH_TOLERANCE_MS = 5 * 60 * 1000
@@ -39,6 +41,26 @@ export const freeviewRegionOf = (timeZone) => {
   return FREEVIEW_REGIONS[timeZone] ?? null
 }
 
+export const freeviewNzRegionOf = (timeZone) => (countryForTimeZone(timeZone) === 'nz' ? FREEVIEW_NZ_REGION : null)
+
+export const FREEVIEW_SERVICES = [
+  { country: 'au', host: FREEVIEW_API_HOST, regionOf: freeviewRegionOf, channelsPath: (region) => `/content/v1/channels/region/${region}` },
+  { country: 'nz', host: FREEVIEW_NZ_API_HOST, regionOf: freeviewNzRegionOf, channelsPath: () => '/content/v1/channels' },
+]
+
+export const freeviewServiceOf = (timeZone) => {
+  for (const service of FREEVIEW_SERVICES) {
+    const region = service.regionOf(timeZone)
+    if (region) return { ...service, region, origin: `https://${service.host}` }
+  }
+  return null
+}
+
+export const listingEpisodeOf = (listing) => {
+  const episodes = listing?.related?.episodes ?? []
+  return episodes.find((episode) => listing.episode_id && episode.id === listing.episode_id) ?? episodes[0] ?? null
+}
+
 export const windowStartOf = (ms) => Math.floor(ms / FREEVIEW_WINDOW_MS) * FREEVIEW_WINDOW_MS
 
 export const windowsAround = (startMs, toleranceMs = FREEVIEW_MATCH_TOLERANCE_MS) =>
@@ -47,18 +69,18 @@ export const windowsAround = (startMs, toleranceMs = FREEVIEW_MATCH_TOLERANCE_MS
 export const listingImageOf = ({ listing, placeholders = new Set() }) => {
   const showImage = imageUrlsOf(listing?.related?.shows?.[0]).find(Boolean)
   if (showImage) return showImage
-  return imageUrlsOf(listing?.related?.episodes?.[0]).find((url) => url && !placeholders.has(url)) ?? null
+  return imageUrlsOf(listingEpisodeOf(listing)).find((url) => url && !placeholders.has(url)) ?? null
 }
 
 export const listingImagesOf = ({ listing, placeholders = new Set() }) => ({
-  episode: imageUrlsOf(listing?.related?.episodes?.[0]).find((url) => url && !placeholders.has(url)) ?? null,
+  episode: imageUrlsOf(listingEpisodeOf(listing)).find((url) => url && !placeholders.has(url)) ?? null,
   show: imageUrlsOf(listing?.related?.shows?.[0]).find(Boolean) ?? null,
 })
 
 export const placeholderImagesOf = (listings = []) => {
   const titlesByUrl = new Map()
   for (const listing of listings) {
-    for (const url of imageUrlsOf(listing?.related?.episodes?.[0])) {
+    for (const url of imageUrlsOf(listingEpisodeOf(listing))) {
       const titles = titlesByUrl.get(url) ?? new Set()
       titles.add(showTitleKey(listing.title))
       titlesByUrl.set(url, titles)
@@ -129,9 +151,11 @@ export const createFreeviewAu = ({
   const failures = new Map()
   let channels = null
 
-  const region = () => freeviewRegionOf(timeZone())
+  const service = () => freeviewServiceOf(timeZone())
 
-  const isOn = () => Boolean(region())
+  const region = () => service()?.region ?? null
+
+  const isOn = () => Boolean(service())
 
   const isBackingOff = (key) => (failures.get(key)?.until ?? 0) > now()
 
@@ -141,13 +165,14 @@ export const createFreeviewAu = ({
   }
 
   const regionTriplets = async () => {
-    const id = region()
-    if (!id) return new Set()
+    const current = service()
+    if (!current) return new Set()
+    const id = `${current.country}:${current.region}`
     if (channels?.region === id && channels.expiresAt > now()) return channels.triplets
     const key = `channels:${id}`
     if (isBackingOff(key)) return channels?.region === id ? channels.triplets : new Set()
     try {
-      const body = await client.getJson({ url: `${API_ORIGIN}/content/v1/channels/region/${id}`, params: { limit: 100, offset: 0 }, isBackground: true })
+      const body = await client.getJson({ url: `${current.origin}${current.channelsPath(current.region)}`, params: { limit: 100, offset: 0 }, isBackground: true })
       const triplets = new Set((body?.data ?? []).map((channel) => String(channel.dvb_triplet ?? '').toLowerCase()).filter(Boolean))
       channels = { region: id, triplets, expiresAt: now() + channelsTtlMs }
       failures.delete(key)
@@ -181,9 +206,10 @@ export const createFreeviewAu = ({
 
   const fetchWindow = async ({ triplet, windowStart }) => {
     const listings = []
+    const origin = service()?.origin ?? API_ORIGIN
     for (let page = 0; page < maxPages; page += 1) {
       const body = await client.getJson({
-        url: `${API_ORIGIN}/content/v1/epgs/${triplet.toUpperCase()}`,
+        url: `${origin}/content/v1/epgs/${triplet.toUpperCase()}`,
         params: {
           start: isoOf(windowStart),
           end: isoOf(windowStart + FREEVIEW_WINDOW_MS),
@@ -252,6 +278,7 @@ export const createFreeviewAu = ({
 export const freeviewClient = createOutboundClient({
   hosts: {
     [FREEVIEW_API_HOST]: { concurrency: 1, gapMs: 500 },
+    [FREEVIEW_NZ_API_HOST]: { concurrency: 1, gapMs: 500 },
     [FREEVIEW_IMAGE_HOST]: { concurrency: 1, gapMs: 250 },
   },
 })
@@ -270,7 +297,7 @@ export const slimListingOf = (listing) => ({
   start: listing?.start,
   related: {
     shows: (listing?.related?.shows ?? []).slice(0, 1).map(slimImagesOf),
-    episodes: (listing?.related?.episodes ?? []).slice(0, 1).map(slimImagesOf),
+    episodes: [listingEpisodeOf(listing)].filter(Boolean).map(slimImagesOf),
   },
 })
 

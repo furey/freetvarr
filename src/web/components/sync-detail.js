@@ -27,7 +27,7 @@ export const SyncDetail = {
         <p v-if="detail.countsOnly" class="text-xs text-ink-dim">This sync ran before Freetvarr kept a list of each recording, so only its counts are known.</p>
         <p v-else-if="!detail.items.length && !detail.errors.length" class="text-xs text-ink-dim">Nothing new to import.</p>
         <ul v-if="detail.errors.length" class="sync-errors">
-          <li v-for="(error, i) in detail.errors" :key="i">{{ error }}</li>
+          <li v-for="(error, i) in detail.errors" :key="i"><rich-text :text="error" /></li>
         </ul>
         <dl v-if="detail.steps.length" class="sync-facts">
           <template v-for="step in detail.steps" :key="step.key">

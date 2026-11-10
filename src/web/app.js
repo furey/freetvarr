@@ -4,6 +4,7 @@ import { ChannelIdentity } from '/components/channel-identity.js'
 import { ChannelTwinTag } from '/components/channel-twin-tag.js'
 import { CopyRow } from '/components/copy-row.js'
 import { ConfirmDialog } from '/components/dialogs.js'
+import { RichText } from '/rich-text.js'
 import { ErrorDiagnosis } from '/components/error-diagnosis.js'
 import { noAutofill, ToggleSwitch, TimeZoneField } from '/components/forms.js'
 import { GuideCombobox } from '/components/guide-combobox.js'
@@ -347,6 +348,7 @@ app.component('download-icon', DownloadIcon)
 app.component('trash-icon', TrashIcon)
 app.component('ad-scan-icon', AdScanIcon)
 app.component('confirm-dialog', ConfirmDialog)
+app.component('rich-text', RichText)
 app.component('external-link-icon', ExternalLinkIcon)
 document.addEventListener('touchstart', () => {}, { passive: true })
 const PAGE_ZOOM_GESTURES = ['gesturestart', 'gesturechange']

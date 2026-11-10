@@ -716,6 +716,15 @@ code {
   font-weight: var(--weight-small);
 }
 
+.ui-code {
+  padding: 0 4px;
+  background: var(--color-surface-3);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .info-btn {
   display: inline-flex;
   align-items: center;
@@ -2355,6 +2364,13 @@ section[id^="section-"] {
 
 .copy-row-value {
   overflow-wrap: anywhere;
+}
+
+.copy-row-value.is-one-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 @media (max-width: 640px) {

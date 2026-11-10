@@ -55,7 +55,7 @@ export const LiveView = {
         Connect TVHeadend in <a href="#/settings/system/tvheadend">Settings</a> to watch live TV.
       </p>
       <div v-else-if="error" class="live-note live-error">
-        <span class="status-readout err">Guide unavailable: {{ error }}</span>
+        <span class="status-readout err">Guide unavailable: <rich-text :text="error" /></span>
         <button type="button" class="ui-button ui-button-secondary ui-button-sm" @click="load"><refresh-icon /> Retry</button>
       </div>
       <div v-else-if="!data" :class="['live-groups', 'live-skeleton', 'live-zoom-' + zoom, { 'live-images-off': !showImages }]" aria-hidden="true">

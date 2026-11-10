@@ -60,6 +60,79 @@ export const pinnableChannelsOf = (channels = []) => channels
   .filter((channel) => channel.sources.length > 1 && !channel.pin)
   .sort((a, b) => (a.lcn ?? Infinity) - (b.lcn ?? Infinity) || a.name.localeCompare(b.name))
 
+export const broadcastIntroOf = ({ country, broadcast }) => {
+  const place = country ?? 'your time zone'
+  if (!broadcast) return `Freetvarr has no listings source for ${place}, so TVHeadend keeps the guide it has. Freetvarr could not read that guide just now.`
+  return `Freetvarr has no listings source for ${place}, so TVHeadend keeps the guide it has: the broadcast guide (EIT), plus any XMLTV grabber you set up.`
+}
+
+export const broadcastMetaOf = (broadcast) => {
+  if (!broadcast) return ''
+  return [
+    `${broadcast.listed} of ${broadcast.channels} ${broadcast.channels === 1 ? 'channel' : 'channels'} listed for the next 48 h`,
+    `${broadcast.horizonDays} ${broadcast.horizonDays === 1 ? 'day' : 'days'} ahead (median)`,
+    ...(broadcast.describedShare === null ? [] : [`${Math.round(broadcast.describedShare * 100)}% described`]),
+  ].join(' · ')
+}
+
+export const suggestedFeedsNoteOf = ({ country }) => `Other people publish these XMLTV guide feeds for ${country ?? 'your country'} (third-party, licence not checked by Freetvarr). Freetvarr reads one only when you choose it. To use one, copy its address into the XMLTV URL grabber in TVHeadend, or into Another address under SETTINGS → SETUP → Guide.`
+
+export const suggestedFeedsHintOf = ({ checked }) => (checked ? `Each address answered on ${checked}.` : '')
+
+export const feedProvidersOf = (feeds = []) => [...new Map(feeds.map((feed) => [feed.provider, { name: feed.provider, source: feed.source }])).values()]
+
+export const useMergedGuideDialogOf = ({ repoint }) => ({
+  title: 'Use the merged guide?',
+  confirmLabel: 'Use the merged guide',
+  busyLabel: 'Starting',
+  body: [
+    `TVHeadend's guide grabber will read the guide that Freetvarr merges, at ${repoint.feedUrl}.`,
+    ...(repoint.rebuild ? [`Freetvarr first builds the merged guide for ${repoint.region}, the region your grabber reads. This takes about 15 minutes.`] : []),
+    addedChannelsLineOf(repoint),
+    ...(repoint.days?.length ? [`Days ahead: ${daysAheadOf(repoint.days)}.`] : []),
+    'Series recordings keep matching, because the merged guide keeps the titles your series recordings use.',
+    'Freetvarr checks that TVHeadend fetched the guide and that its listings updated. If a step fails, Freetvarr puts the grabber, the channel links, and the save settings back as they were.',
+    'You can stop using the merged guide later under SETTINGS → GUIDE.',
+  ],
+})
+
+export const stopMergedGuideDialogOf = ({ plan, sources = [], secondaryId = null }) => {
+  const after = sources.find((source) => source.id === secondaryId)
+  return {
+    title: 'Stop using the merged guide?',
+    confirmLabel: 'Stop using the merged guide',
+    busyLabel: 'Starting',
+    body: [
+      stopReadsLineOf(plan),
+      ...(plan.primaryChannelNames?.length ? [`These channels lose their guide, because only Freeview lists them: ${joinAnd(plan.primaryChannelNames)}.`] : []),
+      ...(plan.restoresLinks ? [`Freetvarr puts back the guide links of ${plan.restoresLinks} ${plan.restoresLinks === 1 ? 'channel' : 'channels'} that the switch changed.`] : []),
+      ...(after?.horizonDays ? [`Days ahead afterwards: ${after.label}: ${after.horizonDays} ${after.horizonDays === 1 ? 'day' : 'days'}.`] : []),
+      'Freetvarr checks that TVHeadend reloaded its guide. If a step fails, Freetvarr puts the merged guide back.',
+      'You can use the merged guide again later on this page.',
+    ],
+  }
+}
+
+const stopReadsLineOf = (plan) => {
+  if (plan.sameUrl) return `TVHeadend keeps reading ${plan.grabberUrl} with the merged content off.`
+  if (plan.enabled === false) return 'TVHeadend stops downloading a guide by address, as before you switched.'
+  return `TVHeadend's guide grabber will read ${plan.afterUrl} again.`
+}
+
+const addedChannelsLineOf = (repoint) => (repoint.added?.length
+  ? `The guide gains ${repoint.added.length} ${repoint.added.length === 1 ? 'channel' : 'channels'} that only Freeview lists: ${addedChannelsOf({ names: repoint.added })}.`
+  : `The guide keeps its ${repoint.channels} ${repoint.channels === 1 ? 'channel' : 'channels'}.`)
+
+export const failedRunActionsOf = (result) => (result?.kind === 'unmerge'
+  ? { retry: 'unmerge', showKeep: false }
+  : { retry: 'repoint', showKeep: true })
+
+export const unmergeDoneTextOf = (outcome) => {
+  const reads = outcome.enabled === false ? 'TVHeadend no longer downloads a guide by address, as before you switched.' : `TVHeadend reads ${outcome.grabberUrl} again.`
+  const updated = outcome.updated ? '' : ' Its listings change after its next import.'
+  return `${reads}${updated} The merged guide is off.`
+}
+
 const joinAnd = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
 
 const ADDED_SHOWN = 4

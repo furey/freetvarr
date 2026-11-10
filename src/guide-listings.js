@@ -5,6 +5,7 @@ export const REPOINT_NOTICE_KEY = 'guide_repoint_notice'
 export const REPOINT_CONFIRMED = 'confirmed'
 export const REPOINT_KEPT = 'kept'
 export const NOTICE_HIDDEN = 'hidden'
+export const REPOINT_RECORD_KEY = 'guide_repoint_record'
 
 export const readListingChoice = async (getSetting) => {
   const [mode, pins] = await Promise.all([getSetting(LISTINGS_MODE_KEY), getSetting(LISTINGS_PINS_KEY)])
@@ -112,6 +113,44 @@ export const repointPlanOf = ({
     days: sources.filter((source) => source.horizonDays !== null).map((source) => ({ label: source.label, days: source.horizonDays })),
     region,
     rebuild: Boolean(region && builtRegion && region !== builtRegion),
+  }
+}
+
+export const switchRecordOf = (undo) => ({
+  grabber: undo.grabber,
+  merged: undo.merged ?? { merged: '', sourceUrl: '' },
+  config: undo.config ?? {},
+  links: undo.links ?? [],
+})
+
+export const readSwitchRecord = async (getSetting) => {
+  try {
+    const record = JSON.parse((await getSetting(REPOINT_RECORD_KEY)) || 'null')
+    return record?.grabber ? record : null
+  } catch {
+    return null
+  }
+}
+
+export const unmergeTargetOf = ({ record = null, grabber, feedUrl = null, sourceUrl = null, shifted = false }) => {
+  if (record) {
+    return {
+      fromRecord: true,
+      grabber: record.grabber,
+      merged: { merged: '', sourceUrl: record.merged?.sourceUrl ?? '' },
+      config: record.config ?? {},
+      links: record.links ?? [],
+    }
+  }
+  if (!sourceUrl || !grabber) return null
+  const url = shifted ? feedUrl : sourceUrl
+  if (!url) return null
+  return {
+    fromRecord: false,
+    grabber: { id: grabber.id, enabled: true, url, priority: grabber.priority ?? null },
+    merged: { merged: '', sourceUrl: shifted ? sourceUrl : '' },
+    config: {},
+    links: [],
   }
 }
 

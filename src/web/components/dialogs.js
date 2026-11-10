@@ -12,7 +12,7 @@ export const ConfirmDialog = {
   template: `
     <ui-sheet :open="open && Boolean(dialog)" :title="dialog?.title || ''" @close="cancel">
       <div v-if="dialog" class="confirm-dialog-body">
-        <p v-for="(line, i) in dialog.body" :key="i" class="confirm-dialog-line">{{ line }}</p>
+        <p v-for="(line, i) in dialog.body" :key="i" class="confirm-dialog-line"><rich-text :text="line" /></p>
       </div>
       <template v-if="dialog" #footer>
         <button type="button" :class="['ui-button', 'ui-button-block', dialog.danger ? 'ui-button-destructive' : 'ui-button-primary', { 'is-pending': busy }]"

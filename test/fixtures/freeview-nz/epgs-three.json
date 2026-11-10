@@ -1,0 +1,401 @@
+{
+ "data": [
+  {
+   "id": "584ca197-365c-4239-9042-1b7512fd51a6",
+   "broadcaster_code": "tv3.co.nz",
+   "channel_id": "TV3",
+   "channel_name": "Three",
+   "duration": "00:35",
+   "dvb_triplet": "222A::0514",
+   "dth_dvb_triplet": "00A9:0003:03F1",
+   "lcn": 3,
+   "dth_lcn": 3,
+   "episode_id": "96e57d60-a03d-4db2-9793-a2f336d28f2d",
+   "start": "2026-11-11T04:25:00+00:00",
+   "end": "2026-11-11T05:00:00+00:00",
+   "title": "Bondi Rescue",
+   "tags": [
+    "hd",
+    "captioned"
+   ],
+   "updated_at": "2026-11-03T11:36:47+00:00",
+   "related": {
+    "episodes": [
+     {
+      "id": "04ddbdf7-d62d-4b36-8cc5-a512488b31de",
+      "updated_at": "2026-11-06T03:23:11+00:00",
+      "draft": false,
+      "on_air": true,
+      "episode_number": "7",
+      "synopsis": "Chappo gets help from an unlikely source as he goes to rescue a father and daughter. A girl in anaphylactic shock is rushed to the tower and Jackson must do what he's not done before....",
+      "title": "Episode 7",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/reality",
+       "classification/PG",
+       "advisories/LC",
+       "content_type/series",
+       "vod_classification/PG"
+      ],
+      "attributes": {
+       "air_datetime": "2026-11-11T04:25:00Z"
+      },
+      "related": {
+       "images": [
+        {
+         "id": "96a7dfc1-5234-4cf9-af5e-655b8bf4fae8",
+         "updated_at": "2026-11-06T00:21:40+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/93D9B2CF-7021-4EE2-BB70F8AF2568B8CD.jpg",
+         "url": "http://img-store-prod.switch.tv/images/96a7dfc1-5234-4cf9-af5e-655b8bf4fae8/93D9B2CF-7021-4EE2-BB70F8AF2568B8CD.jpg",
+         "size": 132937,
+         "width": 1920
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/96a7dfc1-5234-4cf9-af5e-655b8bf4fae8/93D9B2CF-7021-4EE2-BB70F8AF2568B8CD.jpg"
+       }
+      ],
+      "episode_id": "SNZ11923146",
+      "broadcaster": "mediaworks"
+     },
+     {
+      "id": "96e57d60-a03d-4db2-9793-a2f336d28f2d",
+      "updated_at": "2026-11-06T03:23:03+00:00",
+      "draft": false,
+      "on_air": true,
+      "episode_number": "4",
+      "synopsis": "New Year's Day arrives and Harrison is on alert as thousands head to Bondi Beach for the 1st sunrise of the year. In the biggest challenge to date, Harries is alerted to a baby not...",
+      "title": "Episode 4",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/reality",
+       "classification/PG",
+       "advisories/LC",
+       "content_type/series",
+       "vod_classification/PG"
+      ],
+      "attributes": {
+       "air_datetime": "2026-11-10T03:55:00Z"
+      },
+      "related": {
+       "images": [
+        {
+         "id": "df602e6d-17f0-41a5-b9c8-1abf8d7d3971",
+         "updated_at": "2026-11-03T11:36:46+00:00",
+         "draft": false,
+         "height": 804,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/7A67BE33-1794-4443-8D3C33A002729088.jpg",
+         "url": "http://img-store-prod.switch.tv/images/df602e6d-17f0-41a5-b9c8-1abf8d7d3971/7A67BE33-1794-4443-8D3C33A002729088.jpg",
+         "size": 196717,
+         "width": 1434
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/df602e6d-17f0-41a5-b9c8-1abf8d7d3971/7A67BE33-1794-4443-8D3C33A002729088.jpg"
+       }
+      ],
+      "episode_id": "SNZ11923126",
+      "broadcaster": "mediaworks"
+     }
+    ],
+    "shows": [
+     {
+      "id": "63523dbb-45d5-47d4-ae57-2e81b58cbdd2",
+      "updated_at": "2026-10-29T11:34:08+00:00",
+      "draft": false,
+      "on_demand": false,
+      "on_air": true,
+      "title": "Bondi Rescue",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/reality",
+       "season_number/18",
+       "channel_id/TV3Plus1",
+       "channel_number/13",
+       "channel_number_dth/13",
+       "season_number/11",
+       "season_number/12",
+       "season_number/13",
+       "season_number/14",
+       "genres/other",
+       "season_number/15",
+       "season_number/16",
+       "season_number/17"
+      ],
+      "related": {
+       "images": [
+        {
+         "id": "11e28b10-56a8-41ba-8b1e-dbadb78f4e2c",
+         "updated_at": "2026-06-17T00:50:15+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/C4DBB8E8-24E9-4E20-AB58D93618B1AB7A.jpg",
+         "url": "http://img-store-prod.switch.tv/images/11e28b10-56a8-41ba-8b1e-dbadb78f4e2c/C4DBB8E8-24E9-4E20-AB58D93618B1AB7A.jpg",
+         "size": 793256,
+         "width": 1920
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/11e28b10-56a8-41ba-8b1e-dbadb78f4e2c/C4DBB8E8-24E9-4E20-AB58D93618B1AB7A.jpg"
+       }
+      ],
+      "show_id": "260"
+     }
+    ]
+   }
+  },
+  {
+   "id": "439e3525-74ce-44a8-a1b4-bf87e47064b9",
+   "broadcaster_code": "tv3.co.nz",
+   "channel_id": "TV3",
+   "channel_name": "Three",
+   "duration": "01:00",
+   "dvb_triplet": "222A::0514",
+   "dth_dvb_triplet": "00A9:0003:03F1",
+   "lcn": 3,
+   "dth_lcn": 3,
+   "episode_id": "157aa706-8af2-47cc-98a5-a144dedb0bb0",
+   "start": "2026-11-11T05:00:00+00:00",
+   "end": "2026-11-11T06:00:00+00:00",
+   "title": "ThreeNews",
+   "tags": [
+    "live",
+    "hd"
+   ],
+   "updated_at": "2026-11-03T11:36:49+00:00",
+   "related": {
+    "episodes": [
+     {
+      "id": "157aa706-8af2-47cc-98a5-a144dedb0bb0",
+      "updated_at": "2026-11-03T11:37:25+00:00",
+      "draft": false,
+      "on_air": true,
+      "episode_number": "315",
+      "synopsis": "ThreeNews presents comprehensive coverage of global and local news.",
+      "title": "Wednesday 11 November 2026",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/news-and-factual/news",
+       "content_type/series"
+      ],
+      "attributes": {
+       "air_datetime": "2026-11-11T06:00:00Z"
+      },
+      "related": {
+       "images": [
+        {
+         "id": "70a58c95-4969-4d24-85dc-47bbbb79679b",
+         "updated_at": "2026-11-03T11:36:48+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/F41D9A29-4122-48FE-A8FF9093BE768A03.jpg",
+         "url": "http://img-store-prod.switch.tv/images/70a58c95-4969-4d24-85dc-47bbbb79679b/F41D9A29-4122-48FE-A8FF9093BE768A03.jpg",
+         "size": 701475,
+         "width": 1920
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/70a58c95-4969-4d24-85dc-47bbbb79679b/F41D9A29-4122-48FE-A8FF9093BE768A03.jpg"
+       }
+      ],
+      "episode_id": "SNZ11933276",
+      "broadcaster": "mediaworks"
+     }
+    ],
+    "shows": [
+     {
+      "id": "7b251ae9-7648-4a4d-9fcf-dcc45d830781",
+      "updated_at": "2026-06-24T05:21:42+00:00",
+      "draft": false,
+      "on_demand": false,
+      "on_air": true,
+      "title": "ThreeNews",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/news-and-factual/news",
+       "season_number/26",
+       "channel_id/TV3Plus1",
+       "channel_number/13",
+       "channel_number_dth/13",
+       "season_number/2026"
+      ],
+      "related": {
+       "images": [
+        {
+         "id": "e276778a-201c-4629-ad2f-d1fafbc5c382",
+         "updated_at": "2026-06-18T10:22:26+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/12C8A549-C266-4DF5-844F13F3B46A8768.jpg",
+         "url": "http://img-store-prod.switch.tv/images/e276778a-201c-4629-ad2f-d1fafbc5c382/12C8A549-C266-4DF5-844F13F3B46A8768.jpg",
+         "size": 564781,
+         "width": 1920
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/e276778a-201c-4629-ad2f-d1fafbc5c382/12C8A549-C266-4DF5-844F13F3B46A8768.jpg"
+       }
+      ],
+      "show_id": "158959"
+     }
+    ]
+   }
+  },
+  {
+   "id": "4383c0fd-4d09-496b-8657-a4475c269aa7",
+   "broadcaster_code": "tv3.co.nz",
+   "channel_id": "TV3",
+   "channel_name": "Three",
+   "duration": "00:30",
+   "dvb_triplet": "222A::0514",
+   "dth_dvb_triplet": "00A9:0003:03F1",
+   "lcn": 3,
+   "dth_lcn": 3,
+   "episode_id": "0fcc02f9-bbe4-403e-b92e-bb5f9aa379ba",
+   "start": "2026-11-11T06:00:00+00:00",
+   "end": "2026-11-11T06:30:00+00:00",
+   "title": "Millionaire Hot Seat AU",
+   "tags": [
+    "hd"
+   ],
+   "updated_at": "2026-11-03T11:36:51+00:00",
+   "related": {
+    "episodes": [
+     {
+      "id": "0fcc02f9-bbe4-403e-b92e-bb5f9aa379ba",
+      "updated_at": "2026-11-03T11:37:26+00:00",
+      "draft": false,
+      "on_air": true,
+      "episode_number": "132",
+      "synopsis": "With life changing cash on the line, everyday Aussies will have the opportunity to walk away with cash prizes up to $1,000,000.",
+      "title": "Episode 132",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/reality",
+       "classification/G",
+       "content_type/series",
+       "vod_classification/G"
+      ],
+      "attributes": {
+       "air_datetime": "2026-11-11T07:00:00Z"
+      },
+      "related": {
+       "images": [
+        {
+         "id": "80475ddb-07c9-476b-8e66-d4b2b4865166",
+         "updated_at": "2026-11-03T11:36:50+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/37B8286D-AE8D-495C-9F2F2C5AA7883D6E.jpg",
+         "url": "http://img-store-prod.switch.tv/images/80475ddb-07c9-476b-8e66-d4b2b4865166/37B8286D-AE8D-495C-9F2F2C5AA7883D6E.jpg",
+         "size": 897137,
+         "width": 1920
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/80475ddb-07c9-476b-8e66-d4b2b4865166/37B8286D-AE8D-495C-9F2F2C5AA7883D6E.jpg"
+       }
+      ],
+      "episode_id": "SNZ11940009",
+      "broadcaster": "mediaworks"
+     }
+    ],
+    "shows": [
+     {
+      "id": "e3ebe650-e38d-4801-b444-3f77978edcb0",
+      "updated_at": "2026-06-18T10:22:52+00:00",
+      "draft": false,
+      "on_demand": false,
+      "on_air": true,
+      "title": "Millionaire Hot Seat AU",
+      "categories": [
+       "channel_id/TV3",
+       "channel_number/3",
+       "channel_number_dth/3",
+       "genres/reality",
+       "season_number/1",
+       "channel_id/TV3Plus1",
+       "channel_number/13",
+       "channel_number_dth/13"
+      ],
+      "related": {
+       "images": [
+        {
+         "id": "a34001c5-bebd-44bf-b238-7fff7169210a",
+         "updated_at": "2026-08-11T05:32:05+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/964575D3-05E2-4D6F-9DE28EFD0A250B86.jpg",
+         "url": "http://img-store-prod.switch.tv/images/a34001c5-bebd-44bf-b238-7fff7169210a/964575D3-05E2-4D6F-9DE28EFD0A250B86.jpg",
+         "size": 1395300,
+         "width": 1920
+        },
+        {
+         "id": "4546d0ad-e2b2-4a7a-a063-6f0bc1082842",
+         "updated_at": "2026-06-18T10:22:28+00:00",
+         "draft": false,
+         "height": 1080,
+         "mime_type": "image/jpeg",
+         "origin_url": "http://images.skytv.co.nz/479214/DAM/7BEB7433-EF06-4C6D-AF78E7C8C3773CD2.jpg",
+         "url": "http://img-store-prod.switch.tv/images/4546d0ad-e2b2-4a7a-a063-6f0bc1082842/7BEB7433-EF06-4C6D-AF78E7C8C3773CD2.jpg",
+         "size": 1683978,
+         "width": 1920
+        }
+       ]
+      },
+      "images": [
+       {
+        "url": "http://img-store-prod.switch.tv/images/a34001c5-bebd-44bf-b238-7fff7169210a/964575D3-05E2-4D6F-9DE28EFD0A250B86.jpg"
+       },
+       {
+        "url": "http://img-store-prod.switch.tv/images/4546d0ad-e2b2-4a7a-a063-6f0bc1082842/7BEB7433-EF06-4C6D-AF78E7C8C3773CD2.jpg"
+       }
+      ],
+      "show_id": "180193"
+     }
+    ]
+   }
+  }
+ ],
+ "meta": {
+  "pagination": {
+   "offset": 0,
+   "limit": 100,
+   "more": false,
+   "total": 3
+  }
+ }
+}

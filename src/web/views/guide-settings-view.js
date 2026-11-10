@@ -1,6 +1,8 @@
 import { ref, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import {
   addedChannelsOf,
+  broadcastIntroOf,
+  broadcastMetaOf,
   channelChoicesOf,
   channelStateOf,
   channelsChangeOf,
@@ -11,11 +13,19 @@ import {
   pinnableChannelsOf,
   repointReasonTextOf,
   sourceMetaOf,
+  failedRunActionsOf,
+  stopMergedGuideDialogOf,
+  unmergeDoneTextOf,
+  useMergedGuideDialogOf,
+  feedProvidersOf,
+  suggestedFeedsHintOf,
+  suggestedFeedsNoteOf,
 } from '/guide-sources-text.js'
 import { api } from '/shared/api.js'
 import { fmtClockTz } from '/shared/time.js'
 import { loadGuideNotice } from '/shared/guide-notice.js'
 import { usePacedJob, SETUP_POLL_MS, SetupRunList } from '/views/welcome-shared.js'
+import { useConfirm } from '/components/dialogs.js'
 
 export const GuideSettingsView = {
   components: { SetupRunList },
@@ -23,30 +33,42 @@ export const GuideSettingsView = {
     <div v-page-reveal class="settings-page guide-settings">
       <teleport defer to="#settings-page-info">
         <info-button title="Guide" doc="guide/settings#guide" piece="guide">
-          <p>Freetvarr merges the free guide sources for your country into one guide, and serves it to TVHeadend at <code>/guide/xmltv.xml</code>. In Australia, Freeview gives the listings for the next 9 days, and i.mjh.nz gives the channel names and the days after.</p>
+          <p>Freetvarr merges the free guide sources for your country into one guide, and serves it to TVHeadend at <code>/guide/xmltv.xml</code>. In Australia and New Zealand, Freeview gives the listings for the next 8 to 9 days, and i.mjh.nz gives the channel names and the days after. In other countries, TVHeadend keeps its own guide, and this page lists XMLTV feeds that other people publish for your country.</p>
           <p>Each time it builds the merged guide, Freetvarr scores each source on each channel: the hours of the next 2 days it covers, how many days ahead it goes, how many listings have a description, and how many listings the other source agrees with.</p>
         </info-button>
       </teleport>
-      <p v-if="error" class="ui-banner is-error" role="alert">{{ error }}</p>
+      <p v-if="error" class="ui-banner is-error" role="alert"><span><rich-text :text="error" /></span></p>
       <div v-if="!status && !error" class="ui-group ui-skeleton-surface" aria-hidden="true">
         <div v-for="i in 4" :key="i" class="ui-group-row"><span class="ui-skeleton is-line"></span></div>
       </div>
       <template v-else-if="status">
-        <p v-if="!status.available" class="settings-note">Freetvarr has no guide sources for your time zone yet. TVHeadend keeps the guide it has.</p>
+        <div v-if="!status.available" class="settings-group" data-setting="broadcast-guide">
+          <h3 class="ui-group-label">Broadcast guide</h3>
+          <p class="settings-note guide-settings-text guide-settings-lead"><rich-text :text="broadcastIntro" /></p>
+          <div v-if="status.broadcast" class="ui-group">
+            <div class="ui-group-row guide-source-row">
+              <span class="health-check-mark"><span :class="['ui-dot', status.broadcast.short ? 'is-warn' : 'is-ok']" role="img" :aria-label="status.broadcast.short ? 'Short' : 'Healthy'"></span></span>
+              <span class="ui-group-row-main">
+                <span class="ui-group-row-title">TVHeadend guide</span>
+                <span class="ui-group-row-meta">{{ broadcastMeta }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
         <template v-else>
           <div class="settings-group" data-setting="merged-guide">
             <h3 class="ui-group-label">Merged guide</h3>
-            <template v-if="showSteps">
+            <template v-if="showSteps && !unmergeDone">
               <setup-run-list :steps="steps" />
               <template v-if="result && result.ok">
-                <p class="settings-note guide-settings-text">{{ doneText }}</p>
+                <p class="settings-note guide-settings-text"><rich-text :text="doneText" /></p>
               </template>
               <template v-else-if="result">
-                <p class="settings-note guide-settings-text is-error" role="alert">{{ result.error }}</p>
-                <p v-if="result.next" class="settings-note guide-settings-text">{{ result.next }}</p>
+                <p class="settings-note guide-settings-text is-error" role="alert"><rich-text :text="result.error" /></p>
+                <p v-if="result.next" class="settings-note guide-settings-text"><rich-text :text="result.next" /></p>
                 <div class="settings-row-actions guide-settings-actions">
-                  <button type="button" class="ui-button ui-button-primary" :disabled="starting" @click="confirm">Try again</button>
-                  <button type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
+                  <button type="button" class="ui-button ui-button-primary" :disabled="starting || planning" @click="retry">Try again</button>
+                  <button v-if="failedActions.showKeep" type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
                 </div>
               </template>
             </template>
@@ -59,11 +81,17 @@ export const GuideSettingsView = {
                   </span>
                 </div>
               </div>
+              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert"><rich-text :text="actionError" /></p>
+              <div class="settings-row-actions guide-settings-actions" data-setting="unmerge-offer">
+                <button type="button" class="setup-quiet-link" :disabled="planning || Boolean(confirming)" @click="askStop">Stop using the merged guide</button>
+              </div>
             </template>
             <template v-else-if="repoint.reason">
-              <p class="settings-note guide-settings-text">{{ reasonText }}</p>
+              <p v-if="unmergeDone" class="settings-note guide-settings-text" role="status"><rich-text :text="doneText" /></p>
+              <p class="settings-note guide-settings-text"><rich-text :text="reasonText" /></p>
             </template>
             <template v-else>
+              <p v-if="unmergeDone" class="settings-note guide-settings-text" role="status"><rich-text :text="doneText" /></p>
               <p class="settings-note guide-settings-text guide-settings-lead">{{ planIntro }}</p>
               <div class="ui-group guide-plan">
                 <div class="ui-group-row">
@@ -94,10 +122,10 @@ export const GuideSettingsView = {
                   </span>
                 </div>
               </div>
-              <p v-if="kept" class="settings-note guide-settings-text">You kept your grabber as it is. You can still use the merged guide.</p>
-              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert">{{ actionError }}</p>
+              <p v-if="kept && !unmergeDone" class="settings-note guide-settings-text">You kept your grabber as it is. You can still use the merged guide.</p>
+              <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert"><rich-text :text="actionError" /></p>
               <div class="settings-row-actions guide-settings-actions">
-                <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting }]" :disabled="starting" @click="confirm">Use the merged guide</button>
+                <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting }]" :disabled="starting || Boolean(confirming)" @click="askUse">Use the merged guide</button>
                 <button v-if="!kept" type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
               </div>
             </template>
@@ -161,7 +189,19 @@ export const GuideSettingsView = {
             </div>
           </template>
         </template>
+        <div v-if="suggestedFeeds.length" class="settings-group" data-setting="suggested-feeds">
+          <h3 class="ui-group-label">Third-party feeds</h3>
+          <p class="settings-note guide-settings-text"><rich-text :text="suggestedNote" /></p>
+          <div class="ui-group">
+            <template v-for="feed in suggestedFeeds" :key="feed.url">
+              <copy-row :label="feed.name" :value="feed.url" one-line />
+            </template>
+          </div>
+          <p class="settings-note guide-settings-text">{{ suggestedHint }} <span>Listed by: <template v-for="(provider, index) in feedProviders" :key="provider.name"><a :href="provider.source" target="_blank" rel="noopener noreferrer">{{ provider.name }}</a><template v-if="index < feedProviders.length - 1">, </template></template>.</span></p>
+        </div>
       </template>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :busy="confirmBusy"
+        @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -190,6 +230,7 @@ export const GuideSettingsView = {
     const planIntro = computed(() => `Freetvarr can merge ${status.value.sources.map((source) => source.label).join(' and ')} into one guide, and point TVHeadend's guide grabber at it. Check what changes, then choose.`)
     const doneText = computed(() => {
       const outcome = result.value
+      if (outcome.kind === 'unmerge') return unmergeDoneTextOf(outcome)
       const linked = outcome.linked ? ` Freetvarr linked ${outcome.linked} ${outcome.linked === 1 ? 'channel' : 'channels'} to the new guide.` : ''
       const updated = outcome.updated ? '' : ' TVHeadend has not shown new listings yet; they appear after its next import.'
       return `TVHeadend reads the merged guide.${linked}${updated}`
@@ -198,7 +239,63 @@ export const GuideSettingsView = {
     const modeHint = computed(() => listingModeHintOf({ mode: status.value.choice.mode, sources: status.value.sources }))
     const listedChannels = computed(() => listedChannelsOf(status.value?.channels))
     const pinnable = computed(() => pinnableChannelsOf(status.value?.channels))
+    const suggestions = computed(() => status.value?.suggestions ?? { feeds: [] })
+    const suggestedFeeds = computed(() => suggestions.value.feeds ?? [])
+    const suggestedNote = computed(() => suggestedFeedsNoteOf(suggestions.value))
+    const suggestedHint = computed(() => suggestedFeedsHintOf(suggestions.value))
+    const feedProviders = computed(() => feedProvidersOf(suggestedFeeds.value))
+    const broadcastIntro = computed(() => broadcastIntroOf({ country: suggestions.value.country, broadcast: status.value?.broadcast }))
+    const broadcastMeta = computed(() => broadcastMetaOf(status.value?.broadcast))
     const newPinChannel = computed(() => pinnable.value.find((channel) => channel.id === newPin.value) ?? null)
+
+    const planning = ref(false)
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
+    const unmergeDone = computed(() => result.value?.kind === 'unmerge' && Boolean(result.value.ok) && !paced.shown.value.running)
+    const failedActions = computed(() => failedRunActionsOf(result.value))
+
+    const retry = async () => {
+      if (failedActions.value.retry === 'repoint') return askUse()
+      await askStop()
+    }
+
+    const askUse = () => askConfirm({ dialog: useMergedGuideDialogOf({ repoint: repoint.value }), run: confirm })
+
+    const askStop = async () => {
+      const plan = await planUnmerge()
+      if (!plan) return
+      askConfirm({
+        dialog: stopMergedGuideDialogOf({ plan, sources: status.value?.sources ?? [], secondaryId: status.value?.secondaryId }),
+        run: confirmUnmerge,
+      })
+    }
+
+    const planUnmerge = async () => {
+      planning.value = true
+      actionError.value = ''
+      try {
+        return (await api('GET', '/api/guide-sources/unmerge')).plan
+      } catch (err) {
+        actionError.value = err.message
+        return null
+      } finally {
+        planning.value = false
+      }
+    }
+
+    const confirmUnmerge = async () => {
+      starting.value = true
+      actionError.value = ''
+      try {
+        const started = await api('POST', '/api/guide-sources/unmerge')
+        job.value = { kind: 'unmerge', running: true, steps: started.steps, result: null }
+        paced.begin()
+        startPolling()
+      } catch (err) {
+        actionError.value = err.message
+      } finally {
+        starting.value = false
+      }
+    }
 
     const load = async () => {
       try {
@@ -293,7 +390,10 @@ export const GuideSettingsView = {
     return {
       status, error, actionError, saving, starting, repoint, steps, result, showSteps, confirmed, kept,
       primaryLabel, reasonText, channelsText, addedText, daysText, planIntro, doneText,
+      suggestedFeeds, suggestedNote, suggestedHint, feedProviders, broadcastIntro, broadcastMeta,
       modeChoices, modeHint, listedChannels, pinnable, newPin, newPinSource, newPinChannel,
+      planning, unmergeDone, failedActions, retry, askUse, askStop,
+      confirming, confirmBusy, closeConfirm, runConfirmed,
       confirm, keep, setMode, setPin, pinNew, choicesOf, stateOf, metaOf, dotOf,
     }
   },

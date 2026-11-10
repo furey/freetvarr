@@ -15,6 +15,7 @@ import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
 import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage } from './epg.js'
 import { guideImageHosts, hostOfSource } from './programme-images.js'
+import { broadcastGuideHealthOf } from './broadcast-guide-health.js'
 import { showTitleKey } from './show-artwork.js'
 import { formatDiskSize } from './web/size-format.js'
 import { formatClock, formatHours, formatSeconds } from './web/time-format.js'
@@ -380,6 +381,10 @@ const LATER_CHECKS = [
     doc: 'guide/doctor#guide-sources',
     run: async (ctx) => {
       const view = await ctx.deps.guideSources()
+      if (!view?.available) {
+        const guide = ctx.tvhReady ? await settleWithin(ctx.deps.guide(), ctx.timeoutMs / 2) : null
+        return broadcastGuideCheck({ broadcast: guide ? broadcastGuideHealthOf({ guide, nowMs: ctx.now }) : null, suggestions: view?.suggestions })
+      }
       const grabber = view?.repoint?.state === 'confirmed' && ctx.tvhReady ? await readGrabberOf(ctx).catch(() => null) : null
       return guideSourcesCheck({ view, grabber, nowMs: ctx.now })
     },
@@ -745,8 +750,36 @@ export const guidePicturesCheck = ({
   }
 }
 
+export const broadcastGuideCheck = ({ broadcast, suggestions = null }) => {
+  const place = suggestions?.country ?? 'this time zone'
+  const pointer = suggestedFeedsPointerOf(suggestions)
+  if (!broadcast) return { status: 'skip', detail: `Freetvarr has no listings source for ${place}, and could not read the TVHeadend guide.${pointer}` }
+  const detail = [
+    `Freetvarr has no listings source for ${place}, so the guide is the one TVHeadend has: the broadcast guide (EIT), plus any XMLTV grabber you set up.`,
+    `${broadcast.listed} of ${plural(broadcast.channels, 'channel')} have listings for the next 48 h, and the guide runs a median ${broadcast.horizonDays} days ahead.`,
+  ].join(' ')
+  if (!broadcast.short) return { status: 'pass', detail: `${detail}${pointer}` }
+  return {
+    status: 'warn',
+    detail,
+    fix: suggestedFeedsFixOf(suggestions),
+    action: OPEN_GUIDE_SETTINGS,
+    summary: 'The broadcast guide is short or has gaps.',
+  }
+}
+
+export const suggestedFeedsFixOf = (suggestions) => {
+  const [first] = suggestions?.feeds ?? []
+  if (!first) return 'Enable the XMLTV URL grabber in TVHeadend with a guide address for your country.'
+  return `SETTINGS → GUIDE lists XMLTV feeds for ${suggestions.country}, such as ${first.url} (third-party, licence not checked by Freetvarr). To use one, paste it into the XMLTV URL grabber in TVHeadend.`
+}
+
+const suggestedFeedsPointerOf = (suggestions) => (suggestions?.feeds?.length
+  ? ` SETTINGS → GUIDE lists third-party XMLTV feeds for ${suggestions.country}.`
+  : '')
+
 export const guideSourcesCheck = ({ view, grabber = null, nowMs = Date.now(), staleMs = MERGED_STALE_MS }) => {
-  if (!view?.available) return { status: 'skip', detail: 'Freetvarr has no guide sources for this time zone.' }
+  if (!view?.available) return broadcastGuideCheck({ broadcast: null, suggestions: view?.suggestions })
   const detail = view.sources.map(sourceHealthLine).join(' ')
   const primary = view.sources.find((source) => source.id === view.primaryId) ?? null
   const pinnedDegraded = pinnedDegradedOf(view)
@@ -763,7 +796,7 @@ export const guideSourcesCheck = ({ view, grabber = null, nowMs = Date.now(), st
     detail: `${problems.join(' ')} ${detail}`,
     fix: pinnedDegraded.length
       ? 'Switch to Automatic, so Freetvarr uses the next source for each channel whose listings are degraded.'
-      : 'Open SETTINGS → GUIDE to see each source and channel.',
+      : `Open SETTINGS → GUIDE to see each source and channel.${suggestedFeedsPointerOf(view.suggestions)}`,
     action: pinnedDegraded.length ? SWITCH_TO_AUTOMATIC : OPEN_GUIDE_SETTINGS,
     summary: problems[0],
   }

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { applyGuideRepoint, planGuideRepoint, planRepointLinks, rollbackGuideRepoint } from '../src/tvheadend-guide.js'
+import { applyGuideRepoint, applyGuideUnmerge, planGuideRepoint, planGuideUnmerge, planRepointLinks, planUnmergeLinks, rollbackGuideRepoint } from '../src/tvheadend-guide.js'
 import {
   REPOINT_CONFIRMED,
   REPOINT_KEPT,
@@ -11,6 +11,8 @@ import {
   pinsWith,
   readListingChoice,
   repointPlanOf,
+  switchRecordOf,
+  unmergeTargetOf,
 } from '../src/guide-listings.js'
 import { createGuideSourceService, createMergedFeedSwitch, repointFailureOf } from '../src/guide-source-routes.js'
 import { isGuideFeedUrl, noteServedFeed } from '../src/guide-feed.js'
@@ -325,6 +327,29 @@ test('channel rows: a channel on mjh because Freeview is degraded shows as a fal
   assert.equal(rows[2].pin, 'freeview-au')
 })
 
+const serviceDeps = ({ settings, grabberUrl }) => {
+  const source = (id, label) => ({ id, label, regionOfUrl: (url) => (url === MJH_URL ? 'Sydney' : null) })
+  const freeview = source('freeview-au', 'Freeview')
+  const mjh = source('mjh-au', 'i.mjh.nz')
+  return {
+    getSetting: async (key) => settings.get(key) ?? null,
+    setSetting: async (key, value) => { settings.set(key, value) },
+    guideMerge: {
+      planNow: async () => ({ primary: { source: freeview }, secondary: { source: mjh } }),
+      savedChannels: async () => SAVED_CHANNELS,
+      builtAt: async () => 1000,
+      builtRegions: async () => ({ primaryRegion: 'region_nsw_sydney', secondaryRegion: 'Sydney' }),
+      latest: () => null,
+      requestBuild: () => {},
+    },
+    rankedSources: () => [freeview, mjh],
+    health: { latest: async () => ({ sources: [], channels: [] }) },
+    inspect: async () => inspection(grabberUrl),
+    feedUrl: async () => FEED_URL,
+    isFeedUrl: isGuideFeedUrl,
+  }
+}
+
 const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint = async () => ({ ok: true, steps: [] }), grabberUrl = MJH_URL, otherBusy = () => false, rollbackRepoint = async () => [], noGrabber = false, plannedSteps } = {}) => {
   const builds = []
   const source = (id, label) => ({ id, label, regionOfUrl: (url) => (url === MJH_URL ? 'Sydney' : null) })
@@ -491,4 +516,207 @@ test('page meta: the notice state goes into the page, so Home shows it without a
   const html = withGuideNoticeMeta({ html: '<meta charset="utf-8" />', notice: { show: true, added: 14 } })
   assert.match(html, /<meta name="freetvarr-guide-notice" content="\{&quot;show&quot;:true,&quot;added&quot;:14\}" \/>/)
   assert.equal(withGuideNoticeMeta({ html: 'x', notice: null }), 'x')
+})
+
+const stubMergedTvheadend = ({ importChanges = true } = {}) => {
+  const writes = []
+  let reruns = 0
+  const guideEntries = [
+    { uuid: 'g-seven', modid: '/usr/bin/tv_grab_url', id: 'mjh-seven-syd', name: 'Seven', channels: ['c7', 'c9'] },
+    { uuid: 'g-abc-me', modid: '/usr/bin/tv_grab_url', id: 'freeview.1010:0202:0222', name: 'ABC ME', channels: ['c22'] },
+  ]
+  const reads = {
+    'epggrab/module/list': () => ({ entries: [{ uuid: 'mod-url', title: 'Internal: XMLTV: XMLTV URL grabber' }] }),
+    'idnode/load': () => ({ entries: [{ params: [
+      { id: 'enabled', value: true },
+      { id: 'args', value: FEED_URL },
+      { id: 'priority', value: 3 },
+      { id: 'path', value: '/usr/bin/tv_grab_url' },
+    ] }] }),
+    'epggrab/config/load': () => ({ entries: [{ params: [{ id: 'epgdb_periodicsave', value: 1 }, { id: 'epgdb_saveafterimport', value: true }] }] }),
+    'epggrab/channel/grid': () => ({ entries: guideEntries }),
+    'channel/grid': () => ({ entries: [
+      { uuid: 'c7', name: '7 Sydney', number: 7, services: ['s7'], epggrab: ['g-seven'] },
+      { uuid: 'c22', name: 'ABC ME', number: 22, services: ['s22'], epggrab: ['g-abc-me'] },
+    ] }),
+    'epg/events/grid': (params) => (params?.channel
+      ? { totalCount: reruns && importChanges ? 120 : 150 }
+      : { totalCount: 19_000, entries: [{ stop: 2_000 }] }),
+  }
+  return {
+    writes,
+    get: async (path, params) => reads[path](params),
+    post: async (path, form) => {
+      if (path === 'epggrab/internal/rerun') reruns += 1
+      writes.push({ path, form })
+      return {}
+    },
+  }
+}
+
+const SWITCH_RECORD = switchRecordOf({
+  grabber: { id: 'mod-url', key: '/usr/bin/tv_grab_url', enabled: true, url: MJH_URL, priority: 5 },
+  merged: { merged: null, sourceUrl: null },
+  mergedOn: true,
+  pointed: true,
+  config: { epgdb_saveafterimport: false },
+  knownGuideIds: ['g-seven'],
+  links: [{ guideId: 'g-seven', channels: ['c7'] }],
+})
+
+const settingsSwitch = (settings = new Map([['guide_merged_feed', 'on'], ['guide_source_url', MJH_URL]])) => {
+  const calls = []
+  return {
+    settings,
+    calls,
+    setMerged: async (next) => {
+      const previous = { merged: settings.get('guide_merged_feed') ?? '', sourceUrl: settings.get('guide_source_url') ?? '' }
+      settings.set('guide_merged_feed', next.merged)
+      settings.set('guide_source_url', next.sourceUrl)
+      calls.push(['set', next])
+      return previous
+    },
+    restoreMerged: async (previous) => {
+      settings.set('guide_merged_feed', previous.merged)
+      settings.set('guide_source_url', previous.sourceUrl)
+      calls.push(['restore', previous])
+    },
+  }
+}
+
+const unmerge = (overrides = {}) => applyGuideUnmerge({
+  conn: CONN,
+  isFeedUrl: isGuideFeedUrl,
+  waitForRequest: async () => true,
+  pollMs: 0,
+  updateLimitMs: 5000,
+  ...clock(),
+  ...overrides,
+})
+
+test('unmerge plan: three steps from the grabber to checking that TVHeadend reloaded', () => {
+  assert.deepEqual(planGuideUnmerge().steps.map((step) => step.id), ['grabber', 'links', 'verify'])
+})
+
+test('unmerge with the switch record: puts back the mjh address, priority, save setting, and channel links, unlinks the Freeview-only channel, and turns the merged guide off', async () => {
+  const http = stubMergedTvheadend()
+  const merged = settingsSwitch()
+  const journal = memoryJournal()
+  let fetchWaits = 0
+  const target = unmergeTargetOf({ record: SWITCH_RECORD })
+  const result = await unmerge({ http, target, journal, ...merged, waitForRequest: async () => { fetchWaits += 1; return true } })
+  assert.equal(result.ok, true)
+  assert.equal(result.kind, 'unmerge')
+  assert.deepEqual(grabberWrites(http.writes), [{ uuid: 'mod-url', enabled: true, args: MJH_URL, priority: 5 }])
+  assert.deepEqual(guideWrites(http.writes, 'g-seven'), [['c7']])
+  assert.deepEqual(guideWrites(http.writes, 'g-abc-me'), [[]])
+  assert.deepEqual(JSON.parse(http.writes.find((w) => w.path === 'epggrab/config/save').form.node), { epgdb_saveafterimport: false })
+  assert.equal(merged.settings.get('guide_merged_feed'), '')
+  assert.equal(merged.settings.get('guide_source_url'), '')
+  assert.equal(fetchWaits, 0, 'an outside address is not fetched from Freetvarr')
+  assert.deepEqual([result.unlinked, result.restored, result.updated], [1, 1, true])
+  assert.equal(journal.current(), null)
+})
+
+test('unmerge without a record, when +N channels made the grabber read Freetvarr: keeps the Freetvarr address, serves the mjh feed unmerged, and waits for TVHeadend to fetch it', async () => {
+  const http = stubMergedTvheadend()
+  const merged = settingsSwitch()
+  const grabber = { id: 'mod-url', enabled: true, url: FEED_URL, priority: 3 }
+  const target = unmergeTargetOf({ grabber, feedUrl: FEED_URL, sourceUrl: MJH_URL, shifted: true })
+  let fetchWaits = 0
+  const result = await unmerge({ http, target, ...merged, waitForRequest: async () => { fetchWaits += 1; return true } })
+  assert.equal(result.ok, true)
+  assert.deepEqual(grabberWrites(http.writes), [{ uuid: 'mod-url', enabled: true, args: FEED_URL, priority: 3 }])
+  assert.equal(merged.settings.get('guide_merged_feed'), '')
+  assert.equal(merged.settings.get('guide_source_url'), MJH_URL)
+  assert.equal(fetchWaits, 1)
+  assert.deepEqual(guideWrites(http.writes, 'g-seven'), [])
+  assert.deepEqual(guideWrites(http.writes, 'g-abc-me'), [[]])
+})
+
+test('unmerge without a record and without +N channels: points the grabber straight at the mjh feed for the region', () => {
+  const grabber = { id: 'mod-url', enabled: true, url: FEED_URL, priority: 3 }
+  const target = unmergeTargetOf({ grabber, feedUrl: FEED_URL, sourceUrl: MJH_URL, shifted: false })
+  assert.deepEqual(target.grabber, { id: 'mod-url', enabled: true, url: MJH_URL, priority: 3 })
+  assert.deepEqual(target.merged, { merged: '', sourceUrl: '' })
+  assert.equal(unmergeTargetOf({ grabber, feedUrl: FEED_URL, sourceUrl: null }), null)
+})
+
+test('unmerge failure: TVHeadend not fetching the Freetvarr address puts the merged guide, the grabber, and the links back', async () => {
+  const http = stubMergedTvheadend()
+  const merged = settingsSwitch()
+  const journal = memoryJournal()
+  const target = unmergeTargetOf({ grabber: { id: 'mod-url', priority: 3 }, feedUrl: FEED_URL, sourceUrl: MJH_URL, shifted: true })
+  const result = await unmerge({ http, target, journal, ...merged, waitForRequest: async () => false })
+  assert.equal(result.ok, false)
+  assert.equal(result.code, 'not-fetched')
+  assert.equal(result.restored, true)
+  assert.equal(merged.settings.get('guide_merged_feed'), 'on')
+  assert.equal(merged.settings.get('guide_source_url'), MJH_URL)
+  assert.deepEqual(grabberWrites(http.writes).at(-1), { uuid: 'mod-url', enabled: true, args: FEED_URL, priority: 3 })
+  assert.deepEqual(guideWrites(http.writes, 'g-abc-me'), [[], ['c22']])
+  assert.equal(journal.current(), null)
+  assert.equal(journal.saved.at(-1).kind, 'unmerge')
+})
+
+test('unmerge links: a link the user changed since the switch is put back only when it differs, and Freeview-only channels with no link are left alone', () => {
+  const saves = planUnmergeLinks({
+    guideChannels: [
+      { id: 'g-seven', xmltvId: 'mjh-seven-syd', channels: ['c7'] },
+      { id: 'g-nine', xmltvId: 'mjh-nine-syd', channels: ['c9', 'c99'] },
+      { id: 'g-fv', xmltvId: 'freeview.1010:0202:0222', channels: [] },
+    ],
+    links: [{ guideId: 'g-seven', channels: ['c7'] }, { guideId: 'g-nine', channels: ['c9'] }, { guideId: 'g-gone', channels: ['c1'] }],
+  })
+  assert.deepEqual(saves, [{ guideId: 'g-nine', channels: ['c9'], before: ['c9', 'c99'], primaryOnly: false }])
+})
+
+test('service: a switch saves its undo record, and stopping the merged guide uses it, marks the install kept, and clears the record', async () => {
+  const settings = new Map()
+  const { service } = fakeService({
+    settings,
+    applyRepoint: async ({ feedUrl }) => ({ ok: true, grabberUrl: feedUrl, steps: [], record: { ...SWITCH_RECORD, mergedOn: true, pointed: true } }),
+  })
+  const run = await (await service.startRepoint()).finish
+  assert.equal(run.result.record, undefined)
+  assert.deepEqual(JSON.parse(settings.get('guide_repoint_record')).links, SWITCH_RECORD.links)
+  settings.set('guide_merged_feed', 'on')
+  const targets = []
+  const unmergeService = createGuideSourceService({
+    ...serviceDeps({ settings, grabberUrl: FEED_URL }),
+    unmergeTargetFor: async ({ record }) => unmergeTargetOf({ record }),
+    plannedUnmergeSteps: () => planGuideUnmerge().steps,
+    applyUnmerge: async ({ target }) => {
+      targets.push(target)
+      return { ok: true, kind: 'unmerge', grabberUrl: target.grabber.url, enabled: true, updated: true, steps: [] }
+    },
+  })
+  const { plan } = await unmergeService.unmergePlan()
+  assert.equal(plan.afterUrl, MJH_URL)
+  assert.equal(plan.fromRecord, true)
+  const started = await unmergeService.startUnmerge()
+  assert.deepEqual(started.run.steps.map((step) => step.status), ['pending', 'pending', 'pending'])
+  assert.deepEqual(await unmergeService.startUnmerge(), { busy: true })
+  const done = await started.finish
+  assert.equal(done.result.ok, true)
+  assert.equal(targets[0].grabber.url, MJH_URL)
+  assert.equal(settings.get('guide_repoint'), REPOINT_KEPT)
+  assert.equal(settings.get('guide_repoint_record'), '')
+})
+
+test('service: stopping is refused while TVHeadend does not read the merged guide', async () => {
+  const unmergeService = createGuideSourceService({ ...serviceDeps({ settings: new Map(), grabberUrl: MJH_URL }), unmergeTargetFor: async () => null })
+  assert.match((await unmergeService.unmergePlan()).problem, /does not read the merged guide/)
+  assert.match((await unmergeService.startUnmerge()).problem, /does not read the merged guide/)
+})
+
+test('unmerge links: only Freeview-only channels of the URL grabber module are unlinked', () => {
+  const saves = planUnmergeLinks({
+    guideChannels: [
+      { id: 'g-url', moduleId: '/usr/bin/tv_grab_url', xmltvId: 'freeview.1010:0202:0222', channels: ['c22'] },
+      { id: 'g-file', moduleId: '/usr/bin/tv_grab_file', xmltvId: 'freeview.1010:0202:0222', channels: ['c22'] },
+    ],
+    moduleKey: '/usr/bin/tv_grab_url',
+  })
+  assert.deepEqual(saves.map((save) => save.guideId), ['g-url'])
 })

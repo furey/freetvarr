@@ -52,7 +52,7 @@ export const TimeZoneField = {
         <option v-for="zone in zones" :key="zone" :value="zone">{{ zone }}</option>
       </select>
       <p v-if="modelValue" class="text-xs text-ink-dim mt-2 ui-tabular">Now {{ readout }}</p>
-      <p v-if="fromEnv" class="text-xs text-ink-dim mt-2">Pre-filled from <code>TZ</code> in your .env file.</p>
+      <p v-if="fromEnv" class="text-xs text-ink-dim mt-2">Pre-filled from <code>TZ</code> in your <code>.env</code> file.</p>
       <p v-else-if="hint" class="text-xs text-ink-dim mt-2">Pre-filled from this browser. Freetvarr uses it for the guide, recordings, and the sync schedule.</p>
     </div>
   `,

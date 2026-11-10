@@ -83,7 +83,7 @@ export const WelcomeView = {
           <ol class="ui-group setup-plan">
             <li v-for="(part, index) in PLAN" :key="part.title" class="ui-group-row">
               <span class="setup-plan-num" aria-hidden="true">{{ index + 1 }}</span>
-              <span class="ui-group-row-main"><span class="ui-group-row-title">{{ part.title }}</span><span class="ui-group-row-meta">{{ part.meta }}</span></span>
+              <span class="ui-group-row-main"><span class="ui-group-row-title">{{ part.title }}</span><span class="ui-group-row-meta"><rich-text :text="part.meta" /></span></span>
             </li>
           </ol>
         </div>
@@ -99,7 +99,7 @@ export const WelcomeView = {
               </select>
             </div>
           </div>
-          <p class="setup-quiet-text">{{ zoneSourceText }}</p>
+          <p class="setup-quiet-text"><rich-text :text="zoneSourceText" /></p>
           <p v-if="hasExistingConfig" class="setup-quiet-text">Your saved settings are filled in. A field you leave as it is keeps its saved value.</p>
         </div>
         <div class="setup-hero-inner setup-hero-start">
@@ -243,7 +243,7 @@ export const WelcomeView = {
               </div>
               <template v-for="p in storageProblems" :key="p.text">
                 <p class="setup-hint is-error">{{ p.text }}</p>
-                <p class="setup-hint">{{ p.fix }}</p>
+                <p class="setup-hint"><rich-text :text="p.fix" /></p>
               </template>
               <p v-for="note in storageNotes" :key="note" class="setup-hint">{{ note }}</p>
               <div class="setup-link-row">
@@ -278,7 +278,7 @@ export const WelcomeView = {
                   <p v-if="tvhPathCheck.text && !tvhPathCheck.checking" :class="['setup-hint', { 'is-error': tvhPathCheck.kind === 'err' }]" role="status">{{ tvhPathCheck.text }}</p>
                 </div>
               </div>
-              <p class="setup-hint">Enter each folder as Freetvarr sees it inside its container, from the volumes in docker-compose.yml. If you change a folder there, change it here too. TVHeadend and Freetvarr share the recordings folder, and each can see it at a different path.</p>
+              <p class="setup-hint">Enter each folder as Freetvarr sees it inside its container, from the volumes in <code>docker-compose.yml</code>. If you change a folder there, change it here too. TVHeadend and Freetvarr share the recordings folder, and each can see it at a different path.</p>
             </div>
           </div>
 
@@ -308,7 +308,7 @@ export const WelcomeView = {
               </div>
               <template v-else-if="plexProblem">
                 <p class="setup-hint is-error">{{ plexProblem.text }}</p>
-                <p class="setup-hint">{{ plexProblem.fix }} <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a> has the details.</p>
+                <p class="setup-hint"><rich-text :text="plexProblem.fix" /> <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a> has the details.</p>
                 <button type="button" class="setup-quiet-link" @click="findPlex">Check again</button>
               </template>
               <p v-else class="setup-hint">Freetvarr did not find Plex. Recordings still go into your TV library folder for any media player. To add Plex, see <a :href="plexDocsUrl" target="_blank" rel="noopener noreferrer">Plex setup</a>.</p>
@@ -330,7 +330,7 @@ export const WelcomeView = {
                     <button type="button" class="ui-button ui-button-secondary" @click="detectPlexToken" :disabled="plexDetectingToken">Find token</button>
                   </div>
                   <p v-if="plexTokenStatus" :class="['setup-hint', { 'is-error': plexTokenStatusKind === 'err' }]" role="status">{{ plexTokenStatus }}</p>
-                  <p class="setup-hint">Find token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file. If you installed Plex yourself, enter the path to its Preferences.xml below, or paste the token from Plex.</p>
+                  <p class="setup-hint">Find token reads the token from Plex's settings file. It works with the Plex in Freetvarr's compose file. If you installed Plex yourself, enter the path to its <code>Preferences.xml</code> below, or paste the token from Plex.</p>
                 </div>
                 <div class="field-row">
                   <label class="field-label" for="setup-plex-prefs">Preferences.xml path, as Freetvarr sees it</label>
@@ -355,7 +355,7 @@ export const WelcomeView = {
                 <setup-status-icon :status="row.ok ? 'done' : 'failed'" />
                 <span class="ui-group-row-main">
                   <span class="ui-group-row-title">{{ row.title }}</span>
-                  <span class="ui-group-row-meta">{{ row.meta }}</span>
+                  <span class="ui-group-row-meta"><rich-text :text="row.meta" /></span>
                   <button v-if="row.fix" type="button" class="setup-inline-link" @click="jumpToKey(row.fix.step)">{{ row.fix.label }}</button>
                 </span>
                 <span v-if="row.value" class="ui-group-row-value">{{ row.value }}</span>

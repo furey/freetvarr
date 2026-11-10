@@ -3,12 +3,33 @@ import {
   FREEVIEW_WINDOW_MS,
   freeviewClient,
   freeviewRegionOf,
+  listingEpisodeOf,
   listingImagesOf,
   placeholderImagesOf,
   windowStartOf,
 } from '../freeview-au.js'
 
-export const createFreeviewAuSource = ({
+export const AU_RATING_LABELS = new Set(['G', 'PG', 'M', 'MA15+', 'AV15+', 'R18+', 'C', 'P'])
+
+export const createFreeviewAuSource = (options = {}) => createFreeviewSource({
+  id: 'freeview-au',
+  countries: ['au'],
+  host: FREEVIEW_API_HOST,
+  regionOf: freeviewRegionOf,
+  channelsPath: (region) => `/content/v1/channels/region/${region}`,
+  ratingLabels: AU_RATING_LABELS,
+  horizonDays: AU_HORIZON_DAYS,
+  ...options,
+})
+
+export const createFreeviewSource = ({
+  id,
+  countries,
+  host,
+  regionOf,
+  channelsPath,
+  ratingLabels,
+  horizonDays,
   client = freeviewClient,
   now = Date.now,
   nearTtlMs = NEAR_TTL_MS,
@@ -19,13 +40,14 @@ export const createFreeviewAuSource = ({
   onWindow = () => {},
   maxWindows = MAX_WINDOWS,
 } = {}) => {
+  const origin = `https://${host}`
   const windows = new Map()
   const failures = new Map()
   let counts = emptyCounts()
 
   const channels = async (region) => {
     const body = await client.getJson({
-      url: `${API_ORIGIN}/content/v1/channels/region/${region}`,
+      url: `${origin}${channelsPath(region)}`,
       params: { limit: 100, offset: 0 },
       isBackground: true,
     })
@@ -74,7 +96,7 @@ export const createFreeviewAuSource = ({
       const listings = await fetchSpan({ triplet, start, end: start + FREEVIEW_WINDOW_MS, canSplit: true })
       onWindow({ triplet, windowStart: start, listings })
       const placeholders = placeholderImagesOf(listings)
-      const programmes = listings.map((listing) => freeviewProgrammeOf({ listing, placeholders })).filter(Boolean)
+      const programmes = listings.map((listing) => freeviewProgrammeOf({ listing, placeholders, ratingLabels })).filter(Boolean)
       const ttlMs = start - now() < nearMs ? nearTtlMs : farTtlMs
       windows.delete(key)
       windows.set(key, { programmes, expiresAt: now() + ttlMs })
@@ -109,7 +131,7 @@ export const createFreeviewAuSource = ({
     for (let page = 0; page < maxPages; page += 1) {
       counts.requests += 1
       const body = await client.getJson({
-        url: `${API_ORIGIN}/content/v1/epgs/${triplet.toUpperCase()}`,
+        url: `${origin}/content/v1/epgs/${triplet.toUpperCase()}`,
         params: {
           start: isoOf(start),
           end: isoOf(end),
@@ -140,26 +162,26 @@ export const createFreeviewAuSource = ({
   }
 
   return {
-    id: 'freeview-au',
+    id,
     label: 'Freeview',
-    countries: ['au'],
+    countries,
     channelIdPrefix: 'freeview',
-    horizonDays: HORIZON_DAYS,
-    regionOf: freeviewRegionOf,
+    horizonDays,
+    regionOf,
     channels,
     listings,
     stats,
     resetStats,
-    hostLimits: { [FREEVIEW_API_HOST]: { concurrency: 1, gapMs: 500 } },
+    hostLimits: { [host]: { concurrency: 1, gapMs: 500 } },
   }
 }
 
-export const freeviewProgrammeOf = ({ listing, placeholders = new Set() }) => {
+export const freeviewProgrammeOf = ({ listing, placeholders = new Set(), ratingLabels = AU_RATING_LABELS }) => {
   const start = Date.parse(listing?.start)
   const stop = Date.parse(listing?.end)
   const title = String(listing?.title ?? '').trim()
   if (!Number.isFinite(start) || !Number.isFinite(stop) || stop <= start || !title || PLACEHOLDER_TITLE.test(title)) return null
-  const episode = listing.related?.episodes?.[0] ?? null
+  const episode = listingEpisodeOf(listing)
   const show = listing.related?.shows?.[0] ?? null
   const tags = categoryTagsOf(episode ?? show)
   const images = listingImagesOf({ listing, placeholders })
@@ -171,11 +193,11 @@ export const freeviewProgrammeOf = ({ listing, placeholders = new Set() }) => {
     title,
     subTitle: isEpisodeTitle({ episode, episodeTitle, title }) ? episodeTitle : null,
     desc: String(episode?.synopsis || show?.synopsis || '').trim() || null,
-    categories: uniqueOf(tags.get('genres') ?? []),
-    rating: (tags.get('classification') ?? []).find((label) => RATING_LABELS.has(label)) ?? null,
+    categories: uniqueOf((tags.get('genres') ?? []).map(genreLabelOf)),
+    rating: (tags.get('classification') ?? []).find((label) => ratingLabels.has(label)) ?? null,
     icon: images.episode ?? images.show ?? null,
-    season: positiveNumberOf(tags.get('season_number')?.[0]),
-    episode: positiveNumberOf(episode?.episode_number),
+    season: positiveNumberOf(tags.get('season_number')?.[0], MAX_SEASON),
+    episode: positiveNumberOf(episode?.episode_number, MAX_EPISODE),
     crid: tags.get('crid_value')?.[0] ?? null,
     episodeNums: [],
     extras: [],
@@ -184,7 +206,8 @@ export const freeviewProgrammeOf = ({ listing, placeholders = new Set() }) => {
 
 const isEpisodeTitle = ({ episode, episodeTitle, title }) => Boolean(episodeTitle)
   && episodeTitle.toLowerCase() !== title.toLowerCase()
-  && (episode?.tags ?? []).includes(EPISODE_SUBTYPE)
+  && !NUMBERED_EPISODE_TITLE.test(episodeTitle)
+  && (episode?.tags ?? [EPISODE_SUBTYPE]).includes(EPISODE_SUBTYPE)
 
 const categoryTagsOf = (entity) => {
   const tags = new Map()
@@ -199,6 +222,12 @@ const categoryTagsOf = (entity) => {
   return tags
 }
 
+const genreLabelOf = (genre) => {
+  if (!GENRE_SLUG.test(genre)) return genre
+  const words = genre.split('/').pop().replace(/-and-/g, ' & ').replace(/-/g, ' ')
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`
+}
+
 const uniqueOf = (values) => {
   const seen = new Set()
   return values.filter((value) => {
@@ -209,19 +238,21 @@ const uniqueOf = (values) => {
   })
 }
 
-const positiveNumberOf = (value) => {
+const positiveNumberOf = (value, max) => {
   const number = Number(value)
-  return Number.isInteger(number) && number > 0 ? number : null
+  return Number.isInteger(number) && number > 0 && number <= max ? number : null
 }
 
 const isoOf = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
 
 const emptyCounts = () => ({ requests: 0, failedWindows: 0, splitWindows: 0, windowsRead: 0 })
 
-const API_ORIGIN = `https://${FREEVIEW_API_HOST}`
-const TRIPLET = /^[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}$/
+const TRIPLET = /^[0-9a-f]{4}:(?:[0-9a-f]{4})?:[0-9a-f]{4}$/
+const GENRE_SLUG = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/
+const NUMBERED_EPISODE_TITLE = /^episode\s+\d+$/i
+const MAX_SEASON = 9999
+const MAX_EPISODE = 99999
 const EPISODE_SUBTYPE = 'onapi-subtype:episode'
-const RATING_LABELS = new Set(['G', 'PG', 'M', 'MA15+', 'AV15+', 'R18+', 'C', 'P'])
 const GATEWAY_TIMEOUT = 504
 const CHANNEL_REFUSED = Symbol('channel refused')
 const NO_CONTENT = 'bad-content'
@@ -230,7 +261,7 @@ const PAGE_SIZE = 100
 const MAX_WINDOWS = 4000
 const MAX_PAGES = 3
 const HOUR_MS = 60 * 60_000
-const HORIZON_DAYS = 9
+const AU_HORIZON_DAYS = 9
 const NEAR_MS = 2 * 24 * HOUR_MS
 const NEAR_TTL_MS = 5.5 * HOUR_MS
 const FAR_TTL_MS = 23.5 * HOUR_MS

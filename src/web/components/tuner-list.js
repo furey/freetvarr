@@ -42,7 +42,7 @@ export const TunerExplainerSheet = {
     <ui-sheet :open="open" title="How tuners work" @close="$emit('close')">
       <tuner-list :status="multi.tunerStatus" />
       <div class="tuner-explainer">
-        <p v-for="line in lines" :key="line">{{ line }}</p>
+        <p v-for="line in lines" :key="line"><rich-text :text="line" /></p>
       </div>
     </ui-sheet>
   `,

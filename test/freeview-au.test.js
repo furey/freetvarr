@@ -20,7 +20,7 @@ import {
   windowsAround,
 } from '../src/freeview-au.js'
 import { OutboundError } from '../src/outbound-http.js'
-import { dvbTripletOf, listChannelTriplets } from '../src/tvheadend.js'
+import { dvbTripletOf, listChannelTriplets, serviceKeyOf } from '../src/tvheadend.js'
 
 const MINUTE = 60 * 1000
 const START = Date.parse('2026-11-10T09:30:00Z')
@@ -280,7 +280,7 @@ test('listChannelTriplets reads the service and mux grids and maps each channel 
       ],
       conn: { url: `http://127.0.0.1:${server.address().port}`, username: '', password: '' },
     })
-    assert.deepEqual([...triplets], [['seven', [TRIPLET]], ['sbs', ['3202:0300:0301']], ['none', []]])
+    assert.deepEqual([...triplets], [['seven', [TRIPLET, serviceKeyOf(TRIPLET)]], ['sbs', ['3202:0300:0301', '3202::0301']], ['none', []]])
     assert.ok(paths.includes('/api/mpegts/mux/grid'))
   } finally {
     server.closeAllConnections()
