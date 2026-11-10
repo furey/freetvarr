@@ -44,3 +44,12 @@ test('guide settings: both switch buttons open the dialog instead of calling the
   assert.doesNotMatch(view, /@click="confirm"|@click="confirmUnmerge"/)
   assert.match(view, /<confirm-dialog /)
 })
+
+test('the confirm dialog renders a lead, summary rows, and a muted note, and keeps body lines for every other dialog', async () => {
+  const { ConfirmDialog } = await import('../src/web/components/dialogs.js')
+  assert.match(ConfirmDialog.template, /v-if="dialog\.lead"/)
+  assert.match(ConfirmDialog.template, /v-for="\(line, i\) in dialog\.body"/)
+  assert.match(ConfirmDialog.template, /<div v-for="row in dialog\.rows"[^>]*'ui-group-row'/)
+  assert.match(ConfirmDialog.template, /class="ui-group-row-meta[^"]*"><rich-text :text="row\.detail" \/>/)
+  assert.match(ConfirmDialog.template, /class="confirm-dialog-line text-ink-mute text-sm"><rich-text :text="dialog\.note" \/>/)
+})
