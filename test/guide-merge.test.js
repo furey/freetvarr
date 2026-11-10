@@ -35,7 +35,7 @@ after(() => Promise.all(cleanups.map((cleanup) => cleanup())))
 
 const tempDir = async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-guide-merge-'))
-  cleanups.push(() => fs.rm(dir, { recursive: true, force: true }))
+  cleanups.push(() => fs.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
   return dir
 }
 
