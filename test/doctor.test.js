@@ -791,6 +791,13 @@ test('guidePicturesCheck: counts a working host, a title without a picture addre
   assert.equal(untried.detail, 'Pictures for 4 of 4 guide titles in the next 48 h.')
 })
 
+test('guidePicturesCheck: counts a title whose only guide picture is a stand-in, such as a channel logo, as missing', () => {
+  const programmes = pictureAirings({ host: 'images.example.com', count: 4, titles: 4 })
+  const placeholderSources = new Set(['https://images.example.com/show-0.jpg', 'https://images.example.com/show-1.jpg'])
+  const check = guidePicturesCheck({ programmes, hosts: new Map(), placeholderSources, picturedTitleKeys: new Set(['show 1']), nowMs: PICTURE_NOW })
+  assert.equal(check.detail, 'Only 75% of guide titles have a picture. Pictures for 3 of 4 guide titles in the next 48 h.')
+})
+
 test('guidePicturesCheck: skips with a neutral note when the guide has nothing in the next 48 h', () => {
   assert.deepEqual(guidePicturesCheck({ programmes: [], nowMs: PICTURE_NOW }), { status: 'skip', detail: 'The guide has no programmes in the next 48 h yet.' })
 })

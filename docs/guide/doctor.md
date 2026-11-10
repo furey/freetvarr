@@ -82,7 +82,7 @@ Counts the channels that have a TVHeadend icon. It skips when there are no chann
 
 ## Guide pictures {#guide-pictures}
 
-Counts the titles in the TV guide that have a picture. It takes each title that airs in the next `48` hours, and checks whether Freetvarr has a picture for it from any source: a saved copy, the programme's own picture, a Freeview picture, an online lookup, or a frame from a recording. It reads only what Freetvarr already has; it sends no request of its own. It skips when the guide has nothing in the next `48` hours.
+Counts the titles in the TV guide that have a picture. It takes each title that airs in the next `48` hours, and checks whether Freetvarr has a picture for it from any source: a saved copy, the programme's own picture, a Freeview picture, an online lookup, or a frame from a recording. A channel logo or a channel default image in place of a programme picture counts as no picture. It reads only what Freetvarr already has; it sends no request of its own. It skips when the guide has nothing in the next `48` hours.
 
 Each guide programme can name a picture on a website (the host). Freetvarr notes whether each of its recent picture downloads worked. A host that failed at least half of its last `10` or more downloads counts as failing, and its titles count only when another source covers them. After each guide refresh, Freetvarr saves a copy of each guide picture, so a title keeps its picture after the host stops serving it.
 

@@ -58,6 +58,7 @@ export const createGuidePictures = ({
   missRetryMs = MISS_RETRY_MS,
   errorRetryMs = ERROR_RETRY_MS,
   preferredHosts = [],
+  screen = async () => null,
 } = {}) => {
   const preferred = new Set(preferredHosts)
   const indexOf = (rows) => titleIndexOf({ rows, preferred })
@@ -149,10 +150,14 @@ export const createGuidePictures = ({
     return outcome
   }
 
-  const saveSource = async ({ titleKey, source }) => {
+  const saveSource = async ({ titleKey, title, source }) => {
     const { image, error } = await fetchThroughHost(source)
     if (!image) {
       noteFailure({ source, ms: error ? errorRetryMs : missRetryMs })
+      return false
+    }
+    if (await screen({ source, title, image }).catch(() => null)) {
+      noteFailure({ source, ms: missRetryMs })
       return false
     }
     const encoded = await encode(image).catch(() => null)
@@ -197,7 +202,7 @@ export const createGuidePictures = ({
 
   const saveAll = async ({ candidates }) => {
     await markSeen({ candidates, saved: await load() }).catch(() => {})
-    const result = { saved: 0, kept: 0, failed: [], unsaved: [] }
+    const result = { saved: 0, kept: 0, placeholders: 0, failed: [], unsaved: [] }
     for (const entry of candidates.values()) {
       const saved = await load()
       const missing = entry.sources.filter((source) => !saved.bySource.has(source))
@@ -205,7 +210,11 @@ export const createGuidePictures = ({
       result.kept += entry.sources.length - missing.length
       let failed = missing.length > due.length
       for (const source of due) {
-        if (await saveSource({ titleKey: entry.titleKey, source }).catch(() => false)) result.saved += 1
+        if (await screen({ source, title: entry.title }).catch(() => null)) {
+          result.placeholders += 1
+          continue
+        }
+        if (await saveSource({ titleKey: entry.titleKey, title: entry.title, source }).catch(() => false)) result.saved += 1
         else failed = true
       }
       if (failed) result.failed.push(entry.titleKey)
@@ -244,7 +253,17 @@ export const createGuidePictures = ({
 
   const savedTitleKeys = async () => new Set((await load()).byTitle.keys())
 
-  return { saveAll, originFor, titleOriginsFor, preferredOriginFor, originForSource, read, prune, savedTitleKeys }
+  const dropPlaceholders = async () => {
+    const placeholders = []
+    for (const row of [...(await load()).bySource.values()]) {
+      const image = () => read(guidePictureOriginOf(row))
+      if (await screen({ source: row.source_url, title: row.title_key, image }).catch(() => null)) placeholders.push(row)
+    }
+    if (placeholders.length) await remove(placeholders.map((row) => row.source_url))
+    return [...new Set(placeholders.map((row) => row.title_key))]
+  }
+
+  return { saveAll, originFor, titleOriginsFor, preferredOriginFor, originForSource, read, prune, savedTitleKeys, dropPlaceholders }
 }
 
 const isStrayFile = ({ name, kept }) => STRAY_FILE.test(name) && !kept.has(name)

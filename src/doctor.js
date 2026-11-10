@@ -13,7 +13,7 @@ import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
-import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage } from './epg.js'
+import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage, placeholderPictureSources } from './epg.js'
 import { guideImageHosts, hostOfSource } from './programme-images.js'
 import { broadcastGuideHealthOf } from './broadcast-guide-health.js'
 import { showTitleKey } from './show-artwork.js'
@@ -725,6 +725,7 @@ export const guidePicturesCheck = ({
   hosts = new Map(),
   savedTitleKeys = new Set(),
   picturedTitleKeys = new Set(),
+  placeholderSources = new Set(),
   freeviewProblem = null,
   nowMs = Date.now(),
   windowMs = PICTURE_WINDOW_MS,
@@ -733,7 +734,7 @@ export const guidePicturesCheck = ({
   minShare = PICTURE_MIN_SHARE,
 }) => {
   const airings = programmes.filter((programme) => airsWithin({ programme, nowMs, windowMs }))
-  const titles = pictureTitlesOf(airings)
+  const titles = pictureTitlesOf({ airings, placeholderSources })
   if (!titles.size) return NOTHING_AIRS_SOON
   const isFailing = (host) => {
     const stats = hosts.get(host)
@@ -854,13 +855,13 @@ const readGrabberOf = async (ctx) => {
 const airsWithin = ({ programme, nowMs, windowMs }) =>
   Number(programme.end) > nowMs && Number(programme.start) < nowMs + windowMs
 
-const pictureTitlesOf = (airings) => {
+const pictureTitlesOf = ({ airings, placeholderSources }) => {
   const titles = new Map()
   for (const airing of airings) {
     const titleKey = showTitleKey(airing.title)
     if (!titleKey) continue
     const use = titles.get(titleKey) ?? { hosts: new Set() }
-    const host = hostOfSource(airing.image)
+    const host = placeholderSources.has(airing.image) ? null : hostOfSource(airing.image)
     if (host) use.hosts.add(host)
     titles.set(titleKey, use)
   }
@@ -884,18 +885,23 @@ const failingHostLinesOf = ({ titles, isFailing, hasPicture }) => {
 
 const percentOf = (part, whole) => `${Math.round((part / whole) * 100)}%`
 
-const readGuidePictureHealth = async () => ({
-  hosts: guideImageHosts.stats(),
-  savedTitleKeys: await guidePictureCoverage().catch(() => new Set()),
-  picturedTitleKeys: await readPicturedTitleKeys().catch(() => new Set()),
-  freeviewProblem: freeviewPictureProblem(),
-})
+const readGuidePictureHealth = async () => {
+  const placeholderSources = await placeholderPictureSources().catch(() => new Set())
+  return {
+    hosts: guideImageHosts.stats(),
+    savedTitleKeys: await guidePictureCoverage().catch(() => new Set()),
+    picturedTitleKeys: await readPicturedTitleKeys(placeholderSources).catch(() => new Set()),
+    placeholderSources,
+    freeviewProblem: freeviewPictureProblem(),
+  }
+}
 
-const readPicturedTitleKeys = async () => new Set(await db('art_resolutions')
+const readPicturedTitleKeys = async (placeholderSources) => new Set((await db('art_resolutions')
   .where({ shape: 'landscape' })
   .whereNotNull('origin')
-  .distinct('title_key')
-  .pluck('title_key'))
+  .select('title_key', 'origin'))
+  .filter((row) => !placeholderSources.has(row.origin))
+  .map((row) => row.title_key))
 
 export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {
   if (!report) return { status: 'skip', detail: 'Only the running server knows the names it was opened as.' }

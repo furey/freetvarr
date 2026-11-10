@@ -26,8 +26,9 @@ import {
   listChannelTriplets,
   TvheadendError,
 } from './tvheadend.js'
-import { createProgrammeImages, guideImageHosts } from './programme-images.js'
+import { createProgrammeImages, guideImageHosts, hostOfSource } from './programme-images.js'
 import { createGuidePictures, guidePictureCandidatesOf, isGuidePictureOrigin } from './guide-pictures.js'
+import { createPlaceholderPictures, pictureHashOf } from './picture-placeholders.js'
 import { FREEVIEW_IMAGE_HOST, createFreeviewAu, freeviewAiringsOf, freeviewCandidatesOf, freeviewClient, isFreeviewImageSource } from './freeview-au.js'
 import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
@@ -817,7 +818,7 @@ export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {})
   const { own, sameTitle, title, kind } = await programmeImageSources({ eventId, fallbackSource })
   const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title }) : NO_FREEVIEW_IMAGES
   const sources = recordingPictureOrderOf({ freeviewEpisode: freeview.episode, own, freeviewShow: freeview.show, freeviewTitle: freeview.title, sameTitle })
-  return await firstImageOf({ sources, load: rawImageOfOrigin })
+  return await firstImageOf({ sources, load: screenedImageOfOrigin })
     || await firstImageOf({ sources: await showArtSources({ title, kind }), load: showArtOriginal })
 }
 
@@ -1005,6 +1006,17 @@ const originalOfOrigin = async ({ origin, kind }) => {
 }
 
 const rawImageOfOrigin = (origin) => rawImageOrErrorOf(origin).catch(() => null)
+
+const screenedImageOfOrigin = (origin) => screenedImageOrErrorOf(origin).catch(() => null)
+
+const screenedImageOrErrorOf = async (origin) => {
+  const image = await rawImageOrErrorOf(origin)
+  if (!image?.body || !isGuideImageOrigin(origin)) return image
+  return await placeholderPictures.check({ source: origin, image }) ? null : image
+}
+
+export const isGuideImageOrigin = (origin) => !OWN_ORIGIN.test(String(origin ?? '')) && !isFallbackImageSource(origin)
+  && hostOfSource(origin) !== TVMAZE_IMAGE_HOST
 
 const rawImageOrErrorOf = async (origin) => {
   if (origin.startsWith(UPLOAD_ORIGIN_PREFIX)) return artworkUploads.read(origin)
@@ -1369,6 +1381,8 @@ export const pruneGuidePictures = async ({ database = db } = {}) => {
 
 export const guidePictureCoverage = () => guidePictures.savedTitleKeys()
 
+export const placeholderPictureSources = () => placeholderPictures.placeholderSources()
+
 export const freeviewPictureProblem = () => freeviewProblem
 
 const channelTripletsFor = async (channels) => {
@@ -1396,10 +1410,38 @@ export const freeviewProblemOf = (err) => (err?.status === 401 || err?.status ==
 
 const runGuidePictures = async (guide) => {
   const programmes = [...guide.programByEventId.values()]
+  placeholderPictures.noteTitles(programmes.map((programme) => ({ source: programme.image, title: programme.title })))
+  await refreshLogoHashes(guide.channels)
   const candidates = guidePictureCandidatesOf(programmes)
   const fromGuide = await guidePictures.saveAll({ candidates })
   const fromFreeview = await saveFreeviewPictures({ guide, programmes, titleKeys: [...candidates.keys()] })
-  return { saved: fromGuide.saved, freeview: fromFreeview, unsaved: fromGuide.unsaved.length }
+  const placeholders = await forgetPlaceholderPictures()
+  return { saved: fromGuide.saved, freeview: fromFreeview, unsaved: fromGuide.unsaved.length, placeholders }
+}
+
+const refreshLogoHashes = async (channels = []) => {
+  for (const channel of channels) {
+    const key = `${channel.id}|${(channel.logos ?? []).join('|')}`
+    if (logoHashes.has(key)) continue
+    const image = await getChannelImage({ channelId: channel.id }).catch(() => null)
+    const hash = image?.body ? await pictureHashOf(image.body).catch(() => null) : null
+    if (hash) logoHashes.set(key, hash)
+  }
+  placeholderPictures.setLogoHashes([...logoHashes.values()])
+}
+
+export const forgetPlaceholderPictures = async ({ database = db, pictures = guidePictures, placeholders = placeholderPictures } = {}) => {
+  await placeholders.saveFamilies()
+  const dropped = await pictures.dropPlaceholders()
+  const rows = await database('art_resolutions').where('origin', 'like', 'http%').select('resolution_key', 'origin', 'title_key')
+  const stale = rows.filter((row) => placeholders.isPlaceholder(row.origin))
+  for (let at = 0; at < stale.length; at += PLACEHOLDER_DELETE_BATCH) {
+    await database('art_resolutions').whereIn('resolution_key', stale.slice(at, at + PLACEHOLDER_DELETE_BATCH).map((row) => row.resolution_key)).del()
+  }
+  const titles = [...new Set([...dropped, ...stale.map((row) => row.title_key)])]
+  if (titles.length > MAX_TITLE_ART_EVENTS) artFeed.reset()
+  else titles.forEach(publishTitleArtChange)
+  return titles.length
 }
 
 const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
@@ -1534,7 +1576,13 @@ const fetchImageSource = (source) => {
   return fetchProgrammeImageOrThrow({ source })
 }
 const programmeImages = createProgrammeImages({ fetchImage: guideImageHosts.watch(fetchImageSource) })
-const guidePictures = createGuidePictures({ fetchImage: fetchImageSource, preferredHosts: [FREEVIEW_IMAGE_HOST] })
+const placeholderPictures = createPlaceholderPictures()
+const logoHashes = new Map()
+const guidePictures = createGuidePictures({
+  fetchImage: fetchImageSource,
+  preferredHosts: [FREEVIEW_IMAGE_HOST],
+  screen: (picture) => placeholderPictures.check(picture),
+})
 const freeviewAu = createFreeviewAu()
 const freeviewByEvent = new Map()
 const PERSON_IMAGE_MEMORY_ENTRIES = 48
@@ -1574,7 +1622,7 @@ const artResolver = createArtResolver({
     frame: frameStage,
   },
   kindOf: canonicalKindFor,
-  loadImage: rawImageOrErrorOf,
+  loadImage: screenedImageOrErrorOf,
   settingsKeyOf: onlineSettingsKey,
   onResolved: artFeed.publish,
 })
@@ -1591,6 +1639,9 @@ const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
 const MAX_FREEVIEW_EVENTS = 20_000
 const MAX_TITLE_ART_EVENTS = 200
+const PLACEHOLDER_DELETE_BATCH = 200
+const OWN_ORIGIN = /^(upload|frame|recording|plex|guide-picture):/
+const TVMAZE_IMAGE_HOST = 'static.tvmaze.com'
 let guidePictureRun = null
 let freeviewProblem = null
 const SHOW_IMAGE_BUDGET_MS = 3000
