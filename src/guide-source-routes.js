@@ -260,7 +260,8 @@ export const createGuideSourceService = ({
         enabled: target.grabber.enabled,
         fromRecord: target.fromRecord,
         restoresLinks: target.links.length,
-        primaryChannels: (inspection?.guideChannels ?? []).filter((g) => g.xmltvId?.startsWith(prefix) && g.channels?.length).length,
+        primaryChannels: linkedPrimary(inspection, prefix).length,
+        primaryChannelNames: linkedPrimary(inspection, prefix).map((g) => g.name).filter(Boolean),
       },
     }
   }
@@ -298,6 +299,8 @@ export const createGuideSourceService = ({
 }
 
 const withoutRecord = ({ record, ...result }) => result
+
+const linkedPrimary = (inspection, prefix) => (inspection?.guideChannels ?? []).filter((g) => g.xmltvId?.startsWith(prefix) && g.channels?.length)
 
 export const createMergedFeedSwitch = ({ getSetting, setSetting, guideMerge, isFeedUrl, mergedKey, sourceKey }) => {
   const turnOn = async ({ previousUrl, report = () => {}, remember = async () => {} }) => {

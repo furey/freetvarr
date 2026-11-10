@@ -14,10 +14,9 @@ import {
   repointReasonTextOf,
   sourceMetaOf,
   failedRunActionsOf,
+  stopMergedGuideDialogOf,
   unmergeDoneTextOf,
-  unmergeKeepsUrlTextOf,
-  unmergeIntroOf,
-  unmergeLinksTextOf,
+  useMergedGuideDialogOf,
   feedProvidersOf,
   suggestedFeedsHintOf,
   suggestedFeedsNoteOf,
@@ -26,6 +25,7 @@ import { api } from '/shared/api.js'
 import { fmtClockTz } from '/shared/time.js'
 import { loadGuideNotice } from '/shared/guide-notice.js'
 import { usePacedJob, SETUP_POLL_MS, SetupRunList } from '/views/welcome-shared.js'
+import { useConfirm } from '/components/dialogs.js'
 
 export const GuideSettingsView = {
   components: { SetupRunList },
@@ -81,34 +81,9 @@ export const GuideSettingsView = {
                   </span>
                 </div>
               </div>
-              <div v-if="unmerge" class="guide-unmerge" data-setting="unmerge">
-                <p class="settings-note guide-settings-text guide-settings-lead">{{ unmergeIntro }}</p>
-                <div class="ui-group guide-plan">
-                  <div class="ui-group-row">
-                    <span class="ui-group-row-main">
-                      <span class="ui-group-row-title">TVHeadend guide grabber</span>
-                      <span v-if="unmergeKeepsUrl" class="ui-group-row-meta">{{ unmergeKeepsUrl }}</span>
-                      <template v-else>
-                        <span class="ui-group-row-meta">Reads now: <span class="ui-mono guide-settings-url">{{ unmerge.grabberUrl }}</span></span>
-                        <span class="ui-group-row-meta">Reads after: <span class="ui-mono guide-settings-url">{{ unmerge.afterUrl }}</span></span>
-                      </template>
-                    </span>
-                  </div>
-                  <div v-if="unmergeLinksText" class="ui-group-row">
-                    <span class="ui-group-row-main">
-                      <span class="ui-group-row-title">Channel links</span>
-                      <span class="ui-group-row-meta">{{ unmergeLinksText }}</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="settings-row-actions guide-settings-actions">
-                  <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting }]" :disabled="starting" @click="confirmUnmerge">Stop using the merged guide</button>
-                  <button type="button" class="setup-quiet-link" :disabled="starting" @click="unmerge = null">Keep the merged guide</button>
-                </div>
-              </div>
               <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert">{{ actionError }}</p>
-              <div v-if="!unmerge" class="settings-row-actions guide-settings-actions" data-setting="unmerge-offer">
-                <button type="button" class="setup-quiet-link" :disabled="planning" @click="planUnmerge">Stop using the merged guide</button>
+              <div class="settings-row-actions guide-settings-actions" data-setting="unmerge-offer">
+                <button type="button" class="setup-quiet-link" :disabled="planning || Boolean(confirming)" @click="askStop">Stop using the merged guide</button>
               </div>
             </template>
             <template v-else-if="repoint.reason">
@@ -150,7 +125,7 @@ export const GuideSettingsView = {
               <p v-if="kept && !unmergeDone" class="settings-note guide-settings-text">You kept your grabber as it is. You can still use the merged guide.</p>
               <p v-if="actionError" class="settings-note guide-settings-text is-error" role="alert">{{ actionError }}</p>
               <div class="settings-row-actions guide-settings-actions">
-                <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting }]" :disabled="starting" @click="confirm">Use the merged guide</button>
+                <button type="button" :class="['ui-button', 'ui-button-primary', { 'is-pending': starting }]" :disabled="starting || Boolean(confirming)" @click="askUse">Use the merged guide</button>
                 <button v-if="!kept" type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
               </div>
             </template>
@@ -225,6 +200,8 @@ export const GuideSettingsView = {
           <p class="settings-note guide-settings-text">{{ suggestedHint }} <span>Listed by: <template v-for="(provider, index) in feedProviders" :key="provider.name"><a :href="provider.source" target="_blank" rel="noopener noreferrer">{{ provider.name }}</a><template v-if="index < feedProviders.length - 1">, </template></template>.</span></p>
         </div>
       </template>
+      <confirm-dialog :open="Boolean(confirming)" :dialog="confirming?.dialog" :busy="confirmBusy"
+        @confirm="runConfirmed" @cancel="closeConfirm" />
     </div>
   `,
   setup() {
@@ -271,27 +248,35 @@ export const GuideSettingsView = {
     const broadcastMeta = computed(() => broadcastMetaOf(status.value?.broadcast))
     const newPinChannel = computed(() => pinnable.value.find((channel) => channel.id === newPin.value) ?? null)
 
-    const unmerge = ref(null)
     const planning = ref(false)
+    const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
     const unmergeDone = computed(() => result.value?.kind === 'unmerge' && Boolean(result.value.ok) && !paced.shown.value.running)
-    const unmergeIntro = computed(() => unmergeIntroOf(unmerge.value))
-    const unmergeLinksText = computed(() => unmergeLinksTextOf(unmerge.value))
-    const unmergeKeepsUrl = computed(() => unmergeKeepsUrlTextOf(unmerge.value))
     const failedActions = computed(() => failedRunActionsOf(result.value))
 
     const retry = async () => {
-      if (failedActions.value.retry === 'repoint') return confirm()
-      job.value = null
-      await planUnmerge()
+      if (failedActions.value.retry === 'repoint') return askUse()
+      await askStop()
+    }
+
+    const askUse = () => askConfirm({ dialog: useMergedGuideDialogOf({ repoint: repoint.value }), run: confirm })
+
+    const askStop = async () => {
+      const plan = await planUnmerge()
+      if (!plan) return
+      askConfirm({
+        dialog: stopMergedGuideDialogOf({ plan, sources: status.value?.sources ?? [], secondaryId: status.value?.secondaryId }),
+        run: confirmUnmerge,
+      })
     }
 
     const planUnmerge = async () => {
       planning.value = true
       actionError.value = ''
       try {
-        unmerge.value = (await api('GET', '/api/guide-sources/unmerge')).plan
+        return (await api('GET', '/api/guide-sources/unmerge')).plan
       } catch (err) {
         actionError.value = err.message
+        return null
       } finally {
         planning.value = false
       }
@@ -302,7 +287,6 @@ export const GuideSettingsView = {
       actionError.value = ''
       try {
         const started = await api('POST', '/api/guide-sources/unmerge')
-        unmerge.value = null
         job.value = { kind: 'unmerge', running: true, steps: started.steps, result: null }
         paced.begin()
         startPolling()
@@ -408,7 +392,8 @@ export const GuideSettingsView = {
       primaryLabel, reasonText, channelsText, addedText, daysText, planIntro, doneText,
       suggestedFeeds, suggestedNote, suggestedHint, feedProviders, broadcastIntro, broadcastMeta,
       modeChoices, modeHint, listedChannels, pinnable, newPin, newPinSource, newPinChannel,
-      unmerge, planning, unmergeDone, unmergeIntro, unmergeLinksText, unmergeKeepsUrl, failedActions, retry, planUnmerge, confirmUnmerge,
+      planning, unmergeDone, failedActions, retry, askUse, askStop,
+      confirming, confirmBusy, closeConfirm, runConfirmed,
       confirm, keep, setMode, setPin, pinNew, choicesOf, stateOf, metaOf, dotOf,
     }
   },

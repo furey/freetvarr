@@ -81,27 +81,51 @@ export const suggestedFeedsHintOf = ({ checked }) => (checked ? `Each address an
 
 export const feedProvidersOf = (feeds = []) => [...new Map(feeds.map((feed) => [feed.provider, { name: feed.provider, source: feed.source }])).values()]
 
-export const unmergeIntroOf = (plan) => {
-  if (!plan) return ''
-  const from = plan.fromRecord ? 'the guide address it read before you switched' : 'the i.mjh.nz guide for your region'
-  return `Freetvarr can point TVHeadend's guide grabber back at ${from}, and turn the merged guide off. You can switch again later. Check what changes, then choose.`
+export const useMergedGuideDialogOf = ({ repoint }) => ({
+  title: 'Use the merged guide?',
+  confirmLabel: 'Use the merged guide',
+  busyLabel: 'Starting',
+  body: [
+    `TVHeadend's guide grabber will read the guide that Freetvarr merges, at ${repoint.feedUrl}.`,
+    ...(repoint.rebuild ? [`Freetvarr first builds the merged guide for ${repoint.region}, the region your grabber reads. This takes about 15 minutes.`] : []),
+    addedChannelsLineOf(repoint),
+    ...(repoint.days?.length ? [`Days ahead: ${daysAheadOf(repoint.days)}.`] : []),
+    'Series recordings keep matching, because the merged guide keeps the titles your series recordings use.',
+    'Freetvarr checks that TVHeadend fetched the guide and that its listings updated. If a step fails, Freetvarr puts the grabber, the channel links, and the save settings back as they were.',
+    'You can stop using the merged guide later under SETTINGS → GUIDE.',
+  ],
+})
+
+export const stopMergedGuideDialogOf = ({ plan, sources = [], secondaryId = null }) => {
+  const after = sources.find((source) => source.id === secondaryId)
+  return {
+    title: 'Stop using the merged guide?',
+    confirmLabel: 'Stop using the merged guide',
+    busyLabel: 'Starting',
+    body: [
+      stopReadsLineOf(plan),
+      ...(plan.primaryChannelNames?.length ? [`These channels lose their guide, because only Freeview lists them: ${joinAnd(plan.primaryChannelNames)}.`] : []),
+      ...(plan.restoresLinks ? [`Freetvarr puts back the guide links of ${plan.restoresLinks} ${plan.restoresLinks === 1 ? 'channel' : 'channels'} that the switch changed.`] : []),
+      ...(after?.horizonDays ? [`Days ahead afterwards: ${after.label}: ${after.horizonDays} ${after.horizonDays === 1 ? 'day' : 'days'}.`] : []),
+      'Freetvarr checks that TVHeadend reloaded its guide. If a step fails, Freetvarr puts the merged guide back.',
+      'You can use the merged guide again later on this page.',
+    ],
+  }
 }
 
-export const unmergeKeepsUrlTextOf = (plan) => (plan?.sameUrl
-  ? `TVHeadend keeps reading ${plan.grabberUrl}; the merged content is turned off.`
-  : '')
+const stopReadsLineOf = (plan) => {
+  if (plan.sameUrl) return `TVHeadend keeps reading ${plan.grabberUrl} with the merged content off.`
+  if (plan.enabled === false) return 'TVHeadend stops downloading a guide by address, as before you switched.'
+  return `TVHeadend's guide grabber will read ${plan.afterUrl} again.`
+}
+
+const addedChannelsLineOf = (repoint) => (repoint.added?.length
+  ? `The guide gains ${repoint.added.length} ${repoint.added.length === 1 ? 'channel' : 'channels'} that only Freeview lists: ${addedChannelsOf({ names: repoint.added })}.`
+  : `The guide keeps its ${repoint.channels} ${repoint.channels === 1 ? 'channel' : 'channels'}.`)
 
 export const failedRunActionsOf = (result) => (result?.kind === 'unmerge'
   ? { retry: 'unmerge', showKeep: false }
   : { retry: 'repoint', showKeep: true })
-
-export const unmergeLinksTextOf = (plan) => {
-  if (!plan) return ''
-  return [
-    plan.primaryChannels ? `Unlinks the ${plan.primaryChannels} ${plan.primaryChannels === 1 ? 'channel' : 'channels'} that only Freeview lists.` : '',
-    plan.restoresLinks ? `Puts back the links of ${plan.restoresLinks} ${plan.restoresLinks === 1 ? 'channel' : 'channels'} that the switch changed.` : '',
-  ].filter(Boolean).join(' ')
-}
 
 export const unmergeDoneTextOf = (outcome) => {
   const reads = outcome.enabled === false ? 'TVHeadend no longer downloads a guide by address, as before you switched.' : `TVHeadend reads ${outcome.grabberUrl} again.`
