@@ -40,7 +40,7 @@ const DESKTOP_SHOTS = [
 ]
 
 const MOBILE_SHOTS = [
-  { hash: '#/home', file: 'screenshot-mobile-dashboard.png', wait: '.home-hero, .home-row' },
+  { hash: '#/home', file: 'screenshot-mobile-dashboard.png', wait: '.hero-carousel', prepare: (page) => showFirstHeroSlide(page) },
   { hash: '#/settings/system/series', file: 'screenshot-mobile-series.png', wait: '.settings-page' },
   { hash: '#/recordings', file: 'screenshot-mobile-recordings.png', wait: '.ui-row-end' },
   { hash: '#/guide', file: 'screenshot-mobile-guide.png', wait: '.epg-cell' },
@@ -108,6 +108,7 @@ const openThemesSheet = async (page) => {
 
 const SEARCH_QUERY = 'young'
 const SERIES_WITH_OTHER_TITLES = 'Big Brother'
+const SHOWCASE_TITLE = process.env.SHOWCASE_TITLE
 
 const openSearch = async (page, query) => {
   await page.getByRole('button', { name: 'Search' }).first().click()
@@ -115,6 +116,15 @@ const openSearch = async (page, query) => {
   await page.waitForSelector('.ui-search [data-group]', { timeout: 10_000 })
   await page.waitForFunction(() => !document.body.innerText.includes('Searching…'), null, { timeout: 15_000 })
   await page.waitForTimeout(800)
+}
+
+const showFirstHeroSlide = async (page) => {
+  await page.evaluate(() => {
+    const root = document.querySelector('.hero-carousel')
+    root?.querySelector('.hero-carousel-controls')?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+    root?.querySelector('.hero-carousel-dots [role=tab]')?.click()
+  })
+  await page.waitForTimeout(1500)
 }
 
 const openSeriesDrawer = async (page, title) => {
@@ -200,7 +210,8 @@ const libraryKeys = async ({ request, base }) => {
   const { series = [] } = await (await request.get(`${base}/api/series`)).json()
   const recordedKeys = new Set(shows.filter((s) => s.counts?.total > 0).map((s) => s.key))
   const scheduledOnly = series.find((s) => s.nextAiring && !recordedKeys.has(showKeyOf(s.title)))
-  const showcase = shows.find((s) => s.nextAiring && s.counts?.total >= 4) ?? shows.find((s) => s.counts?.total >= 4) ?? shows[0]
+  const named = SHOWCASE_TITLE ? shows.find((s) => s.title === SHOWCASE_TITLE) : null
+  const showcase = named ?? shows.find((s) => s.nextAiring && s.counts?.total >= 4) ?? shows.find((s) => s.counts?.total >= 4) ?? shows[0]
   const details = await Promise.all(shows.map(async (show) => (await request.get(`${base}/api/library/shows/${encodeURIComponent(show.key)}`)).json()))
   const copyEpisodeOf = (detail) => (detail.seasons || []).flatMap((season) => season.episodes || []).find((e) => e.otherVersions?.length)
   const withCopy = details.find(copyEpisodeOf)

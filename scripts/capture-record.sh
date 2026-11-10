@@ -3,66 +3,17 @@ set -euo pipefail
 
 # Record the "Record something" step and encode it for the docs.
 #
-# Run it against the server from capture-local-server.sh. Playwright in host
-# Node opens the TV guide at a simulated prime time (19:45
-# tonight in TZ, or set SIMULATED_NOW), records "Big Wave Season" on 7mate
-# with Record, then sets a series recording on a later programme with Every
-# episode. Page reads come from the local server. The record requests are answered by the fixture layer in
-# capture-demo-api.mjs, which adds the recording and the series to the state
-# the guide reads, so the markers appear without a write reaching the server.
-# It records every frame Chrome paints (capture-screencast.mjs), then
-# encode-screencast.sh trims and encodes them on the host to
-# docs/public/record-demo.mp4 and record-demo-1x.mp4 with a matching poster.
-#
-# Needs host `node` + `ffmpeg`, and a running freetvarr with a reachable
-# TVHeadend EPG.
+# Runs the record tour of capture-demo-beginframe/capture.sh: Chrome renders
+# every frame on demand at 60 fps in Docker, against the capture server from
+# capture-demo-beginframe/start-server.sh. The tour opens the TV guide at the
+# simulated prime time, records "Big Wave Season" on 7mate with Record, then
+# sets Every episode on a later series. The fixture layer in
+# capture-demo-api.mjs answers the record requests, so no write reaches the
+# server. Output: docs/public/record-demo.mp4, record-demo-1x.mp4, and
+# record-demo-poster.jpg.
 #
 #   ./scripts/capture-record.sh
-#   FREETVARR_URL=http://localhost:3733 ./scripts/capture-record.sh
+#   RECORD_SERIES_TITLE="Grand Designs New Zealand" ./scripts/capture-record.sh
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-FREETVARR_URL="${FREETVARR_URL:-http://localhost:3733}"
-FREETVARR_URL="${FREETVARR_URL%/}"
-HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's#.*zoneinfo/##')}"
-HOST_TZ="${HOST_TZ:-Australia/Sydney}"
-
-FRAMES_DIR="${REPO_ROOT}/scripts/.cache/frames/record"
-MP4="${REPO_ROOT}/docs/public/record-demo.mp4"
-POSTER="${REPO_ROOT}/docs/public/record-demo-poster.jpg"
-TOUR_LOG="${REPO_ROOT}/record.log"
-
-for tool in node ffmpeg; do
-  command -v "$tool" >/dev/null 2>&1 || { echo "[record] $tool not found on PATH" >&2; exit 1; }
-done
-
-echo "[record] checking freetvarr at $FREETVARR_URL"
-if ! curl -fsS "$FREETVARR_URL/healthz" >/dev/null; then
-  echo "[record] freetvarr is not reachable at $FREETVARR_URL" >&2
-  echo "         start it (e.g. docker compose up -d), or set FREETVARR_URL." >&2
-  exit 1
-fi
-
-"$REPO_ROOT/scripts/capture-live-clip.sh"
-
-echo "[record] recording in host Chromium"
-FREETVARR_URL="$FREETVARR_URL" \
-TZ="$HOST_TZ" \
-SIMULATED_NOW="${SIMULATED_NOW:-}" \
-RECORD_FRAMES="$FRAMES_DIR" \
-LIVE_DEMO_DIR="${REPO_ROOT}/scripts/.cache/live-demo" \
-  "$REPO_ROOT/scripts/run-capture-tour.sh" capture-record.mjs \
-  2>&1 | tee "$TOUR_LOG"
-
-[ -s "$FRAMES_DIR/frames.ffconcat" ] || { echo "[record] no frames produced" >&2; exit 1; }
-
-TOUR_TRIM=$(sed -n 's/.*TOUR_TRIM=\([0-9][0-9.]*\).*/\1/p' "$TOUR_LOG" | tail -1)
-TRIM_HEAD="${RECORD_TRIM_HEAD:-${TOUR_TRIM:-0.5}}"
-VIDEO_FPS="${RECORD_FPS:-60}" \
-  "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" "$MP4" "$POSTER" "$TRIM_HEAD"
-
-rm -rf "$FRAMES_DIR" "$TOUR_LOG"
-
-echo "[record] done:"
-ls -lh "$MP4" "${MP4%.mp4}-1x.mp4" "$POSTER"
-
-"$REPO_ROOT/scripts/upload-docs-media.sh"
+TOUR=record exec "$REPO_ROOT/scripts/capture-demo-beginframe/capture.sh"

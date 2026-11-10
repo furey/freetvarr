@@ -16,7 +16,7 @@ const SERIES = process.env.SERIES_TITLE || 'NCIS'
 const SHOW = process.env.SHOW_TITLE || 'Home and Away'
 const HOVER_REST = 600
 const TOUR = process.env.TOUR || 'demo'
-const END_HOLD_MS = TOUR === 'hero' ? 300 : 2400
+const END_HOLD_MS = { hero: 300, record: 1200 }[TOUR] ?? 2400
 const LIVE_TITLE = 'Big Wave Season'
 const HERO_GUIDE_GLIDE = -160
 const HERO_PLAY_MS = 2400
@@ -378,6 +378,71 @@ const run = async () => {
     await pumpUntil(PLAYER_CLOSED, 6000, 'player closed')
   }
 
+  const scrollGuideTo = async (cell) => {
+    const ahead = await ev(`(() => { const title = ${JSON.stringify(cell)}; const target = [...document.querySelectorAll('.epg-cell')].filter((c) => c.textContent.includes(title) && !c.matches('.is-now, .on-now, .now')).sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left)[0]; const grid = document.querySelector('.epg-scroll'); if (!target || !grid) return 0; const c = target.getBoundingClientRect(); const g = grid.getBoundingClientRect(); return Math.round(c.left - (g.left + g.width * 0.42)) })()`)
+    if (Math.abs(ahead) > 40) await scrollEased({ selector: '.epg-scroll', dx: ahead, ms: 1300 })
+  }
+
+  const recordTour = async ({ warm }) => {
+    const settle = warm ? settleArt : async () => {}
+    const closeSheet = async () => {
+      await clickOn(`document.querySelector('.programme-sheet-dismiss')`)
+      await pumpUntil(SHEET_CLOSED, 4000, 'sheet closed')
+    }
+    const recordFromSheet = async (label) => {
+      await revealInSheet(`document.querySelector('.programme-sheet-primary')`)
+      await hoverOn(`document.querySelector('.programme-sheet-primary')`, { rest: 450 })
+      await press()
+      await recordOfferIfAny()
+      await pumpUntil(SHEET_CLOSED, 5000, `sheet closed after ${label}`)
+    }
+    await mark('record 1 home')
+    await hold(warm ? 300 : 900)
+    await mark('record 2 guide')
+    await clickOn(tab('guide'))
+    if (await ev(`location.hash !== '#/guide'`)) {
+      console.log('  guide tab click missed; opening the guide by address')
+      await ev(`location.hash = '#/guide'`)
+    }
+    await pumpUntil(`!!document.querySelector('.epg-cell')`, 8000, 'guide cells')
+    if (warm) { await settle('guide'); await settleLayout('guide') }
+    await hold(1100)
+    await mark('record 3 one airing')
+    const liveCell = onNowCellOf(LIVE_TITLE)
+    await ev(`window.__hoverWatch(${liveCell})`)
+    await glide(await ev(`(${visibleCentreOf})(${liveCell})`))
+    await hold(500)
+    await press()
+    await pumpUntil(`!!document.querySelector('.programme-sheet-primary')`, 6000, 'live sheet')
+    if (warm) await settle('live sheet')
+    await hold(1300)
+    if (warm) await closeSheet()
+    else await recordFromSheet('one airing')
+    await hold(400)
+    await ev(`window.__hoverWatch(${liveCell})`)
+    await glide(await ev(`(${visibleCentreOf})(${liveCell})`))
+    await hold(1200)
+    await mark('record 4 every episode')
+    await scrollGuideTo(RECORD_SERIES)
+    if (warm) { await settle('guide ahead'); await settleLayout('guide ahead') }
+    const series = cellOf(RECORD_SERIES, { notNow: true })
+    await hoverOn(series, { fx: 0.35, rest: 600 })
+    await press()
+    await pumpUntil(`!!document.querySelector('.programme-sheet-primary')`, 6000, 'series sheet')
+    if (warm) await settle('series sheet')
+    await hold(1000)
+    const everyEpisode = `[...document.querySelectorAll('.ui-sheet-backdrop button, .ui-sheet-backdrop [role=radio], .ui-sheet-backdrop label')].find((el) => /every episode/i.test(el.textContent) && el.offsetParent)`
+    if (warm) await closeSheet()
+    else {
+      await hoverOn(everyEpisode, { rest: 400 })
+      await press()
+      await hold(1200)
+      await recordFromSheet('every episode')
+    }
+    await hold(400)
+    await hoverOn(series, { fx: 0.35, rest: 1400 })
+  }
+
   const revealInSheet = async (expression) => {
     const dy = await ev(`(() => { const el = ${expression}; if (!el) return 0; let box = el.parentElement; while (box && !(box.scrollHeight > box.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(box).overflowY))) box = box.parentElement; if (!box) return 0; box.dataset.wtScroll = 'sheet'; const r = el.getBoundingClientRect(); const limit = Math.min(innerHeight, box.getBoundingClientRect().bottom) - 24; return Math.max(0, Math.round(r.bottom - limit)) })()`)
     if (dy > 0) await scrollEased({ selector: '[data-wt-scroll=sheet]', dy, ms: 700 })
@@ -392,7 +457,9 @@ const run = async () => {
     return null
   }
 
-  const tours = { demo: tour, hero: heroTour }
+  const RECORD_SERIES = process.env.RECORD_SERIES_TITLE || picks.upNext?.program.title
+  if (TOUR === 'record') console.log(`series: ${RECORD_SERIES}`)
+  const tours = { demo: tour, hero: heroTour, record: recordTour }
   const homeAndPark = TOUR === 'hero' ? heroHomeAndPark : goHomeAndPark
   try {
     console.log(`warming the ${TOUR} tour`)
