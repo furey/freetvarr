@@ -1366,7 +1366,9 @@ export const saveGuidePictures = (guide) => {
   return guidePictureRun
 }
 
-export const pruneGuidePictures = async ({ database = db } = {}) => {
+export const pruneGuidePictures = async ({ database = db } = {}) => guidePictures.prune(await guidePictureKeepsOf(database))
+
+const guidePictureKeepsOf = async (database) => {
   const [recordings, items, choices] = await Promise.all([
     database('recordings').whereNull('purged_at').select('title', 'show_title_override'),
     database('library_items').select('show_title', 'title'),
@@ -1376,7 +1378,7 @@ export const pruneGuidePictures = async ({ database = db } = {}) => {
     ...recordings.map((row) => showTitleKey(row.show_title_override ?? row.title)),
     ...items.flatMap((row) => [showTitleKey(row.show_title), showTitleKey(row.title)]),
   ].filter(Boolean))
-  return guidePictures.prune({ keepTitleKeys, keepOrigins: new Set(choices.map((row) => row.origin)) })
+  return { keepTitleKeys, keepOrigins: new Set(choices.map((row) => row.origin)) }
 }
 
 export const guidePictureCoverage = () => guidePictures.savedTitleKeys()
@@ -1432,7 +1434,7 @@ const refreshLogoHashes = async (channels = []) => {
 
 export const forgetPlaceholderPictures = async ({ database = db, pictures = guidePictures, placeholders = placeholderPictures } = {}) => {
   await placeholders.saveFamilies()
-  const dropped = await pictures.dropPlaceholders()
+  const dropped = await pictures.dropPlaceholders(await guidePictureKeepsOf(database))
   const rows = await database('art_resolutions').where('origin', 'like', 'http%').select('resolution_key', 'origin', 'title_key')
   const stale = rows.filter((row) => placeholders.isPlaceholder(row.origin))
   for (let at = 0; at < stale.length; at += PLACEHOLDER_DELETE_BATCH) {

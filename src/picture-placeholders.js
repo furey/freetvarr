@@ -3,17 +3,28 @@ import sharp from 'sharp'
 import { db } from './db.js'
 import { showTitleKey } from './show-artwork.js'
 
-export const PLACEHOLDER_FAMILIES = 3
+export const PLACEHOLDER_FAMILIES = 5
+export const LOGO_LIKE_FAMILIES = 3
+export const LOGO_LIKE_DISTANCE = 16
 export const PLACEHOLDER_CLEAR_SHARE = 0.2
 export const LOGO_MATCH_DISTANCE = 10
 
 export const pictureTraitsOf = async (body) => {
-  const [hash, clearShare] = await Promise.all([pictureHashOf(body), clearShareOf(body)])
+  const small = await smallCopyOf(body)
+  const [hash, clearShare] = await Promise.all([hashOfSmallCopy(small), clearShareOf(small)])
   return { hash, clearShare }
 }
 
-export const pictureHashOf = async (body) => {
-  const flat = await sharp(body, { limitInputPixels: MAX_INPUT_PIXELS }).flatten({ background: '#000' }).png().toBuffer()
+export const pictureHashOf = async (body) => hashOfSmallCopy(await smallCopyOf(body))
+
+const smallCopyOf = (body) => sharp(body, { limitInputPixels: MAX_INPUT_PIXELS })
+  .resize(SMALL_COPY_PX, SMALL_COPY_PX, { fit: 'inside', withoutEnlargement: true })
+  .ensureAlpha()
+  .png()
+  .toBuffer()
+
+const hashOfSmallCopy = async (small) => {
+  const flat = await sharp(small).flatten({ background: '#000' }).png().toBuffer()
   const trimmed = await sharp(flat).trim({ threshold: TRIM_THRESHOLD }).toBuffer().catch(() => flat)
   const pixels = await sharp(trimmed).greyscale().resize(HASH_SIZE + 1, HASH_SIZE, { fit: 'fill' }).raw().toBuffer()
   let bits = 0n
@@ -48,7 +59,9 @@ export const placeholderReasonOf = ({ source, traits = null, families = 0, logoH
   if (families >= PLACEHOLDER_FAMILIES) return 'repeated'
   if (!traits) return null
   if (traits.clearShare >= PLACEHOLDER_CLEAR_SHARE) return 'transparent'
-  if (logoHashes.some((logo) => hashDistanceOf(logo, traits.hash) <= LOGO_MATCH_DISTANCE)) return 'logo'
+  const logoDistance = Math.min(HASH_BITS, ...logoHashes.map((logo) => hashDistanceOf(logo, traits.hash)))
+  if (logoDistance <= LOGO_MATCH_DISTANCE) return 'logo'
+  if (families >= LOGO_LIKE_FAMILIES && logoDistance <= LOGO_LIKE_DISTANCE) return 'repeated'
   return null
 }
 
@@ -152,8 +165,8 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
   return { check, noteTitles, saveFamilies, setLogoHashes, isPlaceholder, placeholderSources, load }
 }
 
-const clearShareOf = async (body) => {
-  const { data, info } = await sharp(body, { limitInputPixels: MAX_INPUT_PIXELS })
+const clearShareOf = async (small) => {
+  const { data, info } = await sharp(small)
     .resize(ALPHA_WIDTH, ALPHA_HEIGHT, { fit: 'fill' })
     .ensureAlpha()
     .raw()
@@ -185,3 +198,4 @@ const ALPHA_WIDTH = 64
 const ALPHA_HEIGHT = 36
 const HALF_ALPHA = 128
 const MAX_INPUT_PIXELS = 40_000_000
+const SMALL_COPY_PX = 256

@@ -253,11 +253,16 @@ export const createGuidePictures = ({
 
   const savedTitleKeys = async () => new Set((await load()).byTitle.keys())
 
-  const dropPlaceholders = async () => {
+  const dropPlaceholders = async ({ keepTitleKeys = new Set(), keepOrigins = new Set() } = {}) => {
+    const chosenIds = new Set([...keepOrigins].map(idOfOrigin).filter(Boolean))
+    const isChosen = (row) => keepOrigins.has(row.source_url) || chosenIds.has(guidePictureIdOf(row.source_url))
     const placeholders = []
     for (const row of [...(await load()).bySource.values()]) {
+      if (isChosen(row)) continue
       const image = () => read(guidePictureOriginOf(row))
-      if (await screen({ source: row.source_url, title: row.title_key, image }).catch(() => null)) placeholders.push(row)
+      const reason = await screen({ source: row.source_url, title: row.title_key, image }).catch(() => null)
+      const kept = keepTitleKeys.has(row.title_key) && !SURE_PLACEHOLDER_REASONS.has(reason)
+      if (reason && !kept) placeholders.push(row)
     }
     if (placeholders.length) await remove(placeholders.map((row) => row.source_url))
     return [...new Set(placeholders.map((row) => row.title_key))]
@@ -296,6 +301,7 @@ const idOfOrigin = (origin) => {
   return PICTURE_ID.test(id) ? id : null
 }
 
+const SURE_PLACEHOLDER_REASONS = new Set(['name', 'logo'])
 const GUIDE_DIR = 'guide'
 const EXTENSION = '.webp'
 const CONTENT_TYPE = 'image/webp'

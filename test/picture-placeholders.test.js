@@ -62,10 +62,20 @@ test('placeholderReasonOf flags transparent logos, placeholder file names, and i
   assert.equal(placeholderReasonOf({ source: 'https://img.example.com/837799_3840_x_2160.png', traits }), 'transparent')
   assert.equal(placeholderReasonOf({ source: 'https://img.example.com/x/814112_default_program_image.png' }), 'name')
   assert.equal(placeholderReasonOf({ source: 'https://img.example.com/x/420318_9go_logo_16x9.png' }), 'name')
-  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/x/p1.jpg', families: 3 }), 'repeated')
-  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/x/p1.jpg', families: 2 }), null)
+  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/x/p1.jpg', families: 5 }), 'repeated')
+  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/x/p1.jpg', families: 4 }), null)
   assert.equal(titleFamilyOf('The Cheap Seats'), 'cheap')
   assert.equal(titleFamilyOf('Rage Charts'), titleFamilyOf('rage New Music'))
+})
+
+test('placeholderReasonOf keeps opaque key art shared by 3 title families unless it is near a channel logo', async () => {
+  const traits = await pictureTraitsOf(await sceneOf(7))
+  const farLogo = await pictureHashOf(sevenLogo)
+  assert.ok(hashDistanceOf(farLogo, traits.hash) > 16)
+  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/afl/p9.jpg', traits, families: 3, logoHashes: [farLogo] }), null)
+  const nearLogo = (BigInt(`0x${traits.hash}`) ^ 0x7fffn).toString(16).padStart(16, '0')
+  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/afl/p9.jpg', traits, families: 3, logoHashes: [nearLogo] }), 'repeated')
+  assert.equal(placeholderReasonOf({ source: 'https://img.example.com/afl/p9.jpg', traits, families: 2, logoHashes: [nearLogo] }), null)
 })
 
 test('createPlaceholderPictures flags the same image bytes used by unrelated titles under different addresses, and remembers it', async () => {
@@ -76,6 +86,8 @@ test('createPlaceholderPictures flags the same image bytes used by unrelated tit
   placeholders.noteTitles([
     { source: 'https://img.example.com/a/611157_91.png', title: 'Love Island Australia' },
     { source: 'https://img.example.com/a/611157_91.png', title: 'The Garden Gurus' },
+    { source: 'https://img.example.com/a/611157_91.png', title: 'Budget Battlers' },
+    { source: 'https://img.example.com/a/611157_91.png', title: 'Helping Hands' },
     { source: 'https://img.example.com/rage.jpg', title: 'rage Charts' },
     { source: 'https://img.example.com/rage.jpg', title: 'Rage New Music' },
     { source: 'https://img.example.com/rage.jpg', title: 'Rage Ausmusic Month Special' },
@@ -114,7 +126,7 @@ test('the resolver chain skips a placeholder and moves on to the next picture', 
   assert.equal(found.stage, 'own')
 })
 
-test('guide pictures never saves a placeholder copy and drops saved copies that later prove to be placeholders', async () => {
+test('guide pictures never saves a placeholder copy, drops saved copies that later prove to be placeholders, and keeps chosen and recorded copies', async () => {
   const database = await memoryDatabase()
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-placeholders-'))
   cleanups.push(() => fs.rm(root, { recursive: true, force: true }))
@@ -125,6 +137,7 @@ test('guide pictures never saves a placeholder copy and drops saved copies that 
     'https://img.example.com/lingo/9.png': shared,
     'https://img.example.com/news/9.png': shared,
     'https://img.example.com/home-and-away.jpg': await sceneOf(6),
+    'https://img.example.com/home-and-away-7.jpg': logoOnCanvas,
   }
   const placeholders = createPlaceholderPictures({ database })
   const pictures = createGuidePictures({
@@ -139,11 +152,21 @@ test('guide pictures never saves a placeholder copy and drops saved copies that 
   await pictures.saveAll({ candidates: new Map([
     entry('Big Brother', 'big brother', ['https://img.example.com/10-plus-1.png', 'https://img.example.com/bb/9.png']),
     entry('Lingo', 'lingo', ['https://img.example.com/lingo/9.png']),
-    entry('Home and Away', 'home and away', ['https://img.example.com/home-and-away.jpg']),
+    entry('Home and Away', 'home and away', ['https://img.example.com/home-and-away.jpg', 'https://img.example.com/home-and-away-7.jpg']),
   ]) })
   const savedSources = async () => (await database('guide_pictures').pluck('source_url')).sort()
-  assert.deepEqual(await savedSources(), ['https://img.example.com/bb/9.png', 'https://img.example.com/home-and-away.jpg', 'https://img.example.com/lingo/9.png'])
+  assert.deepEqual(await savedSources(), [
+    'https://img.example.com/bb/9.png',
+    'https://img.example.com/home-and-away-7.jpg',
+    'https://img.example.com/home-and-away.jpg',
+    'https://img.example.com/lingo/9.png',
+  ])
+  placeholders.setLogoHashes([await pictureHashOf(sevenLogo)])
+  placeholders.noteTitles(['Millionaire Hot Seat', 'The Graham Norton Show', 'Deal Or No Deal'].map((title) => ({ source: 'https://img.example.com/news/9.png', title })))
   await pictures.saveAll({ candidates: new Map([entry('10 News', '10 news', ['https://img.example.com/news/9.png'])]) })
+  const keeps = { keepTitleKeys: new Set(['big brother', 'home and away']), keepOrigins: new Set(['https://img.example.com/lingo/9.png']) }
+  assert.deepEqual(await pictures.dropPlaceholders(keeps), ['home and away'])
+  assert.deepEqual(await savedSources(), ['https://img.example.com/bb/9.png', 'https://img.example.com/home-and-away.jpg', 'https://img.example.com/lingo/9.png'])
   assert.deepEqual((await pictures.dropPlaceholders()).sort(), ['big brother', 'lingo'])
   assert.deepEqual(await savedSources(), ['https://img.example.com/home-and-away.jpg'])
   assert.equal(await pictures.originFor('Big Brother'), null)

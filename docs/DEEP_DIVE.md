@@ -1464,17 +1464,17 @@ Guide and Freeview addresses often give a channel logo or a channel default imag
 
 `placeholderReasonOf` checks, in order:
 
-| Reason        | Rule                                                                                                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | The file name holds `default_program_image` (or `programme`) or a `logo` word                                                                                                |
-| `repeated`    | Titles from at least `3` title families use the address, or another address with the same fingerprint. A family is the first word of the title key, without `the`, `a`, `an` |
-| `transparent` | At least `20%` of the picture is transparent (alpha below `128` on a `64 × 36` sample)                                                                                       |
-| `logo`        | The fingerprint is within `10` of `64` bits of the fingerprint of a channel logo                                                                                             |
+| Reason        | Rule                                                                                                                                                                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | The file name holds `default_program_image` (or `programme`) or a `logo` word                                                                                                                                                                                     |
+| `repeated`    | Titles from at least `5` title families use the address, or another address with the same fingerprint; or at least `3` families when the fingerprint is within `16` bits of a channel logo. A family is the first word of the title key, without `the`, `a`, `an` |
+| `transparent` | At least `20%` of the picture is transparent (alpha below `128` on a `64 × 36` sample)                                                                                                                                                                            |
+| `logo`        | The fingerprint is within `10` of `64` bits of the fingerprint of a channel logo                                                                                                                                                                                  |
 
-- The fingerprint (`pictureHashOf`) is a `64`-bit difference hash: the picture on black, with its plain border trimmed (`sharp` `trim`, threshold `20`), as `9 × 8` grey pixels. A logo alone and the same logo on a wide canvas get the same hash.
+- `pictureTraitsOf` decodes the picture once, to at most `256` px. The fingerprint (`pictureHashOf`) is a `64`-bit difference hash of that copy: on black, with its plain border trimmed (`sharp` `trim`, threshold `20`), as `9 × 8` grey pixels. A logo alone and the same logo on a wide canvas get the same hash.
 - `runGuidePictures` in `src/epg.js` notes the title of every guide image address (`noteTitles`), and the fingerprint of each channel logo (`getChannelImage`, once per channel and logo list). A logo fingerprint with fewer than `8` or more than `56` set bits is not used.
 - `check` computes the fingerprint and transparent share of an address once, from the downloaded picture or the saved copy, and saves them with the title families in `picture_checks`. The reason itself is computed in memory, so a new family or a new logo can change it.
-- After each run, `forgetPlaceholderPictures` saves new families, deletes the saved copies that are stand-in pictures (`dropPlaceholders`), deletes `art_resolutions` rows whose origin is a stand-in address, and sends an art event for each title (one `artFeed.reset` past `200` titles).
+- After each run, `forgetPlaceholderPictures` saves new families, deletes the saved copies that are stand-in pictures (`dropPlaceholders`). It keeps a copy that is an owner choice, and a copy of a recorded or Plex library title unless the reason is `name` or `logo`. It deletes `art_resolutions` rows whose origin is a stand-in address, and sends an art event for each title (one `artFeed.reset` past `200` titles).
 - `guide.pictures` counts a title as without a picture when its only guide address is a stand-in picture, and leaves out `art_resolutions` rows with a stand-in origin.
 - `listingImagesOf` in `src/freeview-au.js` still skips an episode picture that other titles in the same Freeview window share.
 
