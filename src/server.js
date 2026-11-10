@@ -88,6 +88,7 @@ import {
 import {
   applyGuideRepoint,
   applyGuideSetup,
+  rollbackGuideRepoint,
   inspectGuide,
   linkChannelsByHand,
   readGuideLinks,
@@ -102,6 +103,7 @@ import {
   GUIDE_SOURCE_KEY,
   createRequestWatch,
   guideFeedUrl,
+  noteServedFeed,
   serverPort,
   isGuideFeedUrl,
   localAddressToward,
@@ -113,7 +115,7 @@ import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
 import { createTitleAliases } from './title-aliases.js'
 import { createSourceHealthStore } from './guide-source-health.js'
 import { readListingChoice } from './guide-listings.js'
-import { createGuideSourceService, mountGuideSourceRoutes } from './guide-source-routes.js'
+import { createGuideSourceService, createMergedFeedSwitch, mountGuideSourceRoutes } from './guide-source-routes.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -2277,22 +2279,21 @@ const guideMerge = createGuideMerge({
 
 const ownGuideFeedUrl = async (conn) => guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT })
 
-const mergedFeedSwitch = () => {
-  let previous = null
-  return {
-    turnOn: async ({ previousUrl }) => {
-      previous = await Promise.all([getSetting(GUIDE_MERGED_FEED_KEY), getSetting(GUIDE_SOURCE_KEY)])
-      await setSetting(GUIDE_MERGED_FEED_KEY, 'on')
-      if (previousUrl && !isGuideFeedUrl(previousUrl)) await setSetting(GUIDE_SOURCE_KEY, previousUrl)
-    },
-    turnOff: async () => {
-      if (!previous) return
-      const [merged, source] = previous
-      await setSetting(GUIDE_MERGED_FEED_KEY, merged ?? '')
-      await setSetting(GUIDE_SOURCE_KEY, source ?? '')
-    },
-  }
-}
+const { turnOn: turnOnMergedFeed, restore: restoreMergedFeed } = createMergedFeedSwitch({
+  getSetting,
+  setSetting,
+  guideMerge,
+  isFeedUrl: isGuideFeedUrl,
+  mergedKey: GUIDE_MERGED_FEED_KEY,
+  sourceKey: GUIDE_SOURCE_KEY,
+})
+
+const rollbackRepoint = async (undo) => rollbackGuideRepoint({
+  http: setupHttp,
+  conn: await resolveConnection(),
+  undo,
+  restoreMerged: restoreMergedFeed,
+})
 
 const guideSourceService = createGuideSourceService({
   getSetting,
@@ -2303,15 +2304,20 @@ const guideSourceService = createGuideSourceService({
   inspect: async () => inspectGuide({ http: setupHttp, conn: await resolveConnection() }),
   feedUrl: async () => ownGuideFeedUrl(await resolveConnection()),
   isFeedUrl: isGuideFeedUrl,
-  applyRepoint: async ({ feedUrl, onProgress }) => {
-    const merged = mergedFeedSwitch()
+  rollbackRepoint,
+  otherBusy: () => Boolean(guideRun?.running),
+  applyRepoint: async ({ feedUrl, journal, onProgress }) => {
+    const conn = await resolveConnection()
     const result = await applyGuideRepoint({
       http: setupHttp,
-      conn: await resolveConnection(),
+      conn,
       feedUrl,
-      turnOnMerged: merged.turnOn,
-      turnOffMerged: merged.turnOff,
+      primaryPrefix: (await guideMerge.planNow())?.primary?.source.channelIdPrefix ?? 'freeview',
+      turnOnMerged: turnOnMergedFeed,
+      restoreMerged: restoreMergedFeed,
       waitForRequest: guideFeedRequests.waitSince,
+      listTriplets: listChannelTriplets,
+      journal,
       onProgress,
     })
     if (result.ok) refreshGuideAfterLinks()
@@ -2333,11 +2339,11 @@ mountGuideSourceRoutes({
 const guideFeedLimiter = createRateLimiter({ limit: 10 })
 
 app.get(GUIDE_FEED_PATH, guideFeedLimiter, async (req, res) => {
-  guideFeedRequests.note()
   const [sourceUrl, mergedPath] = await Promise.all([getSetting(GUIDE_SOURCE_KEY), guideMerge.servablePath()])
   if (!sourceUrl && !mergedPath) return res.status(404).type('text/plain').send('Freetvarr has no guide address yet.')
   try {
     await serveGuideFeed({ mergedPath, sourceUrl, lastSourcePath: LAST_SOURCE_COPY, res, planShifts: timeshiftsForFeed })
+    noteServedFeed({ res, watch: guideFeedRequests })
   } catch (err) {
     console.warn(`[guide-feed] could not serve the guide from ${sourceUrl}: ${err.message}`)
     if (res.headersSent) return res.destroy()
@@ -2398,7 +2404,7 @@ app.get('/api/tvh-guide/progress', (req, res) => {
 })
 
 app.post('/api/tvh-guide/apply', bootstrapLimiter, doubleCsrfProtection, async (req, res) => {
-  if (guideRun?.running) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up the guide.' })
+  if (guideRun?.running || guideSourceService.busy()) return res.status(409).json({ ok: false, error: 'Freetvarr is already setting up the guide.' })
   const url = String(req.body?.url ?? '').trim()
   if (!/^https?:\/\/[^\s]+$/i.test(url)) {
     return res.status(400).json({ ok: false, error: 'Enter a guide address that starts with http:// or https://.' })
@@ -2577,6 +2583,7 @@ app.use(await webAssets({
   nodeModules: path.join(__dirname, '..', 'node_modules'),
   pageHealth: pageHealthOf,
   pageTimeZone: currentTimeZone,
+  pageGuideNotice: () => guideSourceService.cachedNotice(),
 }))
 
 // Terminal error handler: return the message only, never a stack trace, and never
@@ -2637,6 +2644,9 @@ const server = app.listen(PORT, async () => {
   watchGuidePictures()
   await fs.mkdir(GUIDE_DIR, { recursive: true }).catch((err) => console.warn(`[guide-merge] cannot make ${GUIDE_DIR}: ${err.message}`))
   guideMerge.start()
+  guideSourceService.recover()
+    .then((run) => { if (run) console.warn(`[guide-sources] put back the guide change that a restart stopped: ${run.result.error}`) })
+    .catch((err) => console.warn(`[guide-sources] could not check for a stopped guide change: ${err.message}`))
   homeHero.start()
   onSyncFinished(() => homeHero.invalidate())
   anchorSeriesRulesQuietly()

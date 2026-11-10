@@ -14,6 +14,7 @@ import { countryForTimeZone } from './zone-countries.js'
 
 export const MERGED_GUIDE_FILE = 'merged.xml.gz'
 export const MERGED_CHANNELS_FILE = 'channels.json'
+export const MERGED_META_FILE = 'merged.json'
 export const SLOT_TOLERANCE_MS = 5 * 60_000
 export const GUIDE_MERGED_FEED_KEY = 'guide_merged_feed'
 
@@ -47,17 +48,17 @@ export const createGuideMerge = ({
   const build = async (job = null) => {
     const plan = await planNow()
     if (!plan) return null
-    const triplets = await channelTriplets().catch((err) => {
+    const triplets = tripletsOf(await channelTriplets().catch((err) => {
       log.warn(`[guide-merge] matching channels by number only: ${err.message}`)
-      return new Map()
-    })
+      return null
+    }))
     const [history, choice] = await Promise.all([
       health ? health.history().catch(() => new Map()) : new Map(),
       listingChoice().catch(() => ({})),
     ])
     const startedAt = now()
     try {
-      const { fallbacks, healthRows, ...stats } = await writeMergedGuide({ dir, ...plan, channelTriplets: triplets, aliases, history, choice, now })
+      const { fallbacks, healthRows, ...stats } = await writeMergedGuide({ dir, ...plan, channelTriplets: triplets.linked, tvChannels: triplets.tvChannels, aliases, history, choice, now })
       await saveHealth({ rows: healthRows, builtAt: startedAt })
       noteFallbacks({ job, fallbacks })
       latest = { ...stats, fallbacks: fallbacks.length, builtAt: now(), durationMs: now() - startedAt }
@@ -136,7 +137,35 @@ export const createGuideMerge = ({
 
   const savedChannels = () => readSavedChannels(dir)
 
-  return { start, stop, requestBuild, servablePath, builtPath, builtAt, savedChannels, planNow, latest: () => latest }
+  const builtRegions = async () => {
+    try {
+      return JSON.parse(await fsp.readFile(path.join(dir, MERGED_META_FILE), 'utf8'))
+    } catch {
+      return null
+    }
+  }
+
+  const matchesPlan = async () => {
+    const [plan, regions] = await Promise.all([planNow(), builtRegions()])
+    if (!plan || !regions) return false
+    return (plan.primary?.region ?? null) === regions.primaryRegion && (plan.secondary?.region ?? null) === regions.secondaryRegion
+  }
+
+  const buildForPlan = async ({ attempts = 3 } = {}) => {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (await matchesPlan()) return true
+      await requestBuild()
+    }
+    return matchesPlan()
+  }
+
+  return { start, stop, requestBuild, servablePath, builtPath, builtAt, builtRegions, matchesPlan, buildForPlan, savedChannels, planNow, latest: () => latest }
+}
+
+const tripletsOf = (value) => {
+  if (!value) return { linked: new Map(), tvChannels: null }
+  if (value instanceof Map) return { linked: value, tvChannels: null }
+  return { linked: value.linked ?? new Map(), tvChannels: value.tvChannels ?? null }
 }
 
 const failedSourceRows = ({ plan, history, nowMs }) => {
@@ -165,7 +194,7 @@ export const planSources = ({ ranked = [], timeZone, url = null }) => {
   }
 }
 
-export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplets, aliases, history = null, choice = {}, now = Date.now }) => {
+export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplets, tvChannels = null, aliases, history = null, choice = {}, now = Date.now }) => {
   await fsp.mkdir(dir, { recursive: true })
   const file = path.join(dir, MERGED_GUIDE_FILE)
   const temporary = `${file}.${process.pid}.tmp`
@@ -175,12 +204,13 @@ export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplet
   gzip.pipe(output)
   let stats = null
   try {
-    stats = await buildMergedGuide({ primary, secondary, channelTriplets, savedChannels, aliases, history, choice, now, out: gzip })
+    stats = await buildMergedGuide({ primary, secondary, channelTriplets, tvChannels, savedChannels, aliases, history, choice, now, out: gzip })
     gzip.end()
     await finished(output)
     if (!stats.programmes) throw new Error('every guide source failed')
     await fsp.rename(temporary, file)
     if (stats.secondaryOk) await fsp.writeFile(path.join(dir, MERGED_CHANNELS_FILE), JSON.stringify(stats.channelMap))
+    await fsp.writeFile(path.join(dir, MERGED_META_FILE), JSON.stringify({ primaryRegion: primary?.region ?? null, secondaryRegion: secondary?.region ?? null }))
     const { channelMap, ...rest } = stats
     return { ...rest, bytes: (await fsp.stat(file)).size }
   } catch (err) {
@@ -196,6 +226,7 @@ export const buildMergedGuide = async ({
   primary,
   secondary,
   channelTriplets = new Map(),
+  tvChannels = null,
   savedChannels = null,
   aliases = null,
   history = null,
@@ -219,6 +250,7 @@ export const buildMergedGuide = async ({
     secondaryChannels: secondaryChannels.ok ? secondaryChannels.channels : null,
     savedChannels,
     channelTriplets,
+    tvChannels,
     prefix: primary?.source.channelIdPrefix ?? 'primary',
   })
   const aliasMap = primary && aliases ? await aliases.load(primary.source.id) : new Map()
@@ -316,16 +348,18 @@ export const secondaryOnlyOf = ({ channel, secondary = [] }) => ({
   counts: { matched: 0, primaryOnly: 0, secondaryKept: secondary.length, secondaryDropped: 0, titleRewrites: 0 },
 })
 
-export const mapChannels = ({ primaryChannels, secondaryChannels, savedChannels = null, channelTriplets = new Map(), prefix }) => {
+export const mapChannels = ({ primaryChannels, secondaryChannels, savedChannels = null, channelTriplets = new Map(), tvChannels = null, prefix }) => {
   if (!primaryChannels) return secondaryChannels ? secondaryChannels.map(secondaryChannelOf) : []
-  if (!secondaryChannels) return channelsFromSaved({ primaryChannels, savedChannels, prefix })
+  const primaryOnly = primaryOnlyOf({ tvChannels, savedChannels, prefix })
+  if (!secondaryChannels) return channelsFromSaved({ primaryChannels, savedChannels, primaryOnly })
   const base = secondaryChannels.map(secondaryChannelOf)
   const taken = new Set()
   const added = []
   for (const channel of primaryChannels) {
     const target = targetOf({ channel, base, taken, channelTriplets })
     if (!target) {
-      added.push(primaryOnlyChannelOf({ channel, prefix }))
+      const own = primaryOnly(channel)
+      if (own) added.push(own)
       continue
     }
     target.primaryId = channel.id
@@ -453,12 +487,26 @@ const primaryOnlyChannelOf = ({ channel, prefix }) => ({
   secondaryId: null,
 })
 
-const channelsFromSaved = ({ primaryChannels, savedChannels, prefix }) => {
+const channelsFromSaved = ({ primaryChannels, savedChannels, primaryOnly }) => {
   const savedByPrimary = new Map((savedChannels ?? []).filter((saved) => saved.primaryId).map((saved) => [saved.primaryId, saved]))
-  return primaryChannels.map((channel) => {
-    const saved = savedByPrimary.get(channel.id)
-    return saved ? { ...saved, secondaryId: null } : primaryOnlyChannelOf({ channel, prefix })
-  })
+  return primaryChannels
+    .map((channel) => {
+      const saved = savedByPrimary.get(channel.id)
+      return saved?.secondaryId ? { ...saved, secondaryId: null } : primaryOnly(channel)
+    })
+    .filter(Boolean)
+}
+
+const primaryOnlyOf = ({ tvChannels, savedChannels, prefix }) => {
+  const isOwn = (id) => id.startsWith(`${prefix}.`)
+  if (!tvChannels) {
+    const saved = new Map((savedChannels ?? []).filter((channel) => isOwn(channel.id)).map((channel) => [channel.id, channel]))
+    return (channel) => saved.get(`${prefix}.${channel.id}`) ?? null
+  }
+  return (channel) => {
+    const unlinked = (tvChannels.get(channel.id) ?? []).find((tv) => tv.guideIds.every(isOwn))
+    return unlinked ? { ...primaryOnlyChannelOf({ channel, prefix }), names: [unlinked.name] } : null
+  }
 }
 
 const channelsOf = async (side) => {

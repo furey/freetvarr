@@ -1,4 +1,5 @@
 import { GUIDE_MERGED_FEED_KEY } from './guide-merge.js'
+import { GuideError } from './tvheadend-guide.js'
 import {
   NOTICE_HIDDEN,
   REPOINT_CONFIRMED,
@@ -28,12 +29,29 @@ export const createGuideSourceService = ({
   feedUrl = async () => null,
   isFeedUrl = () => false,
   applyRepoint,
+  rollbackRepoint = async () => [],
+  otherBusy = () => false,
+  noticeTtlMs = NOTICE_TTL_MS,
   now = Date.now,
 }) => {
   let repointRun = null
+  let noticeCache = null
+  let noticeLoading = null
+
+  const journal = {
+    save: (undo) => setSetting(REPOINT_RUN_KEY, JSON.stringify(undo)),
+    clear: () => setSetting(REPOINT_RUN_KEY, ''),
+    read: async () => {
+      try {
+        return JSON.parse((await getSetting(REPOINT_RUN_KEY)) || 'null')
+      } catch {
+        return null
+      }
+    },
+  }
 
   const overview = async ({ withTvheadend = false } = {}) => {
-    const [plan, latest, choice, savedChannels, builtAt, mergedOn, state, hidden] = await Promise.all([
+    const [plan, latest, choice, savedChannels, fileAt, mergedOn, state, hidden, regions] = await Promise.all([
       guideMerge.planNow(),
       health.latest(),
       readListingChoice(getSetting),
@@ -42,11 +60,28 @@ export const createGuideSourceService = ({
       getSetting(GUIDE_MERGED_FEED_KEY).then((value) => value === 'on'),
       getSetting(REPOINT_KEY),
       getSetting(REPOINT_NOTICE_KEY).then((value) => value === NOTICE_HIDDEN),
+      guideMerge.builtRegions(),
     ])
+    const builtAt = regions ? fileAt : null
     const sources = sourceRowsOf({ ranked: rankedSources(), latest, nowMs: now() })
     const [inspection, address] = withTvheadend ? await Promise.all([inspect().catch(() => null), feedUrl().catch(() => null)]) : [null, null]
-    const isMergeableUrl = (url) => Boolean(plan?.secondary?.source.regionOfUrl?.(url))
-    const repoint = repointPlanOf({ inspection, feedUrl: address, plan, builtAt, savedChannels, sources, state, mergedOn, isFeedUrl, isMergeableUrl })
+    const regionOfUrl = (url) => plan?.secondary?.source.regionOfUrl?.(url) ?? null
+    const grabberUrl = inspection?.module?.enabled ? inspection.module.url : ''
+    const region = (grabberUrl && !isFeedUrl(grabberUrl) && regionOfUrl(grabberUrl)) || plan?.secondary?.region || null
+    const repoint = repointPlanOf({
+      inspection,
+      feedUrl: address,
+      plan,
+      builtAt,
+      savedChannels,
+      sources,
+      state,
+      mergedOn,
+      isFeedUrl,
+      isMergeableUrl: (url) => Boolean(regionOfUrl(url)),
+      region,
+      builtRegion: regions?.secondaryRegion ?? null,
+    })
     return {
       available: Boolean(plan),
       mergedOn,
@@ -75,10 +110,42 @@ export const createGuideSourceService = ({
     return { ...rest, notice: noticeOf({ repoint: rest.repoint, hidden }) }
   }
 
-  const notice = async () => {
-    const view = await overview()
-    const ready = view.available && Boolean(view.builtAt) && !view.mergedOn
-    return noticeOf({ repoint: { ...view.repoint, reason: ready ? null : 'not-ready', pointed: false }, hidden: view.hidden })
+  const notice = async ({ fresh = false } = {}) => {
+    if (!fresh && noticeCache && noticeCache.expiresAt > now()) return noticeCache.value
+    noticeLoading ??= overview({ withTvheadend: true })
+      .then((view) => noticeOf({ repoint: { ...view.repoint, pointed: view.mergedOn || view.repoint.pointed }, hidden: view.hidden }))
+      .catch(() => ({ show: false, added: 0 }))
+      .then((value) => {
+        noticeCache = { value, expiresAt: now() + noticeTtlMs }
+        return value
+      })
+      .finally(() => { noticeLoading = null })
+    return noticeLoading
+  }
+
+  const cachedNotice = () => {
+    if (!noticeCache || noticeCache.expiresAt <= now()) notice().catch(() => {})
+    return noticeCache?.value ?? null
+  }
+
+  const forgetNotice = () => { noticeCache = null }
+
+  const busy = () => Boolean(repointRun?.running)
+
+  const recover = async () => {
+    const undo = await journal.read()
+    if (!undo) return null
+    const run = { running: true, steps: [], result: null }
+    repointRun = run
+    try {
+      await rollbackRepoint(undo)
+      await journal.clear()
+      Object.assign(run, { running: false, result: { ok: false, code: 'interrupted', restored: true, ...repointFailureOf({ code: 'interrupted', restored: true }) } })
+    } catch (err) {
+      Object.assign(run, { running: false, result: { ok: false, code: 'interrupted', restored: false, error: `Freetvarr stopped while it changed the guide, and could not put TVHeadend back (${err.message}). It tries again when it next starts.`, next: 'Check the TVHeadend connection.' } })
+    }
+    forgetNotice()
+    return run
   }
 
   const setMode = async (mode) => {
@@ -116,33 +183,40 @@ export const createGuideSourceService = ({
 
   const keepGrabber = async () => {
     await setSetting(REPOINT_KEY, REPOINT_KEPT)
+    forgetNotice()
     return { ok: true }
   }
 
   const hideNotice = async () => {
     await setSetting(REPOINT_NOTICE_KEY, NOTICE_HIDDEN)
+    forgetNotice()
     return { ok: true }
   }
 
   const startRepoint = async () => {
-    if (repointRun?.running) return { busy: true }
+    if (repointRun?.running || otherBusy()) return { busy: true }
     const previous = repointRun
     const run = { running: true, steps: [], result: null }
     repointRun = run
     const view = await overview({ withTvheadend: true }).catch((err) => ({ failed: err }))
-    const problem = view.failed?.message ?? (view.repoint.reason ? REPOINT_REASONS[view.repoint.reason] ?? view.repoint.reason : null)
+    const pending = view.failed ? null : await journal.read()
+    const problem = view.failed?.message
+      ?? (pending ? 'Freetvarr has not yet put back an earlier guide change. Restart Freetvarr, then try again.' : null)
+      ?? (view.repoint.reason ? REPOINT_REASONS[view.repoint.reason] ?? view.repoint.reason : null)
     if (problem) {
       repointRun = previous
       return { problem }
     }
     const finish = applyRepoint({
       feedUrl: view.repoint.feedUrl,
+      journal,
       onProgress: (steps) => { run.steps = steps },
     })
       .catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: run.steps }))
       .then(async (result) => {
         const saved = result.ok ? await setSetting(REPOINT_KEY, REPOINT_CONFIRMED).then(() => result, (err) => ({ ...result, ok: false, error: err.message })) : result
         Object.assign(run, { running: false, steps: saved.steps, result: saved.ok ? saved : { ...saved, ...repointFailureOf(saved) } })
+        forgetNotice()
         return run
       })
     return { run, finish }
@@ -150,7 +224,32 @@ export const createGuideSourceService = ({
 
   const repointProgress = () => repointRun ?? { running: false, steps: [], result: null }
 
-  return { overview, status, notice, setMode, setPin, switchToAutomatic, keepGrabber, hideNotice, startRepoint, repointProgress }
+  return { overview, status, notice, cachedNotice, busy, recover, setMode, setPin, switchToAutomatic, keepGrabber, hideNotice, startRepoint, repointProgress }
+}
+
+export const createMergedFeedSwitch = ({ getSetting, setSetting, guideMerge, isFeedUrl, mergedKey, sourceKey }) => {
+  const turnOn = async ({ previousUrl, report = () => {}, remember = async () => {} }) => {
+    const [merged, sourceUrl] = await Promise.all([getSetting(mergedKey), getSetting(sourceKey)])
+    const previous = { merged, sourceUrl }
+    await remember(previous)
+    if (previousUrl && !isFeedUrl(previousUrl)) await setSetting(sourceKey, previousUrl)
+    if (!(await guideMerge.matchesPlan())) {
+      report({ region: (await guideMerge.planNow())?.secondary?.region ?? 'your region' })
+      if (!(await guideMerge.buildForPlan())) {
+        throw new GuideError('Freetvarr could not build the merged guide for the region your grabber reads.', 'build-failed')
+      }
+    }
+    await setSetting(mergedKey, 'on')
+    return previous
+  }
+
+  const restore = async (previous) => {
+    if (!previous) return
+    await setSetting(mergedKey, previous.merged ?? '')
+    await setSetting(sourceKey, previous.sourceUrl ?? '')
+  }
+
+  return { turnOn, restore }
 }
 
 export const mountGuideSourceRoutes = ({ app, csrf, readLimiter, writeLimiter, service, onError }) => {
@@ -171,7 +270,7 @@ export const mountGuideSourceRoutes = ({ app, csrf, readLimiter, writeLimiter, s
   app.get('/api/guide-sources/notice', readLimiter, async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     try {
-      res.json(await service.notice())
+      res.json(await service.notice({ fresh: req.query.fresh === '1' }))
     } catch (err) {
       onError(res, err, 'guide-sources-notice')
     }
@@ -243,9 +342,21 @@ export const repointFailureOf = ({ code, error, restored }) => {
       next: 'Check that TVHeadend can reach Freetvarr on your network, then try again.',
     },
     'feed-unreachable': { error: `${error}${back}`, next: 'Try again in a few minutes.' },
+    'not-updated': {
+      error: `TVHeadend fetched the merged guide, but its listings did not change within 5 minutes.${back}`,
+      next: 'Try again later. If it happens again, keep your grabber as it is.',
+    },
+    interrupted: {
+      error: `Freetvarr stopped while it changed the guide.${back}`,
+      next: 'Try again.',
+    },
+    'build-failed': { error: `Freetvarr could not build the merged guide for the region your grabber reads.${back}`, next: 'Try again later.' },
     'download-timeout': { error: `TVHeadend did not load the guide channels in 5 minutes.${back}`, next: 'Try again.' },
   })[code] ?? { error: `${error}${back}`, next: 'Try again.' }
 }
+
+const REPOINT_RUN_KEY = 'guide_repoint_run'
+const NOTICE_TTL_MS = 5 * 60_000
 
 const REPOINT_REASONS = {
   'no-plan': 'Freetvarr has no merged guide for your country yet.',

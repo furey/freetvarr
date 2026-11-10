@@ -45,14 +45,21 @@ export const sourceScoreOf = (scores) => {
   }
 }
 
-export const isBelow = ({ score, medianCoverage = null }) => (medianCoverage > 0 && score.coveredHours < medianCoverage * LOW_COVERAGE_SHARE)
-  || score.horizonHours < MIN_HORIZON_HOURS
-  || (score.agreement !== null && score.agreement < MIN_AGREEMENT)
+export const isBelow = ({ score, medianCoverage = null, other = null }) => isShort({ score, medianCoverage })
+  || (score.agreement !== null && score.agreement < MIN_AGREEMENT && agreementCounts(other))
 
-export const judgeScore = ({ score, history = [] }) => {
-  const below = isBelow({ score, medianCoverage: medianOf(history.map((row) => row.coveredHours)) })
-  return { below, degraded: below && Boolean(history[0]?.below) }
+export const judgeScore = ({ score, history = [], other = null, nowMs = Date.now() }) => {
+  const below = isBelow({ score, medianCoverage: medianOf(history.map((row) => row.coveredHours)), other })
+  return { below, degraded: below && Boolean(previousBuildOf({ history, nowMs })?.below) }
 }
+
+export const previousBuildOf = ({ history = [], nowMs }) => history.find((row) =>
+  row.builtAt <= nowMs - MIN_BUILD_GAP_MS && row.builtAt >= nowMs - MAX_BUILD_GAP_MS) ?? null
+
+const isShort = ({ score, medianCoverage }) => (medianCoverage > 0 && score.coveredHours < medianCoverage * LOW_COVERAGE_SHARE)
+  || score.horizonHours < MIN_HORIZON_HOURS
+
+const agreementCounts = (other) => !other || (!isShort({ score: other, medianCoverage: null }) && (other.agreement === null || other.agreement >= MIN_AGREEMENT))
 
 export const leadOf = ({ channel, choice = {}, primaryId, secondaryId, hasPrimary, hasSecondary, primaryDegraded = false, secondaryDegraded = false }) => {
   if (!hasPrimary || !hasSecondary) return { lead: hasPrimary ? 'primary' : 'secondary', pinned: false, fallback: false }
@@ -68,8 +75,8 @@ export const createBuildHealth = ({ history = new Map(), nowMs, primaryId = null
   const rows = []
   const sideScores = new Map([[primaryId, []], [secondaryId, []]])
 
-  const judgeSide = ({ source, channel, score }) => {
-    const verdict = judgeScore({ score, history: history.get(keyOf({ source, channel })) ?? [] })
+  const judgeSide = ({ source, channel, score, other }) => {
+    const verdict = judgeScore({ score, history: history.get(keyOf({ source, channel })) ?? [], other, nowMs })
     rows.push({ source, channel, score, ...verdict, led: false })
     sideScores.get(source)?.push(score)
     return verdict
@@ -79,8 +86,8 @@ export const createBuildHealth = ({ history = new Map(), nowMs, primaryId = null
     const primaryScore = primary && scoreListings({ ...primary, others: secondary?.programmes ?? null, nowMs })
     const secondaryScore = secondary && scoreListings({ ...secondary, others: primary?.programmes ?? null, nowMs })
     return {
-      primary: primaryScore ? judgeSide({ source: primaryId, channel: id, score: primaryScore }) : null,
-      secondary: secondaryScore ? judgeSide({ source: secondaryId, channel: id, score: secondaryScore }) : null,
+      primary: primaryScore ? judgeSide({ source: primaryId, channel: id, score: primaryScore, other: secondaryScore }) : null,
+      secondary: secondaryScore ? judgeSide({ source: secondaryId, channel: id, score: secondaryScore, other: primaryScore }) : null,
     }
   }
 
@@ -92,13 +99,18 @@ export const createBuildHealth = ({ history = new Map(), nowMs, primaryId = null
   const previousLead = ({ source, channel }) => history.get(keyOf({ source, channel }))?.[0]?.led ?? null
 
   const finish = ({ failedSources = new Map() } = {}) => {
-    const sourceRows = [primaryId, secondaryId].filter(Boolean).map((source) => {
-      const scores = sideScores.get(source)
+    const sourceScore = (source) => {
+      const scores = sideScores.get(source) ?? []
       const failed = failedSources.get(source)
-      const score = failed || !scores.length
+      return failed || !scores.length
         ? { ...EMPTY_SCORE, fetchAttempts: 1, fetchFailures: failed ? 1 : 0 }
         : sourceScoreOf(scores)
-      const verdict = judgeScore({ score, history: history.get(keyOf({ source, channel: SOURCE_ROW })) ?? [] })
+    }
+    const scores = new Map([primaryId, secondaryId].filter(Boolean).map((source) => [source, sourceScore(source)]))
+    const sourceRows = [...scores.keys()].map((source) => {
+      const score = scores.get(source)
+      const other = [...scores].find(([id]) => id !== source)?.[1] ?? null
+      const verdict = judgeScore({ score, history: history.get(keyOf({ source, channel: SOURCE_ROW })) ?? [], other, nowMs })
       return { source, channel: SOURCE_ROW, score, ...verdict, led: rows.some((row) => row.source === source && row.led) }
     })
     return [...sourceRows, ...rows]
@@ -224,3 +236,5 @@ const HOUR_MS = 60 * 60_000
 const DAY_MS = 24 * HOUR_MS
 const TOLERANCE_MS = 5 * 60_000
 const WRITE_BATCH = 200
+const MIN_BUILD_GAP_MS = 5 * 60 * 60_000
+const MAX_BUILD_GAP_MS = 13 * 60 * 60_000

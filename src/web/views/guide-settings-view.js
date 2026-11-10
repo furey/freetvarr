@@ -73,7 +73,14 @@ export const GuideSettingsView = {
                     <span class="ui-group-row-meta">Reads after: <span class="ui-mono guide-settings-url">{{ repoint.feedUrl }}</span></span>
                   </span>
                 </div>
-                <div class="ui-group-row">
+                <div v-if="repoint.region" class="ui-group-row">
+                  <span class="ui-group-row-main">
+                    <span class="ui-group-row-title">Region</span>
+                    <span v-if="repoint.rebuild" class="ui-group-row-meta">Freetvarr first builds the merged guide for {{ repoint.region }}, the region your grabber reads. This takes about 15 minutes.</span>
+                  </span>
+                  <span class="ui-group-row-value">{{ repoint.region }}</span>
+                </div>
+                <div v-if="!repoint.rebuild" class="ui-group-row">
                   <span class="ui-group-row-main">
                     <span class="ui-group-row-title">Guide channels</span>
                     <span v-if="addedText" class="ui-group-row-meta">Added from {{ primaryLabel }}: {{ addedText }}</span>
@@ -173,7 +180,7 @@ export const GuideSettingsView = {
     const steps = computed(() => paced.shown.value.steps)
     const result = computed(() => paced.shown.value.result)
     const showSteps = computed(() => Boolean(job.value) && (paced.shown.value.running || Boolean(result.value)))
-    const confirmed = computed(() => repoint.value.state === 'confirmed' && status.value?.mergedOn)
+    const confirmed = computed(() => Boolean(status.value?.mergedOn) && (repoint.value.state === 'confirmed' || repoint.value.pointed))
     const kept = computed(() => repoint.value.state === 'kept')
     const primaryLabel = computed(() => status.value?.sources?.[0]?.label ?? '')
     const reasonText = computed(() => repointReasonTextOf(repoint.value.reason))

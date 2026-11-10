@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { applyGuideRepoint, planGuideRepoint } from '../src/tvheadend-guide.js'
+import { applyGuideRepoint, planGuideRepoint, planRepointLinks, rollbackGuideRepoint } from '../src/tvheadend-guide.js'
 import {
   REPOINT_CONFIRMED,
   REPOINT_KEPT,
@@ -12,20 +12,28 @@ import {
   readListingChoice,
   repointPlanOf,
 } from '../src/guide-listings.js'
-import { createGuideSourceService, repointFailureOf } from '../src/guide-source-routes.js'
-import { isGuideFeedUrl } from '../src/guide-feed.js'
+import { createGuideSourceService, createMergedFeedSwitch, repointFailureOf } from '../src/guide-source-routes.js'
+import { isGuideFeedUrl, noteServedFeed } from '../src/guide-feed.js'
+import { withGuideNoticeMeta } from '../src/web-assets.js'
 
 const CONN = { url: 'http://tvh.test:9981' }
 const MJH_URL = 'https://i.mjh.nz/au/Sydney/epg.xml'
 const FEED_URL = 'http://192.168.1.10:3733/guide/xmltv.xml'
 
-const stubTvheadend = ({ grabber = { enabled: true, args: MJH_URL }, epgAfterRerun = { total: 19_000, stop: 2_000 } } = {}) => {
+const stubTvheadend = ({ grabber = { enabled: true, args: MJH_URL, priority: 5 }, importChanges = true, saveAfterImport = false } = {}) => {
   const writes = []
   let reruns = 0
-  const guideEntries = [
+  let guideEntries = [
     { uuid: 'g-seven', modid: '/usr/bin/tv_grab_url', id: 'mjh-seven-syd', name: 'Seven', channels: ['c7'] },
-    { uuid: 'g-abc-me', modid: '/usr/bin/tv_grab_url', id: 'freeview.0x1010_0x0202_0x0222', name: 'ABC ME', channels: [] },
   ]
+  const afterImport = () => [
+    { uuid: 'g-seven', modid: '/usr/bin/tv_grab_url', id: 'mjh-seven-syd', name: 'Seven', channels: ['c7'] },
+    { uuid: 'g-abc-me', modid: '/usr/bin/tv_grab_url', id: 'freeview.1010:0202:0222', name: 'ABC ME', channels: ['c7'] },
+  ]
+  const countFor = (channel) => {
+    if (!reruns || !importChanges) return channel === 'c7' ? 120 : 0
+    return channel === 'c7' ? 150 : 90
+  }
   const reads = {
     'epggrab/module/list': () => ({ entries: [{ uuid: 'mod-url', title: 'Internal: XMLTV: XMLTV URL grabber' }] }),
     'idnode/load': () => ({
@@ -33,11 +41,12 @@ const stubTvheadend = ({ grabber = { enabled: true, args: MJH_URL }, epgAfterRer
         params: [
           { id: 'enabled', value: grabber.enabled },
           { id: 'args', value: grabber.args },
+          { id: 'priority', value: grabber.priority },
           { id: 'path', value: '/usr/bin/tv_grab_url' },
         ],
       }],
     }),
-    'epggrab/config/load': () => ({ entries: [{ params: [{ id: 'epgdb_periodicsave', value: 1 }, { id: 'epgdb_saveafterimport', value: true }] }] }),
+    'epggrab/config/load': () => ({ entries: [{ params: [{ id: 'epgdb_periodicsave', value: 1 }, { id: 'epgdb_saveafterimport', value: saveAfterImport }] }] }),
     'epggrab/channel/grid': () => ({ entries: guideEntries }),
     'channel/grid': () => ({
       entries: [
@@ -46,22 +55,29 @@ const stubTvheadend = ({ grabber = { enabled: true, args: MJH_URL }, epgAfterRer
       ],
     }),
     'mpegts/service/grid': () => ({ entries: [{ uuid: 's7', lcn: 7 }, { uuid: 's22', lcn: 22 }] }),
-    'epg/events/grid': () => (reruns ? { totalCount: epgAfterRerun.total, entries: [{ stop: epgAfterRerun.stop }] } : { totalCount: 13_800, entries: [{ stop: 2_000 }] }),
+    'epg/events/grid': (params) => (params?.channel
+      ? { totalCount: countFor(params.channel) }
+      : { totalCount: 13_800, entries: [{ stop: 2_000 }] }),
   }
   return {
     writes,
-    get: async (path) => reads[path](),
+    get: async (path, params) => reads[path](params),
     post: async (path, form) => {
-      if (path === 'epggrab/internal/rerun') reruns += 1
+      if (path === 'epggrab/internal/rerun') {
+        reruns += 1
+        if (reruns === 1) guideEntries = afterImport()
+      }
       writes.push({ path, form })
       return {}
     },
   }
 }
 
+const TRIPLETS = async () => new Map([['c7', ['1013:0502:0521']], ['c22', ['1010:0202:0222']]])
+
 const mergedFeed = async () => [
   { id: 'mjh-seven-syd', names: ['Seven'], lcn: 7 },
-  { id: 'freeview.0x1010_0x0202_0x0222', names: ['ABC ME'], lcn: 22 },
+  { id: 'freeview.1010:0202:0222', names: ['ABC ME'], lcn: 22 },
 ]
 
 const clock = () => {
@@ -73,78 +89,158 @@ const grabberWrites = (writes) => writes
   .filter((w) => w.path === 'idnode/save' && JSON.parse(w.form.node).uuid === 'mod-url')
   .map((w) => JSON.parse(w.form.node))
 
+const guideWrites = (writes, uuid) => writes
+  .filter((w) => w.path === 'idnode/save' && JSON.parse(w.form.node).uuid === uuid)
+  .map((w) => JSON.parse(w.form.node).channels)
+
 const mergedSwitch = () => {
   const calls = []
   return {
     calls,
-    turnOnMerged: async ({ previousUrl }) => { calls.push(['on', previousUrl]) },
-    turnOffMerged: async () => { calls.push(['off']) },
+    turnOnMerged: async ({ previousUrl, remember }) => {
+      await remember({ merged: null, sourceUrl: null })
+      calls.push(['on', previousUrl])
+      return { merged: null, sourceUrl: null }
+    },
+    restoreMerged: async (previous) => { calls.push(['off', previous]) },
   }
 }
+
+const memoryJournal = () => {
+  const saved = []
+  let current = null
+  return {
+    saved,
+    current: () => current,
+    save: async (undo) => {
+      current = JSON.parse(JSON.stringify(undo))
+      saved.push(current)
+    },
+    clear: async () => { current = null },
+  }
+}
+
+const apply = (overrides = {}) => applyGuideRepoint({
+  conn: CONN,
+  feedUrl: FEED_URL,
+  waitForRequest: async () => true,
+  fetchFeed: mergedFeed,
+  listTriplets: TRIPLETS,
+  pollMs: 0,
+  updateLimitMs: 5000,
+  ...clock(),
+  ...overrides,
+})
 
 test('repoint plan: five steps from turning on the merged guide to checking that it updated', () => {
   assert.deepEqual(planGuideRepoint().steps.map((step) => step.id), ['merged', 'point', 'fetch', 'link', 'verify'])
 })
 
-test('repoint apply: turns on the merged guide, points the grabber at Freetvarr, waits for the fetch, links an added Freeview channel, and sees the EPG change', async () => {
+test('repoint apply: points the grabber at Freetvarr, links the Freeview-only channel by its DVB triplet, removes the double link TVHeadend made by name, and sees new listings', async () => {
   const http = stubTvheadend()
   const merged = mergedSwitch()
+  const journal = memoryJournal()
   const progress = []
-  const result = await applyGuideRepoint({
-    http,
-    conn: CONN,
-    feedUrl: FEED_URL,
-    ...merged,
-    waitForRequest: async () => true,
-    fetchFeed: mergedFeed,
-    onProgress: (steps) => progress.push(steps.map((step) => step.status).join(',')),
-    pollMs: 0,
-    ...clock(),
-  })
+  const result = await apply({ http, ...merged, journal, onProgress: (steps) => progress.push(steps.map((step) => step.status).join(',')) })
   assert.equal(result.ok, true, JSON.stringify(result))
   assert.equal(result.previousUrl, MJH_URL)
-  assert.equal(result.updated, true)
-  assert.equal(result.programmes, 19_000)
   assert.equal(result.linked, 1)
   assert.deepEqual(merged.calls, [['on', MJH_URL]])
   assert.deepEqual(grabberWrites(http.writes), [{ uuid: 'mod-url', enabled: true, args: FEED_URL, priority: 3 }])
-  const link = http.writes.find((w) => w.form?.node && JSON.parse(w.form.node).uuid === 'g-abc-me')
-  assert.deepEqual(JSON.parse(link.form.node).channels, ['c22'])
+  assert.deepEqual(guideWrites(http.writes, 'g-abc-me'), [['c22']])
   assert.equal(progress.at(-1), 'done,done,done,done,done')
+  assert.equal(journal.saved[0].grabber, null, 'the run is saved before step 1')
+  assert.equal(journal.current(), null)
 })
 
-test('repoint apply: when TVHeadend never fetches the merged guide, the grabber and the merged setting go back as they were', async () => {
-  const http = stubTvheadend()
+test('repoint apply: when TVHeadend never fetches the merged guide, the grabber enabled flag, address, and priority go back, and so do the save settings', async () => {
+  const http = stubTvheadend({ saveAfterImport: false })
   const merged = mergedSwitch()
-  const result = await applyGuideRepoint({
-    http, conn: CONN, feedUrl: FEED_URL, ...merged, waitForRequest: async () => false, fetchFeed: mergedFeed, pollMs: 0, ...clock(),
-  })
+  const result = await apply({ http, ...merged, waitForRequest: async () => false })
   assert.equal(result.ok, false)
   assert.equal(result.code, 'not-fetched')
-  assert.equal(result.failedStep, 'fetch')
   assert.equal(result.restored, true)
-  assert.deepEqual(grabberWrites(http.writes).map((node) => node.args), [FEED_URL, MJH_URL])
-  assert.deepEqual(merged.calls, [['on', MJH_URL], ['off']])
+  assert.deepEqual(grabberWrites(http.writes).at(-1), { uuid: 'mod-url', enabled: true, args: MJH_URL, priority: 5 })
+  const configWrites = http.writes.filter((w) => w.path === 'epggrab/config/save').map((w) => JSON.parse(w.form.node))
+  assert.deepEqual(configWrites, [{ epgdb_saveafterimport: true }, { epgdb_saveafterimport: false }])
+  assert.deepEqual(merged.calls.map(([kind]) => kind), ['on', 'off'])
   assert.match(repointFailureOf(result).error, /earlier guide/)
 })
 
-test('repoint apply: an EPG that has not changed yet still finishes, marked not updated', async () => {
-  const http = stubTvheadend({ epgAfterRerun: { total: 13_800, stop: 2_000 } })
-  const result = await applyGuideRepoint({
-    http, conn: CONN, feedUrl: FEED_URL, ...mergedSwitch(), waitForRequest: async () => true, fetchFeed: mergedFeed, pollMs: 0, updateLimitMs: 3000, ...clock(),
-  })
-  assert.equal(result.ok, true)
-  assert.equal(result.updated, false)
+test('repoint apply: listings that do not change fail the check and roll everything back, links included', async () => {
+  const http = stubTvheadend({ importChanges: false })
+  const merged = mergedSwitch()
+  const result = await apply({ http, ...merged })
+  assert.equal(result.ok, false)
+  assert.equal(result.code, 'not-updated')
+  assert.equal(result.failedStep, 'verify')
+  assert.equal(result.restored, true)
+  assert.deepEqual(guideWrites(http.writes, 'g-abc-me'), [['c22'], []])
+  assert.deepEqual(grabberWrites(http.writes).map((node) => node.args), [FEED_URL, MJH_URL])
+})
+
+test('repoint apply: a link step that cannot read the feed also puts the grabber and the merged setting back', async () => {
+  const http = stubTvheadend()
+  const merged = mergedSwitch()
+  const result = await apply({ http, ...merged, fetchFeed: async () => { throw new Error('ECONNREFUSED') } })
+  assert.equal(result.failedStep, 'link')
+  assert.equal(result.restored, true)
+  assert.deepEqual(grabberWrites(http.writes).map((node) => node.args), [FEED_URL, MJH_URL])
+  assert.deepEqual(guideWrites(http.writes, 'g-abc-me'), [[]], 'the new guide channel loses the link TVHeadend made by name')
+  assert.deepEqual(merged.calls.map(([kind]) => kind), ['on', 'off'])
+})
+
+test('repoint apply: the merged setting goes back even when TVHeadend refuses the grabber restore, and the journal stays for the next start', async () => {
+  const http = stubTvheadend()
+  const post = http.post
+  http.post = async (path, form) => {
+    if (path === 'idnode/save' && JSON.parse(form.node).args === MJH_URL) throw new Error('HTTP 500')
+    return post(path, form)
+  }
+  const merged = mergedSwitch()
+  const journal = memoryJournal()
+  const result = await apply({ http, ...merged, journal, waitForRequest: async () => false })
+  assert.equal(result.restored, false)
+  assert.deepEqual(merged.calls.map(([kind]) => kind), ['on', 'off'])
+  assert.equal(journal.current().pointed, true)
+})
+
+test('repoint rollback after a restart: the saved journal alone puts TVHeadend and the settings back', async () => {
+  const http = stubTvheadend()
+  const journal = memoryJournal()
+  await apply({ http, ...mergedSwitch(), journal, waitForRequest: async () => { throw new Error('restart') } }).catch(() => {})
+  const saved = journal.saved.at(-1)
+  const fresh = stubTvheadend()
+  const restored = []
+  const steps = await rollbackGuideRepoint({ http: fresh, conn: CONN, undo: saved, restoreMerged: async (previous) => restored.push(previous) })
+  assert.ok(steps.includes('grabber'))
+  assert.deepEqual(grabberWrites(fresh.writes), [{ uuid: 'mod-url', enabled: true, args: MJH_URL, priority: 5 }])
+  assert.equal(restored.length, 1)
 })
 
 test('repoint apply: a TVHeadend with no URL grabber changes nothing', async () => {
   const http = stubTvheadend()
   http.get = async (path) => (path === 'epggrab/module/list' ? { entries: [] } : {})
   const merged = mergedSwitch()
-  const result = await applyGuideRepoint({ http, conn: CONN, feedUrl: FEED_URL, ...merged, waitForRequest: async () => true })
+  const result = await apply({ http, ...merged })
   assert.equal(result.code, 'no-grabber')
   assert.deepEqual(http.writes, [])
   assert.deepEqual(merged.calls, [])
+})
+
+test('repoint links: a Freeview-only guide channel links to the TV channel with its triplet only when that channel has no mjh link', () => {
+  const channels = [
+    { id: 'c7', name: '7 Sydney', number: 7, services: [], guide: ['g-seven'] },
+    { id: 'c22', name: 'ABC ME', number: 22, services: [], guide: [] },
+  ]
+  const guideChannels = [
+    { id: 'g-seven', xmltvId: 'mjh-seven-syd', name: 'Seven', channels: ['c7'] },
+    { id: 'g-seven-fv', xmltvId: 'freeview.1013:0502:0521', name: '7 Sydney', channels: [] },
+    { id: 'g-abc-me', xmltvId: 'freeview.1010:0202:0222', name: 'ABC ME', channels: ['c7'] },
+  ]
+  const triplets = new Map([['c7', ['1013:0502:0521']], ['c22', ['1010:0202:0222']]])
+  const saves = planRepointLinks({ channels, guideChannels, feedChannels: [], triplets })
+  assert.deepEqual(saves.map(({ guideId, channels: linked }) => [guideId, linked]), [['g-abc-me', ['c22']]])
 })
 
 const SAVED_CHANNELS = [
@@ -156,7 +252,7 @@ const SAVED_CHANNELS = [
 const inspection = (url = MJH_URL) => ({ module: { enabled: true, url }, channels: [], guideChannels: [], linked: 0 })
 
 test('repoint plan: shows the grabber change, the channels before and after, the added Freeview channels, and days ahead', () => {
-  const plan = repointPlanOf({
+  const base = () => ({
     inspection: inspection(),
     feedUrl: FEED_URL,
     plan: {},
@@ -166,6 +262,7 @@ test('repoint plan: shows the grabber change, the channels before and after, the
     isFeedUrl: isGuideFeedUrl,
     isMergeableUrl: (url) => url === MJH_URL,
   })
+  const plan = repointPlanOf(base())
   assert.deepEqual(plan, {
     state: 'pending',
     reason: null,
@@ -176,7 +273,10 @@ test('repoint plan: shows the grabber change, the channels before and after, the
     currentChannels: 2,
     added: ['ABC ME'],
     days: [{ label: 'Freeview', days: 9 }, { label: 'i.mjh.nz', days: 20 }],
+    region: null,
+    rebuild: false,
   })
+  assert.equal(repointPlanOf({ ...base(), region: 'Perth', builtRegion: 'Sydney' }).rebuild, true)
   assert.equal(noticeOf({ repoint: plan }).show, true)
   assert.equal(noticeOf({ repoint: plan, hidden: true }).show, false)
   assert.equal(noticeOf({ repoint: { ...plan, state: REPOINT_KEPT } }).show, false)
@@ -225,7 +325,7 @@ test('channel rows: a channel on mjh because Freeview is degraded shows as a fal
   assert.equal(rows[2].pin, 'freeview-au')
 })
 
-const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint = async () => ({ ok: true, steps: [] }), grabberUrl = MJH_URL } = {}) => {
+const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint = async () => ({ ok: true, steps: [] }), grabberUrl = MJH_URL, otherBusy = () => false, rollbackRepoint = async () => [], noGrabber = false } = {}) => {
   const builds = []
   const source = (id, label) => ({ id, label, regionOfUrl: (url) => (url === MJH_URL ? 'Sydney' : null) })
   const freeview = source('freeview-au', 'Freeview')
@@ -237,15 +337,18 @@ const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint =
       planNow: async () => ({ primary: { source: freeview }, secondary: { source: mjh } }),
       savedChannels: async () => SAVED_CHANNELS,
       builtAt: async () => 1000,
+      builtRegions: async () => ({ primaryRegion: 'region_nsw_sydney', secondaryRegion: 'Sydney' }),
       latest: () => null,
       requestBuild: () => builds.push('build'),
     },
     rankedSources: () => [freeview, mjh],
     health: { latest: async () => ({ sources: [], channels: latestChannels }) },
-    inspect: async () => inspection(grabberUrl),
+    inspect: async () => (noGrabber ? { module: null, channels: [], guideChannels: [] } : inspection(grabberUrl)),
     feedUrl: async () => FEED_URL,
     isFeedUrl: isGuideFeedUrl,
     applyRepoint,
+    otherBusy,
+    rollbackRepoint,
   })
   return { service, settings, builds }
 }
@@ -292,28 +395,85 @@ test('service: a failed repoint keeps the install unconfirmed and says what to d
   assert.match((await custom.service.startRepoint()).problem, /does not merge/)
 })
 
-test('repoint apply: a link step that never sees the guide channels also puts the grabber and the merged setting back', async () => {
-  const http = stubTvheadend()
-  const merged = mergedSwitch()
-  const result = await applyGuideRepoint({
-    http, conn: CONN, feedUrl: FEED_URL, ...merged, waitForRequest: async () => true,
-    fetchFeed: async () => { throw new Error('ECONNREFUSED') }, pollMs: 0, ...clock(),
-  })
-  assert.equal(result.failedStep, 'link')
-  assert.equal(result.restored, true)
-  assert.deepEqual(grabberWrites(http.writes).map((node) => node.args), [FEED_URL, MJH_URL])
-  assert.deepEqual(merged.calls, [['on', MJH_URL], ['off']])
+test('service: the guide setup and the confirm step share one lock', async () => {
+  const { service } = fakeService({ otherBusy: () => true })
+  assert.deepEqual(await service.startRepoint(), { busy: true })
+  let release
+  const slow = fakeService({ applyRepoint: () => new Promise((resolve) => { release = () => resolve({ ok: true, steps: [] }) }) })
+  const started = await slow.service.startRepoint()
+  assert.equal(slow.service.busy(), true)
+  release()
+  await started.finish
+  assert.equal(slow.service.busy(), false)
 })
 
-test('repoint apply: the merged setting goes back even when TVHeadend refuses the grabber restore', async () => {
-  const http = stubTvheadend()
-  const post = http.post
-  http.post = async (path, form) => {
-    if (path === 'idnode/save' && JSON.parse(form.node).args === MJH_URL) throw new Error('HTTP 500')
-    return post(path, form)
+test('service: a run that a restart stopped is rolled back from its journal at start, and the page says what happened', async () => {
+  const undo = { grabber: { id: 'mod-url', enabled: true, url: MJH_URL, priority: 5 }, pointed: true, mergedOn: true }
+  const settings = new Map([['guide_repoint_run', JSON.stringify(undo)]])
+  const rolledBack = []
+  const { service } = fakeService({ settings, rollbackRepoint: async (saved) => { rolledBack.push(saved) } })
+  assert.match((await service.startRepoint()).problem, /not yet put back/)
+  const run = await service.recover()
+  assert.deepEqual(rolledBack, [undo])
+  assert.equal(run.result.code, 'interrupted')
+  assert.match(run.result.error, /stopped while it changed the guide\. TVHeadend reads its earlier guide again/)
+  assert.equal(settings.get('guide_repoint_run'), '')
+  assert.equal(await service.recover(), null)
+  const failing = fakeService({ settings: new Map([['guide_repoint_run', JSON.stringify(undo)]]), rollbackRepoint: async () => { throw new Error('ECONNREFUSED') } })
+  assert.match((await failing.service.recover()).result.error, /tries again when it next starts/)
+})
+
+test('notice: shown only when TVHeadend reads a feed Freetvarr can replace, and served from a cache for the page', async () => {
+  assert.equal((await fakeService().service.notice()).show, true)
+  assert.equal((await fakeService({ grabberUrl: 'https://example.test/other.xml' }).service.notice()).show, false)
+  assert.equal((await fakeService({ noGrabber: true }).service.notice()).show, false)
+  const { service } = fakeService()
+  assert.equal(service.cachedNotice(), null)
+  await service.notice()
+  assert.deepEqual(service.cachedNotice(), { show: true, added: 1 })
+})
+
+test('merged feed switch: a grabber on another mjh region rebuilds the merged guide for it before TVHeadend is pointed at it', async () => {
+  const settings = new Map([['guide_merged_feed', ''], ['guide_source_url', '']])
+  let built = false
+  const reports = []
+  const remembered = []
+  const merge = {
+    matchesPlan: async () => built,
+    planNow: async () => ({ secondary: { region: settings.get('guide_source_url') ? 'Perth' : 'Sydney' } }),
+    buildForPlan: async () => { built = true; return true },
   }
-  const merged = mergedSwitch()
-  const result = await applyGuideRepoint({ http, conn: CONN, feedUrl: FEED_URL, ...merged, waitForRequest: async () => false, fetchFeed: mergedFeed, pollMs: 0, ...clock() })
-  assert.equal(result.restored, false)
-  assert.deepEqual(merged.calls, [['on', MJH_URL], ['off']])
+  const { turnOn, restore } = createMergedFeedSwitch({
+    getSetting: async (key) => settings.get(key) ?? null,
+    setSetting: async (key, value) => { settings.set(key, value) },
+    guideMerge: merge,
+    isFeedUrl: isGuideFeedUrl,
+    mergedKey: 'guide_merged_feed',
+    sourceKey: 'guide_source_url',
+  })
+  const previous = await turnOn({ previousUrl: 'https://i.mjh.nz/au/Perth/epg.xml', report: (detail) => reports.push(detail), remember: async (value) => remembered.push(value) })
+  assert.deepEqual(reports, [{ region: 'Perth' }])
+  assert.equal(settings.get('guide_merged_feed'), 'on')
+  assert.equal(settings.get('guide_source_url'), 'https://i.mjh.nz/au/Perth/epg.xml')
+  assert.deepEqual(remembered, [previous])
+  await restore(previous)
+  assert.deepEqual([settings.get('guide_merged_feed'), settings.get('guide_source_url')], ['', ''])
+  merge.buildForPlan = async () => false
+  built = false
+  await assert.rejects(turnOn({ previousUrl: 'https://i.mjh.nz/au/Perth/epg.xml' }), (err) => err.code === 'build-failed')
+})
+
+test('feed requests count only once a 200 response is fully served', () => {
+  const notes = []
+  const watch = { note: () => notes.push('note') }
+  noteServedFeed({ res: { statusCode: 200, writableFinished: true }, watch })
+  noteServedFeed({ res: { statusCode: 200, writableFinished: false }, watch })
+  noteServedFeed({ res: { statusCode: 502, writableFinished: true }, watch })
+  assert.deepEqual(notes, ['note'])
+})
+
+test('page meta: the notice state goes into the page, so Home shows it without a shift', () => {
+  const html = withGuideNoticeMeta({ html: '<meta charset="utf-8" />', notice: { show: true, added: 14 } })
+  assert.match(html, /<meta name="freetvarr-guide-notice" content="\{&quot;show&quot;:true,&quot;added&quot;:14\}" \/>/)
+  assert.equal(withGuideNoticeMeta({ html: 'x', notice: null }), 'x')
 })

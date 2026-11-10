@@ -173,7 +173,8 @@ export const runStepValue = (step) => {
     const done = (detail.ok || 0) + (detail.fail || 0)
     return done ? `${done} of ${detail.total}` : ''
   }
-  if (step.id === 'download') return detail.expected && detail.found ? `${detail.found} of ${detail.expected}` : ''
+  if (step.id === 'download' || step.id === 'link') return detail.expected && detail.found ? `${detail.found} of ${detail.expected}` : ''
+  if (step.id === 'merged') return detail.region ? `Building for ${detail.region}` : ''
   return ''
 }
 

@@ -94,6 +94,8 @@ export const repointPlanOf = ({
   mergedOn = false,
   isFeedUrl = () => false,
   isMergeableUrl = () => true,
+  region = null,
+  builtRegion = null,
 }) => {
   const grabberUrl = inspection?.module?.enabled ? inspection.module.url : ''
   const pointed = Boolean(mergedOn && grabberUrl && isFeedUrl(grabberUrl))
@@ -108,6 +110,8 @@ export const repointPlanOf = ({
     currentChannels: savedChannels.filter((channel) => channel.secondaryId).length,
     added: savedChannels.filter((channel) => !channel.secondaryId).map((channel) => channel.names?.[0] ?? channel.id),
     days: sources.filter((source) => source.horizonDays !== null).map((source) => ({ label: source.label, days: source.horizonDays })),
+    region,
+    rebuild: Boolean(region && builtRegion && region !== builtRegion),
   }
 }
 

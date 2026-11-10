@@ -91,12 +91,29 @@ test('degraded thresholds: under half the 14-day median coverage, under 3 days a
 
 test('degraded needs two builds in a row below a threshold', () => {
   const low = healthyScore({ horizonHours: 10 })
-  assert.deepEqual(judgeScore({ score: low, history: [] }), { below: true, degraded: false })
-  assert.deepEqual(judgeScore({ score: low, history: [{ coveredHours: 48, below: false }] }), { below: true, degraded: false })
-  assert.deepEqual(judgeScore({ score: low, history: [{ coveredHours: 48, below: true }] }), { below: true, degraded: true })
-  assert.deepEqual(judgeScore({ score: healthyScore(), history: [{ coveredHours: 48, below: true }] }), { below: false, degraded: false })
-  const median = [{ coveredHours: 48, below: false }, { coveredHours: 46, below: false }, { coveredHours: 47, below: false }]
-  assert.equal(judgeScore({ score: healthyScore({ coveredHours: 20 }), history: median }).below, true)
+  const earlier = (fields) => ({ coveredHours: 48, builtAt: NOW - 6 * HOUR, ...fields })
+  assert.deepEqual(judgeScore({ score: low, history: [], nowMs: NOW }), { below: true, degraded: false })
+  assert.deepEqual(judgeScore({ score: low, history: [earlier({ below: false })], nowMs: NOW }), { below: true, degraded: false })
+  assert.deepEqual(judgeScore({ score: low, history: [earlier({ below: true })], nowMs: NOW }), { below: true, degraded: true })
+  assert.deepEqual(judgeScore({ score: healthyScore(), history: [earlier({ below: true })], nowMs: NOW }), { below: false, degraded: false })
+  const median = [earlier({ below: false }), earlier({ coveredHours: 46, below: false }), earlier({ coveredHours: 47, below: false })]
+  assert.equal(judgeScore({ score: healthyScore({ coveredHours: 20 }), history: median, nowMs: NOW }).below, true)
+})
+
+test('degraded: a build minutes after another, or one days old, does not count as the build before', () => {
+  const low = healthyScore({ horizonHours: 10 })
+  const row = (hoursAgo) => ({ coveredHours: 48, below: true, builtAt: NOW - hoursAgo * HOUR })
+  assert.equal(judgeScore({ score: low, history: [row(0.2)], nowMs: NOW }).degraded, false)
+  assert.equal(judgeScore({ score: low, history: [row(30)], nowMs: NOW }).degraded, false)
+  assert.equal(judgeScore({ score: low, history: [row(0.2), row(6)], nowMs: NOW }).degraded, true)
+})
+
+test('agreement: low agreement counts only when the other source looks healthy and agrees with this one', () => {
+  const disagreeing = healthyScore({ agreement: 0.4 })
+  assert.equal(isBelow({ score: disagreeing, other: healthyScore({ agreement: 0.9 }) }), true)
+  assert.equal(isBelow({ score: disagreeing, other: healthyScore({ agreement: 0.5 }) }), false)
+  assert.equal(isBelow({ score: disagreeing, other: healthyScore({ agreement: 0.9, horizonHours: 10 }) }), false)
+  assert.equal(isBelow({ score: healthyScore({ agreement: 0.4, horizonHours: 10 }), other: healthyScore({ agreement: 0.5 }) }), true)
 })
 
 test('lead: Automatic falls back per channel only when the primary is degraded and the secondary is not; a pin or a named source is never overridden', () => {
@@ -176,7 +193,7 @@ const buildText = async (options) => {
   return { stats, xml: Buffer.concat(chunks).toString('utf8') }
 }
 
-const degradedHistory = (channels) => new Map(channels.map((channel) => [`freeview-au|${channel}`, [{ coveredHours: 48, below: true, led: true }]]))
+const degradedHistory = (channels) => new Map(channels.map((channel) => [`freeview-au|${channel}`, [{ coveredHours: 48, below: true, led: true, builtAt: NOW - 6 * HOUR }]]))
 
 test('Automatic: a channel whose Freeview listings stay degraded uses mjh; other channels keep Freeview; the switch is listed once as a change', async () => {
   const { stats, xml } = await buildText({ ...sides(), history: degradedHistory(['mjh-seven']), choice: { mode: 'auto', pins: {} } })
