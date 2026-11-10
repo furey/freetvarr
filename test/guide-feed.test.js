@@ -277,3 +277,22 @@ test('serveGuideFeed with no copy and a failed source still throws, so the route
     await done()
   }
 })
+
+test('serveGuideFeed serves the whole feed when the last-good copy cannot be written', async () => {
+  const big = `${HEAD}${Array.from({ length: 20000 }, (_, i) => programme({
+    channel: 'mjh-abc-nsw',
+    start: '20261009223000 +0000',
+    stop: '20261009233000 +0000',
+    title: `Programme ${i} ${'x'.repeat(40)}`,
+  })).join('')}</tv>\n`
+  const live = await serveOnce((req, res) => serveGuideFeed({
+    sourceUrl: 'https://example.test/epg.xml',
+    lastSourcePath: path.join(os.tmpdir(), 'freetvarr-no-such-folder', 'deeper', 'last-source.xml.gz'),
+    res,
+    planShifts: async () => [],
+    openFeed: async () => Readable.from([big.slice(0, big.length / 2), big.slice(big.length / 2)]),
+    classifications: quietClassifications,
+  }))
+  assert.equal(live.status, 200)
+  assert.equal(live.text.length, big.length)
+})

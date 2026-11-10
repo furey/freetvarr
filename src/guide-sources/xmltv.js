@@ -26,15 +26,17 @@ export const parseProgrammeElement = (xml) => {
 
 export const programmeXml = (programme) => [
   `<programme start="${formatXmltvTime(programme.start)}" stop="${formatXmltvTime(programme.stop)}" channel="${escapeXml(programme.channel)}">`,
-  `    <title>${escapeXml(programme.title)}</title>`,
-  ...(programme.subTitle ? [`    <sub-title>${escapeXml(programme.subTitle)}</sub-title>`] : []),
-  ...(programme.desc ? [`    <desc>${escapeXml(programme.desc)}</desc>`] : []),
-  ...(programme.categories ?? []).map((category) => `    <category>${escapeXml(category)}</category>`),
-  ...(programme.icon ? [`    <icon src="${escapeXml(programme.icon)}"/>`] : []),
-  ...(programme.episodeNums ?? []).map(({ system, value }) =>
-    `    <episode-num system="${escapeXml(system)}">${escapeXml(value)}</episode-num>`),
-  ...(programme.rating ? [`    <rating>\n      <value>${escapeXml(programme.rating)}</value>\n    </rating>`] : []),
-  ...(programme.extras ?? []).map((extra) => `    ${extra}`),
+  ...inDtdOrder([
+    ['title', `<title>${escapeXml(programme.title)}</title>`],
+    ...(programme.subTitle ? [['sub-title', `<sub-title>${escapeXml(programme.subTitle)}</sub-title>`]] : []),
+    ...(programme.desc ? [['desc', `<desc>${escapeXml(programme.desc)}</desc>`]] : []),
+    ...(programme.categories ?? []).map((category) => ['category', `<category>${escapeXml(category)}</category>`]),
+    ...(programme.icon ? [['icon', `<icon src="${escapeXml(programme.icon)}"/>`]] : []),
+    ...(programme.episodeNums ?? []).map(({ system, value }) =>
+      ['episode-num', `<episode-num system="${escapeXml(system)}">${escapeXml(value)}</episode-num>`]),
+    ...(programme.rating ? [['rating', `<rating>\n      <value>${escapeXml(programme.rating)}</value>\n    </rating>`]] : []),
+    ...(programme.extras ?? []).map((extra) => [extra.match(ELEMENT_NAME)?.[1] ?? '', extra]),
+  ]).map((element) => `    ${element}`),
   '  </programme>',
 ].join('\n')
 
@@ -91,8 +93,20 @@ const readChild = ({ programme, element, name, childAttributes, text }) => {
   } else if (!PARSED_ELEMENTS.has(name)) programme.extras.push(element)
 }
 
+const inDtdOrder = (elements) => elements
+  .map(([name, xml], index) => ({ rank: DTD_RANK.get(name) ?? DTD_ORDER.length, index, xml }))
+  .sort((a, b) => a.rank - b.rank || a.index - b.index)
+  .map((element) => element.xml)
+
 const attributeOf = (attributes, name) => attributes.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1] ?? null
 
+const DTD_ORDER = [
+  'title', 'sub-title', 'desc', 'credits', 'date', 'category', 'keyword', 'language', 'orig-language', 'length', 'icon',
+  'url', 'country', 'episode-num', 'video', 'audio', 'previously-shown', 'premiere', 'last-chance', 'new', 'subtitles',
+  'rating', 'star-rating', 'review', 'image',
+]
+const DTD_RANK = new Map(DTD_ORDER.map((name, index) => [name, index]))
+const ELEMENT_NAME = /^<([a-z][a-z-]*)/
 const OPEN_TAG = /^<programme\b([^>]*)>/
 const CHILD_ELEMENT = /<([a-z][a-z-]*)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/g
 const CHANNEL_ELEMENT = /<channel\s+id="([^"]+)"\s*>([\s\S]*?)<\/channel>/g

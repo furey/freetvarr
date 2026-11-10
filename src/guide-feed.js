@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import net from 'node:net'
 import { Transform } from 'node:stream'
-import { finished, pipeline } from 'node:stream/promises'
+import { pipeline } from 'node:stream/promises'
 import { StringDecoder } from 'node:string_decoder'
 import zlib from 'node:zlib'
 
@@ -52,7 +52,7 @@ export const serveGuideFeed = async ({
       classifications,
     })
   } catch (err) {
-    if (res.headersSent || !lastSourcePath || !(await isFile(lastSourcePath))) throw err
+    if (res.headersSent || res.destroyed || !lastSourcePath || !(await isFile(lastSourcePath))) throw err
     console.warn(`[guide-feed] serving the last good guide copy: ${err.message}`)
     return serveFile(lastSourcePath)
   }
@@ -69,18 +69,26 @@ export const keepLastCopy = ({ source, file }) => {
   const gzip = zlib.createGzip()
   const output = fs.createWriteStream(temporary)
   let complete = false
-  source.once('end', () => { complete = true })
-  source.pipe(gzip).pipe(output)
+  let discarded = false
   const discard = () => {
+    if (discarded) return
+    discarded = true
+    source.unpipe(gzip)
+    gzip.unpipe(output)
     gzip.destroy()
     output.destroy()
     fsp.rm(temporary, { force: true }).catch(() => {})
   }
+  source.once('end', () => { complete = true })
   source.once('error', discard)
   source.once('close', () => { if (!complete) discard() })
-  finished(output)
-    .then(() => (complete ? fsp.rename(temporary, file) : fsp.rm(temporary, { force: true })))
-    .catch(() => fsp.rm(temporary, { force: true }).catch(() => {}))
+  gzip.once('error', discard)
+  output.once('error', discard)
+  source.pipe(gzip).pipe(output)
+  output.once('finish', () => {
+    if (!complete || discarded) return discard()
+    fsp.rename(temporary, file).catch(discard)
+  })
   return source
 }
 

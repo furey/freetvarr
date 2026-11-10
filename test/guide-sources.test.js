@@ -201,7 +201,7 @@ test('freeview: a 504 on a six-hour window reads it again as two three-hour halv
     ['2026-11-10T00:00:00Z', '2026-11-10T03:00:00Z'],
     ['2026-11-10T03:00:00Z', '2026-11-10T06:00:00Z'],
   ])
-  assert.deepEqual(source.stats(), { requests: 3, failedWindows: 0, splitWindows: 1 })
+  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 3, failedWindows: 0, splitWindows: 1, windows: 0, failures: 0 })
 })
 
 test('freeview: a failed window is empty, backs off, and is not read again until the backoff ends', async () => {
@@ -237,7 +237,7 @@ test('freeview: a window past the horizon (204, no JSON) is empty, not a failure
   })
   const source = createFreeviewAuSource({ client, now: () => NOW })
   assert.deepEqual(await source.listings({ channel: TRIPLET, from: NOW, to: NOW + HOUR }), [])
-  assert.deepEqual(source.stats(), { requests: 1, failedWindows: 0, splitWindows: 0 })
+  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 1, failedWindows: 0, splitWindows: 0, windows: 0, failures: 0 })
 })
 
 test('freeview: a "To Be Advised" placeholder is left out, so mjh fills the slot', () => {
@@ -260,4 +260,31 @@ test('freeview: requests use the upper-case triplet the API needs, and a 400 sto
   const source = createFreeviewAuSource({ client, now: () => NOW })
   assert.deepEqual(await source.listings({ channel: '1012:0420:042a', from: NOW, to: NOW + 2 * 24 * HOUR }), [])
   assert.equal(client.calls.length, 1)
+})
+
+test('freeview: windows that ended before the read start are pruned, and the window memory is capped', async () => {
+  const clock = { ms: NOW }
+  const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => clock.ms, maxWindows: 3 })
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 24 * HOUR })
+  assert.equal(source.stats().windows, 3)
+  clock.ms += 24 * HOUR
+  await source.listings({ channel: TRIPLET, from: clock.ms, to: clock.ms + 6 * HOUR })
+  assert.equal(source.stats().windows, 1)
+})
+
+test('xmltv: a written programme keeps the XMLTV DTD element order, extras included', () => {
+  const xml = programmeXml({
+    channel: 'c',
+    start: NOW,
+    stop: NOW + HOUR,
+    title: 'Gruen',
+    desc: 'Ads.',
+    categories: ['Comedy'],
+    icon: 'https://example.test/g.jpg',
+    episodeNums: [{ system: 'xmltv_ns', value: '0.1.' }],
+    rating: 'M',
+    extras: ['<star-rating><value>8/10</value></star-rating>', '<video><quality>HDTV</quality></video>', '<country>AU</country>', '<date>2026</date>'],
+  })
+  const names = [...xml.matchAll(/^ {4}<([a-z-]+)/gm)].map((m) => m[1])
+  assert.deepEqual(names, ['title', 'desc', 'date', 'category', 'icon', 'country', 'episode-num', 'video', 'rating', 'star-rating'])
 })

@@ -17,6 +17,7 @@ export const createFreeviewAuSource = ({
   failureBackoffMs = FAILURE_BACKOFF_MS,
   maxPages = MAX_PAGES,
   onWindow = () => {},
+  maxWindows = MAX_WINDOWS,
 } = {}) => {
   const windows = new Map()
   const failures = new Map()
@@ -38,6 +39,7 @@ export const createFreeviewAuSource = ({
   }
 
   const listings = async ({ channel, from, to }) => {
+    prune(from)
     const programmes = new Map()
     for (let start = windowStartOf(from); start < to; start += FREEVIEW_WINDOW_MS) {
       const window = await windowListings({ triplet: channel, start })
@@ -46,7 +48,17 @@ export const createFreeviewAuSource = ({
         if (programme.stop > from && programme.start < to) programmes.set(programme.id, programme)
       }
     }
+    prune(from)
     return [...programmes.values()].sort((a, b) => a.start - b.start).map((programme) => ({ ...programme, channel }))
+  }
+
+  const prune = (from) => {
+    for (const map of [windows, failures]) {
+      for (const key of map.keys()) {
+        if (Number(key.split('|')[1]) + FREEVIEW_WINDOW_MS <= from) map.delete(key)
+      }
+      while (map.size > maxWindows) map.delete(map.keys().next().value)
+    }
   }
 
   const windowListings = async ({ triplet, start }) => {
@@ -63,6 +75,7 @@ export const createFreeviewAuSource = ({
       const placeholders = placeholderImagesOf(listings)
       const programmes = listings.map((listing) => freeviewProgrammeOf({ listing, placeholders })).filter(Boolean)
       const ttlMs = start - now() < nearMs ? nearTtlMs : farTtlMs
+      windows.delete(key)
       windows.set(key, { programmes, expiresAt: now() + ttlMs })
       failures.delete(key)
       return programmes
@@ -119,7 +132,7 @@ export const createFreeviewAuSource = ({
     return raw
   }
 
-  const stats = () => ({ ...counts })
+  const stats = () => ({ ...counts, windows: windows.size, failures: failures.size })
 
   const resetStats = () => {
     counts = emptyCounts()
@@ -212,6 +225,7 @@ const CHANNEL_REFUSED = Symbol('channel refused')
 const NO_CONTENT = 'bad-content'
 const PLACEHOLDER_TITLE = /^(to be (advised|confirmed|announced)|tba|tbc)$/i
 const PAGE_SIZE = 100
+const MAX_WINDOWS = 4000
 const MAX_PAGES = 3
 const HOUR_MS = 60 * 60_000
 const HORIZON_DAYS = 9
