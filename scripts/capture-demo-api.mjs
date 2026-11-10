@@ -55,7 +55,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await route(/\/api\/recording-now(\?|$)/, (route) => fulfillJson(route, fixtures.recordingNow))
   await route(/\/api\/activity(\?|$)/, (route) => fulfillJson(route, fixtures.activity))
   await route(/\/api\/activity\/summary(\?|$)/, (route) => fulfillJson(route, { running: fixtures.activity.runningCount }))
-  await route('**/api/activity/stream', (route) => route.fulfill({
+  await route(/\/api\/activity\/stream(\?|$)/, (route) => route.fulfill({
     status: 200,
     contentType: 'text/event-stream',
     body: `event: jobs\ndata: ${JSON.stringify(jobsOf(fixtures.activity))}\n\n`,
@@ -70,7 +70,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await route('**/api/live/tuner-status', (route) => fulfillJson(route, fixtures.tunerStatus))
   await route('**/api/library/items/*/image**', plexItemImage({ base }))
   await route('**/api/tv-login', (route) => fulfillJson(route, {}))
-  await route('**/api/library/delete/preview', (route) => route.continue())
+  await route('**/api/library/delete/preview', rewriteJson(({ blocked, ...preview }) => preview))
   await route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
   await route(/\/api\/live(\/|\?|$)(?!tuner-status)/, demoLiveTv())
   await route('**/api/epg/record', desk.recordOneOff)
