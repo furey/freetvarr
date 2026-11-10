@@ -110,6 +110,12 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.23.0
+
+[Release notes for `2.23.0`](https://github.com/furey/freetvarr/releases/tag/2.23.0)
+
+- **Database**: the first start adds one database change (database change `0050`). `0050` adds a table of picture stamps: for each title, a short code that changes when a guide or recording picture of the title changes, so the browser loads the new picture. A version that is older than `0050` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+
 ### 2.22.0
 
 [Release notes for `2.22.0`](https://github.com/furey/freetvarr/releases/tag/2.22.0)
@@ -258,6 +264,8 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
+   - To go back from `2.23.0` to `2.22.x`, undo `0050`.
+   - To go back from `2.23.0` to `2.20.0` or `2.21.x`, undo `0050`, then `0049`.
    - To go back from `2.22.0` to `2.20.0` or `2.21.x`, undo `0049`.
    - To go back from `2.22.0` to `2.19.0`, undo `0049`, then `0048`.
    - To go back from `2.20.0` to `2.19.0`, undo `0048`.

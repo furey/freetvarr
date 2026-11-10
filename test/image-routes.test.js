@@ -90,6 +90,16 @@ test('the served route sends 404 with no-store while pending, when missing, and 
   assert.equal(bad.statusCode, 400)
 })
 
+test('a stamped airing URL serves the same picture, and a final miss stays 404 no-store with its state', async () => {
+  const { programme } = routes()
+  const resolve = createImageResolver([programme])
+  assert.equal(textOf((await resolve('/api/epg/image/42?w=768&c=p1')).image.body), '42@768')
+  const final = imageRouteOf({ path: '/api/epg/image/:eventId', widthOf: () => 192, loadImage: async () => ({ image: null, pending: false, final: true }) })
+  const res = recorder()
+  await serveImageRoute({ route: final, imageMaxAgeS: 86400 })({ params: { eventId: '42' }, query: { c: 'p1' } }, res)
+  assert.deepEqual([res.statusCode, res.headers['cache-control'], res.headers['x-art-state']], [404, 'no-store', 'final'])
+})
+
 const servedBy = async (loaded) => {
   const route = imageRouteOf({ path: '/api/x/:id', widthOf: () => 192, loadImage: async () => loaded })
   const res = recorder()

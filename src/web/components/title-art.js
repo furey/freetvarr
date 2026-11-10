@@ -38,12 +38,12 @@ export const TitleArt = {
     </div>
   `,
   setup(props) {
-    const primarySrc = computed(() => stampedShowImage(props.src))
+    const primarySrc = computed(() => stampedShowImage(props.src, props.title))
     const resolvedTick = computed(() => artResolvedTickOf({ url: props.src, title: props.title, shape: props.shape }))
     const primaryFailed = ref(isFinalMiss(primarySrc.value))
     const fallbackFailed = ref(false)
     const showsFallback = computed(() => primaryFailed.value && Boolean(props.fallbackSrc) && !fallbackFailed.value)
-    const shownSrc = computed(() => (showsFallback.value ? stampedShowImage(props.fallbackSrc) : primarySrc.value))
+    const shownSrc = computed(() => (showsFallback.value ? stampedShowImage(props.fallbackSrc, props.title) : primarySrc.value))
     const failed = computed(() => primaryFailed.value && !showsFallback.value)
     const attempt = ref(0)
     let tickAtAttempt = resolvedTick.value

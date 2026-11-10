@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import sharp from 'sharp'
 
 import { db } from './db.js'
+import { newPictureStamp } from './programme-stamps.js'
 import { isLandscapeSize } from './image-thumbnails.js'
 import { showTitleKey } from './show-artwork.js'
 import { POSTER_SHAPE, isPortraitSize } from './show-poster.js'
@@ -342,10 +343,15 @@ export const createArtResolver = ({
     return saved.fingerprint === fingerprint ? { due: false, ...resultOfRow(saved) } : PEEK_DUE
   }
 
-  const forget = (title) => store.removeTitle(showTitleKey(title)).catch(() => {})
+  const forget = (title) => markDue({ titleKey: showTitleKey(title) })
 
-  const invalidate = ({ title, kind, shape }) =>
-    store.remove(resolutionKeyOf({ titleKey: showTitleKey(title), kind, shape })).catch(() => {})
+  const invalidate = ({ title, kind, shape }) => markDue({ resolutionKey: resolutionKeyOf({ titleKey: showTitleKey(title), kind, shape }) })
+
+  const markDue = async (which) => {
+    const changes = await store.markDue(which).catch(() => [])
+    changes.forEach(onResolved)
+    return changes
+  }
 
   return { resolve, peek, forget, invalidate, stampsByKey }
 }
@@ -365,6 +371,15 @@ export const pictureChangeOf = ({ saved, result }) => {
   if (`${saved.origin ?? ''}|${saved.transform ?? ''}` === picture) return { changed: false, stamp: saved.stamp ?? null }
   const browserMayHoldOldPicture = Boolean(saved.origin || saved.stamp)
   return { changed: true, stamp: browserMayHoldOldPicture ? pictureStampOf(result) : null }
+}
+
+export const markResolutionsDue = async ({ database = db, where, stamp = newPictureStamp() }) => {
+  const rows = await where(database('art_resolutions')).select('resolution_key', 'title_key', 'show_key', 'shape')
+  const keys = rows.map((row) => row.resolution_key)
+  for (let at = 0; at < keys.length; at += DUE_BATCH) {
+    await database('art_resolutions').whereIn('resolution_key', keys.slice(at, at + DUE_BATCH)).update({ next_check_at: 0, miss_step: 0, stamp })
+  }
+  return rows.map((row) => ({ key: row.show_key || showKeyOf(row.title_key), kind: stampKindOf(row.shape), stamp }))
 }
 
 export const stampKindOf = (shape) => (shape === POSTER_SHAPE ? 'poster' : 'background')
@@ -424,8 +439,9 @@ const within = (promise, ms) => {
 const databaseStore = {
   read: (key) => db('art_resolutions').where({ resolution_key: key }).first(),
   write: (row) => db('art_resolutions').insert(row).onConflict('resolution_key').merge(),
-  remove: (key) => db('art_resolutions').where({ resolution_key: key }).del(),
-  removeTitle: (titleKey) => db('art_resolutions').where({ title_key: titleKey }).del(),
+  markDue: ({ titleKey = null, resolutionKey = null }) => markResolutionsDue({
+    where: (query) => (titleKey ? query.where({ title_key: titleKey }) : query.where({ resolution_key: resolutionKey })),
+  }),
   stamped: () => db('art_resolutions').whereNotNull('stamp').select('show_key', 'shape', 'stamp', 'resolved_at'),
 }
 
@@ -449,6 +465,7 @@ const HOUR_MS = 60 * 60 * 1000
 const HIT_RECHECK_MS = 7 * 24 * HOUR_MS
 const ERROR_RETRY_MS = 5 * 60 * 1000
 const PICTURE_STAMP_LENGTH = 10
+const DUE_BATCH = 200
 const FOLLOW_UP_DELAYS_MS = [2000, 15_000, 60_000]
 const FOLLOW_UP_BUDGET_MS = 20_000
 const MAX_PENDING_ANSWERS = 2000

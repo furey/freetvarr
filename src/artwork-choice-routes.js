@@ -29,7 +29,8 @@ export const mergedStampsOf = ({ chosen = new Map(), resolved = new Map() }) => 
   for (const key of new Set([...resolved.keys(), ...chosen.keys()])) {
     const background = chosen.get(key)?.background || resolved.get(key)?.background || null
     const poster = chosen.get(key)?.poster || resolved.get(key)?.poster || null
-    if (background || poster) merged[key] = { background, poster }
+    const programme = resolved.get(key)?.programme || null
+    if (background || poster || programme) merged[key] = { background, poster, programme }
   }
   return merged
 }

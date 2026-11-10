@@ -214,7 +214,7 @@ test('GET artwork-stamps lists the stamps of every show with a pick', async () =
   await call('PUT', '/api/library/shows/the-block/artwork/poster', { id: poster })
   const { status, body } = await call('GET', '/api/library/artwork-stamps')
   assert.equal(status, 200)
-  assert.deepEqual(body.stamps['the-block'], { background: null, poster: choiceStampOf({ chosenAt: 1000 }) })
+  assert.deepEqual(body.stamps['the-block'], { background: null, poster: choiceStampOf({ chosenAt: 1000 }), programme: null })
   await call('DELETE', '/api/library/shows/the-block/artwork/poster')
 })
 
@@ -259,12 +259,13 @@ test('createArtworkCandidates offers Plex art for a film that only Plex has and 
   assert.equal(await candidates.candidatesFor('nothing'), null)
 })
 
-test('mergedStampsOf: an owner choice beats a resolved stamp per kind, and only non-default stamps are sent', () => {
+test('mergedStampsOf: an owner choice beats a resolved stamp per kind, programme stamps pass through, and only non-default stamps are sent', () => {
   const chosen = new Map([['bluey', { background: 'choice', poster: null }], ['empty', { background: null, poster: null }]])
-  const resolved = new Map([['bluey', { background: 'r1', poster: 'r2' }], ['heat', { poster: 'r3' }]])
+  const resolved = new Map([['bluey', { background: 'r1', poster: 'r2', programme: 'g1' }], ['heat', { poster: 'r3' }], ['gruen', { programme: 'g2' }]])
   assert.deepEqual(mergedStampsOf({ chosen, resolved }), {
-    bluey: { background: 'choice', poster: 'r2' },
-    heat: { background: null, poster: 'r3' },
+    bluey: { background: 'choice', poster: 'r2', programme: 'g1' },
+    heat: { background: null, poster: 'r3', programme: null },
+    gruen: { background: null, poster: null, programme: 'g2' },
   })
   assert.deepEqual(mergedStampsOf({}), {})
 })

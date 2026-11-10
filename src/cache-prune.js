@@ -10,7 +10,8 @@ export const LOOKUP_CACHE_TABLES = [
   { table: 'art_pools', key: 'pool_key' },
   { table: 'title_genres', key: 'title_key' },
   { table: 'title_known_as', key: 'title_key' },
-  { table: 'art_resolutions', key: 'resolution_key', expiresColumn: 'next_check_at' },
+  { table: 'art_resolutions', key: 'resolution_key', expiresColumn: 'resolved_at' },
+  { table: 'programme_picture_stamps', key: 'show_key', expiresColumn: 'changed_at' },
 ]
 
 export const CACHE_PRUNE_GRACE_MS = 90 * 24 * 60 * 60 * 1000

@@ -51,8 +51,10 @@ import {
   kindHintFrom,
   EPISODE_FRAME_FIRST,
   onlineArtworkOf,
+  markResolutionsDue,
   stampKindOf,
 } from './art-resolver.js'
+import { PROGRAMME_STAMP_KIND, createProgrammeStamps } from './programme-stamps.js'
 import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, isFrameOrigin } from './frame-grabs.js'
 import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
@@ -869,14 +871,16 @@ export const deleteFrameResolutions = async ({ database = db, origins = [] } = {
   const removedIds = new Set(origins.map(frameBaseOriginOf))
   const rows = await database('art_resolutions').where('origin', 'like', FRAME_ORIGIN_LIKE).select('resolution_key', 'origin')
   const keys = rows.filter((row) => removedIds.has(frameBaseOriginOf(row.origin))).map((row) => row.resolution_key)
-  let deleted = 0
+  const changes = []
   for (let at = 0; at < keys.length; at += FRAME_PRUNE_BATCH) {
-    deleted += await database('art_resolutions').whereIn('resolution_key', keys.slice(at, at + FRAME_PRUNE_BATCH)).del().catch((err) => {
-      console.error(`[frames] could not delete frame resolutions: ${err.message}`)
-      return 0
-    })
+    const batch = keys.slice(at, at + FRAME_PRUNE_BATCH)
+    changes.push(...await markResolutionsDue({ database, where: (query) => query.whereIn('resolution_key', batch) }).catch((err) => {
+      console.error(`[frames] could not mark frame resolutions due: ${err.message}`)
+      return []
+    }))
   }
-  return deleted
+  await announcePictureChanges({ changes, database })
+  return changes.length
 }
 
 const frameBaseOriginOf = (origin) => String(origin ?? '').split(FRAME_VERSION_SEPARATOR)[0]
@@ -1253,11 +1257,13 @@ const adPlansFor = async (recordingIds) => {
 
 export const refreshFrameAfterAdScan = async ({ recordingId, filePath, breaks = [] }, { grabs = frameGrabs, loadRow = recordingRowOf, database = db } = {}) => {
   const { stale, awaited } = await grabs.reconsider({ filePath, breaks })
-  if (stale) await database('art_resolutions').where('origin', 'like', `${frameOriginOf(filePath)}%`).update({ next_check_at: 0 }).catch(() => 0)
+  const changes = stale
+    ? await markResolutionsDue({ database, where: (query) => query.where('origin', 'like', `${frameOriginOf(filePath)}%`) }).catch(() => [])
+    : []
   const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
   const title = row?.show_title_override ?? row?.title
+  if (stale) await announcePictureChanges({ changes, keys: [title, row?.title].filter(Boolean).map(showKeyOf), database })
   if (!title) return { stale, awaited, grabbing: false }
-  if (stale) publishTitleArtChange(title)
   const allowed = stillsAllowed(await episodePictureOrder().catch(() => undefined))
   if (!allowed || !(stale || awaited) || row.purged_at || !isCompleteRow(row)) return { stale, awaited, grabbing: false }
   const plans = await adPlansFor([recordingId])
@@ -1272,10 +1278,32 @@ export const refreshFrameAfterAdScan = async ({ recordingId, filePath, breaks = 
 }
 
 const publishTitleArtChange = (title) => {
-  for (const kind of ['background', 'poster']) artFeed.publish({ key: showKeyOf(title), kind, stamp: null })
+  for (const kind of TITLE_STAMP_KINDS) artFeed.publish({ key: showKeyOf(title), kind, stamp: null })
 }
 
-export const publishStillsChange = async ({ database = db, publish = artFeed.publish } = {}) => {
+export const announcePictureChanges = async ({ changes = [], keys = [], database = db, feed = artFeed }) => {
+  const showKeys = [...new Set([...changes.map((change) => change.key), ...keys].filter(Boolean))]
+  if (!showKeys.length) return 0
+  const programme = await createProgrammeStamps({ database }).bump(showKeys).catch(() => new Map())
+  if (showKeys.length > MAX_TITLE_ART_EVENTS) {
+    feed.reset()
+    return showKeys.length
+  }
+  const stamped = new Set(changes.map((change) => `${change.kind}|${change.key}`))
+  changes.forEach(({ key, kind, stamp }) => feed.publish({ key, kind, stamp }))
+  for (const key of new Set(keys)) {
+    for (const kind of TITLE_STAMP_KINDS) if (!stamped.has(`${kind}|${key}`)) feed.publish({ key, kind, stamp: null })
+  }
+  for (const key of showKeys) feed.publish({ key, kind: PROGRAMME_STAMP_KIND, stamp: programme.get(key) ?? null })
+  return showKeys.length
+}
+
+const announceResolvedArt = (change) => {
+  if (!change.stamp) return artFeed.publish(change)
+  announcePictureChanges({ changes: [change] }).catch(() => artFeed.publish(change))
+}
+
+export const publishStillsChange = async ({ database = db, feed = artFeed } = {}) => {
   const [resolved, recordings] = await Promise.all([
     database('art_resolutions').where('origin', 'like', `${FRAME_ORIGIN_LIKE}`).distinct('show_key').catch(() => []),
     database('recordings').whereNull('purged_at').whereNull('image_path').select('title', 'show_title_override').catch(() => []),
@@ -1284,8 +1312,7 @@ export const publishStillsChange = async ({ database = db, publish = artFeed.pub
     ...resolved.map((row) => row.show_key),
     ...recordings.map((row) => showKeyOf(row.show_title_override ?? row.title)),
   ].filter(Boolean))
-  for (const key of keys) for (const kind of ['background', 'poster']) publish({ key, kind, stamp: null })
-  return keys.size
+  return announcePictureChanges({ keys: [...keys], database, feed })
 }
 
 const isFilmKind = (kind) => Boolean(artworkKindOf(kind))
@@ -1434,23 +1461,43 @@ const refreshLogoHashes = async (channels = []) => {
   placeholderPictures.setLogoHashes([...logoHashes.values()])
 }
 
-export const forgetPlaceholderPictures = async ({ database = db, pictures = guidePictures, placeholders = placeholderPictures } = {}) => {
+export const forgetPlaceholderPictures = async ({
+  database = db,
+  pictures = guidePictures,
+  placeholders = placeholderPictures,
+  airings = guideAirings,
+  feed = artFeed,
+} = {}) => {
   await placeholders.saveFamilies()
   const dropped = await pictures.dropPlaceholders(await guidePictureKeepsOf(database))
   const rows = await database('art_resolutions')
     .where((query) => query.where('origin', 'like', 'http%').orWhere('origin', 'like', 'guide-picture:%'))
+    .where('next_check_at', '>', 0)
     .select('resolution_key', 'origin', 'title_key')
   const sourceOf = async (origin) => (isGuidePictureOrigin(origin) ? pictures.sourceOfOrigin(origin) : origin)
   const stale = []
-  for (const row of rows) if (placeholders.isPlaceholder(await sourceOf(row.origin))) stale.push(row)
-  for (let at = 0; at < stale.length; at += PLACEHOLDER_DELETE_BATCH) {
-    await database('art_resolutions').whereIn('resolution_key', stale.slice(at, at + PLACEHOLDER_DELETE_BATCH).map((row) => row.resolution_key)).del()
+  for (const row of rows) if (placeholders.isPlaceholder(await sourceOf(row.origin))) stale.push(row.resolution_key)
+  const changes = []
+  for (let at = 0; at < stale.length; at += PLACEHOLDER_DUE_BATCH) {
+    const batch = stale.slice(at, at + PLACEHOLDER_DUE_BATCH)
+    changes.push(...await markResolutionsDue({ database, where: (query) => query.whereIn('resolution_key', batch) }))
   }
-  const titles = [...new Set([...dropped, ...stale.map((row) => row.title_key)])]
-  if (titles.length > MAX_TITLE_ART_EVENTS) artFeed.reset()
-  else titles.forEach(publishTitleArtChange)
-  return titles.length
+  const airingTitles = newStandInAiringTitlesOf({ airings: await airings().catch(() => []), placeholders })
+  const keys = [...dropped.map(showKeyOf), ...airingTitles.map(showKeyOf)]
+  return announcePictureChanges({ changes, keys, database, feed })
 }
+
+const newStandInAiringTitlesOf = ({ airings, placeholders }) => {
+  const standIns = new Map()
+  for (const { image, title } of airings) {
+    if (image && title && placeholders.isPlaceholder(image)) standIns.set(image, [...(standIns.get(image) ?? []), title])
+  }
+  const titles = [...standIns].filter(([source]) => !screenedAiringSources.has(source)).flatMap(([, titles]) => titles)
+  screenedAiringSources = new Set(standIns.keys())
+  return [...new Set(titles)]
+}
+
+const guideAirings = async () => [...((await getCachedGuide())?.programByEventId.values() ?? [])]
 
 const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
   if (!freeviewAu.isOn() || !titleKeys.length) return 0
@@ -1468,8 +1515,7 @@ const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
   const { saved } = await guidePictures.saveAll({ candidates })
   const after = await titleCopiesOf(candidates)
   const changed = [...after].filter(([titleKey, origin]) => origin !== before.get(titleKey)).map(([titleKey]) => candidates.get(titleKey).title)
-  if (changed.length > MAX_TITLE_ART_EVENTS) artFeed.reset()
-  else changed.forEach(publishTitleArtChange)
+  await announcePictureChanges({ keys: changed.map(showKeyOf) })
   return saved
 }
 
@@ -1633,9 +1679,16 @@ const artResolver = createArtResolver({
   kindOf: canonicalKindFor,
   loadImage: screenedImageOrErrorOf,
   settingsKeyOf: onlineSettingsKey,
-  onResolved: artFeed.publish,
+  onResolved: announceResolvedArt,
 })
-export const resolvedArtStamps = () => artResolver.stampsByKey()
+export const resolvedArtStamps = async () => {
+  const [titles, programme] = await Promise.all([
+    artResolver.stampsByKey(),
+    createProgrammeStamps().stampsByKey().catch(() => new Map()),
+  ])
+  for (const [key, stamp] of programme) titles.set(key, { ...titles.get(key), [PROGRAMME_STAMP_KIND]: stamp })
+  return titles
+}
 const guideSearchFor = createGuideSearchCache()
 export const forgetShowArtwork = (title) => Promise.all([showArtwork.forget(title), fallbackArtwork.forget(title), artResolver.forget(title)])
 const thumbnailStore = createThumbnailStore({
@@ -1648,7 +1701,9 @@ const GUIDE_DAYS = 7
 const MAX_IMAGE_SOURCES = 4
 const MAX_FREEVIEW_EVENTS = 20_000
 const MAX_TITLE_ART_EVENTS = 200
-const PLACEHOLDER_DELETE_BATCH = 200
+const PLACEHOLDER_DUE_BATCH = 200
+const TITLE_STAMP_KINDS = ['background', 'poster']
+let screenedAiringSources = new Set()
 const OWN_ORIGIN = /^(upload|frame|recording|plex|guide-picture):/
 const TVMAZE_IMAGE_HOST = 'static.tvmaze.com'
 let guidePictureRun = null

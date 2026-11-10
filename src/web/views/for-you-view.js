@@ -98,7 +98,7 @@ export const ForYouView = {
             <button v-for="show in pickable" :key="show.seriesKey" type="button" class="for-you-pick"
               :aria-pressed="String(picked.has(show.seriesKey))" @click="togglePick(show.seriesKey)">
               <span class="ui-poster-art ui-art-fallback for-you-pick-art" :style="fallbackStyleOf(show.title)">
-                <img v-if="show.image && !failedArt[pickArtKeyOf(show)]" :src="stampedShowImage(show.image)" alt="" loading="lazy" @error="markFailed(pickArtKeyOf(show))" />
+                <img v-if="show.image && !failedArt[pickArtKeyOf(show)]" :src="stampedShowImage(show.image, show.title)" alt="" loading="lazy" @error="markFailed(pickArtKeyOf(show))" />
                 <span class="ui-art-title for-you-pick-title">{{ show.title }}</span>
                 <span class="for-you-pick-check" aria-hidden="true"><for-you-icon name="check" /></span>
               </span>
@@ -244,7 +244,7 @@ export const ForYouView = {
 
     const fallbackStyleOf = (title) => artFallbackStyle(title)
     const markFailed = (key) => { failedArt.value = { ...failedArt.value, [key]: true } }
-    const pickArtKeyOf = (show) => `${show.seriesKey}|${stampedShowImage(show.image)}|${artResolvedTickOf({ url: show.image, title: show.title, shape: 'poster' })}`
+    const pickArtKeyOf = (show) => `${show.seriesKey}|${stampedShowImage(show.image, show.title)}|${artResolvedTickOf({ url: show.image, title: show.title, shape: 'poster' })}`
 
     onMounted(load)
     watch(recordingChangeTick, load)

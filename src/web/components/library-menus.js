@@ -70,7 +70,7 @@ export const LibraryMenuSheet = {
   setup(props) {
     const artTried = ref(0)
     watch(() => [props.artSrc, props.fallbackSrc], () => { artTried.value = 0 })
-    const artUrls = computed(() => [...new Set([props.artSrc, props.fallbackSrc].filter(Boolean).map(stampedShowImage))])
+    const artUrls = computed(() => [...new Set([props.artSrc, props.fallbackSrc].filter(Boolean).map((url) => stampedShowImage(url, props.artTitle || props.title)))])
     const artUrl = computed(() => artUrls.value[artTried.value] || '')
     const artStyle = computed(() => artFallbackStyle(props.artTitle || props.title))
     return { artTried, artUrl, artStyle, menuPendingLabelOf }
@@ -116,7 +116,7 @@ export const DeleteConfirm = {
             :aria-describedby="bodyId" tabindex="-1">
             <div v-if="request.variant === 'episode' && lead" class="library-dialog-episode">
               <span class="library-dialog-thumb ui-art-fallback" :style="leadStyle">
-                <img v-if="lead.image && !leadFailed" :src="lead.image" alt="" @error="leadFailed = true" />
+                <img v-if="lead.image && !leadFailed" :src="stampedShowImage(lead.image, lead.title)" alt="" @error="leadFailed = true" />
               </span>
               <span class="library-dialog-episode-text">
                 <span class="library-dialog-episode-title">{{ leadTitle }}</span>
@@ -294,7 +294,7 @@ export const DeleteConfirm = {
 
     return {
       dialog, cancelButton, zIndex, preview, loadError, refusal, busy, stopSeries, removeSeries, choice, leadFailed, titleId, bodyId,
-      lead, leadTitle, leadStyle, loadingTitle, copy, cancel, confirm,
+      lead, leadTitle, leadStyle, loadingTitle, copy, cancel, confirm, stampedShowImage,
     }
   },
 }
@@ -313,7 +313,7 @@ export const ActionConfirm = {
             :aria-describedby="bodyId" tabindex="-1">
             <div v-if="request.lead" class="library-dialog-episode">
               <span class="library-dialog-thumb ui-art-fallback" :style="leadStyle">
-                <img v-if="request.lead.image && !leadFailed" :src="request.lead.image" alt="" @error="leadFailed = true" />
+                <img v-if="request.lead.image && !leadFailed" :src="stampedShowImage(request.lead.image, request.lead.fallbackTitle)" alt="" @error="leadFailed = true" />
               </span>
               <span class="library-dialog-episode-text">
                 <span class="library-dialog-episode-title">{{ request.lead.title }}</span>
@@ -393,7 +393,7 @@ export const ActionConfirm = {
       initialFocus: () => (copy.value?.danger ? cancelButton.value : dialog.value),
     })
 
-    return { dialog, cancelButton, zIndex, busy, refusal, leadFailed, titleId, bodyId, copy, blocks, leadStyle, cancel, confirm }
+    return { dialog, cancelButton, zIndex, busy, refusal, leadFailed, titleId, bodyId, copy, blocks, leadStyle, cancel, confirm, stampedShowImage }
   },
 }
 
