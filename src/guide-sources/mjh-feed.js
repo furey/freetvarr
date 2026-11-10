@@ -5,6 +5,8 @@ import axios from 'axios'
 import { countryForTimeZone } from '../zone-countries.js'
 import { parseChannelElements, parseProgrammeElement, parseXmltvTime } from './xmltv.js'
 
+export const MJH_LABEL = 'i.mjh.nz'
+
 export const MJH_HOSTS = {
   'i.mjh.nz': { concurrency: 1, gapMs: 0 },
   'raw.githubusercontent.com': { concurrency: 1, gapMs: 0 },
@@ -50,7 +52,7 @@ export const createMjhSource = ({
 
   const forget = () => loaded.clear()
 
-  return { id, countries, feeds, regionOf: regionInCountry, regionOfUrl, channels, listings, forget, hostLimits: MJH_HOSTS }
+  return { id, label: MJH_LABEL, countries, feeds, regionOf: regionInCountry, regionOfUrl, channels, listings, forget, hostLimits: MJH_HOSTS }
 }
 
 export const cityRegionOf = ({ feeds, timeZone }) => {

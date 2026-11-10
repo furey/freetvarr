@@ -35,6 +35,7 @@ before(async () => {
       ...args,
       loadRules: async () => rules,
       loadVariants: async () => [],
+      loadCandidates: async () => new Set(),
       writeRule: async ({ variants }) => writes.push(['rule', variants]),
       saveVariants: async ({ title, variants }) => writes.push(['save', title, variants]),
     }),

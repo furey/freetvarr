@@ -1,9 +1,12 @@
 import { db } from './db.js'
+import { VARIANT_CANDIDATE } from './title-aliases.js'
 import { isSameShowTitle } from './autorec-match.js'
 import { showKeyOf } from './web/show-key.js'
 import { countryTitleWordsOf, excludedEditionTagsOf, installCountry } from './title-countries.js'
+import { titlesAgree } from './freeview-au.js'
+import { showTitleKey } from './show-artwork.js'
 
-export const variantTitlesOf = ({ title, titleIndex = new Map(), chosen = [], inScope = () => true }) => {
+export const variantTitlesOf = ({ title, titleIndex = new Map(), chosen = [], inScope = () => true, candidates = new Set() }) => {
   const byKey = new Map()
   const entryOf = (text) => {
     const key = text.toLowerCase()
@@ -13,7 +16,7 @@ export const variantTitlesOf = ({ title, titleIndex = new Map(), chosen = [], in
   for (const variant of chosen) entryOf(variant).enabled = true
   for (const [key, listed] of titleIndex) {
     const isChosen = byKey.has(key)
-    if (!isChosen && !isVariantTitle({ title, candidate: listed.title })) continue
+    if (!isChosen && !isOfferedTitle({ title, candidate: listed.title, candidates })) continue
     const upcoming = listed.airings.filter(inScope).length
     if (upcoming || isChosen) entryOf(listed.title).upcoming += upcoming
   }
@@ -41,6 +44,21 @@ export const isVariantTitle = ({ title, candidate, country = installCountry() })
   return endsWithVariantWord({ longer: other, shorter: series, isVariantWord })
     || endsWithVariantWord({ longer: series, shorter: other, isVariantWord })
 }
+
+export const isOfferedTitle = ({ title, candidate, candidates = new Set(), country = installCountry() }) =>
+  isVariantTitle({ title, candidate, country }) || isCandidateVariant({ title, candidate, candidates, country })
+
+export const isCandidateVariant = ({ title, candidate, candidates = new Set(), country = installCountry() }) => {
+  const series = String(title ?? '').trim()
+  const other = String(candidate ?? '').trim()
+  if (!series || !other || series.toLowerCase() === other.toLowerCase() || !candidates.has(other.toLowerCase())) return false
+  if (isSameShowTitle({ title: other, show: series, excludedTags: excludedEditionTagsOf(country) })) return false
+  return titlesAgree(showTitleKey(other), showTitleKey(series))
+}
+
+export const loadVariantCandidates = async ({ database = db } = {}) => new Set(
+  (await database('title_aliases').where({ kind: VARIANT_CANDIDATE }).pluck('source_title')).map((title) => String(title).trim().toLowerCase()),
+)
 
 export const loadTitleVariants = async () => {
   const variants = new Map()

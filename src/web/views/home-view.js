@@ -141,7 +141,7 @@ export const HomeView = {
   components: { ActionConfirm, DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
   template: `
     <div v-page-reveal class="ui-page home-page">
-      <page-header :title="greeting" subtitle="Here's what's happening." subtitle-short="" brand health-alert />
+      <page-header :title="greeting" subtitle="Here's what's happening." subtitle-short="" brand health-alert><template #below><guide-notice /></template></page-header>
       <template v-if="!loaded">
         <section class="hero-carousel home-skeleton-hero" aria-hidden="true">
           <div class="hero-carousel-viewport">

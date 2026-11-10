@@ -374,6 +374,17 @@ const LATER_CHECKS = [
     },
   },
   {
+    id: 'guide.sources',
+    group: 'guide',
+    title: 'Guide sources',
+    doc: 'guide/doctor#guide-sources',
+    run: async (ctx) => {
+      const view = await ctx.deps.guideSources()
+      const grabber = view?.repoint?.state === 'confirmed' && ctx.tvhReady ? await readGrabberOf(ctx).catch(() => null) : null
+      return guideSourcesCheck({ view, grabber, nowMs: ctx.now })
+    },
+  },
+  {
     id: 'paths.recordings',
     group: 'storage',
     title: 'Recordings folder',
@@ -734,6 +745,66 @@ export const guidePicturesCheck = ({
   }
 }
 
+export const guideSourcesCheck = ({ view, grabber = null, nowMs = Date.now(), staleMs = MERGED_STALE_MS }) => {
+  if (!view?.available) return { status: 'skip', detail: 'Freetvarr has no guide sources for this time zone.' }
+  const detail = view.sources.map(sourceHealthLine).join(' ')
+  const primary = view.sources.find((source) => source.id === view.primaryId) ?? null
+  const pinnedDegraded = pinnedDegradedOf(view)
+  const problems = [
+    ...(view.mergedOn ? mergedFileProblems({ builtAt: view.builtAt, nowMs, staleMs }) : []),
+    ...(view.mergedOn && primary?.degraded ? [`${primary.label} listings are degraded.`] : []),
+    ...(pinnedDegraded.length ? [`You chose ${joinAnd(pinnedDegraded)}, so Freetvarr keeps using it while it is degraded.`] : []),
+    ...(grabber && !(grabber.enabled && isGuideFeedUrl(grabber.url)) ? ['The TVHeadend guide grabber does not read the Freetvarr merged guide.'] : []),
+  ]
+  const waiting = !view.mergedOn && view.repoint?.state !== 'kept' ? ' The merged guide is not in use yet; turn it on under SETTINGS → GUIDE.' : ''
+  if (!problems.length) return { status: 'pass', detail: `${detail}${waiting}` }
+  return {
+    status: 'warn',
+    detail: `${problems.join(' ')} ${detail}`,
+    fix: pinnedDegraded.length
+      ? 'Switch to Automatic, so Freetvarr uses the next source for each channel whose listings are degraded.'
+      : 'Open SETTINGS → GUIDE to see each source and channel.',
+    action: pinnedDegraded.length ? SWITCH_TO_AUTOMATIC : OPEN_GUIDE_SETTINGS,
+    summary: problems[0],
+  }
+}
+
+const sourceHealthLine = (source) => {
+  if (!source.measured) return `${source.label}: not measured yet.`
+  const parts = [
+    source.score === null ? null : `${source.score}% of channels healthy`,
+    `${plural(source.horizonDays, 'day')} ahead`,
+    source.lastSuccessAt ? `last success ${fmtStamp(source.lastSuccessAt)}` : 'no successful build yet',
+  ].filter(Boolean)
+  return `${source.label}: ${parts.join(', ')}${source.degraded ? ' (degraded)' : ''}.`
+}
+
+const pinnedDegradedOf = (view) => {
+  const labels = new Map(view.sources.map((source) => [source.id, source.label]))
+  const named = view.choice?.mode && view.choice.mode !== 'auto' && view.sources.find((source) => source.id === view.choice.mode)?.degraded
+    ? [labels.get(view.choice.mode)]
+    : []
+  const pinned = Object.entries(view.choice?.pins ?? {})
+    .filter(([channel, source]) => view.degradedPairs?.has(`${source}|${channel}`))
+    .map(([channel, source]) => `${labels.get(source) ?? source} for ${view.channels?.find((row) => row.id === channel)?.name ?? channel}`)
+  return [...named, ...pinned]
+}
+
+const mergedFileProblems = ({ builtAt, nowMs, staleMs }) => {
+  if (!builtAt) return ['Freetvarr has not built the merged guide yet.']
+  if (nowMs - builtAt <= staleMs) return []
+  return [`The merged guide was last built ${formatHours(Math.floor((nowMs - builtAt) / HOUR_MS))} ago.`]
+}
+
+const readGrabberOf = async (ctx) => {
+  const list = await ctx.read('epggrab/module/list')
+  const entry = (list?.entries || []).find((m) => URL_GRABBER_TITLE.test(m.title || ''))
+  if (!entry) return { enabled: false, url: '' }
+  const node = (await ctx.read('idnode/load', { uuid: entry.uuid }))?.entries?.[0]
+  const value = (id) => (node?.params || []).find((p) => p.id === id)?.value
+  return { enabled: value('enabled') === true, url: value('args') || '' }
+}
+
 const withFreeviewProblem = ({ detail, freeviewProblem }) => (freeviewProblem ? `${detail} ${freeviewProblem}` : detail)
 
 const pictureHostUsageOf = (programmes) => {
@@ -1067,6 +1138,7 @@ const defaultDeps = () => ({
   uid: () => process.getuid?.() ?? null,
   hostNames: async () => null,
   guidePictureHealth: readGuidePictureHealth,
+  guideSources: async () => null,
 })
 
 const URL_GRABBER_TITLE = /XMLTV URL grabber/i
@@ -1220,6 +1292,9 @@ const SETTINGS_PLAYER = { label: 'Open settings', href: '#/settings/player' }
 const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity/syncs' }
 const CREATE_ONE_OFF_PLACEHOLDER = { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' }
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }
+const OPEN_GUIDE_SETTINGS = { label: 'Open settings', href: '#/settings/guide' }
+const SWITCH_TO_AUTOMATIC = { label: 'Switch to Automatic', post: '/api/guide-sources/automatic', done: 'Switched the listings source to Automatic.' }
+const MERGED_STALE_MS = 12 * 60 * 60 * 1000
 const SETTINGS_HOSTNAMES = { label: 'Open setup', href: '#/settings/system/setup/hostnames' }
 const SHOWN_HOST_NAMES = 3
 const ALLOW_LABEL_NAME_LENGTH = 40

@@ -207,6 +207,10 @@ export const isGuideFeedUrl = (url) => {
   }
 }
 
+export const noteServedFeed = ({ res, watch }) => {
+  if (res.statusCode === 200 && res.writableFinished) watch.note()
+}
+
 export const createRequestWatch = ({ now = Date.now } = {}) => {
   let lastAt = 0
   const waiters = new Set()

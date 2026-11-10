@@ -253,6 +253,7 @@ test('getSeries: an unreachable TVHeadend still returns every row as a title mat
     loadSaving: async () => SAVING,
     loadOverrides: async () => new Map(),
     loadVariants: async () => new Map(),
+    loadCandidates: async () => new Set(),
     loadAirings: async () => [],
     loadState: async () => { throw new Error('TVHeadend is not reachable') },
     loadChannels: async () => [],
@@ -268,6 +269,7 @@ test('getSeries: passes the stale flag through from the recording state', async 
     loadSaving: async () => SAVING,
     loadOverrides: async () => new Map(),
     loadVariants: async () => new Map(),
+    loadCandidates: async () => new Set(),
     loadAirings: async () => [],
     loadState: async () => ({ seriesTags: [], upcomingRecordings: [], stale: true }),
     loadChannels: async () => { throw new Error('no guide') },
@@ -343,10 +345,11 @@ test('joinSeries: the next airing includes an upcoming airing of a chosen varian
   assert.equal(series.nextAiring?.programId, 900)
 })
 
-const variantDeps = ({ rules = [bigBrother()], stored = [] } = {}) => {
+const variantDeps = ({ rules = [bigBrother()], stored = [], candidates = new Set() } = {}) => {
   const calls = []
   const deps = {
     loadRules: async () => rules,
+    loadCandidates: async () => candidates,
     loadVariants: async (title) => {
       calls.push(['load', title])
       return stored
@@ -419,4 +422,11 @@ test('matchShow: the import files a chosen variant title under the series folder
   assert.equal(matchShow(withTitleVariants({ shows: [folder] }), 'Big Brother Australia'), undefined)
   const chase = show({ id: 8, show_pattern: 'The Chase', dest_folder: 'The Chase', origin: 'auto' })
   assert.equal(matchShow([chase], 'The Chase Australia'), undefined)
+})
+
+test('setSeriesTitleVariant: a Freeview variant candidate that agrees with the series title can be turned on', async () => {
+  const { calls, deps } = variantDeps({ candidates: new Set(['big brother unseen']) })
+  await setSeriesTitleVariant({ seriesLinkIds: ['x'], variant: 'Big Brother Unseen', enabled: true, ...deps })
+  assert.deepEqual(calls.find(([kind]) => kind === 'save')[2], ['Big Brother Unseen'])
+  await assert.rejects(setSeriesTitleVariant({ seriesLinkIds: ['x'], variant: 'Big Brother Unseen', enabled: true, ...variantDeps().deps }), TitleVariantError)
 })

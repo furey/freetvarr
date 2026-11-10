@@ -182,6 +182,7 @@ test('channels: Freeview maps to mjh ids by DVB triplet first, then LCN; unknown
       { id: 'mjh-bbc-news-fast', names: ['BBC News'], lcn: null },
     ],
     channelTriplets: new Map([['mjh-channel-9-nsw', ['1012:0420:0421']]]),
+    tvChannels: SEVEN_SD_UNLINKED,
     prefix: 'freeview',
   })
   assert.deepEqual(channels.map(({ id, primaryId, secondaryId }) => [id, primaryId, secondaryId]), [
@@ -190,6 +191,23 @@ test('channels: Freeview maps to mjh ids by DVB triplet first, then LCN; unknown
     ['mjh-bbc-news-fast', null, 'mjh-bbc-news-fast'],
     ['freeview.1013:0502:0520', '1013:0502:0520', null],
   ])
+  assert.deepEqual(channels.at(-1).names, ['7 Sydney SD'])
+})
+
+test('channels: a Freeview-only channel is written only for a TV channel with no mjh guide link, so TVHeadend cannot link it twice', () => {
+  const freeviewOnly = (tvChannels, savedChannels = null) => mapChannels({
+    primaryChannels: [{ id: '1013:0502:0520', names: ['Seven'], lcn: 7 }],
+    secondaryChannels: [{ id: 'mjh-bbc-news-fast', names: ['BBC News'], lcn: null }],
+    tvChannels,
+    savedChannels,
+    prefix: 'freeview',
+  }).map((channel) => channel.id)
+  assert.deepEqual(freeviewOnly(new Map([['1013:0502:0520', [{ id: 'c70', name: '7 Sydney', guideIds: ['mjh-seven-syd'] }]]])), ['mjh-bbc-news-fast'])
+  assert.deepEqual(freeviewOnly(new Map([['1013:0502:0520', [{ id: 'c70', name: '7 Sydney', guideIds: ['freeview.1013:0502:0520'] }]]])), ['mjh-bbc-news-fast', 'freeview.1013:0502:0520'])
+  assert.deepEqual(freeviewOnly(new Map()), ['mjh-bbc-news-fast'])
+  assert.deepEqual(freeviewOnly(null), ['mjh-bbc-news-fast'])
+  const saved = [{ id: 'freeview.1013:0502:0520', names: ['7 Sydney'], lcn: 7, primaryId: '1013:0502:0520', secondaryId: null }]
+  assert.deepEqual(freeviewOnly(null, saved), ['mjh-bbc-news-fast', 'freeview.1013:0502:0520'])
 })
 
 test('channels: with mjh down, the saved channel list keeps the mjh ids for Freeview channels', () => {
@@ -200,6 +218,7 @@ test('channels: with mjh down, the saved channel list keeps the mjh ids for Free
       { id: 'mjh-seven-syd', names: ['Seven'], lcn: 71, icon: null, primaryId: '1013:0502:0521', secondaryId: 'mjh-seven-syd' },
       { id: 'mjh-bbc-news-fast', names: ['BBC News'], lcn: null, icon: null, primaryId: null, secondaryId: 'mjh-bbc-news-fast' },
     ],
+    tvChannels: SEVEN_SD_UNLINKED,
     prefix: 'freeview',
   })
   assert.deepEqual(channels.map(({ id, primaryId, secondaryId }) => [id, primaryId, secondaryId]), [
@@ -207,6 +226,8 @@ test('channels: with mjh down, the saved channel list keeps the mjh ids for Free
     ['freeview.1013:0502:0520', '1013:0502:0520', null],
   ])
 })
+
+const SEVEN_SD_UNLINKED = new Map([['1013:0502:0520', [{ id: 'c70', name: '7 Sydney SD', guideIds: [] }]]])
 
 const sydneySources = ({ mjhChannels = [{ id: 'mjh-seven-syd', names: ['Seven'], lcn: 71 }], freeviewChannels = [{ id: '1013:0502:0521', names: ['7HD'], lcn: 71 }, { id: '1013:0502:0520', names: ['Seven'], lcn: 7 }] } = {}) => ({
   primary: {
@@ -238,7 +259,7 @@ const sydneySources = ({ mjhChannels = [{ id: 'mjh-seven-syd', names: ['Seven'],
 
 test('build: channels keep mjh ids, Freeview-only channels are added, mjh fills days past the Freeview horizon, aliases and variant candidates are saved', async () => {
   const { database, aliases } = await memoryAliases()
-  const { stats, xml } = await collect((out) => buildMergedGuide({ ...sydneySources(), aliases, now: () => NOW, out }))
+  const { stats, xml } = await collect((out) => buildMergedGuide({ ...sydneySources(), tvChannels: SEVEN_SD_UNLINKED, aliases, now: () => NOW, out }))
   assert.deepEqual(parseFeedChannels(xml).map((c) => c.id), ['mjh-seven-syd', 'freeview.1013:0502:0520'])
   const programmes = programmesOf(xml)
   assert.deepEqual(programmes.map((p) => [p.channel, p.title]), [
@@ -262,14 +283,14 @@ test('build: channels keep mjh ids, Freeview-only channels are added, mjh fills 
 test('build: a variant candidate seen later in mjh is dropped', async () => {
   const { database, aliases } = await memoryAliases()
   await aliases.save({ source: 'freeview-au', candidates: ['Home and Away'] })
-  await collect((out) => buildMergedGuide({ ...sydneySources(), aliases, now: () => NOW, out }))
+  await collect((out) => buildMergedGuide({ ...sydneySources(), tvChannels: SEVEN_SD_UNLINKED, aliases, now: () => NOW, out }))
   assert.deepEqual(await database('title_aliases').where({ kind: VARIANT_CANDIDATE }).pluck('source_title'), ['Brand New Show'])
 })
 
 test('last good file: a build where every source fails keeps the earlier merged file', async () => {
   const dir = await tempDir()
   const sources = sydneySources()
-  const first = await writeMergedGuide({ dir, ...sources, now: () => NOW })
+  const first = await writeMergedGuide({ dir, ...sources, tvChannels: SEVEN_SD_UNLINKED, now: () => NOW })
   assert.equal(first.programmes, 4)
   const before = await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))
   const down = new Error('HTTP 503')
@@ -279,16 +300,16 @@ test('last good file: a build where every source fails keeps the earlier merged 
   }
   await assert.rejects(writeMergedGuide({ dir, ...failing, now: () => NOW }), /every guide source failed/)
   assert.deepEqual(await fs.readFile(path.join(dir, MERGED_GUIDE_FILE)), before)
-  assert.deepEqual((await fs.readdir(dir)).sort(), ['channels.json', MERGED_GUIDE_FILE])
+  assert.deepEqual((await fs.readdir(dir)).sort(), ['channels.json', MERGED_GUIDE_FILE, 'merged.json'].sort())
 })
 
 test('last good file: mjh down with no saved channel list keeps the earlier file; with the saved list Freeview still writes mjh ids', async () => {
   const dir = await tempDir()
   const sources = sydneySources()
   const mjhDown = { ...sources, secondary: { ...sources.secondary, source: { ...sources.secondary.source, channels: async () => { throw new Error('HTTP 502') } } } }
-  await assert.rejects(writeMergedGuide({ dir, ...mjhDown, now: () => NOW }), /no earlier channel list/)
-  await writeMergedGuide({ dir, ...sources, now: () => NOW })
-  const stats = await writeMergedGuide({ dir, ...mjhDown, now: () => NOW })
+  await assert.rejects(writeMergedGuide({ dir, ...mjhDown, tvChannels: SEVEN_SD_UNLINKED, now: () => NOW }), /no earlier channel list/)
+  await writeMergedGuide({ dir, ...sources, tvChannels: SEVEN_SD_UNLINKED, now: () => NOW })
+  const stats = await writeMergedGuide({ dir, ...mjhDown, tvChannels: SEVEN_SD_UNLINKED, now: () => NOW })
   assert.equal(stats.secondaryOk, false)
   const xml = zlib.gunzipSync(await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))).toString('utf8')
   assert.deepEqual(parseFeedChannels(xml).map((c) => c.id), ['mjh-seven-syd', 'freeview.1013:0502:0520'])
@@ -317,6 +338,7 @@ test('scheduler: one build at a time, a request during a build runs once more af
     sources: { forCountry: (country) => (country === 'au' ? [sources.primary.source, countingSecondary] : []) },
     timeZone: () => 'Australia/Sydney',
     isServing: async () => serving,
+    channelTriplets: async () => ({ linked: new Map(), tvChannels: SEVEN_SD_UNLINKED }),
     now: () => NOW,
     log: { log: () => {}, warn: () => {} },
   })
@@ -352,4 +374,26 @@ test('categories: mjh categories stay when present; Freeview genres fill a slot 
     secondary: [slot({ title: 'Gruen', at: 0, categories: ['Comedy'] }), slot({ title: 'Hard Quiz', at: 60 })],
   })
   assert.deepEqual(merged.xml.map((xml) => parseProgrammeElement(xml).categories), [['Comedy'], ['Entertainment']])
+})
+
+test('built regions: the build records its regions, so a repoint knows when the file is for another mjh region', async () => {
+  const dir = await tempDir()
+  const sources = sydneySources()
+  let url = null
+  const merge = createGuideMerge({
+    dir,
+    sources: { forCountry: () => [sources.primary.source, sources.secondary.source] },
+    timeZone: () => 'Australia/Sydney',
+    sourceUrl: async () => url,
+    now: () => NOW,
+    log: { log: () => {}, warn: () => {} },
+  })
+  sources.secondary.source.regionOf = () => 'Sydney'
+  sources.primary.source.regionOf = () => 'region_nsw_sydney'
+  sources.secondary.source.regionOfUrl = (address) => (address === 'https://i.mjh.nz/au/Sydney/epg.xml' ? 'Sydney' : address === 'https://i.mjh.nz/au/Perth/epg.xml' ? 'Perth' : null)
+  assert.equal(await merge.matchesPlan(), false)
+  assert.equal(await merge.buildForPlan(), true)
+  assert.deepEqual(await merge.builtRegions(), { primaryRegion: 'region_nsw_sydney', secondaryRegion: 'Sydney' })
+  url = 'https://i.mjh.nz/au/Perth/epg.xml'
+  assert.equal(await merge.matchesPlan(), false)
 })

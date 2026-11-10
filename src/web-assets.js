@@ -3,7 +3,7 @@ import path from 'path'
 import express from 'express'
 import { cacheControlFor, stampAssetUrls, stampIndexHtml } from './build-id.js'
 
-export const webAssets = async ({ webRoot, build, nodeModules, pageHealth = async () => null, pageTimeZone = () => null }) => {
+export const webAssets = async ({ webRoot, build, nodeModules, pageHealth = async () => null, pageTimeZone = () => null, pageGuideNotice = () => null }) => {
   const preloads = await staticImportGraph({ webRoot, entry: BOOT_MODULE })
   const cacheControlOf = (req) => cacheControlFor({ requestedBuild: req.query.v, build })
   const router = express.Router()
@@ -19,7 +19,8 @@ export const webAssets = async ({ webRoot, build, nodeModules, pageHealth = asyn
     ])
     res.setHeader('Cache-Control', 'no-cache')
     const stamped = stampIndexHtml({ html, build, preloads })
-    res.type('html').send(withTimeZoneMeta({ html: withHealthMeta({ html: stamped, health }), timeZone: pageTimeZone() }))
+    const withMeta = withTimeZoneMeta({ html: withHealthMeta({ html: stamped, health }), timeZone: pageTimeZone() })
+    res.type('html').send(withGuideNoticeMeta({ html: withMeta, notice: pageGuideNotice() }))
   })
   router.get(STAMPED_TEXT_PATH, async (req, res, next) => {
     const source = await fs.readFile(path.join(webRoot, req.path), 'utf8').catch(() => null)
@@ -49,6 +50,10 @@ export const staticImportGraph = async ({ webRoot, entry }) => {
 
 export const withHealthMeta = ({ html, health }) => (health
   ? html.replace(CHARSET_META, () => `${CHARSET_META}\n    <meta name="freetvarr-health" content="${attributeOf(JSON.stringify(health))}" />`)
+  : html)
+
+export const withGuideNoticeMeta = ({ html, notice }) => (notice
+  ? html.replace(CHARSET_META, () => `${CHARSET_META}\n    <meta name="freetvarr-guide-notice" content="${attributeOf(JSON.stringify(notice))}" />`)
   : html)
 
 export const withTimeZoneMeta = ({ html, timeZone }) => (timeZone

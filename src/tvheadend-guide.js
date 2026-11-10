@@ -110,7 +110,21 @@ export const readTimeshifts = async ({ http, conn, feedChannels }) => {
 export const readGuideChannelTriplets = async ({ http, conn, listTriplets }) => {
   const inspection = await inspectGuide({ http, conn })
   const triplets = await listTriplets({ channels: inspection.channels.map((c) => ({ id: c.id, serviceIds: c.services })), conn })
-  return guideChannelTripletsOf({ ...inspection, triplets })
+  return { linked: guideChannelTripletsOf({ ...inspection, triplets }), tvChannels: tvChannelsByTripletOf({ ...inspection, triplets }) }
+}
+
+export const tvChannelsByTripletOf = ({ guideChannels, channels, triplets }) => {
+  const byTriplet = new Map()
+  for (const channel of channels) {
+    const guideIds = guideChannels
+      .filter((g) => g.channels.includes(channel.id) || channel.guide.includes(g.id))
+      .map((g) => g.xmltvId)
+    for (const triplet of triplets.get(String(channel.id)) ?? []) {
+      if (!byTriplet.has(triplet)) byTriplet.set(triplet, [])
+      byTriplet.get(triplet).push({ id: channel.id, name: channel.name, guideIds })
+    }
+  }
+  return byTriplet
 }
 
 export const guideChannelTripletsOf = ({ guideChannels, channels, triplets }) => new Map(guideChannels.map((g) => [
@@ -236,6 +250,178 @@ export const applyGuideSetup = async ({
       steps: progress.steps(),
     }
   }
+}
+
+export const planGuideRepoint = () => ({
+  steps: [
+    { id: 'merged', label: 'Turn on the merged guide' },
+    { id: 'point', label: 'Point TVHeadend at Freetvarr' },
+    { id: 'fetch', label: 'Wait for TVHeadend to fetch the guide' },
+    { id: 'link', label: 'Link the new channels' },
+    { id: 'verify', label: 'Check that the guide updated' },
+  ],
+})
+
+export const applyGuideRepoint = async ({
+  http,
+  conn,
+  feedUrl,
+  primaryPrefix = 'freeview',
+  turnOnMerged = async () => null,
+  restoreMerged = async () => {},
+  waitForRequest,
+  listTriplets = async () => new Map(),
+  journal = { save: async () => {}, clear: async () => {} },
+  fetchFeed = fetchFeedChannels,
+  onProgress = () => {},
+  pollMs = POLL_MS,
+  limitMs = DOWNLOAD_LIMIT_MS,
+  feedRequestLimitMs = FEED_REQUEST_LIMIT_MS,
+  updateLimitMs = UPDATE_LIMIT_MS,
+  now = Date.now,
+}) => {
+  const progress = createProgress({ steps: planGuideRepoint().steps, onProgress })
+  const undo = { startedAt: now(), grabber: null, merged: null, mergedOn: false, pointed: false, config: null, knownGuideIds: null, links: [] }
+  const remember = (patch) => journal.save(Object.assign(undo, patch))
+  let current = null
+  const run = async (stepId, action) => {
+    current = stepId
+    progress.start(stepId)
+    const result = await action()
+    progress.done(stepId)
+    return result
+  }
+  try {
+    await remember({})
+    const module = await run('merged', async () => {
+      const found = await findUrlGrabber({ http, conn })
+      if (!found) throw new GuideError('This TVHeadend has no guide download by URL.', 'no-grabber')
+      await remember({ grabber: found })
+      const previous = await turnOnMerged({
+        previousUrl: found.enabled ? found.url : '',
+        report: (detail) => progress.detail('merged', detail),
+        remember: (merged) => remember({ merged, mergedOn: true }),
+      })
+      await remember({ merged: previous, mergedOn: true })
+      return found
+    })
+    const { before, since } = await run('point', async () => {
+      const inspection = await inspectGuide({ http, conn })
+      const sample = inspection.channels.filter((c) => isLinked({ channel: c, guideChannels: inspection.guideChannels })).slice(0, VERIFY_SAMPLE)
+      const reading = { end: await readEpgEnd({ http, conn }), counts: await countsOf({ http, conn, channels: sample }) }
+      await remember({ knownGuideIds: inspection.guideChannels.map((g) => g.id) })
+      await enableGrabber({ http, conn, module, url: feedUrl })
+      await remember({ pointed: true })
+      await remember({ config: await keepGuideSaved({ http, conn }) })
+      const at = now()
+      await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+      return { before: reading, since: at }
+    })
+    await run('fetch', async () => {
+      if (!(await waitForRequest({ since, limitMs: feedRequestLimitMs }))) {
+        throw new GuideError('TVHeadend did not fetch the guide from Freetvarr.', 'not-fetched')
+      }
+    })
+    const linked = await run('link', async () => {
+      const feedChannels = await fetchFeed(feedUrl).catch((err) => {
+        throw new GuideError(`Freetvarr could not read its own guide (${err.message}).`, 'feed-unreachable')
+      })
+      const guideChannels = await waitForGuideChannels({
+        http,
+        conn,
+        feedChannels,
+        report: (detail) => progress.detail('link', detail),
+        pollMs,
+        limitMs,
+        now,
+      })
+      const [channels, serviceLcns] = await Promise.all([listTvChannels({ http, conn }), listServiceLcns({ http, conn })])
+      const triplets = await listTriplets({ channels: channels.map((c) => ({ id: c.id, serviceIds: c.services })), conn })
+      const saves = planRepointLinks({ channels, guideChannels, feedChannels, serviceLcns, triplets, primaryPrefix })
+      for (const save of saves) {
+        await remember({ links: [...undo.links, { guideId: save.guideId, channels: save.before }] })
+        await http.post('idnode/save', { node: JSON.stringify({ uuid: save.guideId, channels: save.channels }) }, conn)
+      }
+      if (saves.length) await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+      return saves.filter((save) => save.primaryOnly).flatMap((save) => save.channels)
+    })
+    const after = await run('verify', async () => {
+      const result = await waitForEpgChange({ http, conn, before, newChannels: linked, pollMs, limitMs: updateLimitMs, now })
+      if (!result.changed) throw new GuideError('TVHeadend fetched the guide, but its listings did not change.', 'not-updated')
+      return result
+    })
+    await journal.clear()
+    return { ok: true, grabberUrl: feedUrl, previousUrl: module.url, linked: linked.length, updated: true, programmes: after.total, steps: progress.steps() }
+  } catch (err) {
+    if (current) progress.fail(current)
+    const restored = await rollbackGuideRepoint({ http, conn, undo, restoreMerged }).then(() => true, () => false)
+    if (restored) await journal.clear().catch(() => {})
+    return {
+      ok: false,
+      failedStep: current,
+      code: err?.code || null,
+      error: err?.message || String(err),
+      restored,
+      steps: progress.steps(),
+    }
+  }
+}
+
+export const rollbackGuideRepoint = async ({ http, conn, undo, restoreMerged = async () => {} }) => {
+  const steps = []
+  try {
+    if (undo.links?.length || undo.knownGuideIds) {
+      const known = undo.knownGuideIds ? new Set(undo.knownGuideIds) : null
+      const restored = new Set()
+      for (const link of [...(undo.links ?? [])].reverse()) {
+        restored.add(link.guideId)
+        if (known && !known.has(link.guideId)) continue
+        await http.post('idnode/save', { node: JSON.stringify({ uuid: link.guideId, channels: link.channels }) }, conn)
+      }
+      if (known) {
+        const added = (await listGuideChannels({ http, conn })).filter((g) => !known.has(g.id) && g.channels.length)
+        for (const g of added) await http.post('idnode/save', { node: JSON.stringify({ uuid: g.id, channels: [] }) }, conn)
+      }
+      steps.push('links')
+    }
+    if (undo.config && Object.keys(undo.config).length) {
+      await http.post('epggrab/config/save', { node: JSON.stringify(undo.config) }, conn)
+      steps.push('config')
+    }
+    if (undo.pointed && undo.grabber) {
+      const { id, enabled, url, priority } = undo.grabber
+      await http.post('idnode/save', {
+        node: JSON.stringify({ uuid: id, enabled, args: url, ...(priority == null ? {} : { priority }) }),
+      }, conn)
+      await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+      steps.push('grabber')
+    }
+  } finally {
+    if (undo.mergedOn) await restoreMerged(undo.merged)
+  }
+  return steps
+}
+
+export const planRepointLinks = ({ channels, guideChannels, feedChannels, serviceLcns = new Map(), triplets = new Map(), primaryPrefix = 'freeview' }) => {
+  const isPrimaryOnly = (g) => g.xmltvId.startsWith(`${primaryPrefix}.`)
+  const others = guideChannels.filter((g) => !isPrimaryOnly(g))
+  const matched = matchGuideChannels({ channels, guideChannels: others, feedChannels, serviceLcns })
+  const saves = planGuideRelinks({ guideChannels: others, links: matched.links })
+    .map((save) => ({ ...save, before: others.find((g) => g.id === save.guideId).channels, primaryOnly: false }))
+  const linkedToOthers = new Set([
+    ...others.flatMap((g) => g.channels),
+    ...channels.filter((c) => c.guide.some((id) => others.some((g) => g.id === id))).map((c) => c.id),
+    ...matched.links.map((link) => link.channelId),
+  ])
+  for (const g of guideChannels.filter(isPrimaryOnly)) {
+    const triplet = g.xmltvId.slice(primaryPrefix.length + 1)
+    const wanted = channels
+      .filter((c) => !linkedToOthers.has(c.id) && (triplets.get(String(c.id)) ?? []).includes(triplet))
+      .map((c) => c.id)
+    const current = [...new Set([...g.channels, ...channels.filter((c) => c.guide.includes(g.id)).map((c) => c.id)])]
+    if (!sameMembers(current, wanted)) saves.push({ guideId: g.id, channels: wanted, before: current, primaryOnly: true })
+  }
+  return saves
 }
 
 export const readGuideLinks = async ({ http, conn, countProgrammes = countFeedProgrammes }) => {
@@ -374,6 +560,7 @@ const findUrlGrabber = async ({ http, conn }) => {
     key: value('path') || entry.uuid,
     enabled: value('enabled') === true,
     url: value('args') || '',
+    priority: value('priority') ?? null,
   }
 }
 
@@ -393,6 +580,30 @@ const pointGrabberAtShiftedFeed = async ({ http, conn, module, url, shiftedFeed,
   return shiftedFeed.waitForRequest({ since, limitMs })
 }
 
+const readEpgEnd = async ({ http, conn }) => {
+  const body = await http.get('epg/events/grid', { sort: 'stop', dir: 'DESC', limit: 1 }, conn)
+  return { total: Number(body?.totalCount) || 0, lastStop: Number(body?.entries?.[0]?.stop) || 0 }
+}
+
+const countsOf = async ({ http, conn, channels }) => new Map(await Promise.all(channels.map(async (c) =>
+  [c.id, await countChannelEvents({ http, conn, channelId: c.id })])))
+
+const waitForEpgChange = async ({ http, conn, before, newChannels = [], pollMs, limitMs, now }) => {
+  const startedAt = now()
+  for (;;) {
+    const end = await readEpgEnd({ http, conn })
+    const [counts, fresh] = await Promise.all([
+      countsOf({ http, conn, channels: [...before.counts.keys()].map((id) => ({ id })) }),
+      countsOf({ http, conn, channels: newChannels.map((id) => ({ id })) }),
+    ])
+    const changed = end.lastStop > before.end.lastStop
+      || [...counts].some(([id, count]) => count > 0 && count !== before.counts.get(id))
+      || [...fresh.values()].some((count) => count > 0)
+    if (changed || now() - startedAt >= limitMs) return { total: end.total, changed }
+    await sleep(pollMs)
+  }
+}
+
 const keepGuideSaved = async ({ http, conn }) => {
   const config = (await http.get('epggrab/config/load', {}, conn))?.entries?.[0]
   const value = (id) => (config?.params || []).find((p) => p.id === id)?.value
@@ -400,8 +611,9 @@ const keepGuideSaved = async ({ http, conn }) => {
     ...(Number(value('epgdb_periodicsave')) === 0 ? { epgdb_periodicsave: 1 } : {}),
     ...(value('epgdb_saveafterimport') === false ? { epgdb_saveafterimport: true } : {}),
   }
-  if (!Object.keys(changes).length) return
+  if (!Object.keys(changes).length) return {}
   await http.post('epggrab/config/save', { node: JSON.stringify(changes) }, conn)
+  return Object.fromEntries(Object.keys(changes).map((key) => [key, value(key)]))
 }
 
 const waitForGuideChannels = async ({ http, conn, feedChannels, report, pollMs, limitMs, now }) => {
@@ -652,6 +864,8 @@ const GRID_LIMIT = 5000
 const POLL_MS = 3000
 const DOWNLOAD_LIMIT_MS = 5 * 60_000
 const FEED_REQUEST_LIMIT_MS = 150_000
+const UPDATE_LIMIT_MS = 5 * 60_000
+const VERIFY_SAMPLE = 8
 const FEED_TIMEOUT_MS = 30_000
 const FEED_HEAD_BYTES = 2 * 1024 * 1024
 const PROGRAMME_TAG = '<programme'

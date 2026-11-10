@@ -2299,6 +2299,47 @@ a.ui-banner:hover {
   stroke-width: 2.5;
 }
 
+.guide-notice {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--color-surface-2);
+  font-size: 14px;
+}
+
+.guide-notice-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  color: inherit;
+  text-decoration: none;
+}
+
+.guide-notice .guide-notice-link,
+.guide-notice .guide-notice-link:hover {
+  color: var(--color-text-1);
+}
+
+.guide-notice-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.guide-notice-text {
+  text-wrap: pretty;
+}
+
+.guide-notice .health-alert-close {
+  align-self: stretch;
+  height: auto;
+  min-height: 44px;
+}
+
 .ui-header-chip.health-alert-chip {
   max-width: 360px;
   padding: 0 0 0 12px;
