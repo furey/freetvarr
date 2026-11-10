@@ -37,7 +37,7 @@ export const GuideSettingsView = {
           <p>Each time it builds the merged guide, Freetvarr scores each source on each channel: the hours of the next 2 days it covers, how many days ahead it goes, how many listings have a description, and how many listings the other source agrees with.</p>
         </info-button>
       </teleport>
-      <p v-if="error" class="ui-banner is-error" role="alert"><rich-text :text="error" /></p>
+      <p v-if="error" class="ui-banner is-error" role="alert"><span><rich-text :text="error" /></span></p>
       <div v-if="!status && !error" class="ui-group ui-skeleton-surface" aria-hidden="true">
         <div v-for="i in 4" :key="i" class="ui-group-row"><span class="ui-skeleton is-line"></span></div>
       </div>

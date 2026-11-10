@@ -1,10 +1,11 @@
 export const richTextParts = (text = '') => {
   const value = String(text ?? '')
+  if (value.length > MAX_PARSED_LENGTH) return [{ code: false, text: value }]
   const parts = []
   let last = 0
   for (const match of value.matchAll(ADDRESS)) {
     const token = match[0].replace(TRAILING_PUNCTUATION, '')
-    if (!token) continue
+    if (!token || isLabelledNumber(token)) continue
     if (match.index > last) parts.push({ code: false, text: value.slice(last, match.index) })
     parts.push({ code: true, text: token })
     last = match.index + token.length
@@ -21,6 +22,10 @@ export const RichText = {
   },
 }
 
+const isLabelledNumber = (token) => SINGLE_LABEL_PORT.test(token) && /[A-Z]/.test(token)
+
+const MAX_PARSED_LENGTH = 2000
+const SINGLE_LABEL_PORT = /^[a-z][a-z0-9-]*:\d+$/i
 const URL = String.raw`\b(?:https?|rtsp|htsp)://[^\s<>"']+`
 const HOST_PORT = String.raw`\b[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)*:\d{2,5}\b(?:/[^\s<>"']*)?`
 const IP = String.raw`\b\d{1,3}(?:\.\d{1,3}){3}(?::\d{2,5})?\b(?:/[^\s<>"']*)?`

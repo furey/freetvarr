@@ -21,3 +21,11 @@ test('rich text: source names, times, and fractions stay plain, and the text is 
   assert.equal(richTextParts(mixed).map((part) => part.text).join(''), mixed)
   assert.deepEqual(codes(mixed), ['https://epg.pw/xmltv/epg_AU.xml.gz'])
 })
+
+test('rich text: labelled numbers stay plain, and long text is not parsed', () => {
+  assert.deepEqual(codes('TVHeadend said Status:500, then answered on nas:9981.'), ['nas:9981'])
+  const text = 'a.'.repeat(5000)
+  const started = Date.now()
+  assert.deepEqual(richTextParts(text), [{ code: false, text }])
+  assert.ok(Date.now() - started < 50)
+})
