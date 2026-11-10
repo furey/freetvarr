@@ -11,11 +11,16 @@ set -euo pipefail
 # frame is rendered on schedule at 60 fps however slow the machine is. It
 # reads the server from start-server.sh, answers everything else with the
 # fixtures in ../capture-demo-api.mjs, and writes nothing to the server.
+# With TOUR=record, record the "Record something" step instead: the TV guide,
+# Record on Big Wave Season, then Every episode on a later series, into
+# docs/public/record-demo.mp4, record-demo-1x.mp4, and record-demo-poster.jpg.
+#
 # encode-screencast.sh then encodes the frames on the host, and
 # upload-docs-media.sh publishes them (DOCS_MEDIA_UPLOAD=0 skips that).
 #
 #   ./scripts/capture-demo-beginframe/capture.sh
 #   TOUR=hero ./scripts/capture-demo-beginframe/capture.sh
+#   TOUR=record ./scripts/capture-demo-beginframe/capture.sh
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 CAPTURE_DIR="${CAPTURE_DIR:-${REPO_ROOT}/scripts/.cache/capture-server}"
@@ -57,7 +62,7 @@ docker run --rm --init --cpus="${CAPTURE_CPUS:-6}" --add-host=host.docker.intern
   -e LIVE_TUNING_MS="${LIVE_TUNING_MS:-$DEFAULT_TUNING_MS}" \
   -e CHROME_BIN="$CHROME_BIN" \
   -e TOUR="$TOUR" \
-  -e FILM_TITLE -e SERIES_TITLE -e SHOW_TITLE \
+  -e FILM_TITLE -e SERIES_TITLE -e SHOW_TITLE -e RECORD_SERIES_TITLE \
   -e "HIDDEN_TITLES=${HIDDEN_TITLES:-$DEFAULT_HIDDEN_TITLES}${EXTRA_HIDDEN_TITLES:+|$EXTRA_HIDDEN_TITLES}" \
   -e "HERO_SHOWCASE=${HERO_SHOWCASE:-$DEFAULT_HERO_SHOWCASE}" \
   "$IMAGE" node /repo/scripts/capture-demo-beginframe/tour.mjs /frames
@@ -83,11 +88,12 @@ if [ "$TOUR" = "hero" ]; then
   echo "[demo] done:"
   ls -lh "$HERO_MASTER" "$HERO"
 else
+  VIDEO_NAME=$([ "$TOUR" = "record" ] && echo record-demo || echo demo)
   VIDEO_FPS="$FPS" "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" \
-    "${REPO_ROOT}/docs/public/demo.mp4" "${REPO_ROOT}/docs/public/demo-poster.jpg" 0
+    "${REPO_ROOT}/docs/public/${VIDEO_NAME}.mp4" "${REPO_ROOT}/docs/public/${VIDEO_NAME}-poster.jpg" 0
   echo "[demo] done:"
-  ls -lh "${REPO_ROOT}/docs/public/demo.mp4" "${REPO_ROOT}/docs/public/demo-1x.mp4" \
-    "${REPO_ROOT}/docs/public/demo-poster.jpg"
+  ls -lh "${REPO_ROOT}/docs/public/${VIDEO_NAME}.mp4" "${REPO_ROOT}/docs/public/${VIDEO_NAME}-1x.mp4" \
+    "${REPO_ROOT}/docs/public/${VIDEO_NAME}-poster.jpg"
 fi
 
 "$REPO_ROOT/scripts/upload-docs-media.sh"

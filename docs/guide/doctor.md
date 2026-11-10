@@ -82,11 +82,15 @@ Counts the channels that have a TVHeadend icon. It skips when there are no chann
 
 ## Guide pictures {#guide-pictures}
 
-Checks whether the pictures in the TV guide still load. Each guide programme can name a picture on a website (the host). Freetvarr notes whether each of its recent picture downloads worked, and this check reads those notes; it sends no request of its own. It skips when the TV guide names no pictures.
+Counts the titles in the TV guide that have a picture. It takes each title that airs in the next `48` hours, and checks whether Freetvarr has a picture for it from any source: a saved copy, the programme's own picture, a Freeview picture, an online lookup, or a frame from a recording. A channel logo or a channel default image in place of a programme picture counts as no picture. It reads only what Freetvarr already has; it sends no request of its own. It skips when the guide has nothing in the next `48` hours.
 
-It warns when a host that serves `50` or more programmes in the TV guide failed at least half of its last picture downloads. The warning names the host, how many downloads failed, and how many of that host's titles have a saved copy. After each guide refresh, Freetvarr saves a copy of each guide picture. A programme shows its own picture, then the saved copy of that picture, then the title's newest saved copy, so it keeps a picture after the host stops serving it. Titles with no saved copy show a picture from another source.
+Each guide programme can name a picture on a website (the host). Freetvarr notes whether each of its recent picture downloads worked. A host that failed at least half of its last `10` or more downloads counts as failing, and its titles count only when another source covers them. After each guide refresh, Freetvarr saves a copy of each guide picture, so a title keeps its picture after the host stops serving it.
 
-In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview.com.au/) for titles whose guide picture fails or is missing. It picks the Freeview region from your time zone (each state and territory capital, plus Broken Hill), and matches each programme by its channel and start time. Outside Australia this step is off. It also needs the Admin right in TVHeadend to read the channel lists; without it, this check says that Freeview pictures are off and why.
+The check passes when at least `80%` of the titles have a picture. The detail names each failing host and how many of its titles other sources cover, for example: "Pictures for 548 of 564 guide titles in the next 48 h. Pictures from images.example.com fail to load; other sources cover 45 of its 51 titles."
+
+It warns when fewer than `80%` of the titles have a picture. Check that Freetvarr can reach the internet, and that **Missing pictures** is on under **SETTINGS → FILM AND TV INFO** ([Missing pictures](/guide/tv-guide#missing-pictures)). Freetvarr fills in pictures after each guide load, so run the check again after the next one.
+
+In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview.com.au/) for titles whose guide picture fails or is missing. It picks the Freeview region from your time zone (each state and territory capital, plus Broken Hill), and matches each programme by its channel and start time. Outside Australia this step is off. It also needs the Admin right in TVHeadend to read the channel lists; without it, this check warns that Freeview pictures are off and asks you to give the Freetvarr user in TVHeadend the Admin right.
 
 ## Guide sources {#guide-sources}
 

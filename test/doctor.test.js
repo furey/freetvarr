@@ -748,54 +748,77 @@ test('keepOneOffFolder: leaves a missing one-off folder alone', async () => {
   assert.equal(await fs.access(missing).then(() => true, () => false), false)
 })
 
-const pictureAirings = ({ host, count, titles = 10 }) => Array.from({ length: count }, (_, index) => ({
-  title: `Show ${index % titles}`,
-  image: `https://${host}/show-${index % titles}.jpg`,
+const PICTURE_NOW = Date.parse('2026-11-10T00:00:00Z')
+const HOUR = 60 * 60 * 1000
+
+const pictureAirings = ({ host, count, titles = 10, prefix = 'Show', startMs = PICTURE_NOW }) => Array.from({ length: count }, (_, index) => ({
+  title: `${prefix} ${index % titles}`,
+  image: host ? `https://${host}/${prefix.toLowerCase()}-${index % titles}.jpg` : null,
+  start: startMs + index * HOUR / 2,
+  end: startMs + (index + 1) * HOUR / 2,
 }))
 
-test('guidePicturesCheck: warns when a host with 50 or more airings fails half its picture loads, naming the host and saved coverage', () => {
-  const programmes = [...pictureAirings({ host: 'images.example.com', count: 60 }), ...pictureAirings({ host: 'cdn.example.net', count: 5, titles: 1 })]
-  const check = guidePicturesCheck({
-    programmes,
-    hosts: new Map([['images.example.com', { tried: 40, failed: 20 }], ['cdn.example.net', { tried: 20, failed: 20 }]]),
-    savedTitleKeys: new Set(['show 1', 'show 2', 'show 3']),
-  })
+const failingHost = new Map([['images.example.com', { tried: 13, failed: 13 }]])
+
+test('guidePicturesCheck: passes when saved copies and other sources cover a failing host, naming it as information', () => {
+  const programmes = [...pictureAirings({ host: 'images.example.com', count: 20 }), ...pictureAirings({ host: 'cdn.example.net', count: 10, titles: 5, prefix: 'Film' })]
+  const savedTitleKeys = new Set(Array.from({ length: 9 }, (_, index) => `show ${index}`))
+  const check = guidePicturesCheck({ programmes, hosts: failingHost, savedTitleKeys, picturedTitleKeys: new Set(['show 9']), nowMs: PICTURE_NOW })
+  assert.equal(check.status, 'pass')
+  assert.equal(check.detail, 'Pictures for 15 of 15 guide titles in the next 48 h. Pictures from images.example.com fail to load; other sources cover 10 of its 10 titles.')
+})
+
+test('guidePicturesCheck: warns when under 80% of guide titles have a picture, with a fix the user can act on', () => {
+  const programmes = pictureAirings({ host: 'images.example.com', count: 20 })
+  const check = guidePicturesCheck({ programmes, hosts: failingHost, savedTitleKeys: new Set(['show 0', 'show 1']), nowMs: PICTURE_NOW })
   assert.equal(check.status, 'warn')
-  assert.equal(check.detail, 'images.example.com: 20 of the last 40 pictures failed to load. Saved copies cover 3 of the 10 titles that use it.')
-  assert.equal(check.summary, 'Guide pictures from images.example.com fail to load.')
+  assert.equal(check.detail, 'Only 20% of guide titles have a picture. Pictures for 2 of 10 guide titles in the next 48 h. Pictures from images.example.com fail to load; other sources cover 2 of its 10 titles.')
+  assert.match(check.fix, /reach the internet/)
+  assert.doesNotMatch(check.fix, /guide provider/)
+  assert.equal(check.action.href, '#/settings/film-tv-info')
+  assert.equal(check.summary, 'Many guide titles have no picture.')
   assert.equal(healthSummaryOf({ doctorChecks: [{ ...check, group: 'guide', title: 'Guide pictures' }] }).sentence, check.summary)
 })
 
-test('guidePicturesCheck: passes under 50 airings, under half failed, or with fewer than 10 tries', () => {
-  const failing = { tried: 40, failed: 30 }
-  const run = ({ count, stats }) => guidePicturesCheck({
-    programmes: pictureAirings({ host: 'images.example.com', count }),
-    hosts: new Map([['images.example.com', stats]]),
-    savedTitleKeys: new Set(['show 0']),
-  }).status
-  assert.equal(run({ count: 49, stats: failing }), 'pass')
-  assert.equal(run({ count: 50, stats: failing }), 'warn')
-  assert.equal(run({ count: 80, stats: { tried: 40, failed: 19 } }), 'pass')
-  assert.equal(run({ count: 80, stats: { tried: 9, failed: 9 } }), 'pass')
-  const passed = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 60 }), savedTitleKeys: new Set(['show 0']) })
-  assert.equal(passed.detail, 'Guide pictures come from images.example.com. Saved copies cover 1 of 10 titles.')
+test('guidePicturesCheck: counts a working host, a title without a picture address, and only the next 48 h', () => {
+  const working = pictureAirings({ host: 'images.example.com', count: 4, titles: 4 })
+  const bare = pictureAirings({ host: null, count: 1, titles: 1, prefix: 'News' })
+  const later = pictureAirings({ host: null, count: 3, titles: 3, prefix: 'Later', startMs: PICTURE_NOW + 49 * HOUR })
+  const check = guidePicturesCheck({ programmes: [...working, ...bare, ...later], hosts: new Map([['images.example.com', { tried: 20, failed: 2 }]]), nowMs: PICTURE_NOW })
+  assert.equal(check.status, 'pass')
+  assert.equal(check.detail, 'Pictures for 4 of 5 guide titles in the next 48 h.')
+  const untried = guidePicturesCheck({ programmes: working, hosts: new Map([['images.example.com', { tried: 9, failed: 9 }]]), nowMs: PICTURE_NOW })
+  assert.equal(untried.detail, 'Pictures for 4 of 4 guide titles in the next 48 h.')
+})
+
+test('guidePicturesCheck: counts a title whose only guide picture is a stand-in, such as a channel logo, as missing', () => {
+  const programmes = pictureAirings({ host: 'images.example.com', count: 4, titles: 4 })
+  const placeholderSources = new Set(['https://images.example.com/show-0.jpg', 'https://images.example.com/show-1.jpg'])
+  const check = guidePicturesCheck({ programmes, hosts: new Map(), placeholderSources, picturedTitleKeys: new Set(['show 1']), nowMs: PICTURE_NOW })
+  assert.equal(check.detail, 'Only 75% of guide titles have a picture. Pictures for 3 of 4 guide titles in the next 48 h.')
+})
+
+test('guidePicturesCheck: skips with a neutral note when the guide has nothing in the next 48 h', () => {
+  assert.deepEqual(guidePicturesCheck({ programmes: [], nowMs: PICTURE_NOW }), { status: 'skip', detail: 'The guide has no programmes in the next 48 h yet.' })
 })
 
 test('runDoctor: the guide pictures check reads the guide and the recorded host results, with no web request', async () => {
   const now = Date.now()
-  const programmes = pictureAirings({ host: 'images.example.com', count: 60 })
+  const programmes = pictureAirings({ host: 'images.example.com', count: 20, startMs: now })
   const guide = async () => ({ channels: [], programsByChannel: { one: programmes } })
   const guidePictureHealth = async () => ({ hosts: new Map([['images.example.com', { tried: 20, failed: 15 }]]), savedTitleKeys: new Set() })
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, guide, guidePictureHealth }))['guide.pictures']
   assert.equal(check.status, 'warn')
-  assert.match(check.detail, /^images\.example\.com: 15 of the last 20 pictures failed to load\. Saved copies cover 0 of the 10 titles/)
+  assert.match(check.detail, /^Only 0% of guide titles have a picture. Pictures for 0 of 10 guide titles/)
 })
 
-test('guidePicturesCheck: says when Freeview pictures are off and why', () => {
-  const freeviewProblem = 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off. Give the Freetvarr user in TVHeadend the Admin right.'
-  const check = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 10 }), freeviewProblem })
-  assert.equal(check.status, 'pass')
-  assert.ok(check.detail.endsWith(freeviewProblem))
+test('guidePicturesCheck: warns when Freeview pictures are off, with the reason and its fix', () => {
+  const freeviewProblem = { detail: 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off.', fix: 'In TVHeadend, give the Freetvarr user the Admin right.' }
+  const check = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 10 }), freeviewProblem, nowMs: PICTURE_NOW })
+  assert.equal(check.status, 'warn')
+  assert.equal(check.detail, 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off. Pictures for 10 of 10 guide titles in the next 48 h.')
+  assert.equal(check.fix, 'In TVHeadend, give the Freetvarr user the Admin right.')
+  assert.equal(check.summary, 'Freeview pictures are off.')
 })
 
 const sourcesView = (overrides = {}) => ({

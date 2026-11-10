@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { loopbackRouterOf } from './capture-loopback.mjs'
 
@@ -20,7 +20,7 @@ export const simulatedNow = () => {
 
 export const prepareDemoContext = async ({ context, base, simNow }) => {
   loopbackRouterOf(base)?.reset()
-  const guide = withLiveDemoSlot(simNow)(await fetchJson({ request: context.request, url: `${base}/api/epg/guide?day=0` }))
+  const guide = withoutPlaceholderPictures(withLiveDemoSlot(simNow)(await fetchJson({ request: context.request, url: `${base}/api/epg/guide?day=0` })))
   const picks = await pickShowcase({ request: context.request, base, guide, simNow })
   const state = await fetchJson({ request: context.request, url: `${base}/api/epg/state` })
   const fixtures = demoFixtures({ simNow, picks })
@@ -55,7 +55,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await route(/\/api\/recording-now(\?|$)/, (route) => fulfillJson(route, fixtures.recordingNow))
   await route(/\/api\/activity(\?|$)/, (route) => fulfillJson(route, fixtures.activity))
   await route(/\/api\/activity\/summary(\?|$)/, (route) => fulfillJson(route, { running: fixtures.activity.runningCount }))
-  await route('**/api/activity/stream', (route) => route.fulfill({
+  await route(/\/api\/activity\/stream(\?|$)/, (route) => route.fulfill({
     status: 200,
     contentType: 'text/event-stream',
     body: `event: jobs\ndata: ${JSON.stringify(jobsOf(fixtures.activity))}\n\n`,
@@ -70,7 +70,7 @@ export const prepareDemoContext = async ({ context, base, simNow }) => {
   await route('**/api/live/tuner-status', (route) => fulfillJson(route, fixtures.tunerStatus))
   await route('**/api/library/items/*/image**', plexItemImage({ base }))
   await route('**/api/tv-login', (route) => fulfillJson(route, {}))
-  await route('**/api/library/delete/preview', (route) => route.continue())
+  await route('**/api/library/delete/preview', rewriteJson(({ blocked, ...preview }) => preview))
   await route('**/api/tvh-guide/links', (route) => fulfillJson(route, demoGuideLinks(guide)))
   await route(/\/api\/live(\/|\?|$)(?!tuner-status)/, demoLiveTv())
   await route('**/api/epg/record', desk.recordOneOff)
@@ -379,6 +379,15 @@ const LIVE_DEMO_PROGRAMME = {
   has_image: true,
   classification: 'PG',
 }
+const PLACEHOLDERS_FILE = process.env.CAPTURE_PLACEHOLDERS_FILE
+  || join(import.meta.dirname, '.cache/capture-server/placeholder-pictures.txt')
+const placeholderTitles = existsSync(PLACEHOLDERS_FILE)
+  ? new Map(readFileSync(PLACEHOLDERS_FILE, 'utf8').split('\n').filter(Boolean).map((line) => {
+    const [id, title, swap] = line.split('\t')
+    return [id, { title, hasShowPicture: swap === 'show' }]
+  }))
+  : new Map()
+const PROGRAMME_IMAGES = /\/api\/epg\/image\/([^/?\s",]+)(\?[^\s",]*)?/g
 const HERO_SHOWCASE = (process.env.HERO_SHOWCASE ?? 'Big Brother|The Witches Of Eastwick|Civil War|Seven|Vera')
   .split('|')
   .map((title) => title.trim())
@@ -447,13 +456,13 @@ const upNextAll = ({ guide, simNow, fits }) => {
   const channels = visibleChannels(guide)
   return [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
     .flatMap((channel) => programsOf(guide, channel)
-      .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && p.has_image && !isHiddenEntry(p) && fits(p))
+      .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && hasRealPicture(p) && !isHiddenEntry(p) && fits(p))
       .slice(0, 1)
       .map((program) => ({ channel, program })))
 }
 
 const onAirWithImage = ({ guide, simNow }) => visibleChannels(guide).flatMap((channel) => {
-  const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && p.has_image && p.kind !== 'movie')
+  const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && hasRealPicture(p) && p.kind !== 'movie')
   return program ? [{ channel, program }] : []
 })
 
@@ -499,8 +508,29 @@ const liveDemoPoster = async (route) => {
   const url = new URL(route.request().url())
   const programId = decodeURIComponent(url.pathname.split('/').at(-1))
   const isLiveDemo = liveDemoProgramIds.has(programId) || url.searchParams.get('title') === LIVE_DEMO_PROGRAMME.title
-  if (!isLiveDemo || !existsSync(LIVE_DEMO_POSTER)) return route.fallback()
-  return route.fulfill({ path: LIVE_DEMO_POSTER, contentType: 'image/jpeg' })
+  if (isLiveDemo && existsSync(LIVE_DEMO_POSTER)) return route.fulfill({ path: LIVE_DEMO_POSTER, contentType: 'image/jpeg' })
+  const placeholder = placeholderTitles.get(programId)
+  if (!placeholder) return route.fallback()
+  if (!placeholder.hasShowPicture) return route.fulfill({ status: 404, headers: { 'cache-control': 'no-store', 'x-art-state': 'final' }, body: '' })
+  const showImage = withShowImages(`${url.pathname}${url.search}`)
+  return route.fulfill({ response: await route.fetch({ url: new URL(showImage, url).href }) })
+}
+
+const hasRealPicture = (programme) => programme.has_image && !placeholderTitles.has(String(programme.program_id))
+
+const withShowImages = (text) => text.replace(PROGRAMME_IMAGES, (path, id, query = '') => {
+  const { title, hasShowPicture } = placeholderTitles.get(decodeURIComponent(id)) ?? {}
+  return hasShowPicture ? `/api/epg/show-image?title=${encodeURIComponent(title)}${query.replace(/^\?/, '&')}` : path
+})
+
+const withoutPlaceholderPictures = (value) => {
+  if (!placeholderTitles.size) return value
+  if (typeof value === 'string') return withShowImages(value)
+  if (Array.isArray(value)) return value.map(withoutPlaceholderPictures)
+  if (!value || typeof value !== 'object') return value
+  const swapped = Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, withoutPlaceholderPictures(entry)]))
+  const placeholder = value.has_image && placeholderTitles.get(String(value.program_id))
+  return placeholder && !placeholder.hasShowPicture ? { ...swapped, has_image: false } : swapped
 }
 
 const prepareLiveDemoPoster = () => {
@@ -882,7 +912,7 @@ const passThroughRead = ignoreClosed(async (route) => {
   if (!type.includes('application/json')) return route.fulfill({ response })
   const text = maskPaths(await response.text())
   if (!response.ok()) return route.fulfill({ response, body: text })
-  return route.fulfill({ response, body: JSON.stringify(withoutHiddenTitles(JSON.parse(text), new URL(request.url()))) })
+  return route.fulfill({ response, body: JSON.stringify(withoutPlaceholderPictures(withoutHiddenTitles(JSON.parse(text), new URL(request.url())))) })
 })
 
 const rememberImage = ({ url, response, body }) => {
@@ -901,7 +931,8 @@ const epgImagePathsOf = (value) => {
 
 const FOR_YOU_MIN_ROW = 5
 
-const withoutArtlessItems = ({ base }) => async (data) => {
+const withoutArtlessItems = ({ base }) => async (served) => {
+  const data = withoutPlaceholderPictures(served)
   const paths = [...new Set(epgImagePathsOf(data))]
   const statuses = await Promise.all(paths.map(async (path) => [path, (await fetch(`${base}${path}`)).ok]))
   const missing = new Set(statuses.filter(([, ok]) => !ok).map(([path]) => path))
@@ -945,7 +976,7 @@ const rewriteJson = (transform) => ignoreClosed(async (route) => {
   } catch {
     return route.fulfill({ response })
   }
-  return fulfillJson(route, withoutHiddenTitles(await transform(data, url), url))
+  return fulfillJson(route, withoutPlaceholderPictures(withoutHiddenTitles(await transform(data, url), url)))
 })
 
 const withHeroShowcase = ({ guide, upcoming, simNow }) => (data) => {

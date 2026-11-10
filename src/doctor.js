@@ -13,7 +13,7 @@ import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
 import { getSchedulerExpression } from './scheduler.js'
-import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage } from './epg.js'
+import { freeviewPictureProblem, getGuideSnapshot, guidePictureCoverage, placeholderPictureSources } from './epg.js'
 import { guideImageHosts, hostOfSource } from './programme-images.js'
 import { broadcastGuideHealthOf } from './broadcast-guide-health.js'
 import { showTitleKey } from './show-artwork.js'
@@ -369,9 +369,10 @@ const LATER_CHECKS = [
     run: async (ctx) => {
       const guide = await settleWithin(ctx.deps.guide(), ctx.timeoutMs / 2)
       const programmes = Object.values(guide?.programsByChannel ?? {}).flat()
-      if (!programmes.some((programme) => hostOfSource(programme.image))) return { status: 'skip', detail: 'The guide has no picture addresses.' }
+        .filter((programme) => airsWithin({ programme, nowMs: ctx.now, windowMs: PICTURE_WINDOW_MS }))
+      if (!programmes.length) return NOTHING_AIRS_SOON
       const health = await ctx.deps.guidePictureHealth()
-      return guidePicturesCheck({ programmes, ...health })
+      return guidePicturesCheck({ programmes, ...health, nowMs: ctx.now })
     },
   },
   {
@@ -723,30 +724,43 @@ export const guidePicturesCheck = ({
   programmes = [],
   hosts = new Map(),
   savedTitleKeys = new Set(),
+  picturedTitleKeys = new Set(),
+  placeholderSources = new Set(),
   freeviewProblem = null,
-  minAirings = PICTURE_HOST_MIN_AIRINGS,
+  nowMs = Date.now(),
+  windowMs = PICTURE_WINDOW_MS,
   minTried = PICTURE_HOST_MIN_TRIED,
   failShare = PICTURE_HOST_FAIL_SHARE,
+  minShare = PICTURE_MIN_SHARE,
 }) => {
-  const usage = pictureHostUsageOf(programmes)
-  const covered = (titleKeys) => [...titleKeys].filter((key) => savedTitleKeys.has(key)).length
-  const allTitles = new Set([...usage.values()].flatMap((use) => [...use.titleKeys]))
-  const failing = [...usage]
-    .map(([host, use]) => ({ host, ...use, ...(hosts.get(host) ?? { tried: 0, failed: 0 }) }))
-    .filter((use) => use.airings >= minAirings && use.tried >= minTried && use.failed / use.tried >= failShare)
-    .sort((a, b) => b.airings - a.airings)
-  if (!failing.length) {
+  const airings = programmes.filter((programme) => airsWithin({ programme, nowMs, windowMs }))
+  const titles = pictureTitlesOf({ airings, placeholderSources })
+  if (!titles.size) return NOTHING_AIRS_SOON
+  const isFailing = (host) => {
+    const stats = hosts.get(host)
+    return Boolean(stats && stats.tried >= minTried && stats.failed / stats.tried >= failShare)
+  }
+  const hasPicture = (titleKey, use) => savedTitleKeys.has(titleKey)
+    || picturedTitleKeys.has(titleKey)
+    || [...use.hosts].some((host) => !isFailing(host))
+  const pictured = [...titles].filter(([titleKey, use]) => hasPicture(titleKey, use)).length
+  const failingLines = failingHostLinesOf({ titles, isFailing, hasPicture })
+  const detail = [`Pictures for ${pictured} of ${plural(titles.size, 'guide title')} in the next 48 h.`, ...failingLines].join(' ')
+  if (freeviewProblem) {
     return {
-      status: 'pass',
-      detail: withFreeviewProblem({ detail: `Guide pictures come from ${joinAnd([...usage.keys()])}. Saved copies cover ${covered(allTitles)} of ${plural(allTitles.size, 'title')}.`, freeviewProblem }),
+      status: 'warn',
+      detail: `${freeviewProblem.detail} ${detail}`,
+      fix: freeviewProblem.fix,
+      summary: 'Freeview pictures are off.',
     }
   }
-  const worst = failing[0]
+  if (pictured / titles.size >= minShare) return { status: 'pass', detail }
   return {
     status: 'warn',
-    detail: withFreeviewProblem({ freeviewProblem, detail: failing.map((use) => `${use.host}: ${use.failed} of the last ${plural(use.tried, 'picture')} failed to load. Saved copies cover ${covered(use.titleKeys)} of the ${plural(use.titleKeys.size, 'title')} that use it.`).join(' ') }),
-    fix: 'Freetvarr shows its saved copies of these pictures, then pictures from other sources. If many titles have no picture, the guide source may have stopped serving them; ask the guide provider.',
-    summary: `Guide pictures from ${worst.host} fail to load.`,
+    detail: `Only ${percentOf(pictured, titles.size)} of guide titles have a picture. ${detail}`,
+    fix: 'Check that Freetvarr can reach the internet, and that Missing pictures is on under SETTINGS → FILM AND TV INFO. Freetvarr fills in pictures after each guide load, so run the check again after the next one.',
+    action: OPEN_PICTURE_SETTINGS,
+    summary: 'Many guide titles have no picture.',
   }
 }
 
@@ -838,27 +852,56 @@ const readGrabberOf = async (ctx) => {
   return { enabled: value('enabled') === true, url: value('args') || '' }
 }
 
-const withFreeviewProblem = ({ detail, freeviewProblem }) => (freeviewProblem ? `${detail} ${freeviewProblem}` : detail)
+const airsWithin = ({ programme, nowMs, windowMs }) =>
+  Number(programme.end) > nowMs && Number(programme.start) < nowMs + windowMs
 
-const pictureHostUsageOf = (programmes) => {
-  const usage = new Map()
-  for (const programme of programmes) {
-    const host = hostOfSource(programme.image)
-    if (!host) continue
-    const use = usage.get(host) ?? { airings: 0, titleKeys: new Set() }
-    use.airings += 1
-    const titleKey = showTitleKey(programme.title)
-    if (titleKey) use.titleKeys.add(titleKey)
-    usage.set(host, use)
+const pictureTitlesOf = ({ airings, placeholderSources }) => {
+  const titles = new Map()
+  for (const airing of airings) {
+    const titleKey = showTitleKey(airing.title)
+    if (!titleKey) continue
+    const use = titles.get(titleKey) ?? { hosts: new Set() }
+    const host = placeholderSources.has(airing.image) ? null : hostOfSource(airing.image)
+    if (host) use.hosts.add(host)
+    titles.set(titleKey, use)
   }
-  return usage
+  return titles
 }
 
-const readGuidePictureHealth = async () => ({
-  hosts: guideImageHosts.stats(),
-  savedTitleKeys: await guidePictureCoverage().catch(() => new Set()),
-  freeviewProblem: freeviewPictureProblem(),
-})
+const failingHostLinesOf = ({ titles, isFailing, hasPicture }) => {
+  const byHost = new Map()
+  for (const [titleKey, use] of titles) {
+    for (const host of [...use.hosts].filter(isFailing)) {
+      const counts = byHost.get(host) ?? { titles: 0, pictured: 0 }
+      counts.titles += 1
+      if (hasPicture(titleKey, use)) counts.pictured += 1
+      byHost.set(host, counts)
+    }
+  }
+  return [...byHost]
+    .sort(([, a], [, b]) => b.titles - a.titles)
+    .map(([host, counts]) => `Pictures from ${host} fail to load; other sources cover ${counts.pictured} of its ${plural(counts.titles, 'title')}.`)
+}
+
+const percentOf = (part, whole) => `${Math.round((part / whole) * 100)}%`
+
+const readGuidePictureHealth = async () => {
+  const placeholderSources = await placeholderPictureSources().catch(() => new Set())
+  return {
+    hosts: guideImageHosts.stats(),
+    savedTitleKeys: await guidePictureCoverage().catch(() => new Set()),
+    picturedTitleKeys: await readPicturedTitleKeys(placeholderSources).catch(() => new Set()),
+    placeholderSources,
+    freeviewProblem: freeviewPictureProblem(),
+  }
+}
+
+const readPicturedTitleKeys = async (placeholderSources) => new Set((await db('art_resolutions')
+  .where({ shape: 'landscape' })
+  .whereNotNull('origin')
+  .select('title_key', 'origin'))
+  .filter((row) => !placeholderSources.has(row.origin))
+  .map((row) => row.title_key))
 
 export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {
   if (!report) return { status: 'skip', detail: 'Only the running server knows the names it was opened as.' }
@@ -1297,9 +1340,11 @@ const DAY_MS = 24 * HOUR_MS
 const GUIDE_FAIL_MS = 12 * HOUR_MS
 const GUIDE_WARN_MS = 48 * HOUR_MS
 const GUIDE_EMPTY_SHARE = 0.25
-const PICTURE_HOST_MIN_AIRINGS = 50
 const PICTURE_HOST_MIN_TRIED = 10
 const PICTURE_HOST_FAIL_SHARE = 0.5
+const PICTURE_MIN_SHARE = 0.8
+const PICTURE_WINDOW_MS = 48 * HOUR_MS
+const NOTHING_AIRS_SOON = { status: 'skip', detail: 'The guide has no programmes in the next 48 h yet.' }
 const GB = 1e9
 const NO_CHANNELS_YET = 'No channels yet.'
 const DISK_FAIL_BYTES = 10 * GB
@@ -1326,6 +1371,7 @@ const OPEN_SYNCS = { label: 'Open syncs', href: '#/settings/system/activity/sync
 const CREATE_ONE_OFF_PLACEHOLDER = { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' }
 const OPEN_SETUP_CHANNELS = { label: 'Open setup', href: '#/settings/system/setup/channels' }
 const OPEN_GUIDE_SETTINGS = { label: 'Open settings', href: '#/settings/guide' }
+const OPEN_PICTURE_SETTINGS = { label: 'Open settings', href: '#/settings/film-tv-info' }
 const SWITCH_TO_AUTOMATIC = { label: 'Switch to Automatic', post: '/api/guide-sources/automatic', done: 'Switched the listings source to Automatic.' }
 const MERGED_STALE_MS = 12 * 60 * 60 * 1000
 const SETTINGS_HOSTNAMES = { label: 'Open setup', href: '#/settings/system/setup/hostnames' }

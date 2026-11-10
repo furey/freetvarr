@@ -11,6 +11,8 @@ set -euo pipefail
 # capture-seed.mjs then fills the library from the guide: shows, films,
 # one-offs, watch states, ad breaks, sync history, and Plex-only items with
 # empty sparse files, so every screen has realistic content.
+# capture-placeholders.mjs then lists the guide pictures that are only a channel
+# logo, and the capture fixtures show the show's own picture in their place.
 #
 # Prints the URL and the clock offset to pass to the capture scripts. Stop it
 # with Ctrl-C.
@@ -100,11 +102,12 @@ kill "$SERVER_PID"
 wait "$SERVER_PID" 2>/dev/null || true
 start_server
 FREETVARR_URL="http://127.0.0.1:${PORT}" node "$REPO_ROOT/scripts/capture-seed.mjs" --warm
+FREETVARR_URL="http://127.0.0.1:${PORT}" node "$REPO_ROOT/scripts/capture-placeholders.mjs" "$CAPTURE_DIR/placeholder-pictures.txt"
 
 echo "$CAPTURE_CLOCK_OFFSET_MS" > "$CAPTURE_DIR/clock-offset"
 cat <<EOF
 [capture-server] ready at http://127.0.0.1:${PORT} (log: $CAPTURE_DIR/server.log)
 [capture-server] run the captures with:
-  export FREETVARR_URL=http://127.0.0.1:${PORT} CAPTURE_CLOCK_OFFSET_MS=${CAPTURE_CLOCK_OFFSET_MS} CAPTURE_PATH_ROOT=${CAPTURE_DIR}/data DOCS_MEDIA_UPLOAD=0
+  export FREETVARR_URL=http://127.0.0.1:${PORT} CAPTURE_CLOCK_OFFSET_MS=${CAPTURE_CLOCK_OFFSET_MS} CAPTURE_PATH_ROOT=${CAPTURE_DIR}/data CAPTURE_PLACEHOLDERS_FILE=${CAPTURE_DIR}/placeholder-pictures.txt DOCS_MEDIA_UPLOAD=0
 EOF
 wait
