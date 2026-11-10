@@ -1378,15 +1378,21 @@ const channelTripletsFor = async (channels) => {
     return triplets
   } catch (err) {
     const problem = freeviewProblemOf(err)
-    if (problem !== freeviewProblem) console.warn(`[guide-pictures] Freeview pictures are off: ${problem}`)
+    if (problem.detail !== freeviewProblem?.detail) console.warn(`[guide-pictures] Freeview pictures are off: ${problem.detail}`)
     freeviewProblem = problem
     return null
   }
 }
 
 export const freeviewProblemOf = (err) => (err?.status === 401 || err?.status === 403
-  ? `TVHeadend refused the service and mux lists (HTTP ${err.status}), so Freeview pictures are off. Give the Freetvarr user in TVHeadend the Admin right.`
-  : `Freetvarr could not read the service and mux lists from TVHeadend (${err?.message ?? 'no answer'}), so Freeview pictures are off.`)
+  ? {
+      detail: `TVHeadend refused the service and mux lists (HTTP ${err.status}), so Freeview pictures are off.`,
+      fix: 'In TVHeadend, give the Freetvarr user the Admin right.',
+    }
+  : {
+      detail: `Freetvarr could not read the service and mux lists from TVHeadend (${err?.message ?? 'no answer'}), so Freeview pictures are off.`,
+      fix: 'Check that TVHeadend is running and that Freetvarr can reach it.',
+    })
 
 const runGuidePictures = async (guide) => {
   const programmes = [...guide.programByEventId.values()]
