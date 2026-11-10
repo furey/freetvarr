@@ -31,6 +31,7 @@ after(async () => {
 beforeEach(async () => {
   await db('art_resolutions').delete()
   await db('programme_picture_stamps').delete()
+  await db('settings').where({ key: 'stand_in_airing_sources' }).delete()
 })
 
 const resolution = ({ key, titleKey, showKey, origin, nextCheckAt = NOW + 1e9, stamp = null }) => ({
@@ -77,6 +78,16 @@ test('a dropped stand-in keeps its row, is marked due with a new stamp, and tell
     `programme|the-chase|${programme.get('the-chase')}`,
   ])
   assert.equal(await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, airings, feed }), 0)
+})
+
+test('a restart with the same stand-in airing addresses bumps no programme stamp; a new stand-in address bumps its titles', async () => {
+  await db('settings').insert({ key: 'stand_in_airing_sources', value: JSON.stringify([AIRING_STAND_IN]) })
+  const feed = createArtFeed()
+  const run = (airings) => forgetPlaceholderPictures({ database: db, pictures: fakePictures([]), placeholders: fakePlaceholders, airings: async () => airings, feed })
+  assert.equal(await run([{ image: AIRING_STAND_IN, title: 'The Chase' }]), 0)
+  assert.deepEqual([...(await createProgrammeStamps({ database: db }).stampsByKey()).keys()], [])
+  assert.equal(await run([{ image: AIRING_STAND_IN, title: 'The Chase' }, { image: 'https://img.example.com/10-logo.png', title: 'Gogglebox' }]), 1)
+  assert.deepEqual([...(await createProgrammeStamps({ database: db }).stampsByKey()).keys()], ['gogglebox'])
 })
 
 test('the stamps endpoint lists programme stamps beside title stamps, and the client puts them on airing and recording URLs', async () => {

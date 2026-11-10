@@ -1482,20 +1482,36 @@ export const forgetPlaceholderPictures = async ({
     const batch = stale.slice(at, at + PLACEHOLDER_DUE_BATCH)
     changes.push(...await markResolutionsDue({ database, where: (query) => query.whereIn('resolution_key', batch) }))
   }
-  const airingTitles = newStandInAiringTitlesOf({ airings: await airings().catch(() => []), placeholders })
+  const airingTitles = await newStandInAiringTitlesOf({ airings: await airings().catch(() => []), placeholders, database })
   const keys = [...dropped.map(showKeyOf), ...airingTitles.map(showKeyOf)]
   return announcePictureChanges({ changes, keys, database, feed })
 }
 
-const newStandInAiringTitlesOf = ({ airings, placeholders }) => {
+const newStandInAiringTitlesOf = async ({ airings, placeholders, database }) => {
   const standIns = new Map()
   for (const { image, title } of airings) {
     if (image && title && placeholders.isPlaceholder(image)) standIns.set(image, [...(standIns.get(image) ?? []), title])
   }
-  const titles = [...standIns].filter(([source]) => !screenedAiringSources.has(source)).flatMap(([, titles]) => titles)
-  screenedAiringSources = new Set(standIns.keys())
-  return [...new Set(titles)]
+  const known = await savedStandInAiringSourcesOf(database)
+  const fresh = [...standIns].filter(([source]) => !known.has(source))
+  const gone = [...known].some((source) => !standIns.has(source))
+  if (fresh.length || gone) await saveStandInAiringSources({ database, sources: [...standIns.keys()] })
+  return [...new Set(fresh.flatMap(([, titles]) => titles))]
 }
+
+const savedStandInAiringSourcesOf = async (database) => {
+  const row = await database('settings').where({ key: STAND_IN_AIRING_SOURCES_SETTING }).first().catch(() => null)
+  try {
+    return new Set(JSON.parse(row?.value || '[]'))
+  } catch {
+    return new Set()
+  }
+}
+
+const saveStandInAiringSources = ({ database, sources }) => database('settings')
+  .insert({ key: STAND_IN_AIRING_SOURCES_SETTING, value: JSON.stringify(sources) })
+  .onConflict('key').merge()
+  .catch(() => {})
 
 const guideAirings = async () => [...((await getCachedGuide())?.programByEventId.values() ?? [])]
 
@@ -1680,6 +1696,7 @@ const artResolver = createArtResolver({
   loadImage: screenedImageOrErrorOf,
   settingsKeyOf: onlineSettingsKey,
   onResolved: announceResolvedArt,
+  onMarkedDue: (changes) => announcePictureChanges({ changes }),
 })
 export const resolvedArtStamps = async () => {
   const [titles, programme] = await Promise.all([
@@ -1703,7 +1720,7 @@ const MAX_FREEVIEW_EVENTS = 20_000
 const MAX_TITLE_ART_EVENTS = 200
 const PLACEHOLDER_DUE_BATCH = 200
 const TITLE_STAMP_KINDS = ['background', 'poster']
-let screenedAiringSources = new Set()
+const STAND_IN_AIRING_SOURCES_SETTING = 'stand_in_airing_sources'
 const OWN_ORIGIN = /^(upload|frame|recording|plex|guide-picture):/
 const TVMAZE_IMAGE_HOST = 'static.tvmaze.com'
 let guidePictureRun = null

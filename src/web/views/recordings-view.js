@@ -108,7 +108,7 @@ export const RecordingsView = {
                   @click="toggleOpen(r)" @keydown.enter.self.prevent="toggleOpen(r)" @keydown.space.self.prevent="toggleOpen(r)">
                   <td>
                     <div class="recording-cell">
-                      <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
+                      <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.show_title_override || r.title" />
                       <div class="recording-cell-text">
                         <span class="settings-cell-title">{{ r.title }}</span>
                         <span v-if="r.episode_title" class="recording-cell-episode">{{ r.episode_title }}</span>
@@ -147,7 +147,7 @@ export const RecordingsView = {
               @click="toggleOpen(r)" @keydown.enter.self.prevent="toggleOpen(r)" @keydown.space.self.prevent="toggleOpen(r)">
               <div class="list-row-main">
                 <div class="deck-card-with-image">
-                  <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.title" />
+                  <programme-image :source="imageUrl(r)" variant="thumb" :channel-id="r.channel_id" :has-logo="Boolean(r.channel_id)" :title="r.show_title_override || r.title" />
                   <div class="deck-card-text">
                     <span class="deck-card-title block">{{ r.title }}</span>
                     <span v-if="r.episode_title" class="recording-cell-episode block">{{ r.episode_title }}</span>

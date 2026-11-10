@@ -79,7 +79,7 @@ export const RecordingPlayer = {
         <player-info-panel :open="infoOpen" panel-id="play-info">
           <template #image>
             <programme-image v-if="recording" :key="recording.recording_id" class="live-info-image" variant="info"
-              :source="imageSource" :title="recording.title" :channel-id="recording.channel_id" :has-logo="Boolean(recording.channel_id)" />
+              :source="imageSource" :title="recording.show_title_override || recording.title" :channel-id="recording.channel_id" :has-logo="Boolean(recording.channel_id)" />
           </template>
           <p class="live-info-channel">
             <channel-logo v-if="recording?.channel_id" class="live-info-logo" :channel-id="recording.channel_id" has-logo />

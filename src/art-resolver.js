@@ -118,6 +118,7 @@ export const createArtResolver = ({
   missRetryMs = MISS_RETRY_MS,
   errorRetryMs = ERROR_RETRY_MS,
   onResolved = () => {},
+  onMarkedDue = (changes) => changes.forEach(onResolved),
   followUpDelaysMs = FOLLOW_UP_DELAYS_MS,
   followUpBudgetMs = FOLLOW_UP_BUDGET_MS,
 }) => {
@@ -349,7 +350,7 @@ export const createArtResolver = ({
 
   const markDue = async (which) => {
     const changes = await store.markDue(which).catch(() => [])
-    changes.forEach(onResolved)
+    if (changes.length) await Promise.resolve(onMarkedDue(changes)).catch(() => {})
     return changes
   }
 

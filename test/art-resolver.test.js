@@ -471,6 +471,20 @@ test('a dropped stand-in keeps its row, marks it due with a new stamp, and the n
   assert.equal(new Set(urls).size, 3)
 })
 
+test('forget marks every row of the title due and announces them in one call', async () => {
+  const announced = []
+  const { resolver, store } = resolverWith({
+    stages: { plex: async () => ({ sources: ['plex:/art'] }) },
+    sizes: { 'plex:/art': POSTER },
+    onMarkedDue: (changes) => { announced.push(changes) },
+  })
+  await resolver.resolve({ title: 'Bluey' })
+  await resolver.resolve({ title: 'Bluey', shape: 'poster' })
+  assert.equal(store.rows.size, 2)
+  await resolver.forget('Bluey')
+  assert.deepEqual(announced.map((changes) => changes.map((change) => change.kind).sort()), [['background', 'poster']])
+})
+
 test('pictureChangeOf: a stamp only when the browser may hold an older picture, and kept while the picture stays', () => {
   const hit = { origin: 'plex:/a', transform: 'none' }
   const none = { origin: null, transform: 'none' }
