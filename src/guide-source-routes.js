@@ -29,6 +29,7 @@ export const createGuideSourceService = ({
   feedUrl = async () => null,
   isFeedUrl = () => false,
   applyRepoint,
+  plannedSteps = () => [],
   rollbackRepoint = async () => [],
   otherBusy = () => false,
   noticeTtlMs = NOTICE_TTL_MS,
@@ -196,7 +197,7 @@ export const createGuideSourceService = ({
   const startRepoint = async () => {
     if (repointRun?.running || otherBusy()) return { busy: true }
     const previous = repointRun
-    const run = { running: true, steps: [], result: null }
+    const run = { running: true, steps: plannedSteps().map(({ id, label }) => ({ id, label, status: 'pending', detail: null })), result: null }
     repointRun = run
     const view = await overview({ withTvheadend: true }).catch((err) => ({ failed: err }))
     const pending = view.failed ? null : await journal.read()

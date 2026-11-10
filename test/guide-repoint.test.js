@@ -325,7 +325,7 @@ test('channel rows: a channel on mjh because Freeview is degraded shows as a fal
   assert.equal(rows[2].pin, 'freeview-au')
 })
 
-const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint = async () => ({ ok: true, steps: [] }), grabberUrl = MJH_URL, otherBusy = () => false, rollbackRepoint = async () => [], noGrabber = false } = {}) => {
+const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint = async () => ({ ok: true, steps: [] }), grabberUrl = MJH_URL, otherBusy = () => false, rollbackRepoint = async () => [], noGrabber = false, plannedSteps } = {}) => {
   const builds = []
   const source = (id, label) => ({ id, label, regionOfUrl: (url) => (url === MJH_URL ? 'Sydney' : null) })
   const freeview = source('freeview-au', 'Freeview')
@@ -347,6 +347,7 @@ const fakeService = ({ settings = new Map(), latestChannels = [], applyRepoint =
     feedUrl: async () => FEED_URL,
     isFeedUrl: isGuideFeedUrl,
     applyRepoint,
+    plannedSteps,
     otherBusy,
     rollbackRepoint,
   })
@@ -367,6 +368,20 @@ test('service: the one-tap switch from Health turns on Automatic and drops a pin
   const settings = new Map([['guide_listings_source', 'freeview-au'], ['guide_listings_pins', JSON.stringify({ 'mjh-seven-syd': 'freeview-au', 'mjh-sbs': 'mjh-au' })]])
   const { service } = fakeService({ settings, latestChannels: [{ source: 'freeview-au', channel: 'mjh-seven-syd', degraded: true }] })
   assert.deepEqual((await service.switchToAutomatic()).choice, { mode: 'auto', pins: { 'mjh-sbs': 'mjh-au' } })
+})
+
+test('service: a started repoint reports every planned step as pending before the first step runs', async () => {
+  const { service } = fakeService({
+    plannedSteps: () => [{ id: 'merged', label: 'Turn on the merged guide' }, { id: 'link', label: 'Link the new channels' }],
+    applyRepoint: () => new Promise(() => {}),
+  })
+  const started = await service.startRepoint()
+  const pending = [
+    { id: 'merged', label: 'Turn on the merged guide', status: 'pending', detail: null },
+    { id: 'link', label: 'Link the new channels', status: 'pending', detail: null },
+  ]
+  assert.deepEqual(started.run.steps, pending)
+  assert.deepEqual(service.repointProgress().steps, pending)
 })
 
 test('service: confirm runs the repoint once, marks the install confirmed, and hides the notice; keep my grabber marks it kept', async () => {

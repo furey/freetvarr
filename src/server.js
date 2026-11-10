@@ -92,6 +92,7 @@ import {
   inspectGuide,
   linkChannelsByHand,
   readGuideLinks,
+  planGuideRepoint,
   planGuideSetup,
   readTimeshifts,
   readGuideChannelTriplets,
@@ -115,6 +116,7 @@ import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
 import { createTitleAliases } from './title-aliases.js'
 import { createSourceHealthStore } from './guide-source-health.js'
 import { readListingChoice } from './guide-listings.js'
+import { trustworthyOriginHeaders } from './trustworthy-origin-headers.js'
 import { createGuideSourceService, createMergedFeedSwitch, mountGuideSourceRoutes } from './guide-source-routes.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
@@ -377,11 +379,15 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    originAgentCluster: false,
     // Disabled because freetvarr serves plain HTTP on the LAN. Enabling HSTS would
     // tell browsers to refuse HTTP for max-age=1y. Re-enable when fronted by TLS.
     hsts: false,
   }),
 )
+
+app.use(trustworthyOriginHeaders())
 
 app.use((req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow')
@@ -2306,6 +2312,7 @@ const guideSourceService = createGuideSourceService({
   isFeedUrl: isGuideFeedUrl,
   rollbackRepoint,
   otherBusy: () => Boolean(guideRun?.running),
+  plannedSteps: () => planGuideRepoint().steps,
   applyRepoint: async ({ feedUrl, journal, onProgress }) => {
     const conn = await resolveConnection()
     const result = await applyGuideRepoint({
