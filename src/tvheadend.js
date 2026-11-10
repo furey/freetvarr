@@ -107,8 +107,16 @@ export const listChannels = async (conn) => {
       logos: channelLogoSources({ channel: c, epgIcons: epgIconsByChannel.get(c.uuid) }),
       serviceIds: c.services || [],
       offAir: isOffAir({ serviceIds: c.services || [], services }),
+      radio: isRadioChannel({ serviceIds: c.services || [], services }),
     }))
 }
+
+export const isRadioChannel = ({ serviceIds = [], services = new Map() }) => {
+  const types = serviceIds.map((id) => services.get(id)).filter(Boolean).map((service) => service.serviceType)
+  return types.length > 0 && types.every((type) => RADIO_SERVICE_TYPES.has(type))
+}
+
+const RADIO_SERVICE_TYPES = new Set([0x02, 0x07, 0x0a])
 
 const HD_SERVICE_TYPES = new Set([0x11, 0x19, 0x1f])
 const SD_SERVICE_TYPES = new Set([0x01, 0x16])

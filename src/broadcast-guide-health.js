@@ -3,7 +3,7 @@ import { SCORE_WINDOW_HOURS, MIN_HORIZON_HOURS, medianOf, scoreListings } from '
 export const MIN_LISTED_SHARE = 0.5
 
 export const broadcastGuideHealthOf = ({ guide, nowMs = Date.now() }) => {
-  const channels = guide?.channels ?? []
+  const channels = (guide?.channels ?? []).filter((channel) => !channel.radio)
   if (!channels.length) return null
   const scores = channels.map((channel) => scoreListings({
     programmes: (guide.programsByChannel?.[String(channel.epgId)] ?? []).map(scoredProgrammeOf),

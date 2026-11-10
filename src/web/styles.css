@@ -2357,6 +2357,13 @@ section[id^="section-"] {
   overflow-wrap: anywhere;
 }
 
+.copy-row-value.is-one-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 @media (max-width: 640px) {
   .copy-row {
     grid-template-columns: minmax(0, 1fr) auto;

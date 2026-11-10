@@ -250,14 +250,17 @@ export const createGuideSourceService = ({
   const unmergePlan = async () => {
     const { problem, view, target } = await unmergeView()
     if (problem) return { problem }
+    const [inspection, plan] = await Promise.all([inspect().catch(() => null), guideMerge.planNow()])
+    const prefix = `${plan?.primary?.source.channelIdPrefix ?? 'freeview'}.`
     return {
       plan: {
         grabberUrl: view.repoint.grabberUrl,
         afterUrl: target.grabber.url,
+        sameUrl: target.grabber.enabled && target.grabber.url === view.repoint.grabberUrl,
         enabled: target.grabber.enabled,
         fromRecord: target.fromRecord,
         restoresLinks: target.links.length,
-        primaryChannels: view.repoint.added.length,
+        primaryChannels: (inspection?.guideChannels ?? []).filter((g) => g.xmltvId?.startsWith(prefix) && g.channels?.length).length,
       },
     }
   }

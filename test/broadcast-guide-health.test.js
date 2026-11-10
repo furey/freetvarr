@@ -55,3 +55,16 @@ test('guide.sources without a listings source: warns on a short guide with a fix
   assert.equal(broadcastGuideCheck({ broadcast: null, suggestions }).status, 'skip')
   assert.match(suggestedFeedsFixOf({ country: null, feeds: [] }), /XMLTV URL grabber/)
 })
+
+test('broadcast guide health: radio channels do not count against the listed share', async () => {
+  const { isRadioChannel } = await import('../src/tvheadend.js')
+  const guide = guideOf([7 * 24, 0, 0])
+  guide.channels[1].radio = true
+  guide.channels[2].radio = true
+  const health = broadcastGuideHealthOf({ guide, nowMs: NOW })
+  assert.deepEqual([health.channels, health.listed, health.short], [1, 1, false])
+  const services = new Map([['r', { serviceType: 0x02 }], ['a', { serviceType: 0x0a }], ['t', { serviceType: 0x19 }]])
+  assert.equal(isRadioChannel({ serviceIds: ['r', 'a'], services }), true)
+  assert.equal(isRadioChannel({ serviceIds: ['r', 't'], services }), false)
+  assert.equal(isRadioChannel({ serviceIds: [], services }), false)
+})

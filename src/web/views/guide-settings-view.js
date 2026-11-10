@@ -13,7 +13,9 @@ import {
   pinnableChannelsOf,
   repointReasonTextOf,
   sourceMetaOf,
+  failedRunActionsOf,
   unmergeDoneTextOf,
+  unmergeKeepsUrlTextOf,
   unmergeIntroOf,
   unmergeLinksTextOf,
   feedProvidersOf,
@@ -65,8 +67,8 @@ export const GuideSettingsView = {
                 <p class="settings-note guide-settings-text is-error" role="alert">{{ result.error }}</p>
                 <p v-if="result.next" class="settings-note guide-settings-text">{{ result.next }}</p>
                 <div class="settings-row-actions guide-settings-actions">
-                  <button type="button" class="ui-button ui-button-primary" :disabled="starting" @click="confirm">Try again</button>
-                  <button type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
+                  <button type="button" class="ui-button ui-button-primary" :disabled="starting || planning" @click="retry">Try again</button>
+                  <button v-if="failedActions.showKeep" type="button" class="setup-quiet-link" :disabled="starting" @click="keep">Keep my grabber as it is</button>
                 </div>
               </template>
             </template>
@@ -85,8 +87,11 @@ export const GuideSettingsView = {
                   <div class="ui-group-row">
                     <span class="ui-group-row-main">
                       <span class="ui-group-row-title">TVHeadend guide grabber</span>
-                      <span class="ui-group-row-meta">Reads now: <span class="ui-mono guide-settings-url">{{ unmerge.grabberUrl }}</span></span>
-                      <span class="ui-group-row-meta">Reads after: <span class="ui-mono guide-settings-url">{{ unmerge.afterUrl }}</span></span>
+                      <span v-if="unmergeKeepsUrl" class="ui-group-row-meta">{{ unmergeKeepsUrl }}</span>
+                      <template v-else>
+                        <span class="ui-group-row-meta">Reads now: <span class="ui-mono guide-settings-url">{{ unmerge.grabberUrl }}</span></span>
+                        <span class="ui-group-row-meta">Reads after: <span class="ui-mono guide-settings-url">{{ unmerge.afterUrl }}</span></span>
+                      </template>
                     </span>
                   </div>
                   <div v-if="unmergeLinksText" class="ui-group-row">
@@ -214,7 +219,7 @@ export const GuideSettingsView = {
           <p class="settings-note guide-settings-text">{{ suggestedNote }}</p>
           <div class="ui-group">
             <template v-for="feed in suggestedFeeds" :key="feed.url">
-              <copy-row :label="feed.name" :value="feed.url" />
+              <copy-row :label="feed.name" :value="feed.url" one-line />
             </template>
           </div>
           <p class="settings-note guide-settings-text">{{ suggestedHint }} <span>Listed by: <template v-for="(provider, index) in feedProviders" :key="provider.name"><a :href="provider.source" target="_blank" rel="noopener noreferrer">{{ provider.name }}</a><template v-if="index < feedProviders.length - 1">, </template></template>.</span></p>
@@ -271,6 +276,14 @@ export const GuideSettingsView = {
     const unmergeDone = computed(() => result.value?.kind === 'unmerge' && Boolean(result.value.ok) && !paced.shown.value.running)
     const unmergeIntro = computed(() => unmergeIntroOf(unmerge.value))
     const unmergeLinksText = computed(() => unmergeLinksTextOf(unmerge.value))
+    const unmergeKeepsUrl = computed(() => unmergeKeepsUrlTextOf(unmerge.value))
+    const failedActions = computed(() => failedRunActionsOf(result.value))
+
+    const retry = async () => {
+      if (failedActions.value.retry === 'repoint') return confirm()
+      job.value = null
+      await planUnmerge()
+    }
 
     const planUnmerge = async () => {
       planning.value = true
@@ -395,7 +408,7 @@ export const GuideSettingsView = {
       primaryLabel, reasonText, channelsText, addedText, daysText, planIntro, doneText,
       suggestedFeeds, suggestedNote, suggestedHint, feedProviders, broadcastIntro, broadcastMeta,
       modeChoices, modeHint, listedChannels, pinnable, newPin, newPinSource, newPinChannel,
-      unmerge, planning, unmergeDone, unmergeIntro, unmergeLinksText, planUnmerge, confirmUnmerge,
+      unmerge, planning, unmergeDone, unmergeIntro, unmergeLinksText, unmergeKeepsUrl, failedActions, retry, planUnmerge, confirmUnmerge,
       confirm, keep, setMode, setPin, pinNew, choicesOf, stateOf, metaOf, dotOf,
     }
   },

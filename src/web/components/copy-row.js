@@ -20,12 +20,13 @@ export const CopyRow = {
   props: {
     label: { type: String, required: true },
     value: { type: String, default: '' },
+    oneLine: { type: Boolean, default: false },
   },
   template: `
     <div class="copy-row">
       <span class="field-label">{{ label }}</span>
-      <code class="copy-row-value">{{ value }}</code>
-      <button type="button" class="ui-button ui-button-sm" @click="copy" :disabled="!value">
+      <code :class="['copy-row-value', { 'is-one-line': oneLine }]" :title="oneLine ? value : null">{{ value }}</code>
+      <button type="button" class="ui-button ui-button-sm" @click="copy" :disabled="!value" :aria-label="oneLine ? 'Copy ' + value : null">
         <template v-if="state === 'copied'"><check-icon /> Copied</template>
         <template v-else-if="state === 'failed'"><cross-icon /> Copy failed</template>
         <template v-else><copy-icon /> Copy</template>

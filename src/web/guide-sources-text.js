@@ -87,10 +87,18 @@ export const unmergeIntroOf = (plan) => {
   return `Freetvarr can point TVHeadend's guide grabber back at ${from}, and turn the merged guide off. You can switch again later. Check what changes, then choose.`
 }
 
+export const unmergeKeepsUrlTextOf = (plan) => (plan?.sameUrl
+  ? `TVHeadend keeps reading ${plan.grabberUrl}; the merged content is turned off.`
+  : '')
+
+export const failedRunActionsOf = (result) => (result?.kind === 'unmerge'
+  ? { retry: 'unmerge', showKeep: false }
+  : { retry: 'repoint', showKeep: true })
+
 export const unmergeLinksTextOf = (plan) => {
   if (!plan) return ''
   return [
-    plan.primaryChannels ? `Unlinks the ${plan.primaryChannels} ${plan.primaryChannels === 1 ? 'channel' : 'channels'} that only Freeview lists.` : 'Unlinks the channels that only Freeview lists.',
+    plan.primaryChannels ? `Unlinks the ${plan.primaryChannels} ${plan.primaryChannels === 1 ? 'channel' : 'channels'} that only Freeview lists.` : '',
     plan.restoresLinks ? `Puts back the links of ${plan.restoresLinks} ${plan.restoresLinks === 1 ? 'channel' : 'channels'} that the switch changed.` : '',
   ].filter(Boolean).join(' ')
 }

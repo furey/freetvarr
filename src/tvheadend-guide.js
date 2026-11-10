@@ -404,7 +404,7 @@ export const applyGuideUnmerge = async ({
   }
   try {
     await remember({})
-    const { before, since } = await run('grabber', async () => {
+    const { before, since, moduleKey } = await run('grabber', async () => {
       const found = await findUrlGrabber({ http, conn })
       if (!found) throw new GuideError('This TVHeadend has no guide download by URL.', 'no-grabber')
       await remember({ grabber: found })
@@ -421,10 +421,10 @@ export const applyGuideUnmerge = async ({
       await remember({ pointed: true })
       const at = now()
       await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
-      return { before: reading, since: at }
+      return { before: reading, since: at, moduleKey: found.key }
     })
     const changes = await run('links', async () => {
-      const saves = planUnmergeLinks({ guideChannels: await listGuideChannels({ http, conn }), links: target.links, primaryPrefix })
+      const saves = planUnmergeLinks({ guideChannels: await listGuideChannels({ http, conn }), links: target.links, primaryPrefix, moduleKey })
       for (const save of saves) {
         await remember({ links: [...undo.links, { guideId: save.guideId, channels: save.before }] })
         await http.post('idnode/save', { node: JSON.stringify({ uuid: save.guideId, channels: save.channels }) }, conn)
@@ -457,14 +457,14 @@ export const applyGuideUnmerge = async ({
   }
 }
 
-export const planUnmergeLinks = ({ guideChannels, links = [], primaryPrefix = 'freeview' }) => {
+export const planUnmergeLinks = ({ guideChannels, links = [], primaryPrefix = 'freeview', moduleKey = null }) => {
   const byId = new Map(guideChannels.map((g) => [g.id, g]))
   const restores = links
     .filter((link) => byId.has(link.guideId) && !byId.get(link.guideId).xmltvId.startsWith(`${primaryPrefix}.`))
     .filter((link) => !sameMembers(byId.get(link.guideId).channels, link.channels))
     .map((link) => ({ guideId: link.guideId, channels: link.channels, before: byId.get(link.guideId).channels, primaryOnly: false }))
   const unlinks = guideChannels
-    .filter((g) => g.xmltvId.startsWith(`${primaryPrefix}.`) && g.channels.length)
+    .filter((g) => (!moduleKey || g.moduleId === moduleKey) && g.xmltvId.startsWith(`${primaryPrefix}.`) && g.channels.length)
     .map((g) => ({ guideId: g.id, channels: [], before: g.channels, primaryOnly: true }))
   return [...restores, ...unlinks]
 }

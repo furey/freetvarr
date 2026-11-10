@@ -38,3 +38,19 @@ test('source and channel lines: unmeasured sources say so; fallbacks and pins ex
   assert.deepEqual(listedChannelsOf([fallback, pinned, plain]).map((channel) => channel.id), ['seven', 'nine'])
   assert.deepEqual(pinnableChannelsOf([fallback, pinned, plain, { ...plain, id: 'sbs', sources: ['mjh-au'] }]).map((channel) => channel.id), ['ten', 'seven'])
 })
+
+test('a failed undo retries the undo and hides keep my grabber; a failed switch retries the switch', async () => {
+  const { failedRunActionsOf } = await import('../src/web/guide-sources-text.js')
+  assert.deepEqual(failedRunActionsOf({ kind: 'unmerge', ok: false }), { retry: 'unmerge', showKeep: false })
+  assert.deepEqual(failedRunActionsOf({ kind: 'repoint', ok: false }), { retry: 'repoint', showKeep: true })
+  assert.deepEqual(failedRunActionsOf({ ok: false }), { retry: 'repoint', showKeep: true })
+})
+
+test('the undo plan says the grabber keeps its address when only the merged setting changes, and counts only linked channels', async () => {
+  const { unmergeKeepsUrlTextOf, unmergeLinksTextOf } = await import('../src/web/guide-sources-text.js')
+  const url = 'http://192.168.1.10:3733/guide/xmltv.xml'
+  assert.equal(unmergeKeepsUrlTextOf({ sameUrl: true, grabberUrl: url }), `TVHeadend keeps reading ${url}; the merged content is turned off.`)
+  assert.equal(unmergeKeepsUrlTextOf({ sameUrl: false, grabberUrl: url }), '')
+  assert.equal(unmergeLinksTextOf({ primaryChannels: 0, restoresLinks: 0 }), '')
+  assert.match(unmergeLinksTextOf({ primaryChannels: 1, restoresLinks: 0 }), /^Unlinks the 1 channel that only Freeview lists\.$/)
+})

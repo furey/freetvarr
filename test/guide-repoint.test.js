@@ -709,3 +709,14 @@ test('service: stopping is refused while TVHeadend does not read the merged guid
   assert.match((await unmergeService.unmergePlan()).problem, /does not read the merged guide/)
   assert.match((await unmergeService.startUnmerge()).problem, /does not read the merged guide/)
 })
+
+test('unmerge links: only Freeview-only channels of the URL grabber module are unlinked', () => {
+  const saves = planUnmergeLinks({
+    guideChannels: [
+      { id: 'g-url', moduleId: '/usr/bin/tv_grab_url', xmltvId: 'freeview.1010:0202:0222', channels: ['c22'] },
+      { id: 'g-file', moduleId: '/usr/bin/tv_grab_file', xmltvId: 'freeview.1010:0202:0222', channels: ['c22'] },
+    ],
+    moduleKey: '/usr/bin/tv_grab_url',
+  })
+  assert.deepEqual(saves.map((save) => save.guideId), ['g-url'])
+})
