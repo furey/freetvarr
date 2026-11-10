@@ -109,7 +109,7 @@ test('slot merge: a primary slot with an agreeing title at start ±5 min takes t
   assert.equal(programme.desc, 'Mike meets a deer.')
   assert.equal(programme.rating, 'PG')
   assert.equal(programme.icon, 'https://example.test/pickers.jpg')
-  assert.deepEqual(programme.categories, ['Entertainment'])
+  assert.deepEqual(programme.categories, ['Special Interest'])
   assert.equal(programme.extras.length, 1)
 })
 
@@ -144,21 +144,27 @@ test('alias rewrite: when both sources agree on a slot with different titles, mj
   assert.deepEqual(merged.primaryTitles, [])
 })
 
-test('episode numbers: Freeview season and episode give xmltv_ns and SxxExx plus the CRID; else mjh numbers for the matched slot', () => {
+test('episode numbers: a matched slot keeps mjh numbers plus the Freeview CRID; Freeview season and episode fill only when mjh has none', () => {
   const mjh = [
     { system: 'SxxExx', value: 'S2026E224' },
     { system: 'xmltv_ns', value: '2025.223.' },
     { system: 'original-air-date', value: '2026-11-10' },
     { system: 'dd_progid', value: 'EP123' },
   ]
-  assert.deepEqual(episodeNumsOf({ primary: { season: 8, episode: 10, crid: 'LOISAU08_10_B' }, secondary: { episodeNums: mjh } }), [
-    { system: 'xmltv_ns', value: '7.9.' },
-    { system: 'SxxExx', value: 'S08E10' },
+  assert.deepEqual(episodeNumsOf({ primary: { season: 4, episode: 230, crid: 'LOISAU08_10_B' }, secondary: { episodeNums: mjh } }), [
+    { system: 'SxxExx', value: 'S2026E224' },
+    { system: 'xmltv_ns', value: '2025.223.' },
     { system: 'crid', value: 'LOISAU08_10_B' },
     { system: 'original-air-date', value: '2026-11-10' },
     { system: 'dd_progid', value: 'EP123' },
   ])
   assert.deepEqual(episodeNumsOf({ primary: { season: null, episode: 23, crid: null }, secondary: { episodeNums: mjh } }), mjh)
+  const datesOnly = [{ system: 'original-air-date', value: '2026-11-10' }]
+  assert.deepEqual(episodeNumsOf({ primary: { season: 8, episode: 10, crid: null }, secondary: { episodeNums: datesOnly } }), [
+    { system: 'xmltv_ns', value: '7.9.' },
+    { system: 'SxxExx', value: 'S08E10' },
+    ...datesOnly,
+  ])
   assert.deepEqual(episodeNumsOf({ primary: { season: null, episode: 23, crid: null } }), [{ system: 'xmltv_ns', value: '.22.' }])
   assert.deepEqual(episodeNumsOf({ primary: { season: null, episode: null, crid: null } }), [])
 })
@@ -310,9 +316,11 @@ test('scheduler: one build at a time, a request during a build runs once more af
     dir,
     sources: { forCountry: (country) => (country === 'au' ? [sources.primary.source, countingSecondary] : []) },
     timeZone: () => 'Australia/Sydney',
+    isServing: async () => serving,
     now: () => NOW,
     log: { log: () => {}, warn: () => {} },
   })
+  let serving = true
   assert.equal(await merge.servablePath(), null)
   const first = merge.requestBuild()
   merge.requestBuild()
@@ -322,6 +330,8 @@ test('scheduler: one build at a time, a request during a build runs once more af
   assert.equal(builds, 2)
   assert.equal(await merge.servablePath(), path.join(dir, MERGED_GUIDE_FILE))
   assert.equal(merge.latest().programmes, 4)
+  serving = false
+  assert.equal(await merge.servablePath(), null, 'the file is built but not served until guide_merged_feed is on')
 })
 
 test('migration 0047: title_aliases is unique per source title, and down drops it', async () => {
@@ -333,4 +343,13 @@ test('migration 0047: title_aliases is unique per source title, and down drops i
   const { down } = await import('../migrations/0047_title_aliases.js')
   await down(database)
   assert.equal(await database.schema.hasTable('title_aliases'), false)
+})
+
+test('categories: mjh categories stay when present; Freeview genres fill a slot mjh left without one', () => {
+  const merged = mergeChannelProgrammes({
+    channel: 'c',
+    primary: [slot({ title: 'Gruen', at: 0, categories: ['Entertainment'] }), slot({ title: 'Hard Quiz', at: 60, categories: ['Entertainment'] })],
+    secondary: [slot({ title: 'Gruen', at: 0, categories: ['Comedy'] }), slot({ title: 'Hard Quiz', at: 60 })],
+  })
+  assert.deepEqual(merged.xml.map((xml) => parseProgrammeElement(xml).categories), [['Comedy'], ['Entertainment']])
 })

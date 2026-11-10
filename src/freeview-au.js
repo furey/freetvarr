@@ -183,7 +183,7 @@ export const createFreeviewAu = ({
     const listings = []
     for (let page = 0; page < maxPages; page += 1) {
       const body = await client.getJson({
-        url: `${API_ORIGIN}/content/v1/epgs/${triplet}`,
+        url: `${API_ORIGIN}/content/v1/epgs/${triplet.toUpperCase()}`,
         params: {
           start: isoOf(windowStart),
           end: isoOf(windowStart + FREEVIEW_WINDOW_MS),
@@ -240,7 +240,13 @@ export const createFreeviewAu = ({
     return null
   }
 
-  return { region, isOn, regionTriplets, listingsFor, matchAirings }
+  const seedWindow = ({ triplet, windowStart, listings }) => {
+    if (cachedListingsFor({ triplet, windowStart })) return
+    const slim = listings.map(slimListingOf)
+    remember({ key: `${triplet}|${windowStart}`, listings: slim, ttlMs: slim.length ? listingsTtlMs : emptyTtlMs })
+  }
+
+  return { region, isOn, regionTriplets, listingsFor, matchAirings, seedWindow }
 }
 
 export const freeviewClient = createOutboundClient({

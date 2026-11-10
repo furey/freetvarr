@@ -106,8 +106,9 @@ import {
   localAddressToward,
   serveGuideFeed,
 } from './guide-feed.js'
-import { createGuideMerge } from './guide-merge.js'
-import { guideSources } from './guide-sources/index.js'
+import { GUIDE_MERGED_FEED_KEY, createGuideMerge } from './guide-merge.js'
+import { createGuideSources } from './guide-sources/index.js'
+import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
 import { createTitleAliases } from './title-aliases.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
@@ -151,6 +152,7 @@ import {
   artLookupBacklog,
   frameGrabsBusy,
   thumbnailWarmShare,
+  seedFreeviewWindow,
 } from './epg.js'
 import {
   adScansRunning,
@@ -2253,9 +2255,10 @@ const guideChannelTriplets = async () => readGuideChannelTriplets({
 
 const guideMerge = createGuideMerge({
   dir: GUIDE_DIR,
-  sources: guideSources,
+  sources: createGuideSources({ freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }) }),
   timeZone: currentTimeZone,
   sourceUrl: () => getSetting(GUIDE_SOURCE_KEY),
+  isServing: async () => (await getSetting(GUIDE_MERGED_FEED_KEY)) === 'on',
   channelTriplets: guideChannelTriplets,
   aliases: createTitleAliases(),
 })

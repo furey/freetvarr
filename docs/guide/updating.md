@@ -115,7 +115,7 @@ These releases change something on your install when you update to them. Read ea
 [Release notes for `2.19.0`](https://github.com/furey/freetvarr/releases/tag/2.19.0)
 
 - **Database**: the first start adds one database change (database change `0047`). `0047` adds a table of guide titles: for each title one guide source writes differently from another, the title that series rules use. A version that is older than `0047` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
-- **Guide feed**: Freetvarr saves its guide files in the `guide/` folder of the config folder. After you go back, you can delete that folder.
+- **Guide files**: Freetvarr saves guide files in the `guide/` folder of the config folder. After you go back, you can delete that folder.
 
 ### 2.16.0
 

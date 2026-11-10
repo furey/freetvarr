@@ -16,6 +16,7 @@ export const createFreeviewAuSource = ({
   nearMs = NEAR_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
   maxPages = MAX_PAGES,
+  onWindow = () => {},
 } = {}) => {
   const windows = new Map()
   const failures = new Map()
@@ -39,7 +40,9 @@ export const createFreeviewAuSource = ({
   const listings = async ({ channel, from, to }) => {
     const programmes = new Map()
     for (let start = windowStartOf(from); start < to; start += FREEVIEW_WINDOW_MS) {
-      for (const programme of await windowListings({ triplet: channel, start })) {
+      const window = await windowListings({ triplet: channel, start })
+      if (window === CHANNEL_REFUSED) break
+      for (const programme of window) {
         if (programme.stop > from && programme.start < to) programmes.set(programme.id, programme)
       }
     }
@@ -55,13 +58,17 @@ export const createFreeviewAuSource = ({
       return cached?.programmes ?? []
     }
     try {
-      const programmes = await fetchSpan({ triplet, start, end: start + FREEVIEW_WINDOW_MS, canSplit: true })
+      const listings = await fetchSpan({ triplet, start, end: start + FREEVIEW_WINDOW_MS, canSplit: true })
+      onWindow({ triplet, windowStart: start, listings })
+      const placeholders = placeholderImagesOf(listings)
+      const programmes = listings.map((listing) => freeviewProgrammeOf({ listing, placeholders })).filter(Boolean)
       const ttlMs = start - now() < nearMs ? nearTtlMs : farTtlMs
       windows.set(key, { programmes, expiresAt: now() + ttlMs })
       failures.delete(key)
       return programmes
-    } catch {
+    } catch (error) {
       counts.failedWindows += 1
+      if (error?.code === 'rejected') return CHANNEL_REFUSED
       const count = (failures.get(key)?.count ?? 0) + 1
       failures.set(key, { count, until: now() + failureBackoffMs[Math.min(count, failureBackoffMs.length) - 1] })
       return cached?.programmes ?? []
@@ -79,7 +86,7 @@ export const createFreeviewAuSource = ({
         await fetchSpan({ triplet, start, end: middle, canSplit: false }),
         await fetchSpan({ triplet, start: middle, end, canSplit: false }),
       ]
-      return [...new Map(halves.flat().map((programme) => [programme.id, programme])).values()]
+      return [...new Map(halves.flat().map((listing) => [listing.id, listing])).values()]
     }
   }
 
@@ -88,7 +95,7 @@ export const createFreeviewAuSource = ({
     for (let page = 0; page < maxPages; page += 1) {
       counts.requests += 1
       const body = await client.getJson({
-        url: `${API_ORIGIN}/content/v1/epgs/${triplet}`,
+        url: `${API_ORIGIN}/content/v1/epgs/${triplet.toUpperCase()}`,
         params: {
           start: isoOf(start),
           end: isoOf(end),
@@ -109,8 +116,7 @@ export const createFreeviewAuSource = ({
       raw.push(...(body?.data ?? []))
       if (!body?.meta?.pagination?.more) break
     }
-    const placeholders = placeholderImagesOf(raw)
-    return raw.map((listing) => freeviewProgrammeOf({ listing, placeholders })).filter(Boolean)
+    return raw
   }
 
   const stats = () => ({ ...counts })
@@ -202,6 +208,7 @@ const TRIPLET = /^[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}$/
 const EPISODE_SUBTYPE = 'onapi-subtype:episode'
 const RATING_LABELS = new Set(['G', 'PG', 'M', 'MA15+', 'AV15+', 'R18+', 'C', 'P'])
 const GATEWAY_TIMEOUT = 504
+const CHANNEL_REFUSED = Symbol('channel refused')
 const NO_CONTENT = 'bad-content'
 const PLACEHOLDER_TITLE = /^(to be (advised|confirmed|announced)|tba|tbc)$/i
 const PAGE_SIZE = 100

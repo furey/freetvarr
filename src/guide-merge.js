@@ -14,12 +14,14 @@ import { countryForTimeZone } from './zone-countries.js'
 export const MERGED_GUIDE_FILE = 'merged.xml.gz'
 export const MERGED_CHANNELS_FILE = 'channels.json'
 export const SLOT_TOLERANCE_MS = 5 * 60_000
+export const GUIDE_MERGED_FEED_KEY = 'guide_merged_feed'
 
 export const createGuideMerge = ({
   dir,
   sources,
   timeZone,
   sourceUrl = async () => null,
+  isServing = async () => false,
   channelTriplets = async () => new Map(),
   aliases,
   now = Date.now,
@@ -84,7 +86,7 @@ export const createGuideMerge = ({
   const stop = () => timers.splice(0).forEach((timer) => clearTimeout(timer))
 
   const servablePath = async () => {
-    if (!(await planNow())) return null
+    if (!(await isServing()) || !(await planNow())) return null
     const file = path.join(dir, MERGED_GUIDE_FILE)
     return fsp.access(file).then(() => file, () => null)
   }
@@ -276,7 +278,7 @@ export const mergedProgramme = ({ channel, primary, secondary }) => ({
   title: secondary.title,
   subTitle: primary.subTitle || secondary.subTitle,
   desc: primary.desc || secondary.desc,
-  categories: primary.categories?.length ? primary.categories : secondary.categories ?? [],
+  categories: secondary.categories?.length ? secondary.categories : primary.categories ?? [],
   rating: primary.rating || secondary.rating,
   icon: primary.icon || secondary.icon,
   episodeNums: episodeNumsOf({ primary, secondary }),
@@ -285,10 +287,8 @@ export const mergedProgramme = ({ channel, primary, secondary }) => ({
 
 export const episodeNumsOf = ({ primary, secondary = null }) => {
   const secondaryNums = secondary?.episodeNums ?? []
-  const fromPrimary = numberingOf(primary)
-  const numbering = fromPrimary.length
-    ? fromPrimary
-    : secondaryNums.filter((num) => NUMBERING_SYSTEMS.has(num.system))
+  const fromSecondary = secondaryNums.filter((num) => NUMBERING_SYSTEMS.has(num.system))
+  const numbering = fromSecondary.length ? fromSecondary : numberingOf(primary)
   const episodeOnly = !numbering.length && primary.episode
     ? [{ system: 'xmltv_ns', value: `.${primary.episode - 1}.` }]
     : []

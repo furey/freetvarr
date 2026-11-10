@@ -244,3 +244,20 @@ test('freeview: a "To Be Advised" placeholder is left out, so mjh fills the slot
   assert.equal(freeviewProgrammeOf({ listing: freeviewListing({ title: 'To Be Advised' }) }), null)
   assert.equal(freeviewProgrammeOf({ listing: freeviewListing({ title: 'TBA' }) }), null)
 })
+
+test('freeview: each window read hands its raw listings to onWindow, so the picture job can reuse it', async () => {
+  const seen = []
+  const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => NOW, onWindow: (window) => seen.push(window) })
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + HOUR })
+  assert.deepEqual(seen.map(({ triplet, windowStart, listings }) => [triplet, windowStart, listings.length]), [[TRIPLET, NOW, 1]])
+})
+
+test('freeview: requests use the upper-case triplet the API needs, and a 400 stops that channel instead of every later window', async () => {
+  const client = fakeFreeviewClient(({ url }) => {
+    if (!url.endsWith('1012:0420:042A')) throw new Error(`unexpected ${url}`)
+    throw new OutboundError('fvau-api-prod.switch.tv HTTP 400', { code: 'rejected', status: 400 })
+  })
+  const source = createFreeviewAuSource({ client, now: () => NOW })
+  assert.deepEqual(await source.listings({ channel: '1012:0420:042a', from: NOW, to: NOW + 2 * 24 * HOUR }), [])
+  assert.equal(client.calls.length, 1)
+})

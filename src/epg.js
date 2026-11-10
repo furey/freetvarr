@@ -94,6 +94,8 @@ import { measureJob } from './event-loop-lag.js'
 import { loadExternalIds } from './external-ids-store.js'
 import { isVariantTitle, nextVariantsOf, saveTitleVariants, variantsForTitle } from './title-variants.js'
 
+export const seedFreeviewWindow = (window) => freeviewAu.seedWindow(window)
+
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
   const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: localMidnightMs(nowMs), day })
