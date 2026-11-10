@@ -6,6 +6,7 @@ import {
   REPOINT_KEPT,
   REPOINT_KEY,
   REPOINT_NOTICE_KEY,
+  REPOINT_RECORD_KEY,
   automaticChoiceOf,
   channelRowsOf,
   degradedPairsOf,
@@ -14,9 +15,11 @@ import {
   pinProblemOf,
   pinsWith,
   readListingChoice,
+  readSwitchRecord,
   repointPlanOf,
   saveListingChoice,
   sourceRowsOf,
+  switchRecordOf,
 } from './guide-listings.js'
 
 export const createGuideSourceService = ({
@@ -33,6 +36,9 @@ export const createGuideSourceService = ({
   applyRepoint,
   plannedSteps = () => [],
   rollbackRepoint = async () => [],
+  applyUnmerge = async () => ({ ok: false, error: 'Freetvarr cannot stop the merged guide here.' }),
+  unmergeTargetFor = async () => null,
+  plannedUnmergeSteps = () => [],
   otherBusy = () => false,
   noticeTtlMs = NOTICE_TTL_MS,
   now = Date.now,
@@ -202,7 +208,7 @@ export const createGuideSourceService = ({
   const startRepoint = async () => {
     if (repointRun?.running || otherBusy()) return { busy: true }
     const previous = repointRun
-    const run = { running: true, steps: plannedSteps().map(({ id, label }) => ({ id, label, status: 'pending', detail: null })), result: null }
+    const run = { kind: 'repoint', running: true, steps: plannedSteps().map(({ id, label }) => ({ id, label, status: 'pending', detail: null })), result: null }
     repointRun = run
     const view = await overview({ withTvheadend: true }).catch((err) => ({ failed: err }))
     const pending = view.failed ? null : await journal.read()
@@ -220,7 +226,7 @@ export const createGuideSourceService = ({
     })
       .catch((err) => ({ ok: false, failedStep: null, code: null, error: err.message, steps: run.steps }))
       .then(async (result) => {
-        const saved = result.ok ? await setSetting(REPOINT_KEY, REPOINT_CONFIRMED).then(() => result, (err) => ({ ...result, ok: false, error: err.message })) : result
+        const saved = result.ok ? await saveSwitch(result).then(() => withoutRecord(result), (err) => ({ ...withoutRecord(result), ok: false, error: err.message })) : result
         Object.assign(run, { running: false, steps: saved.steps, result: saved.ok ? saved : { ...saved, ...repointFailureOf(saved) } })
         forgetNotice()
         return run
@@ -228,10 +234,67 @@ export const createGuideSourceService = ({
     return { run, finish }
   }
 
+  const saveSwitch = async (result) => {
+    await setSetting(REPOINT_KEY, REPOINT_CONFIRMED)
+    if (result.record?.grabber) await setSetting(REPOINT_RECORD_KEY, JSON.stringify(switchRecordOf(result.record)))
+  }
+
+  const unmergeView = async () => {
+    const [view, record] = await Promise.all([overview({ withTvheadend: true }), readSwitchRecord(getSetting)])
+    if (!view.mergedOn) return { problem: 'TVHeadend does not read the merged guide.' }
+    const target = await unmergeTargetFor({ record, view }).catch(() => null)
+    if (!target) return { problem: 'Freetvarr found no earlier guide address to put back.' }
+    return { view, target }
+  }
+
+  const unmergePlan = async () => {
+    const { problem, view, target } = await unmergeView()
+    if (problem) return { problem }
+    return {
+      plan: {
+        grabberUrl: view.repoint.grabberUrl,
+        afterUrl: target.grabber.url,
+        enabled: target.grabber.enabled,
+        fromRecord: target.fromRecord,
+        restoresLinks: target.links.length,
+        primaryChannels: view.repoint.added.length,
+      },
+    }
+  }
+
+  const startUnmerge = async () => {
+    if (repointRun?.running || otherBusy()) return { busy: true }
+    const previous = repointRun
+    const run = { kind: 'unmerge', running: true, steps: plannedUnmergeSteps().map(({ id, label }) => ({ id, label, status: 'pending', detail: null })), result: null }
+    repointRun = run
+    const prepared = await unmergeView().catch((err) => ({ problem: err.message }))
+    const problem = prepared.problem ?? ((await journal.read()) ? 'Freetvarr has not yet put back an earlier guide change. Restart Freetvarr, then try again.' : null)
+    if (problem) {
+      repointRun = previous
+      return { problem }
+    }
+    const finish = applyUnmerge({ target: prepared.target, journal, onProgress: (steps) => { run.steps = steps } })
+      .catch((err) => ({ ok: false, kind: 'unmerge', failedStep: null, code: null, error: err.message, steps: run.steps }))
+      .then(async (result) => {
+        const saved = result.ok ? await saveUnmerge().then(() => result, (err) => ({ ...result, ok: false, error: err.message })) : result
+        Object.assign(run, { running: false, steps: saved.steps, result: saved.ok ? saved : { ...saved, ...repointFailureOf(saved) } })
+        forgetNotice()
+        return run
+      })
+    return { run, finish }
+  }
+
+  const saveUnmerge = async () => {
+    await setSetting(REPOINT_KEY, REPOINT_KEPT)
+    await setSetting(REPOINT_RECORD_KEY, '')
+  }
+
   const repointProgress = () => repointRun ?? { running: false, steps: [], result: null }
 
-  return { overview, status, notice, cachedNotice, busy, recover, setMode, setPin, switchToAutomatic, keepGrabber, hideNotice, startRepoint, repointProgress }
+  return { overview, status, notice, cachedNotice, busy, recover, setMode, setPin, switchToAutomatic, keepGrabber, hideNotice, startRepoint, repointProgress, unmergePlan, startUnmerge }
 }
+
+const withoutRecord = ({ record, ...result }) => result
 
 export const createMergedFeedSwitch = ({ getSetting, setSetting, guideMerge, isFeedUrl, mergedKey, sourceKey }) => {
   const turnOn = async ({ previousUrl, report = () => {}, remember = async () => {} }) => {
@@ -255,7 +318,14 @@ export const createMergedFeedSwitch = ({ getSetting, setSetting, guideMerge, isF
     await setSetting(sourceKey, previous.sourceUrl ?? '')
   }
 
-  return { turnOn, restore }
+  const set = async ({ merged = '', sourceUrl = '' }) => {
+    const previous = { merged: await getSetting(mergedKey), sourceUrl: await getSetting(sourceKey) }
+    await setSetting(mergedKey, merged)
+    await setSetting(sourceKey, sourceUrl)
+    return previous
+  }
+
+  return { turnOn, restore, set }
 }
 
 export const mountGuideSourceRoutes = ({ app, csrf, readLimiter, writeLimiter, service, onError }) => {
@@ -330,6 +400,26 @@ export const mountGuideSourceRoutes = ({ app, csrf, readLimiter, writeLimiter, s
       res.status(202).json({ ok: true, steps: outcome.run.steps })
     } catch (err) {
       onError(res, err, 'guide-sources-repoint')
+    }
+  })
+
+  app.get('/api/guide-sources/unmerge', readLimiter, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    try {
+      reply(res, await service.unmergePlan())
+    } catch (err) {
+      onError(res, err, 'guide-sources-unmerge-plan')
+    }
+  })
+
+  app.post('/api/guide-sources/unmerge', writeLimiter, csrf, async (req, res) => {
+    try {
+      const outcome = await service.startUnmerge()
+      if (outcome.busy) return res.status(409).json({ error: 'Freetvarr is already changing the guide.' })
+      if (outcome.problem) return res.status(409).json({ error: outcome.problem })
+      res.status(202).json({ ok: true, steps: outcome.run.steps })
+    } catch (err) {
+      onError(res, err, 'guide-sources-unmerge')
     }
   })
 

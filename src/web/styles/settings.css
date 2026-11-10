@@ -1679,6 +1679,10 @@ a.settings-row-link:hover {
   margin-top: 16px;
 }
 
+.guide-unmerge {
+  margin-top: 24px;
+}
+
 .guide-settings-url {
   overflow-wrap: anywhere;
 }

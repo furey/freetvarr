@@ -81,6 +81,26 @@ export const suggestedFeedsHintOf = ({ checked }) => (checked ? `Each address an
 
 export const feedProvidersOf = (feeds = []) => [...new Map(feeds.map((feed) => [feed.provider, { name: feed.provider, source: feed.source }])).values()]
 
+export const unmergeIntroOf = (plan) => {
+  if (!plan) return ''
+  const from = plan.fromRecord ? 'the guide address it read before you switched' : 'the i.mjh.nz guide for your region'
+  return `Freetvarr can point TVHeadend's guide grabber back at ${from}, and turn the merged guide off. You can switch again later. Check what changes, then choose.`
+}
+
+export const unmergeLinksTextOf = (plan) => {
+  if (!plan) return ''
+  return [
+    plan.primaryChannels ? `Unlinks the ${plan.primaryChannels} ${plan.primaryChannels === 1 ? 'channel' : 'channels'} that only Freeview lists.` : 'Unlinks the channels that only Freeview lists.',
+    plan.restoresLinks ? `Puts back the links of ${plan.restoresLinks} ${plan.restoresLinks === 1 ? 'channel' : 'channels'} that the switch changed.` : '',
+  ].filter(Boolean).join(' ')
+}
+
+export const unmergeDoneTextOf = (outcome) => {
+  const reads = outcome.enabled === false ? 'TVHeadend no longer downloads a guide by address, as before you switched.' : `TVHeadend reads ${outcome.grabberUrl} again.`
+  const updated = outcome.updated ? '' : ' Its listings change after its next import.'
+  return `${reads}${updated} The merged guide is off.`
+}
+
 const joinAnd = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
 
 const ADDED_SHOWN = 4

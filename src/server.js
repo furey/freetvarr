@@ -89,6 +89,9 @@ import {
   applyGuideRepoint,
   applyGuideSetup,
   rollbackGuideRepoint,
+  applyGuideUnmerge,
+  fetchFeedChannels,
+  planGuideUnmerge,
   inspectGuide,
   linkChannelsByHand,
   readGuideLinks,
@@ -118,7 +121,7 @@ import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
 import { createFreeviewNzSource } from './guide-sources/freeview-nz.js'
 import { createTitleAliases } from './title-aliases.js'
 import { createSourceHealthStore } from './guide-source-health.js'
-import { readListingChoice } from './guide-listings.js'
+import { readListingChoice, unmergeTargetOf } from './guide-listings.js'
 import { trustworthyOriginHeaders } from './trustworthy-origin-headers.js'
 import { createGuideSourceService, createMergedFeedSwitch, mountGuideSourceRoutes } from './guide-source-routes.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
@@ -2291,7 +2294,7 @@ const guideMerge = createGuideMerge({
 
 const ownGuideFeedUrl = async (conn) => guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT })
 
-const { turnOn: turnOnMergedFeed, restore: restoreMergedFeed } = createMergedFeedSwitch({
+const { turnOn: turnOnMergedFeed, restore: restoreMergedFeed, set: setMergedFeed } = createMergedFeedSwitch({
   getSetting,
   setSetting,
   guideMerge,
@@ -2307,6 +2310,14 @@ const rollbackRepoint = async (undo) => rollbackGuideRepoint({
   restoreMerged: restoreMergedFeed,
 })
 
+const earlierSourceUrl = async () => {
+  const [plan, saved] = await Promise.all([guideMerge.planNow(), getSetting(GUIDE_SOURCE_KEY)])
+  const secondary = plan?.secondary
+  if (!secondary) return null
+  if (saved && secondary.source.regionOfUrl(saved)) return saved
+  return secondary.source.feeds.find((feed) => feed.region === secondary.region)?.url ?? null
+}
+
 const guideSourceService = createGuideSourceService({
   getSetting,
   setSetting,
@@ -2321,6 +2332,36 @@ const guideSourceService = createGuideSourceService({
   rollbackRepoint,
   otherBusy: () => Boolean(guideRun?.running),
   plannedSteps: () => planGuideRepoint().steps,
+  plannedUnmergeSteps: () => planGuideUnmerge().steps,
+  unmergeTargetFor: async ({ record, view }) => {
+    const conn = await resolveConnection()
+    const grabber = (await inspectGuide({ http: setupHttp, conn })).module
+    if (record) return unmergeTargetOf({ record, grabber })
+    const sourceUrl = await earlierSourceUrl()
+    if (!sourceUrl) return null
+    const shifts = await readTimeshifts({ http: setupHttp, conn, feedChannels: await fetchFeedChannels(sourceUrl) })
+    const feedUrl = isGuideFeedUrl(view.repoint.grabberUrl) ? view.repoint.grabberUrl : view.repoint.feedUrl
+    return unmergeTargetOf({ grabber, feedUrl, sourceUrl, shifted: shifts.length > 0 })
+  },
+  applyUnmerge: async ({ target, journal, onProgress }) => {
+    const conn = await resolveConnection()
+    const result = await applyGuideUnmerge({
+      http: setupHttp,
+      conn,
+      target,
+      primaryPrefix: (await guideMerge.planNow())?.primary?.source.channelIdPrefix ?? 'freeview',
+      setMerged: setMergedFeed,
+      restoreMerged: restoreMergedFeed,
+      isFeedUrl: isGuideFeedUrl,
+      waitForRequest: guideFeedRequests.waitSince,
+      journal,
+      onProgress,
+    })
+    if (result.ok) refreshGuideAfterLinks()
+    if (result.ok) console.log(`[guide-sources] TVHeadend reads ${result.grabberUrl} again; the merged guide is off`)
+    else console.warn(`[guide-sources] stopping the merged guide stopped at ${result.failedStep}: ${result.error}`)
+    return result
+  },
   applyRepoint: async ({ feedUrl, journal, onProgress }) => {
     const conn = await resolveConnection()
     const result = await applyGuideRepoint({
