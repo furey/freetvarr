@@ -1011,8 +1011,10 @@ const screenedImageOfOrigin = (origin) => screenedImageOrErrorOf(origin).catch((
 
 const screenedImageOrErrorOf = async (origin) => {
   const image = await rawImageOrErrorOf(origin)
-  if (!image?.body || !isGuideImageOrigin(origin)) return image
-  return await placeholderPictures.check({ source: origin, image }) ? null : image
+  if (!image?.body) return image
+  const source = isGuidePictureOrigin(origin) ? await guidePictures.sourceOfOrigin(origin) : origin
+  if (!source || !isGuideImageOrigin(source)) return image
+  return await placeholderPictures.check({ source, image }) ? null : image
 }
 
 export const isGuideImageOrigin = (origin) => !OWN_ORIGIN.test(String(origin ?? '')) && !isFallbackImageSource(origin)
@@ -1125,7 +1127,7 @@ const resolvedThumbnail = ({ resolution: { origin, transform }, width, shape }) 
 }).catch(() => null)
 
 const resolvedOriginalOf = async ({ origin, transform, shape }) => {
-  const image = await rawImageOfOrigin(origin)
+  const image = await screenedImageOfOrigin(origin)
   if (!image || transform !== 'pad') return image
   return (shape === POSTER_SHAPE ? portraitPadOf(image) : landscapeOf(image)).catch(() => image)
 }
@@ -1412,8 +1414,8 @@ export const freeviewProblemOf = (err) => (err?.status === 401 || err?.status ==
 
 const runGuidePictures = async (guide) => {
   const programmes = [...guide.programByEventId.values()]
-  placeholderPictures.noteTitles(programmes.map((programme) => ({ source: programme.image, title: programme.title })))
   await refreshLogoHashes(guide.channels)
+  await forgetPlaceholderPictures()
   const candidates = guidePictureCandidatesOf(programmes)
   const fromGuide = await guidePictures.saveAll({ candidates })
   const fromFreeview = await saveFreeviewPictures({ guide, programmes, titleKeys: [...candidates.keys()] })
@@ -1435,8 +1437,12 @@ const refreshLogoHashes = async (channels = []) => {
 export const forgetPlaceholderPictures = async ({ database = db, pictures = guidePictures, placeholders = placeholderPictures } = {}) => {
   await placeholders.saveFamilies()
   const dropped = await pictures.dropPlaceholders(await guidePictureKeepsOf(database))
-  const rows = await database('art_resolutions').where('origin', 'like', 'http%').select('resolution_key', 'origin', 'title_key')
-  const stale = rows.filter((row) => placeholders.isPlaceholder(row.origin))
+  const rows = await database('art_resolutions')
+    .where((query) => query.where('origin', 'like', 'http%').orWhere('origin', 'like', 'guide-picture:%'))
+    .select('resolution_key', 'origin', 'title_key')
+  const sourceOf = async (origin) => (isGuidePictureOrigin(origin) ? pictures.sourceOfOrigin(origin) : origin)
+  const stale = []
+  for (const row of rows) if (placeholders.isPlaceholder(await sourceOf(row.origin))) stale.push(row)
   for (let at = 0; at < stale.length; at += PLACEHOLDER_DELETE_BATCH) {
     await database('art_resolutions').whereIn('resolution_key', stale.slice(at, at + PLACEHOLDER_DELETE_BATCH).map((row) => row.resolution_key)).del()
   }
@@ -1514,6 +1520,7 @@ export const programsInWindow = ({ rows, fromMs, toMs }) =>
 const getCachedGuide = () => guideCache.get(localMidnightMs())
 
 const announceGuideLoaded = (guide) => {
+  placeholderPictures.noteTitles([...guide.programByEventId.values()].map((programme) => ({ source: programme.image, title: programme.title })))
   setImmediate(() => guideListeners.forEach((listener) => listener(guide)))
   return guide
 }
