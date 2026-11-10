@@ -9,8 +9,12 @@ process.env.DB_PATH = path.join(tmpDir, 'state.db')
 process.env.TZ = 'Australia/Sydney'
 
 const {
+  guideTitleIndexOf,
+  isCandidateVariant,
   isVariantTitle,
   loadTitleVariants,
+  loadVariantCandidates,
+  variantTitlesOf,
   nextVariantsOf,
   saveTitleVariants,
   variantsForTitle,
@@ -97,4 +101,22 @@ test('isVariantTitle: a country code counts only in capitals, a country name in 
   assert.equal(variant('au', 'Hard Quiz', 'Hard Quiz Au'), false)
   assert.equal(variant('au', 'Hard Quiz', 'Hard Quiz AU'), true)
   assert.equal(variant('au', 'Hard Quiz', 'hard quiz aotearoa'), true)
+})
+
+test('variant candidates: a Freeview title never seen in mjh that agrees with the series title is offered; other candidates and titles are not', async () => {
+  await db('title_aliases').insert([
+    { source: 'freeview-au', source_title: 'Gogglebox Celebrity Edition', title: null, kind: 'variant-candidate', first_seen_at: 1, last_seen_at: 1 },
+    { source: 'freeview-au', source_title: 'Hard Quiz', title: null, kind: 'variant-candidate', first_seen_at: 1, last_seen_at: 1 },
+    { source: 'freeview-au', source_title: 'Gogglebox Unseen', title: 'Gogglebox', kind: 'alias', first_seen_at: 1, last_seen_at: 1 },
+  ])
+  const candidates = await loadVariantCandidates()
+  assert.deepEqual([...candidates].sort(), ['gogglebox celebrity edition', 'hard quiz'])
+  assert.equal(isCandidateVariant({ title: 'Gogglebox', candidate: 'Gogglebox Celebrity Edition', candidates }), true)
+  assert.equal(isCandidateVariant({ title: 'Gogglebox', candidate: 'Hard Quiz', candidates }), false)
+  assert.equal(isCandidateVariant({ title: 'Gogglebox', candidate: 'Gogglebox Unseen', candidates }), false)
+  const nowMs = Date.parse('2026-11-10T00:00:00Z')
+  const airings = ['Gogglebox Celebrity Edition', 'Gogglebox Unseen', 'Hard Quiz'].map((title) => ({ title, end: nowMs + 3_600_000 }))
+  const titleIndex = guideTitleIndexOf({ airings, nowMs })
+  assert.deepEqual(variantTitlesOf({ title: 'Gogglebox', titleIndex, candidates }).map((v) => v.title), ['Gogglebox Celebrity Edition'])
+  assert.deepEqual(variantTitlesOf({ title: 'Gogglebox', titleIndex }), [])
 })

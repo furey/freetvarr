@@ -201,7 +201,7 @@ test('freeview: a 504 on a six-hour window reads it again as two three-hour halv
     ['2026-11-10T00:00:00Z', '2026-11-10T03:00:00Z'],
     ['2026-11-10T03:00:00Z', '2026-11-10T06:00:00Z'],
   ])
-  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 3, failedWindows: 0, splitWindows: 1, windows: 0, failures: 0 })
+  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 3, failedWindows: 0, splitWindows: 1, windowsRead: 1, windows: 0, failures: 0 })
 })
 
 test('freeview: a failed window is empty, backs off, and is not read again until the backoff ends', async () => {
@@ -237,7 +237,7 @@ test('freeview: a window past the horizon (204, no JSON) is empty, not a failure
   })
   const source = createFreeviewAuSource({ client, now: () => NOW })
   assert.deepEqual(await source.listings({ channel: TRIPLET, from: NOW, to: NOW + HOUR }), [])
-  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 1, failedWindows: 0, splitWindows: 0, windows: 0, failures: 0 })
+  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 1, failedWindows: 0, splitWindows: 0, windowsRead: 1, windows: 0, failures: 0 })
 })
 
 test('freeview: a "To Be Advised" placeholder is left out, so mjh fills the slot', () => {

@@ -88,6 +88,17 @@ It warns when a host that serves `50` or more programmes in the TV guide failed 
 
 In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview.com.au/) for titles whose guide picture fails or is missing. It picks the Freeview region from your time zone (each state and territory capital, plus Broken Hill), and matches each programme by its channel and start time. Outside Australia this step is off. It also needs the Admin right in TVHeadend to read the channel lists; without it, this check says that Freeview pictures are off and why.
 
+## Guide sources {#guide-sources}
+
+Shows each guide source with the share of channels that have healthy listings, how many days ahead it goes, and when Freetvarr last read it ([Guide](/guide/settings#guide)). It skips when your time zone has no guide sources. Before you confirm the merged guide, it passes and says where to turn it on.
+
+It warns when:
+
+- The merged guide file is more than `12` hours old, while TVHeadend reads it.
+- The first source (Freeview in Australia) is degraded.
+- You chose a source, for all channels or for one channel, and that source is degraded. **Switch to Automatic** sets **Use first** to **Automatic** and removes the pins to degraded sources.
+- You confirmed the merged guide, but the TVHeadend XMLTV URL grabber no longer reads the Freetvarr address. Running the **Guide** step of setup again with another address does this.
+
 ## Recordings folder {#paths-recordings}
 
 Checks that the recordings folder exists inside the Freetvarr Docker container and is readable. See [Test path failures](/guide/troubleshooting#test-path-failures).

@@ -238,6 +238,110 @@ export const applyGuideSetup = async ({
   }
 }
 
+export const planGuideRepoint = () => ({
+  steps: [
+    { id: 'merged', label: 'Turn on the merged guide' },
+    { id: 'point', label: 'Point TVHeadend at Freetvarr' },
+    { id: 'fetch', label: 'Wait for TVHeadend to fetch the guide' },
+    { id: 'link', label: 'Link the new channels' },
+    { id: 'verify', label: 'Check that the guide updated' },
+  ],
+})
+
+export const applyGuideRepoint = async ({
+  http,
+  conn,
+  feedUrl,
+  turnOnMerged = async () => {},
+  turnOffMerged = async () => {},
+  waitForRequest,
+  fetchFeed = fetchFeedChannels,
+  onProgress = () => {},
+  pollMs = POLL_MS,
+  limitMs = DOWNLOAD_LIMIT_MS,
+  feedRequestLimitMs = FEED_REQUEST_LIMIT_MS,
+  updateLimitMs = UPDATE_LIMIT_MS,
+  now = Date.now,
+}) => {
+  const progress = createProgress({ steps: planGuideRepoint().steps, onProgress })
+  let current = null
+  let module = null
+  let pointed = false
+  let mergedOn = false
+  let before = null
+  const run = async (stepId, action) => {
+    current = stepId
+    progress.start(stepId)
+    const result = await action()
+    progress.done(stepId)
+    return result
+  }
+  try {
+    const previousUrl = await run('merged', async () => {
+      module = await findUrlGrabber({ http, conn })
+      if (!module) throw new GuideError('This TVHeadend has no guide download by URL.', 'no-grabber')
+      await turnOnMerged({ previousUrl: module.enabled ? module.url : '' })
+      mergedOn = true
+      return module.url
+    })
+    const since = await run('point', async () => {
+      before = await readEpgEnd({ http, conn })
+      await enableGrabber({ http, conn, module, url: feedUrl })
+      pointed = true
+      await keepGuideSaved({ http, conn })
+      const at = now()
+      await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+      return at
+    })
+    await run('fetch', async () => {
+      if (!(await waitForRequest({ since, limitMs: feedRequestLimitMs }))) {
+        throw new GuideError('TVHeadend did not fetch the guide from Freetvarr.', 'not-fetched')
+      }
+    })
+    const linked = await run('link', async () => {
+      const feedChannels = await fetchFeed(feedUrl).catch((err) => {
+        throw new GuideError(`Freetvarr could not read its own guide (${err.message}).`, 'feed-unreachable')
+      })
+      const guideChannels = await waitForGuideChannels({
+        http,
+        conn,
+        feedChannels,
+        report: (detail) => progress.detail('link', detail),
+        pollMs,
+        limitMs,
+        now,
+      })
+      const [channels, serviceLcns] = await Promise.all([listTvChannels({ http, conn }), listServiceLcns({ http, conn })])
+      const matched = matchGuideChannels({ channels, guideChannels, feedChannels, serviceLcns })
+      await applyGuideLinks({ http, conn, links: matched.links, guideChannels })
+      return new Set(matched.links.map((link) => link.channelId)).size
+    })
+    const after = await run('verify', () => waitForEpgChange({ http, conn, before, pollMs, limitMs: updateLimitMs, now }))
+    return {
+      ok: true,
+      grabberUrl: feedUrl,
+      previousUrl,
+      linked,
+      updated: after.changed,
+      programmes: after.total,
+      steps: progress.steps(),
+    }
+  } catch (err) {
+    if (current) progress.fail(current)
+    const restored = mergedOn
+      ? await restoreGrabber({ http, conn, module, pointed, turnOffMerged }).then(() => true, () => false)
+      : false
+    return {
+      ok: false,
+      failedStep: current,
+      code: err?.code || null,
+      error: err?.message || String(err),
+      restored,
+      steps: progress.steps(),
+    }
+  }
+}
+
 export const readGuideLinks = async ({ http, conn, countProgrammes = countFeedProgrammes }) => {
   const inspection = await inspectGuide({ http, conn })
   const counts = inspection.module?.url
@@ -391,6 +495,33 @@ const pointGrabberAtShiftedFeed = async ({ http, conn, module, url, shiftedFeed,
   const since = now()
   await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
   return shiftedFeed.waitForRequest({ since, limitMs })
+}
+
+const restoreGrabber = async ({ http, conn, module, pointed, turnOffMerged }) => {
+  try {
+    if (!pointed) return
+    await http.post('idnode/save', {
+      node: JSON.stringify({ uuid: module.id, enabled: module.enabled, args: module.url }),
+    }, conn)
+    await http.post('epggrab/internal/rerun', { rerun: 1 }, conn)
+  } finally {
+    await turnOffMerged()
+  }
+}
+
+const readEpgEnd = async ({ http, conn }) => {
+  const body = await http.get('epg/events/grid', { sort: 'stop', dir: 'DESC', limit: 1 }, conn)
+  return { total: Number(body?.totalCount) || 0, lastStop: Number(body?.entries?.[0]?.stop) || 0 }
+}
+
+const waitForEpgChange = async ({ http, conn, before, pollMs, limitMs, now }) => {
+  const startedAt = now()
+  for (;;) {
+    const latest = await readEpgEnd({ http, conn })
+    const changed = latest.total > 0 && (latest.total !== before.total || latest.lastStop !== before.lastStop)
+    if (changed || now() - startedAt >= limitMs) return { ...latest, changed }
+    await sleep(pollMs)
+  }
 }
 
 const keepGuideSaved = async ({ http, conn }) => {
@@ -652,6 +783,7 @@ const GRID_LIMIT = 5000
 const POLL_MS = 3000
 const DOWNLOAD_LIMIT_MS = 5 * 60_000
 const FEED_REQUEST_LIMIT_MS = 150_000
+const UPDATE_LIMIT_MS = 2 * 60_000
 const FEED_TIMEOUT_MS = 30_000
 const FEED_HEAD_BYTES = 2 * 1024 * 1024
 const PROGRAMME_TAG = '<programme'

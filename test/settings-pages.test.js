@@ -36,7 +36,7 @@ test('SETTINGS_GROUPS: about, watching, recording, system, and danger zone in or
 
 test('SETTINGS_GROUPS: each group lists its pages in order', () => {
   assert.deepEqual(labelsOf('about'), ['About Freetvarr', 'System diagram'])
-  assert.deepEqual(labelsOf('watching'), ['Playback', 'Channels', 'Film and TV info', 'For you', 'Watch on TV'])
+  assert.deepEqual(labelsOf('watching'), ['Playback', 'Channels', 'Guide', 'Film and TV info', 'For you', 'Watch on TV'])
   assert.deepEqual(labelsOf('recording'), ['Series rules', 'Title matches', 'Media library', 'Ad removal', 'Plex', 'Sonarr and Radarr', 'Recording log'])
   assert.deepEqual(labelsOf('system'), ['Setup', 'Health', 'Activity', 'Schedule', 'TVHeadend'])
   assert.deepEqual(labelsOf('danger'), ['Reset'])
@@ -58,6 +58,7 @@ test('SETTINGS_GROUPS: every page keeps the address it had before the regrouping
     'for-you': '#/settings/for-you',
     player: '#/settings/player',
     channels: '#/settings/channels',
+    guide: '#/settings/guide',
     'film-tv-info': '#/settings/film-tv-info',
     'tv-apps': '#/settings/tv-apps',
     series: '#/settings/system/series',

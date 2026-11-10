@@ -210,6 +210,10 @@ Check the result in TVHeadend's **Electronic Program Guide** tab. Every channel 
 
 The feed also supplies channel logos and programme images, which Freetvarr shows when TVHeadend has none of its own. Over-the-air guide data has no programme images.
 
+### Merged guide
+
+In Australia, Freetvarr also builds a merged guide from Freeview and the mjh feed, with more channels and Freeview listings for the next `9` days. TVHeadend reads it only after you confirm under Settings → **Guide** ([Guide](/guide/settings#guide)). Freetvarr then sets **Extra arguments** of the XMLTV URL grabber to `http://<freetvarr-host>:3733/guide/xmltv.xml`, the address +1 channels use, and links the channels that only Freeview lists. To do this by hand, set **Extra arguments** to that address and press **Re-run internal EPG grabbers**; Freetvarr serves the merged file only after the confirm step.
+
 ### Guide priority
 
 When an XMLTV grabber and the over-the-air EIT grabber are both enabled, the module priority decides which one supplies a programme. XMLTV has priority `3` by default and EIT has `1`, so XMLTV wins. Set the priorities in **Configuration → Channel/EPG → EPG Grabber Modules** and keep XMLTV above EIT.

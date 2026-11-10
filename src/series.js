@@ -4,7 +4,7 @@ import { db, getSetting } from './db.js'
 import { createValidFilename, getMediaRoot, getOneOffRoot, matchShow, seasonFolderName } from './sync.js'
 import { getRecordingState, listGuideAirings, listGuideChannels } from './epg.js'
 import { seriesKey } from './tvheadend.js'
-import { chosenVariantsOf, guideTitleIndexOf, loadTitleVariants, variantTitlesOf } from './title-variants.js'
+import { chosenVariantsOf, guideTitleIndexOf, loadTitleVariants, loadVariantCandidates, variantTitlesOf } from './title-variants.js'
 import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 
@@ -16,13 +16,15 @@ export const getSeries = async ({
   loadOverrides = loadKindOverrides,
   loadVariants = loadTitleVariants,
   loadAirings = listGuideAirings,
+  loadCandidates = loadVariantCandidates,
   nowMs = Date.now(),
 } = {}) => {
-  const [shows, saving, kindOverrides, variants] = await Promise.all([
+  const [shows, saving, kindOverrides, variants, candidates] = await Promise.all([
     loadShows(),
     loadSaving(),
     loadOverrides().catch(() => new Map()),
     loadVariants().catch(() => new Map()),
+    loadCandidates().catch(() => new Set()),
   ])
   try {
     const [state, channels, airings] = await Promise.all([
@@ -38,6 +40,7 @@ export const getSeries = async ({
       saving,
       kindOverrides,
       variants,
+      candidates,
       airings,
       nowMs,
     })
@@ -55,13 +58,14 @@ export const joinSeries = ({
   saving = DEFAULT_SAVING,
   kindOverrides = new Map(),
   variants = new Map(),
+  candidates = new Set(),
   airings = [],
   nowMs = Date.now(),
 } = {}) => {
   const channelNames = new Map(channels.map((c) => [String(c.id), c.name]))
   const titleIndex = guideTitleIndexOf({ airings, nowMs })
   const series = groupByTitle(seriesTags)
-    .map(({ key, autorecs }) => describeSeries({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, variants, titleIndex, nowMs }))
+    .map(({ key, autorecs }) => describeSeries({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, variants, candidates, titleIndex, nowMs }))
     .sort((a, b) => a.title.localeCompare(b.title))
   const filedIds = new Set(series.filter((s) => s.folder).map((s) => s.folder.id))
   return { series, titleMatches: withSavesTo({ shows: shows.filter((s) => !filedIds.has(s.id)), saving }) }
@@ -99,7 +103,7 @@ const savingSettings = async () => ({
 const withSavesTo = ({ shows, saving }) =>
   shows.map((show) => ({ ...show, savesTo: savesTo({ folder: show, saving }) }))
 
-const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, variants, titleIndex, nowMs }) => {
+const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames, saving, kindOverrides, variants, candidates, titleIndex, nowMs }) => {
   const title = autorecs[0].name
   const links = new Set(autorecs.flatMap(seriesLinksOf))
   const next = upcomingRecordings
@@ -127,6 +131,7 @@ const describeSeries = ({ key, autorecs, shows, upcomingRecordings, channelNames
       titleIndex,
       chosen: [...chosenVariantsOf({ variants, title }), ...autorecs.flatMap((a) => a.titleVariants || [])],
       inScope: inChannelScopeOf(autorecs),
+      candidates,
     }),
     titleVariantsEditable: autorecs.every((a) => a.titleEditable !== false),
     folder,

@@ -92,7 +92,7 @@ import {
 import { dvrAiringMatchOf, dvrAiringsOf } from './repeat-match.js'
 import { measureJob } from './event-loop-lag.js'
 import { loadExternalIds } from './external-ids-store.js'
-import { isVariantTitle, nextVariantsOf, saveTitleVariants, variantsForTitle } from './title-variants.js'
+import { isOfferedTitle, loadVariantCandidates, nextVariantsOf, saveTitleVariants, variantsForTitle } from './title-variants.js'
 
 export const seedFreeviewWindow = (window) => freeviewAu.seedWindow(window)
 
@@ -754,12 +754,13 @@ export const setSeriesTitleVariant = async ({
   loadVariants = variantsForTitle,
   writeRule = setSeriesTitleVariants,
   saveVariants = saveTitleVariants,
+  loadCandidates = loadVariantCandidates,
 }) => {
   const rules = await loadRules({ seriesLinkIds })
   const title = rules[0].name
   const current = distinctTitlesOf([...await loadVariants(title), ...rules.flatMap((rule) => rule.titleVariants || [])])
   const chosen = current.find((known) => known.toLowerCase() === variant.toLowerCase())
-  if (!chosen && !isVariantTitle({ title, candidate: variant })) {
+  if (!chosen && !isOfferedTitle({ title, candidate: variant, candidates: await loadCandidates().catch(() => new Set()) })) {
     throw new TitleVariantError(`"${variant}" is not another title of "${title}".`)
   }
   const variants = nextVariantsOf({ current, variant: chosen ?? variant, enabled })

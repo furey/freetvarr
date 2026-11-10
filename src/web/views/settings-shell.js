@@ -13,6 +13,7 @@ import { prefersReducedMotion } from '/shared/utils.js'
 import { ActivityView } from '/views/activity-view.js'
 import { ChannelsSettingsView } from '/views/channels-settings-view.js'
 import { DoctorView } from '/views/doctor-view.js'
+import { GuideSettingsView } from '/views/guide-settings-view.js'
 import { PlayerSettingsView } from '/views/player-settings-view.js'
 import { RecordingsView } from '/views/recordings-view.js'
 import { SeriesView } from '/views/series-view.js'
@@ -41,6 +42,7 @@ const PAGE_INTROS = {
   log: 'Every recording TVHeadend has finished, and what Freetvarr did with it.',
   player: 'How the player starts, and how many live streams play at once.',
   channels: 'The channels that Live TV, the TV guide, and search show.',
+  guide: 'Where the TV guide listings come from, and how each source is doing.',
   'for-you': 'For you picks shows from the guide based on what this household watches and records.',
   diagram: 'Select a component to see its function, whether it is required, and its settings.',
   about: 'Records free-to-air TV from your TVHeadend-compatible tuner and saves it where your media player finds it.',
@@ -94,6 +96,7 @@ export const SettingsShell = {
       if (page.value?.view === 'for-you') return { view: SuggestionsSettingsView, props: {} }
       if (page.value?.view === 'player') return { view: PlayerSettingsView, props: {} }
       if (page.value?.view === 'channels') return { view: ChannelsSettingsView, props: {} }
+      if (page.value?.view === 'guide') return { view: GuideSettingsView, props: {} }
       if (page.value?.view === 'diagram') return { view: SystemDiagramView, props: {} }
       return { view: SettingsView, props: { section: page.value?.section } }
     })

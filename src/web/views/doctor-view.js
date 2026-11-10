@@ -70,6 +70,8 @@ export const DoctorView = {
         </div>
       </header>
 
+      <guide-notice class="health-guide-notice" />
+
       <section class="settings-group" aria-labelledby="health-sync-label">
         <h3 id="health-sync-label" class="ui-group-label">Sync</h3>
         <div class="ui-group">

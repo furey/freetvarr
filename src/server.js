@@ -86,6 +86,7 @@ import {
   tunerAddressConfig,
 } from './tvheadend-setup.js'
 import {
+  applyGuideRepoint,
   applyGuideSetup,
   inspectGuide,
   linkChannelsByHand,
@@ -110,6 +111,9 @@ import { GUIDE_MERGED_FEED_KEY, createGuideMerge } from './guide-merge.js'
 import { createGuideSources } from './guide-sources/index.js'
 import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
 import { createTitleAliases } from './title-aliases.js'
+import { createSourceHealthStore } from './guide-source-health.js'
+import { readListingChoice } from './guide-listings.js'
+import { createGuideSourceService, mountGuideSourceRoutes } from './guide-source-routes.js'
 import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, rootSettingsProblem } from './path-check.js'
 import { applyDefaultFavourites } from './default-favourites.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -1266,6 +1270,7 @@ app.delete('/api/play/:session', doubleCsrfProtection, async (req, res) => {
 const doctorLimiter = createRateLimiter({ limit: 10 })
 
 const liveDoctorDeps = {
+  guideSources: () => guideSourceService.overview(),
   liveEncoder: () => liveEncoderReady,
   liveStreams: async () => liveStreams.describe(),
   hostNames: async () => hostCheckReport({ allowedHosts, seenHosts, machineNames: MACHINE_NAMES }),
@@ -2253,14 +2258,76 @@ const guideChannelTriplets = async () => readGuideChannelTriplets({
   listTriplets: listChannelTriplets,
 })
 
+const guideSources = createGuideSources({ freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }) })
+
+const guideSourceHealth = createSourceHealthStore()
+
 const guideMerge = createGuideMerge({
   dir: GUIDE_DIR,
-  sources: createGuideSources({ freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }) }),
+  sources: guideSources,
   timeZone: currentTimeZone,
   sourceUrl: () => getSetting(GUIDE_SOURCE_KEY),
   isServing: async () => (await getSetting(GUIDE_MERGED_FEED_KEY)) === 'on',
   channelTriplets: guideChannelTriplets,
   aliases: createTitleAliases(),
+  health: guideSourceHealth,
+  listingChoice: () => readListingChoice(getSetting),
+  track: activity.track,
+})
+
+const ownGuideFeedUrl = async (conn) => guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT })
+
+const mergedFeedSwitch = () => {
+  let previous = null
+  return {
+    turnOn: async ({ previousUrl }) => {
+      previous = await Promise.all([getSetting(GUIDE_MERGED_FEED_KEY), getSetting(GUIDE_SOURCE_KEY)])
+      await setSetting(GUIDE_MERGED_FEED_KEY, 'on')
+      if (previousUrl && !isGuideFeedUrl(previousUrl)) await setSetting(GUIDE_SOURCE_KEY, previousUrl)
+    },
+    turnOff: async () => {
+      if (!previous) return
+      const [merged, source] = previous
+      await setSetting(GUIDE_MERGED_FEED_KEY, merged ?? '')
+      await setSetting(GUIDE_SOURCE_KEY, source ?? '')
+    },
+  }
+}
+
+const guideSourceService = createGuideSourceService({
+  getSetting,
+  setSetting,
+  guideMerge,
+  rankedSources: () => guideSources.forCountry(countryForTimeZone(currentTimeZone())),
+  health: guideSourceHealth,
+  inspect: async () => inspectGuide({ http: setupHttp, conn: await resolveConnection() }),
+  feedUrl: async () => ownGuideFeedUrl(await resolveConnection()),
+  isFeedUrl: isGuideFeedUrl,
+  applyRepoint: async ({ feedUrl, onProgress }) => {
+    const merged = mergedFeedSwitch()
+    const result = await applyGuideRepoint({
+      http: setupHttp,
+      conn: await resolveConnection(),
+      feedUrl,
+      turnOnMerged: merged.turnOn,
+      turnOffMerged: merged.turnOff,
+      waitForRequest: guideFeedRequests.waitSince,
+      onProgress,
+    })
+    if (result.ok) refreshGuideAfterLinks()
+    if (result.ok) console.log(`[guide-sources] TVHeadend reads the merged guide at ${feedUrl}; ${result.programmes} programmes`)
+    else console.warn(`[guide-sources] the guide change stopped at ${result.failedStep}: ${result.error}`)
+    return result
+  },
+})
+
+mountGuideSourceRoutes({
+  app,
+  csrf: doubleCsrfProtection,
+  readLimiter: bootstrapStatusLimiter,
+  writeLimiter: bootstrapLimiter,
+  service: guideSourceService,
+  onError: epgError,
 })
 
 const guideFeedLimiter = createRateLimiter({ limit: 10 })
@@ -2299,7 +2366,7 @@ const prepareGuideSetup = async () => {
 const shiftedFeedFor = async (conn) => {
   try {
     return {
-      url: guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT }),
+      url: await ownGuideFeedUrl(conn),
       useSource: (url) => setSetting(GUIDE_SOURCE_KEY, url),
       waitForRequest: guideFeedRequests.waitSince,
     }

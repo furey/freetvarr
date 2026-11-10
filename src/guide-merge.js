@@ -8,6 +8,7 @@ import zlib from 'node:zlib'
 import { titlesAgree } from './freeview-au.js'
 import { showTitleKey } from './show-artwork.js'
 import { channelXml, programmeXml } from './guide-sources/xmltv.js'
+import { createBuildHealth, leadOf } from './guide-source-health.js'
 import { titleKeyOf } from './title-aliases.js'
 import { countryForTimeZone } from './zone-countries.js'
 
@@ -24,6 +25,9 @@ export const createGuideMerge = ({
   isServing = async () => false,
   channelTriplets = async () => new Map(),
   aliases,
+  health = null,
+  listingChoice = async () => ({}),
+  track = null,
   now = Date.now,
   intervalMs = BUILD_INTERVAL_MS,
   firstDelayMs = FIRST_BUILD_DELAY_MS,
@@ -40,26 +44,55 @@ export const createGuideMerge = ({
     url: await sourceUrl(),
   })
 
-  const build = async () => {
+  const build = async (job = null) => {
     const plan = await planNow()
     if (!plan) return null
     const triplets = await channelTriplets().catch((err) => {
       log.warn(`[guide-merge] matching channels by number only: ${err.message}`)
       return new Map()
     })
+    const [history, choice] = await Promise.all([
+      health ? health.history().catch(() => new Map()) : new Map(),
+      listingChoice().catch(() => ({})),
+    ])
     const startedAt = now()
-    const stats = await writeMergedGuide({ dir, ...plan, channelTriplets: triplets, aliases, now })
-    latest = { ...stats, builtAt: now(), durationMs: now() - startedAt }
-    log.log(`[guide-merge] ${summaryOf(latest)}`)
-    return latest
+    try {
+      const { fallbacks, healthRows, ...stats } = await writeMergedGuide({ dir, ...plan, channelTriplets: triplets, aliases, history, choice, now })
+      await saveHealth({ rows: healthRows, builtAt: startedAt })
+      noteFallbacks({ job, fallbacks })
+      latest = { ...stats, fallbacks: fallbacks.length, builtAt: now(), durationMs: now() - startedAt }
+      log.log(`[guide-merge] ${summaryOf(latest)}`)
+      job?.outcome(outcomeOf(latest), fallbacks.length ? 'warn' : null)
+      return latest
+    } catch (err) {
+      await saveHealth({ rows: err.stats?.healthRows ?? (err.sourceFailure ? failedSourceRows({ plan, history, nowMs: startedAt }) : null), builtAt: startedAt })
+      noteFallbacks({ job, fallbacks: err.stats?.fallbacks ?? [] })
+      throw err
+    }
   }
+
+  const saveHealth = async ({ rows, builtAt }) => {
+    if (!health || !rows?.length) return
+    await health.save({ builtAt, rows }).catch((err) => log.warn(`[guide-merge] could not save the source health: ${err.message}`))
+  }
+
+  const noteFallbacks = ({ job, fallbacks }) => {
+    for (const fallback of fallbacks) {
+      const text = `${fallback.name}: ${fallback.from} listings are degraded, so it uses ${fallback.to}`
+      if (fallback.changed) log.log(`[guide-merge] ${text}`)
+      job?.item({ label: fallback.name, state: 'warn', detail: `Uses ${fallback.to}; ${fallback.from} listings are degraded.` })
+      if (fallback.changed) job?.log(text, 'warn')
+    }
+  }
+
+  const runBuild = () => (track ? track({ kind: 'guide-merge' }, build) : build())
 
   const requestBuild = () => {
     if (running) {
       again = true
       return running
     }
-    running = build()
+    running = runBuild()
       .catch((err) => {
         log.warn(`[guide-merge] kept the last guide file: ${err.message}`)
         latest = { ...latest, failedAt: now(), error: err.message }
@@ -87,12 +120,35 @@ export const createGuideMerge = ({
 
   const servablePath = async () => {
     if (!(await isServing()) || !(await planNow())) return null
+    return builtPath()
+  }
+
+  const builtPath = async () => {
     const file = path.join(dir, MERGED_GUIDE_FILE)
     return fsp.access(file).then(() => file, () => null)
   }
 
-  return { start, stop, requestBuild, servablePath, latest: () => latest }
+  const builtAt = async () => {
+    const file = await builtPath()
+    if (!file) return null
+    return (await fsp.stat(file)).mtimeMs
+  }
+
+  const savedChannels = () => readSavedChannels(dir)
+
+  return { start, stop, requestBuild, servablePath, builtPath, builtAt, savedChannels, planNow, latest: () => latest }
 }
+
+const failedSourceRows = ({ plan, history, nowMs }) => {
+  const ids = [plan.primary, plan.secondary].filter(Boolean).map((side) => side.source.id)
+  return createBuildHealth({ history, nowMs, primaryId: plan.primary?.source.id ?? null, secondaryId: plan.secondary?.source.id ?? null })
+    .finish({ failedSources: new Map(ids.map((id) => [id, 'failed'])) })
+}
+
+const outcomeOf = (stats) => [
+  `${stats.programmes} programmes on ${stats.channels} channels`,
+  ...(stats.fallbacks ? [`${stats.fallbacks} on ${stats.secondarySource}`] : []),
+].join(' · ')
 
 export const planSources = ({ ranked = [], timeZone, url = null }) => {
   const secondary = ranked.find((source) => source.feeds) ?? null
@@ -109,7 +165,7 @@ export const planSources = ({ ranked = [], timeZone, url = null }) => {
   }
 }
 
-export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplets, aliases, now = Date.now }) => {
+export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplets, aliases, history = null, choice = {}, now = Date.now }) => {
   await fsp.mkdir(dir, { recursive: true })
   const file = path.join(dir, MERGED_GUIDE_FILE)
   const temporary = `${file}.${process.pid}.tmp`
@@ -117,8 +173,9 @@ export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplet
   const gzip = zlib.createGzip()
   const output = fs.createWriteStream(temporary)
   gzip.pipe(output)
+  let stats = null
   try {
-    const stats = await buildMergedGuide({ primary, secondary, channelTriplets, savedChannels, aliases, now, out: gzip })
+    stats = await buildMergedGuide({ primary, secondary, channelTriplets, savedChannels, aliases, history, choice, now, out: gzip })
     gzip.end()
     await finished(output)
     if (!stats.programmes) throw new Error('every guide source failed')
@@ -130,6 +187,7 @@ export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplet
     gzip.destroy()
     output.destroy()
     await fsp.rm(temporary, { force: true })
+    if (stats) err.stats = stats
     throw err
   }
 }
@@ -140,6 +198,8 @@ export const buildMergedGuide = async ({
   channelTriplets = new Map(),
   savedChannels = null,
   aliases = null,
+  history = null,
+  choice = {},
   now = Date.now,
   out,
 }) => {
@@ -152,7 +212,7 @@ export const buildMergedGuide = async ({
     channelsOf(secondary),
   ])
   if (!secondaryChannels.ok && !savedChannels?.length) {
-    if (secondary) throw new Error(`${secondary.source.id} failed (${secondaryChannels.error}) and no earlier channel list is saved`)
+    if (secondary) throw Object.assign(new Error(`${secondary.source.id} failed (${secondaryChannels.error}) and no earlier channel list is saved`), { sourceFailure: true })
   }
   const channels = mapChannels({
     primaryChannels: primaryChannels.ok ? primaryChannels.channels : null,
@@ -163,22 +223,53 @@ export const buildMergedGuide = async ({
   })
   const aliasMap = primary && aliases ? await aliases.load(primary.source.id) : new Map()
   const stats = emptyStats({ primary, secondary, primaryChannels, secondaryChannels })
+  const health = createBuildHealth({
+    history: history ?? new Map(),
+    nowMs,
+    primaryId: primary?.source.id ?? null,
+    secondaryId: secondary?.source.id ?? null,
+  })
+  const fallbacks = []
   const newAliases = []
   const primaryTitles = new Map()
   const secondaryTitleKeys = new Set()
   await write(out, `${FEED_HEAD}${channels.map(channelXml).join('\n  ')}\n  `)
   for (const channel of channels) {
-    const [primaryProgrammes, secondaryProgrammes] = await Promise.all([
+    const [primaryRead, secondaryRead] = await Promise.all([
       listingsOf({ side: primary, channel: channel.primaryId, from, to: primaryTo, ok: primaryChannels.ok }),
       listingsOf({ side: secondary, channel: channel.secondaryId, from, to: Infinity, ok: secondaryChannels.ok }),
     ])
-    for (const programme of secondaryProgrammes) secondaryTitleKeys.add(titleKeyOf(programme.title))
-    const merged = mergeChannelProgrammes({
+    for (const programme of secondaryRead.programmes) secondaryTitleKeys.add(titleKeyOf(programme.title))
+    const verdict = health.channel({ id: channel.id, primary: primaryRead.carried ? primaryRead : null, secondary: secondaryRead.carried ? secondaryRead : null })
+    const choiceOf = leadOf({
       channel: channel.id,
-      primary: primaryProgrammes,
-      secondary: secondaryProgrammes,
-      aliasOf: (title) => aliasMap.get(titleKeyOf(title)) ?? null,
+      choice,
+      primaryId: primary?.source.id,
+      secondaryId: secondary?.source.id,
+      hasPrimary: primaryRead.carried,
+      hasSecondary: secondaryRead.carried,
+      primaryDegraded: verdict.primary?.degraded,
+      secondaryDegraded: verdict.secondary?.degraded,
     })
+    const leadSource = choiceOf.lead === 'primary' ? primary?.source.id : secondary?.source.id
+    if (leadSource) health.markLed({ source: leadSource, channel: channel.id })
+    if (choiceOf.fallback) {
+      fallbacks.push({
+        channel: channel.id,
+        name: channel.names?.[0] ?? channel.id,
+        from: primary.source.id,
+        to: secondary.source.id,
+        changed: !health.previousLead({ source: secondary.source.id, channel: channel.id }),
+      })
+    }
+    const merged = choiceOf.lead === 'secondary' && primaryRead.carried
+      ? secondaryOnlyOf({ channel: channel.id, secondary: secondaryRead.programmes })
+      : mergeChannelProgrammes({
+        channel: channel.id,
+        primary: primaryRead.programmes,
+        secondary: secondaryRead.programmes,
+        aliasOf: (title) => aliasMap.get(titleKeyOf(title)) ?? null,
+      })
     for (const alias of merged.aliases) {
       aliasMap.set(titleKeyOf(alias.sourceTitle), alias.title)
       newAliases.push(alias)
@@ -200,6 +291,10 @@ export const buildMergedGuide = async ({
       seenTitles: secondaryChannels.ok ? secondaryTitleKeys : null,
     })
   }
+  const failedSources = new Map([
+    ...(primary && !primaryChannels.ok ? [[primary.source.id, primaryChannels.error]] : []),
+    ...(secondary && !secondaryChannels.ok ? [[secondary.source.id, secondaryChannels.error]] : []),
+  ])
   return {
     ...stats,
     channels: channels.length,
@@ -208,9 +303,18 @@ export const buildMergedGuide = async ({
     primaryRequests: primary?.source.stats?.().requests ?? 0,
     primaryFailedWindows: primary?.source.stats?.().failedWindows ?? 0,
     primarySplitWindows: primary?.source.stats?.().splitWindows ?? 0,
+    fallbacks,
+    healthRows: health.finish({ failedSources }),
     channelMap: channels,
   }
 }
+
+export const secondaryOnlyOf = ({ channel, secondary = [] }) => ({
+  xml: secondary.map((programme) => programme.xml ?? programmeXml({ ...programme, channel })),
+  aliases: [],
+  primaryTitles: [],
+  counts: { matched: 0, primaryOnly: 0, secondaryKept: secondary.length, secondaryDropped: 0, titleRewrites: 0 },
+})
 
 export const mapChannels = ({ primaryChannels, secondaryChannels, savedChannels = null, channelTriplets = new Map(), prefix }) => {
   if (!primaryChannels) return secondaryChannels ? secondaryChannels.map(secondaryChannelOf) : []
@@ -369,11 +473,22 @@ const channelsOf = async (side) => {
 }
 
 const listingsOf = async ({ side, channel, from, to, ok }) => {
-  if (!side || !channel || !ok) return []
+  if (!side || !channel) return NOT_CARRIED
+  if (!ok) return { programmes: [], carried: true, attempts: 1, failures: 1 }
+  const before = side.source.stats?.()
   try {
-    return await side.source.listings({ region: side.region, channel, from, to })
+    const programmes = await side.source.listings({ region: side.region, channel, from, to })
+    return { programmes, carried: true, ...fetchCountsOf({ before, after: side.source.stats?.() }) }
   } catch {
-    return []
+    return { programmes: [], carried: true, attempts: 1, failures: 1 }
+  }
+}
+
+const fetchCountsOf = ({ before, after }) => {
+  if (!before || !after || after.windowsRead === undefined) return { attempts: 1, failures: 0 }
+  return {
+    attempts: Math.max(1, after.windowsRead - before.windowsRead),
+    failures: Math.max(0, after.failedWindows - before.failedWindows),
   }
 }
 
@@ -419,6 +534,7 @@ const summaryOf = (stats) => [
 const pad = (number) => String(number).padStart(2, '0')
 
 const FEED_HEAD = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE tv SYSTEM "xmltv.dtd">\n<tv generator-info-name="Freetvarr">\n  '
+const NOT_CARRIED = Object.freeze({ programmes: [], carried: false, attempts: 0, failures: 0 })
 const NUMBERING_SYSTEMS = new Set(['xmltv_ns', 'SxxExx', 'onscreen'])
 const OVERLAP_ALLOWANCE_MS = 60_000
 const DAY_MS = 24 * 60 * 60_000

@@ -74,7 +74,7 @@ test('page headers show a short subtitle on phones and only one subtitle to scre
   assert.match(base, /@media \(min-width: 1024px\) and \(min-height: 501px\) \{\s*\.ui-banner\.health-alert-banner \{\s*display: none;/)
   assert.match(await read('styles/home.css'), /@media \(min-width: 768px\) and \(max-width: 1099px\) and \(min-height: 501px\) \{\s*\.for-you-header \.ui-page-subtitle-full \{\s*display: none;/)
   assert.match(await read('views/for-you-view.js'), /:subtitle="intro" subtitle-short="Picked from this week's guide\."/)
-  assert.match(await read('views/home-view.js'), /<page-header :title="greeting" subtitle="Here's what's happening\." subtitle-short="" brand health-alert \/>/)
+  assert.match(await read('views/home-view.js'), /<page-header :title="greeting" subtitle="Here's what's happening\." subtitle-short="" brand health-alert>/)
 })
 
 test('every button uses the shared ui-button styles', async () => {

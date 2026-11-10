@@ -62,6 +62,7 @@ export const createFreeviewAuSource = ({
   }
 
   const windowListings = async ({ triplet, start }) => {
+    counts.windowsRead += 1
     const key = `${triplet}|${start}`
     const cached = windows.get(key)
     if (cached && cached.expiresAt > now()) return cached.programmes
@@ -140,6 +141,7 @@ export const createFreeviewAuSource = ({
 
   return {
     id: 'freeview-au',
+    label: 'Freeview',
     countries: ['au'],
     channelIdPrefix: 'freeview',
     horizonDays: HORIZON_DAYS,
@@ -214,7 +216,7 @@ const positiveNumberOf = (value) => {
 
 const isoOf = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-const emptyCounts = () => ({ requests: 0, failedWindows: 0, splitWindows: 0 })
+const emptyCounts = () => ({ requests: 0, failedWindows: 0, splitWindows: 0, windowsRead: 0 })
 
 const API_ORIGIN = `https://${FREEVIEW_API_HOST}`
 const TRIPLET = /^[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}$/

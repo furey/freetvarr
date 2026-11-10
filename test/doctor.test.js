@@ -17,6 +17,7 @@ import {
   hostNamesCheck,
   withHostNamesCheck,
   guidePicturesCheck,
+  guideSourcesCheck,
 } from '../src/doctor.js'
 import { healthSummaryOf } from '../src/health-summary.js'
 
@@ -148,7 +149,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 4 })
+  assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 5 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
@@ -795,4 +796,74 @@ test('guidePicturesCheck: says when Freeview pictures are off and why', () => {
   const check = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 10 }), freeviewProblem })
   assert.equal(check.status, 'pass')
   assert.ok(check.detail.endsWith(freeviewProblem))
+})
+
+const sourcesView = (overrides = {}) => ({
+  available: true,
+  mergedOn: true,
+  builtAt: Date.parse('2026-11-10T00:00:00Z'),
+  primaryId: 'freeview-au',
+  choice: { mode: 'auto', pins: {} },
+  degradedPairs: new Set(),
+  channels: [{ id: 'mjh-seven', name: 'Seven' }],
+  repoint: { state: 'confirmed' },
+  sources: [
+    { id: 'freeview-au', label: 'Freeview', measured: true, score: 96, horizonDays: 9, lastSuccessAt: Date.parse('2026-11-09T23:00:00Z'), degraded: false },
+    { id: 'mjh-au', label: 'i.mjh.nz', measured: true, score: 100, horizonDays: 20, lastSuccessAt: Date.parse('2026-11-09T23:00:00Z'), degraded: false },
+  ],
+  ...overrides,
+})
+
+const SOURCES_NOW = Date.parse('2026-11-10T02:00:00Z')
+const POINTED = { enabled: true, url: 'http://192.168.1.10:3733/guide/xmltv.xml' }
+
+test('guide.sources: skips with no sources, passes with each source score, horizon, and last success', () => {
+  assert.equal(guideSourcesCheck({ view: null }).status, 'skip')
+  assert.equal(guideSourcesCheck({ view: { available: false } }).status, 'skip')
+  const result = guideSourcesCheck({ view: sourcesView(), grabber: POINTED, nowMs: SOURCES_NOW })
+  assert.equal(result.status, 'pass')
+  assert.match(result.detail, /Freeview: 96% of channels healthy, 9 days ahead, last success/)
+  assert.match(result.detail, /i\.mjh\.nz: 100% of channels healthy, 20 days ahead/)
+})
+
+test('guide.sources: before the confirm step it passes and says where to turn the merged guide on', () => {
+  const result = guideSourcesCheck({ view: sourcesView({ mergedOn: false, repoint: { state: 'pending' } }), nowMs: SOURCES_NOW })
+  assert.equal(result.status, 'pass')
+  assert.match(result.detail, /SETTINGS → GUIDE/)
+})
+
+test('guide.sources: warns when the merged file is older than 12 h', () => {
+  const result = guideSourcesCheck({ view: sourcesView(), grabber: POINTED, nowMs: Date.parse('2026-11-10T13:00:00Z') })
+  assert.equal(result.status, 'warn')
+  assert.match(result.detail, /last built 13 hrs ago/)
+  assert.equal(guideSourcesCheck({ view: sourcesView(), grabber: POINTED, nowMs: Date.parse('2026-11-10T11:59:00Z') }).status, 'pass')
+  assert.equal(guideSourcesCheck({ view: sourcesView({ mergedOn: false }), nowMs: Date.parse('2026-11-11T00:00:00Z') }).status, 'pass')
+})
+
+test('guide.sources: warns when the primary is degraded, with a summary for the health line', () => {
+  const view = sourcesView()
+  view.sources[0].degraded = true
+  const result = guideSourcesCheck({ view, grabber: POINTED, nowMs: SOURCES_NOW })
+  assert.equal(result.status, 'warn')
+  assert.equal(result.summary, 'Freeview listings are degraded.')
+  assert.equal(result.action.href, '#/settings/guide')
+  assert.equal(guideSourcesCheck({ view: { ...view, mergedOn: false, repoint: { state: 'kept' } }, nowMs: SOURCES_NOW }).status, 'pass')
+})
+
+test('guide.sources: a pinned source that is degraded warns with a one-tap switch to Automatic', () => {
+  const pinned = sourcesView({ choice: { mode: 'auto', pins: { 'mjh-seven': 'freeview-au' } }, degradedPairs: new Set(['freeview-au|mjh-seven']) })
+  const result = guideSourcesCheck({ view: pinned, grabber: POINTED, nowMs: SOURCES_NOW })
+  assert.equal(result.status, 'warn')
+  assert.match(result.detail, /You chose Freeview for Seven/)
+  assert.deepEqual(result.action, { label: 'Switch to Automatic', post: '/api/guide-sources/automatic', done: 'Switched the listings source to Automatic.' })
+  const named = sourcesView({ choice: { mode: 'freeview-au', pins: {} } })
+  named.sources[0].degraded = true
+  assert.equal(guideSourcesCheck({ view: named, grabber: POINTED, nowMs: SOURCES_NOW }).action.post, '/api/guide-sources/automatic')
+})
+
+test('guide.sources: after confirming, warns when the TVHeadend grabber no longer reads the merged guide', () => {
+  const result = guideSourcesCheck({ view: sourcesView(), grabber: { enabled: true, url: 'https://i.mjh.nz/au/Sydney/epg.xml' }, nowMs: SOURCES_NOW })
+  assert.equal(result.status, 'warn')
+  assert.match(result.detail, /does not read the Freetvarr merged guide/)
+  assert.equal(guideSourcesCheck({ view: sourcesView(), grabber: { enabled: false, url: POINTED.url }, nowMs: SOURCES_NOW }).status, 'warn')
 })

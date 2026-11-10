@@ -8,6 +8,7 @@ import { ErrorDiagnosis } from '/components/error-diagnosis.js'
 import { noAutofill, ToggleSwitch, TimeZoneField } from '/components/forms.js'
 import { GuideCombobox } from '/components/guide-combobox.js'
 import { ChannelsButton, ClockLabel, HealthAlert, PageHeader, RecordingChip, SearchButton } from '/components/header-widgets.js'
+import { GuideNotice } from '/components/guide-notice.js'
 import {
   TvIcon,
   SeriesRecordIcon,
@@ -248,6 +249,7 @@ app.component('page-header', PageHeader)
 app.component('search-button', SearchButton)
 app.component('channels-button', ChannelsButton)
 app.component('health-alert', HealthAlert)
+app.component('guide-notice', GuideNotice)
 app.component('recording-chip', RecordingChip)
 app.component('clock-label', ClockLabel)
 app.component('search-overlay', SearchOverlay)

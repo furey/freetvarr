@@ -34,6 +34,14 @@ const ENTRIES = [
   { label: 'Hide SD simulcasts', page: 'channels', setting: 'hide-sd-simulcasts', description: 'Hides SD copies of HD channels.', tags: ['hd', 'duplicate', 'twins'] },
   { label: 'Hide SD channels', page: 'channels', setting: 'hide-sd-channels', description: 'Hides every SD channel except favourites.', tags: ['standard definition'] },
 
+  { page: 'guide', description: 'Where the TV guide listings come from, and how each source is doing.', tags: ['epg', 'xmltv', 'listings', 'freeview', 'mjh', 'guide source'] },
+  { label: 'Merged guide', page: 'guide', setting: 'merged-guide', description: 'Points the TVHeadend guide grabber at the guide Freetvarr merges.', tags: ['grabber', 'xmltv', 'freeview', 'repoint'] },
+  { label: 'Use first', page: 'guide', setting: 'listings-source', description: 'The guide source Freetvarr reads first for each channel.', tags: ['automatic', 'freeview', 'mjh'] },
+  { label: 'Listings source', page: 'guide', setting: 'listings-source', description: 'Automatic, or one source first for every channel.', tags: ['freeview', 'mjh', 'automatic', 'fallback'] },
+  { label: 'Source health', page: 'guide', setting: 'source-health', description: 'How many channels each guide source covers well, and how many days ahead.', tags: ['degraded', 'score', 'horizon'] },
+  { label: 'Channel sources', page: 'guide', setting: 'channel-sources', description: 'Pin a channel to one guide source.', tags: ['pin', 'fallback', 'per channel'] },
+  { label: 'Pin a channel', page: 'guide', setting: 'pin-channel', description: 'Makes one channel use one guide source first.', tags: ['pin', 'per channel'] },
+
   { page: 'film-tv-info', description: 'Pictures, ratings, reviews, cast, and genres from online film and TV databases.', tags: ['metadata', 'tvmaze', 'tmdb', 'wikipedia'] },
   { label: 'Look up online', page: 'film-tv-info', setting: 'look-up-online', description: 'The switches that send programme titles online.', tags: ['privacy', 'lookups'] },
   { label: 'Missing pictures', page: 'film-tv-info', setting: 'missing-pictures', description: 'Pictures from TVmaze, Wikipedia, and TMDB.', tags: ['artwork', 'images', 'posters'] },

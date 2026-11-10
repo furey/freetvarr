@@ -17,6 +17,7 @@ export const SETTINGS_GROUPS = [
     pages: [
       { id: 'player', label: 'Playback', view: 'player' },
       { id: 'channels', label: 'Channels', view: 'channels' },
+      { id: 'guide', label: 'Guide', view: 'guide' },
       { id: 'film-tv-info', label: 'Film and TV info', view: 'settings', section: 'film-tv-info' },
       { id: 'for-you', label: 'For you', view: 'for-you' },
       { id: 'tv-apps', label: 'Watch on TV', view: 'settings', section: 'tv-apps' },

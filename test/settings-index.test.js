@@ -22,6 +22,7 @@ const PAGE_FILES = {
   player: ['views/player-settings-view.js', 'components/controls-hide-setting.js', 'components/live-streams-settings.js'],
   'for-you': ['views/suggestions-settings-view.js'],
   channels: ['views/channels-settings-view.js'],
+  guide: ['views/guide-settings-view.js'],
   diagram: ['views/system-diagram-view.js'],
   series: ['views/series-view.js'],
   folders: ['views/series-view.js'],
@@ -36,6 +37,7 @@ const LABELLED_FILES = [
   'views/player-settings-view.js',
   'views/suggestions-settings-view.js',
   'views/channels-settings-view.js',
+  'views/guide-settings-view.js',
   'components/controls-hide-setting.js',
 ]
 

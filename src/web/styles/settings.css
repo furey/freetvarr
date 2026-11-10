@@ -173,12 +173,12 @@
   color: var(--color-text-2);
 }
 
-.settings-content a:not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link):not(.ui-segment) {
+.settings-content a:not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link):not(.ui-segment):not(.guide-notice-link) {
   color: var(--color-primary);
   text-decoration: none;
 }
 
-.settings-content a:not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link):not(.ui-segment):hover {
+.settings-content a:not(.ui-button):not(.settings-back):not(.ui-group-row):not(.settings-row-link):not(.ui-banner):not(.setup-quiet-link):not(.ui-segment):not(.guide-notice-link):hover {
   color: var(--color-primary-hi);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -1655,4 +1655,51 @@ a.settings-row-link:hover {
   text-align: center;
   white-space: normal;
   text-wrap: balance;
+}
+
+.guide-settings-text {
+  text-wrap: pretty;
+}
+
+.guide-settings-text.is-error {
+  color: var(--color-live-text);
+  font-weight: 600;
+}
+
+.guide-settings-lead {
+  margin: 0 4px 12px;
+}
+
+.guide-settings .settings-note + .ui-group,
+.guide-settings .setup-run + .settings-note {
+  margin-top: 12px;
+}
+
+.guide-settings-actions {
+  margin-top: 16px;
+}
+
+.guide-settings-url {
+  overflow-wrap: anywhere;
+}
+
+.guide-plan .ui-group-row-title,
+.guide-source-row .ui-group-row-title {
+  text-wrap: balance;
+}
+
+.guide-source-row {
+  align-items: flex-start;
+}
+
+.guide-pin-source {
+  margin-top: 8px;
+}
+
+.guide-channel-row .guide-settings-actions {
+  margin-top: 12px;
+}
+
+.health-guide-notice {
+  margin-bottom: 8px;
 }
