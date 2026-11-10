@@ -15,7 +15,9 @@ export const isStepResolved = (step) => step?.status === 'done' || step?.status 
 
 export const pacedSteps = ({ steps, revealed }) => steps.map((step, index) => {
   if (index < revealed) return step
-  return { ...step, status: index === revealed ? 'running' : 'pending' }
+  if (index === revealed) return { ...step, status: 'running' }
+  const { detail, ...unstarted } = step
+  return { ...unstarted, status: 'pending' }
 })
 
 export const shownJob = ({ job, revealed }) => {

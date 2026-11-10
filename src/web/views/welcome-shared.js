@@ -16,7 +16,11 @@ export const usePacedJob = (job) => {
     if (revealing) return
     revealing = true
     try {
-      while (alive && job.value && revealed.value < job.value.steps.length) {
+      while (alive && job.value && (revealed.value < job.value.steps.length || job.value.running)) {
+        if (!stepAtCursor()) {
+          await wait(BOOTSTRAP_REVEAL_POLL_MS)
+          continue
+        }
         const stepMs = revealStepMs(job.value.steps.length, STEP_PACING)
         const shownAt = Date.now()
         while (alive && job.value?.running && !isStepResolved(stepAtCursor())) await wait(BOOTSTRAP_REVEAL_POLL_MS)
