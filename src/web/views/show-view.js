@@ -141,7 +141,7 @@ export const ShowView = {
           <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
         </div>
         <div v-else-if="hasShowActions" class="show-actions ui-only-phone">
-          <button v-if="playLabel" type="button" class="ui-button ui-button-primary" @click="playNext"><play-glyph /> {{ playLabel }}</button>
+          <button v-if="playLabel" type="button" class="ui-button ui-button-primary show-play-next" @click="playNext"><play-glyph /> {{ playLabel }}</button>
           <button v-if="show.rule" type="button" class="ui-button ui-button-secondary show-options-button" @click="optionsOpen = true"><sliders-icon /> Recording options</button>
           <button type="button" class="ui-icon-button show-more-button" :aria-label="'More actions for ' + title" aria-haspopup="dialog" @click="openShowMenu"><more-glyph /></button>
         </div>

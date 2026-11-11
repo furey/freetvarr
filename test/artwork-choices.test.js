@@ -235,6 +235,28 @@ test('artworkCandidatesOf offers every TMDB background and poster the lookup fou
   assert.ok(candidates.every((c) => c.source === 'tmdb'))
 })
 
+test('createArtworkCandidates checks recording copies for stand-ins together, not one after another', async () => {
+  let active = 0
+  let most = 0
+  const copies = ['c1', 'c2', 'c3'].map((id, at) => ({ recording_id: id, title: 'Gruen', image_path: 'x', aired_at: at }))
+  const candidates = createArtworkCandidates({
+    showSources: async () => ({ title: 'Gruen', rows: copies, plex: { found: false, entries: [] }, tvmaze: [] }),
+    automaticSources: async () => ({ library: [], fallback: [], guide: [] }),
+    plexUrl: async () => null,
+    hasTmdbKey: async () => false,
+    isStandIn: async (origin) => {
+      active += 1
+      most = Math.max(most, active)
+      await new Promise((resolve) => setImmediate(resolve))
+      active -= 1
+      return origin === 'recording:c2'
+    },
+  })
+  const found = await candidates.candidatesFor('gruen')
+  assert.deepEqual(found.candidates.filter((c) => c.source === 'guide').map((c) => c.origin), ['recording:c3', 'recording:c1'])
+  assert.equal(most, 3)
+})
+
 test('createArtworkCandidates offers Plex art for a film that only Plex has and looks it up as a film', async () => {
   const asked = []
   const film = {

@@ -6,6 +6,7 @@ import sharp from 'sharp'
 
 import { db } from './db.js'
 import { getArtworkRoot } from './artwork.js'
+import { OK_VERDICT, STAND_IN_VERDICT, WEAK_VERDICT } from './picture-placeholders.js'
 import { createCircuitBreaker, createHostLimiter } from './outbound-http.js'
 import { guideImageHosts, hostOfSource } from './programme-images.js'
 import { showTitleKey } from './show-artwork.js'
@@ -58,7 +59,7 @@ export const createGuidePictures = ({
   missRetryMs = MISS_RETRY_MS,
   errorRetryMs = ERROR_RETRY_MS,
   preferredHosts = [],
-  screen = async () => null,
+  screen = async () => OK_JUDGEMENT,
 } = {}) => {
   const preferred = new Set(preferredHosts)
   const indexOf = (rows) => titleIndexOf({ rows, preferred })
@@ -90,7 +91,7 @@ export const createGuidePictures = ({
     return index
   }
 
-  const isStandInCopy = async (row) => Boolean(await screen({
+  const verdictOfCopy = async (row) => verdictOf(await screen({
     source: row.source_url,
     title: row.title_key,
     image: () => read(guidePictureOriginOf(row)),
@@ -99,9 +100,14 @@ export const createGuidePictures = ({
   const usableCopiesOf = async (title) => {
     const titleKey = showTitleKey(title)
     const rows = titleKey ? (await load()).rowsByTitle.get(titleKey) ?? [] : []
-    const usable = []
-    for (const row of rows) if (!(await isStandInCopy(row))) usable.push(row)
-    return usable
+    const good = []
+    const weak = []
+    for (const row of rows) {
+      const verdict = await verdictOfCopy(row)
+      if (verdict === OK_VERDICT) good.push(row)
+      else if (verdict === WEAK_VERDICT) weak.push(row)
+    }
+    return [...good, ...weak]
   }
 
   const originFor = async (title) => {
@@ -126,7 +132,7 @@ export const createGuidePictures = ({
 
   const originForSource = async (source) => {
     const row = source ? (await load()).bySource.get(source) : null
-    return row && !(await isStandInCopy(row)) ? guidePictureOriginOf(row) : null
+    return row && await verdictOfCopy(row) !== STAND_IN_VERDICT ? guidePictureOriginOf(row) : null
   }
 
   const sourceOfOrigin = async (origin) => {
@@ -174,7 +180,7 @@ export const createGuidePictures = ({
       noteFailure({ source, ms: error ? errorRetryMs : missRetryMs })
       return false
     }
-    if (await screen({ source, title, image }).catch(() => null)) {
+    if (isStandIn(await screen({ source, title, image }).catch(() => null))) {
       noteFailure({ source, ms: missRetryMs })
       return false
     }
@@ -228,7 +234,7 @@ export const createGuidePictures = ({
       result.kept += entry.sources.length - missing.length
       let failed = missing.length > due.length
       for (const source of due) {
-        if (await screen({ source, title: entry.title }).catch(() => null)) {
+        if (isStandIn(await screen({ source, title: entry.title }).catch(() => null))) {
           result.placeholders += 1
           continue
         }
@@ -273,7 +279,7 @@ export const createGuidePictures = ({
     const keys = new Set()
     for (const [titleKey, rows] of (await load()).rowsByTitle) {
       for (const row of rows) {
-        if (await screen({ source: row.source_url, title: row.title_key }).catch(() => null)) continue
+        if (isStandIn(await screen({ source: row.source_url, title: row.title_key }).catch(() => null))) continue
         keys.add(titleKey)
         break
       }
@@ -288,7 +294,8 @@ export const createGuidePictures = ({
     for (const row of [...(await load()).bySource.values()]) {
       if (isChosen(row)) continue
       const image = () => read(guidePictureOriginOf(row))
-      const reason = await screen({ source: row.source_url, title: row.title_key, image }).catch(() => null)
+      const judged = await screen({ source: row.source_url, title: row.title_key, image }).catch(() => null)
+      const reason = isStandIn(judged) ? judged.reason : null
       const kept = keepTitleKeys.has(row.title_key) && !SURE_PLACEHOLDER_REASONS.has(reason)
       if (reason && !kept) placeholders.push(row)
     }
@@ -298,6 +305,10 @@ export const createGuidePictures = ({
 
   return { saveAll, originFor, titleOriginsFor, preferredOriginFor, originForSource, sourceOfOrigin, read, prune, savedTitleKeys, dropPlaceholders }
 }
+
+const verdictOf = (judged) => judged?.verdict ?? OK_VERDICT
+
+const isStandIn = (judged) => verdictOf(judged) === STAND_IN_VERDICT
 
 const isStrayFile = ({ name, kept }) => STRAY_FILE.test(name) && !kept.has(name)
 
@@ -333,6 +344,7 @@ const idOfOrigin = (origin) => {
   return PICTURE_ID.test(id) ? id : null
 }
 
+const OK_JUDGEMENT = { verdict: OK_VERDICT, reason: null }
 const SURE_PLACEHOLDER_REASONS = new Set(['name', 'logo'])
 const GUIDE_DIR = 'guide'
 const EXTENSION = '.webp'

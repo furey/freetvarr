@@ -8,7 +8,8 @@ const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'freetv
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db } = await import('../src/db.js')
-const { forgetPlaceholderPictures, resolvedArtStamps } = await import('../src/epg.js')
+const { forgetPlaceholderPictures, measureRecordingCopies, recordedOrOnlineSourcesOf, resolvedArtStamps, widenedShowImageOf } = await import('../src/epg.js')
+const sharp = (await import('sharp')).default
 const { createArtFeed } = await import('../src/art-feed.js')
 const { createProgrammeStamps } = await import('../src/programme-stamps.js')
 const { pruneLookupCaches } = await import('../src/cache-prune.js')
@@ -46,6 +47,8 @@ const fakePictures = (dropped) => ({
 
 const fakePlaceholders = { saveFamilies: async () => 0, isPlaceholder: (source) => /logo/.test(String(source)) }
 
+const verdictOfOrigin = async (origin) => (/logo/.test(String(origin)) ? 'stand-in' : 'ok')
+
 test('a dropped stand-in keeps its row, is marked due with a new stamp, and tells open pages the new title and programme stamps', async () => {
   await db('art_resolutions').insert([
     resolution({ key: 'series|landscape|home and away', titleKey: 'home and away', showKey: 'home-and-away', origin: STAND_IN }),
@@ -56,7 +59,7 @@ test('a dropped stand-in keeps its row, is marked due with a new stamp, and tell
   const cursor = feed.cursor()
   const pictures = fakePictures(['gruen'])
   const airings = async () => [{ image: AIRING_STAND_IN, title: 'The Chase' }, { image: REAL, title: 'Home and Away' }]
-  const announced = await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, airings, feed })
+  const announced = await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, verdictOfOrigin, airings, feed })
   assert.equal(announced, 3)
   const rows = new Map((await db('art_resolutions').select()).map((row) => [row.title_key, row]))
   assert.equal(rows.size, 3)
@@ -77,13 +80,13 @@ test('a dropped stand-in keeps its row, is marked due with a new stamp, and tell
     `programme|home-and-away|${programme.get('home-and-away')}`,
     `programme|the-chase|${programme.get('the-chase')}`,
   ])
-  assert.equal(await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, airings, feed }), 0)
+  assert.equal(await forgetPlaceholderPictures({ database: db, pictures, placeholders: fakePlaceholders, verdictOfOrigin, airings, feed }), 0)
 })
 
 test('a restart with the same stand-in airing addresses bumps no programme stamp; a new stand-in address bumps its titles', async () => {
   await db('settings').insert({ key: 'stand_in_airing_sources', value: JSON.stringify([AIRING_STAND_IN]) })
   const feed = createArtFeed()
-  const run = (airings) => forgetPlaceholderPictures({ database: db, pictures: fakePictures([]), placeholders: fakePlaceholders, airings: async () => airings, feed })
+  const run = (airings) => forgetPlaceholderPictures({ database: db, pictures: fakePictures([]), placeholders: fakePlaceholders, verdictOfOrigin, airings: async () => airings, feed })
   assert.equal(await run([{ image: AIRING_STAND_IN, title: 'The Chase' }]), 0)
   assert.deepEqual([...(await createProgrammeStamps({ database: db }).stampsByKey()).keys()], [])
   assert.equal(await run([{ image: AIRING_STAND_IN, title: 'The Chase' }, { image: 'https://img.example.com/10-logo.png', title: 'Gogglebox' }]), 1)
@@ -121,4 +124,41 @@ test('the daily prune keeps a resolution marked due and drops one not resolved f
   ])
   await pruneLookupCaches({ database: db, nowMs: NOW })
   assert.deepEqual((await db('art_resolutions').select('resolution_key')).map((row) => row.resolution_key), ['series|landscape|due'])
+})
+
+test('the guide pictures pass measures each recording copy that has no measurement yet, once', async () => {
+  await db('recordings').insert([
+    { recording_id: 'm1', title: 'Gruen', image_path: 'm1.jpg' },
+    { recording_id: 'm2', title: 'Gruen', image_path: 'm2.jpg' },
+    { recording_id: 'm3', title: 'Gruen', image_path: null },
+  ])
+  const screened = []
+  const placeholders = { load: async () => {}, isMeasured: (origin) => origin === 'recording:m2' }
+  const measured = await measureRecordingCopies({ database: db, placeholders, screen: async (origin) => screened.push(origin) })
+  assert.equal(measured, 1)
+  assert.deepEqual(screened, ['recording:m1'])
+  await db('recordings').whereIn('recording_id', ['m1', 'm2', 'm3']).delete()
+})
+
+test('show art offers online pictures ahead of recording copies only when no copy is ok', async () => {
+  const online = async () => ['https://static.tvmaze.com/gruen.jpg']
+  const verdicts = { 'recording:a': 'weak', 'recording:b': 'weak', 'recording:c': 'ok', 'recording:d': 'stand-in' }
+  const verdictOf = async (origin) => verdicts[origin]
+  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:a', 'recording:b'], verdictOf, online }), [
+    'https://static.tvmaze.com/gruen.jpg', 'recording:a', 'recording:b',
+  ])
+  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:d', 'recording:a'], verdictOf, online }), [
+    'https://static.tvmaze.com/gruen.jpg', 'recording:d', 'recording:a',
+  ])
+  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:a', 'recording:c'], verdictOf, online }), ['recording:a', 'recording:c'])
+  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: [], verdictOf, online }), ['https://static.tvmaze.com/gruen.jpg'])
+})
+
+test('a portrait title card keeps its weak verdict when it is widened to a landscape picture', async () => {
+  const body = await sharp({ create: { width: 300, height: 600, channels: 3, background: '#d0021b' } }).jpeg().toBuffer()
+  const wide = await widenedShowImageOf({ body, contentType: 'image/jpeg', verdict: 'weak' })
+  const { width, height } = await sharp(wide.body).metadata()
+  assert.ok(width > height)
+  assert.equal(wide.verdict, 'weak')
+  assert.equal((await widenedShowImageOf({ body, contentType: 'image/jpeg' })).verdict, undefined)
 })

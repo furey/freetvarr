@@ -17,7 +17,7 @@ import {
   artworkUploads,
   prepareUpload,
 } from './artwork-uploads.js'
-import { artworkOriginImage, automaticShowSources, resolvedArtStamps } from './epg.js'
+import { artworkOriginImage, automaticShowSources, isStandInOrigin, resolvedArtStamps } from './epg.js'
 import { storedTmdbKey } from './fallback-artwork.js'
 import { PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
 import { kindOf } from './library.js'
@@ -192,6 +192,7 @@ const uploadBody = (req, res, next) => uploadParser(req, res, (err) => {
 export const createArtworkCandidates = ({
   showSources,
   automaticSources = automaticShowSources,
+  isStandIn = isStandInOrigin,
   plexUrl = async () => (await getPlexConnection().catch(() => null))?.url ?? null,
   hasTmdbKey = async () => Boolean(await storedTmdbKey()),
   now = Date.now,
@@ -217,12 +218,15 @@ export const createArtworkCandidates = ({
       title: sources.title,
       tmdbKey,
       pending,
-      candidates: artworkCandidatesOf({
-        rows: sources.rows,
-        plex: sources.plex?.entries || [],
-        tvmaze: sources.tvmaze || [],
-        automatic: pending ? EMPTY_AUTOMATIC : automatic,
-        plexUrl: url,
+      candidates: await withoutStandInsOf({
+        candidates: artworkCandidatesOf({
+          rows: sources.rows,
+          plex: sources.plex?.entries || [],
+          tvmaze: sources.tvmaze || [],
+          automatic: pending ? EMPTY_AUTOMATIC : automatic,
+          plexUrl: url,
+        }),
+        isStandIn,
       }),
     }
   }
@@ -321,6 +325,12 @@ const fallbackEntriesOf = (source) => {
     return ['background', 'poster'].map((kind) => ({ origin: source, kind, source: 'wikipedia' }))
   }
   return []
+}
+
+const withoutStandInsOf = async ({ candidates, isStandIn }) => {
+  const standIns = await Promise.all(candidates.map((candidate) => candidate.source === 'guide'
+    && Promise.resolve().then(() => isStandIn(candidate.origin)).catch(() => false)))
+  return candidates.filter((candidate, at) => !standIns[at])
 }
 
 const guideEntriesOf = (rows) => [...rows]

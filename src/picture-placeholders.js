@@ -1,8 +1,25 @@
 import sharp from 'sharp'
 
 import { db } from './db.js'
+import {
+  CARD_MAX_DETAIL,
+  LEARNED_CARD_MAX_DETAIL,
+  LEARNED_MARK_FAMILIES,
+  cornerMarksOf,
+  createMarkIndex,
+  isLearnableMark,
+  logoMarkOf,
+  marksOf,
+  matchesLogo,
+} from './picture-marks.js'
 import { showTitleKey } from './show-artwork.js'
 
+export const OK_VERDICT = 'ok'
+export const WEAK_VERDICT = 'weak'
+export const STAND_IN_VERDICT = 'stand-in'
+export const CARD_REASON = 'card'
+
+export const LOGO_TRAITS_SETTING = 'picture_logo_traits'
 export const PLACEHOLDER_FAMILIES = 5
 export const LOGO_LIKE_FAMILIES = 3
 export const LOGO_LIKE_DISTANCE = 16
@@ -11,8 +28,13 @@ export const LOGO_MATCH_DISTANCE = 10
 
 export const pictureTraitsOf = async (body) => {
   const small = await smallCopyOf(body)
-  const [hash, clearShare] = await Promise.all([hashOfSmallCopy(small), clearShareOf(small)])
-  return { hash, clearShare }
+  const [hash, clearShare, corners] = await Promise.all([hashOfSmallCopy(small), clearShareOf(small), cornerMarksOf(body).catch(() => NO_CORNERS)])
+  return { hash, clearShare, marks: corners.marks, detail: corners.detail }
+}
+
+export const logoTraitsOf = async (body) => {
+  const [hash, mark] = await Promise.all([pictureHashOf(body), logoMarkOf(body).catch(() => null)])
+  return { hash, mark }
 }
 
 export const pictureHashOf = async (body) => hashOfSmallCopy(await smallCopyOf(body))
@@ -54,8 +76,8 @@ export const isUsableLogoHash = (hash) => {
 
 export const titleFamilyOf = (title) => showTitleKey(title).split(' ').find((word) => !FAMILY_STOP_WORDS.has(word)) ?? null
 
-export const placeholderReasonOf = ({ source, traits = null, families = 0, logoHashes = [] }) => {
-  if (PLACEHOLDER_NAME.test(fileNameOf(source))) return 'name'
+export const placeholderReasonOf = ({ source, name = null, traits = null, families = 0, logoHashes = [] }) => {
+  if (PLACEHOLDER_NAME.test(fileNameOf(name ?? source))) return 'name'
   if (families >= PLACEHOLDER_FAMILIES) return 'repeated'
   if (!traits) return null
   if (traits.clearShare >= PLACEHOLDER_CLEAR_SHARE) return 'transparent'
@@ -65,28 +87,65 @@ export const placeholderReasonOf = ({ source, traits = null, families = 0, logoH
   return null
 }
 
+export const isCardPicture = ({ traits, logoMarks = [], learnedFamilies = () => 0 }) => {
+  if (traits?.marks == null || !(traits.detail < CARD_MAX_DETAIL)) return false
+  const marks = marksOf(traits.marks)
+  if (matchesLogo({ marks, logoMarks })) return true
+  if (!(traits.detail < LEARNED_CARD_MAX_DETAIL)) return false
+  return marks.filter(isLearnableMark).some((mark) => learnedFamilies(mark) >= LEARNED_MARK_FAMILIES)
+}
+
 export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTraitsOf, now = Date.now } = {}) => {
   const checks = new Map()
   const guideFamilies = new Map()
   const sourcesByHash = new Map()
+  const markIndex = createMarkIndex()
   let logoHashes = []
+  let logoMarks = []
+  let logosSet = false
+  let savedLogos = null
   let loading = null
 
   const load = () => {
-    loading ??= database('picture_checks').select('source_url', 'hash', 'clear_share', 'families')
-      .then((rows) => rows.forEach((row) => index({
-        source: row.source_url,
-        traits: { hash: row.hash, clearShare: Number(row.clear_share) },
-        families: new Set(String(row.families ?? '').split(' ').filter(Boolean)),
-      })))
-      .catch(() => {})
+    loading ??= Promise.all([loadChecks(), loadLogos()])
     return loading
   }
 
+  const loadChecks = () => database('picture_checks').select('source_url', 'hash', 'clear_share', 'families', 'marks', 'detail')
+    .then((rows) => rows.forEach((row) => index({
+      source: row.source_url,
+      traits: traitsOfRow(row),
+      families: new Set(String(row.families ?? '').split(' ').filter(Boolean)),
+    })))
+    .catch(() => {})
+
+  const loadLogos = () => database('settings').where({ key: LOGO_TRAITS_SETTING }).first('value')
+    .then((row) => {
+      savedLogos ??= row?.value ?? null
+      if (!logosSet) applyLogos(logosOfSetting(row?.value))
+    })
+    .catch(() => {})
+
   const index = ({ source, traits, families }) => {
+    const earlier = checks.get(source)?.traits.hash
+    if (earlier && earlier !== traits.hash) sourcesByHash.get(earlier)?.delete(source)
     checks.set(source, { traits, families })
+    if (!traits.hash) return
     const sources = sourcesByHash.get(traits.hash) ?? new Set()
     sourcesByHash.set(traits.hash, sources.add(source))
+    if (traits.marks != null) markIndex.add({ source, marks: marksOf(traits.marks), detail: traits.detail })
+  }
+
+  const familySetOf = (source) => new Set([...(checks.get(source)?.families ?? []), ...(guideFamilies.get(source) ?? [])])
+
+  const learnedFamiliesFor = (source) => (mark) => {
+    const own = familySetOf(source)
+    const others = new Set()
+    for (const twin of markIndex.sourcesSharing(mark)) {
+      if (twin === source) continue
+      for (const family of familySetOf(twin)) if (!own.has(family)) others.add(family)
+    }
+    return others.size
   }
 
   const familiesOf = (source) => {
@@ -100,12 +159,23 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     return families.size
   }
 
-  const reasonFor = (source) => placeholderReasonOf({
+  const reasonFor = (source, name = null) => placeholderReasonOf({
     source,
-    traits: checks.get(source)?.traits ?? null,
+    name,
+    traits: measuredTraitsOf(source),
     families: familiesOf(source),
     logoHashes,
   })
+
+  const verdictOf = (source, { name = null } = {}) => {
+    if (!source) return OK_JUDGEMENT
+    const reason = reasonFor(source, name)
+    if (reason) return { verdict: STAND_IN_VERDICT, reason }
+    const traits = measuredTraitsOf(source)
+    return isCardPicture({ traits, logoMarks, learnedFamilies: learnedFamiliesFor(source) })
+      ? { verdict: WEAK_VERDICT, reason: CARD_REASON }
+      : OK_JUDGEMENT
+  }
 
   const noteTitles = (uses = []) => {
     for (const { source, title } of uses) {
@@ -116,29 +186,54 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     }
   }
 
-  const setLogoHashes = (hashes = []) => {
-    logoHashes = [...new Set(hashes.filter((hash) => hash && isUsableLogoHash(hash)))]
+  const measuredTraitsOf = (source) => {
+    const traits = checks.get(source)?.traits
+    return traits?.hash ? traits : null
   }
 
-  const check = async ({ source, title = null, image = null }) => {
-    if (!source) return null
+  const applyLogos = (logos) => {
+    logoHashes = [...new Set(logos.map((logo) => logo?.hash).filter((hash) => hash && isUsableLogoHash(hash)))]
+    logoMarks = [...new Set(logos.map((logo) => logo?.mark).filter(Boolean))].flatMap((mark) => marksOf(mark))
+  }
+
+  const setLogos = async (logos = []) => {
+    logosSet = true
+    applyLogos(logos)
+    const value = JSON.stringify(logos.filter((logo) => logo?.hash).map(({ hash, mark = null }) => ({ hash, mark })))
+    if (value === savedLogos) return
+    savedLogos = value
+    await database('settings').insert({ key: LOGO_TRAITS_SETTING, value }).onConflict('key').merge().catch(() => {})
+  }
+
+  const judge = async ({ source, title = null, image = null, name = null }) => {
+    if (!source) return OK_JUDGEMENT
     await load()
     if (title) noteTitles([{ source, title }])
-    if (checks.has(source) || !image) return reasonFor(source)
+    if (!needsMeasuring(source) || !image || reasonFor(source, name) === 'name') return verdictOf(source, { name })
     const loaded = typeof image === 'function' ? await image() : image
-    if (!loaded?.body) return reasonFor(source)
-    const traits = await traitsOf(loaded.body).catch(() => null)
-    if (!traits) return reasonFor(source)
-    const families = new Set(guideFamilies.get(source))
+    if (!loaded?.body) return verdictOf(source, { name })
+    const traits = await traitsOf(loaded.body).catch(() => null) ?? UNMEASURABLE_TRAITS
+    const families = new Set([...(checks.get(source)?.families ?? []), ...(guideFamilies.get(source) ?? [])])
     index({ source, traits, families })
     await database('picture_checks').insert({
       source_url: source,
       hash: traits.hash,
       clear_share: traits.clearShare,
-      families: [...families].join(' '),
+      families: [...families].slice(0, MAX_FAMILIES).join(' '),
+      marks: traits.marks ?? null,
+      detail: traits.detail ?? null,
       checked_at: now(),
     }).onConflict('source_url').merge().catch(() => {})
-    return reasonFor(source)
+    return verdictOf(source, { name })
+  }
+
+  const needsMeasuring = (source) => checks.get(source)?.traits.marks == null
+
+  const isMeasured = (source) => !needsMeasuring(source)
+
+  const check = async (picture) => {
+    const judged = await judge(picture)
+    return judged.verdict === STAND_IN_VERDICT ? judged.reason : null
   }
 
   const saveFamilies = async () => {
@@ -162,8 +257,28 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     return new Set([...new Set([...checks.keys(), ...guideFamilies.keys()])].filter(isPlaceholder))
   }
 
-  return { check, noteTitles, saveFamilies, setLogoHashes, isPlaceholder, placeholderSources, load }
+  return { check, judge, verdictOf, noteTitles, saveFamilies, setLogos, isPlaceholder, isMeasured, placeholderSources, load }
 }
+
+const traitsOfRow = (row) => ({
+  hash: row.hash,
+  clearShare: Number(row.clear_share),
+  marks: row.marks ?? null,
+  detail: row.detail == null ? null : Number(row.detail),
+})
+
+const logosOfSetting = (value) => {
+  try {
+    const logos = JSON.parse(value || '[]')
+    return Array.isArray(logos) ? logos : []
+  } catch {
+    return []
+  }
+}
+
+const OK_JUDGEMENT = Object.freeze({ verdict: OK_VERDICT, reason: null })
+const UNMEASURABLE_TRAITS = Object.freeze({ hash: '', clearShare: 0, marks: '', detail: null })
+const NO_CORNERS = { marks: '', detail: null }
 
 const clearShareOf = async (small) => {
   const { data, info } = await sharp(small)

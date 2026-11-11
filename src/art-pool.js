@@ -6,7 +6,8 @@ import { cachedStateOf, readSizedCache, sizedKeyOf } from './artwork-match.js'
 import { artworkVersionOf, findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
-import { findArtSourceThumbnail, findEpisodeThumbnail, isArtSourceWarm, isEpisodeArtWarm } from './epg.js'
+import { OK_VERDICT, STAND_IN_VERDICT } from './picture-gate.js'
+import { findArtSourceThumbnail, findEpisodeThumbnail, isArtSourceWarm, isEpisodeArtWarm, knownRecordingCopyVerdict, recordingCopyVerdict } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { imageRouteOf, serveImageRoute } from './image-routes.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf, withPlexRows } from './library.js'
@@ -91,6 +92,8 @@ export const recordingImageRoute = ({
   thumbnails = recordingThumbnails,
   episodePicture = findEpisodeThumbnail,
   isEpisodeWarm = isEpisodeArtWarm,
+  copyVerdict = recordingCopyVerdict,
+  knownCopyVerdict = knownRecordingCopyVerdict,
 } = {}) => imageRouteOf({
   path: '/api/recordings/:recording_id/image',
   widthOf: (requested) => (requested === undefined ? ORIGINAL_WIDTH : heroWidthFrom(requested)),
@@ -98,7 +101,8 @@ export const recordingImageRoute = ({
   loadImage: async ({ recording_id: recordingId, width }) => {
     const version = await Promise.resolve().then(() => versionOf(recordingId)).catch(() => null)
     const original = version ? null : await loadOriginal(recordingId).catch(() => null)
-    if (!version && !original) return episodePicture({ recordingId, width: episodeWidthOf(width) })
+    const servable = (version || original) && await copyVerdict(recordingId) === OK_VERDICT
+    if (!servable) return episodePicture({ recordingId, width: episodeWidthOf(width) })
     if (width === ORIGINAL_WIDTH) return original ?? await loadOriginal(recordingId).catch(() => null)
     return thumbnails().thumbnailFor({
       key: recordingThumbnailKeyOf({ recordingId, version: version ?? contentKeyOf(original.body) }),
@@ -108,7 +112,7 @@ export const recordingImageRoute = ({
   },
   isWarm: async ({ recording_id: recordingId, width }) => {
     const version = await Promise.resolve().then(() => versionOf(recordingId)).catch(() => null)
-    if (!version) return isEpisodeWarm({ recordingId, width: episodeWidthOf(width) })
+    if (!version || await knownCopyVerdict(recordingId) !== OK_VERDICT) return isEpisodeWarm({ recordingId, width: episodeWidthOf(width) })
     return width === ORIGINAL_WIDTH || thumbnails().has({ key: recordingThumbnailKeyOf({ recordingId, version }), width })
   },
 })
@@ -142,6 +146,7 @@ export const createArtPool = ({
   thumbnailFor = findArtSourceThumbnail,
   isSourceWarm = isArtSourceWarm,
   loadSavedArtwork = findArtwork,
+  savedCopyVerdict = recordingCopyVerdict,
   chosenBackground = (key) => artworkChoices.chosenFor({ key, kind: 'background' }),
   now = Date.now,
   plexTtlMs = PLEX_TTL_MS,
@@ -243,7 +248,7 @@ export const createArtPool = ({
   }
 
   const recordingEntriesOf = async (row) => {
-    const saved = row.image_path
+    const saved = row.image_path && await savedCopyVerdict(row.recording_id) !== STAND_IN_VERDICT
       ? await loadSavedArtwork({ kind: 'recording', id: row.recording_id }).catch(() => null)
       : null
     const guide = await keepLoadable(guideEpisodePoolOf({ row, saved }))

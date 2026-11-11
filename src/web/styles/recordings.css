@@ -215,7 +215,8 @@
   flex: 1;
 }
 
-.show-actions.ui-only-phone > .show-from-start {
+.show-actions.ui-only-phone > .show-from-start,
+.show-actions.ui-only-phone:has(> .show-options-button) > .show-play-next {
   flex-basis: 100%;
 }
 

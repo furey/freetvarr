@@ -17,6 +17,7 @@ import { processRecordingAds, pruneCutOriginals, shouldQueueAutoDelete } from '.
 import { makeImportProgress } from './progress.js'
 import { sweepLibraryStates } from './library-files.js'
 import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
+import { STAND_IN_VERDICT, screenPictureBytes } from './picture-gate.js'
 import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
@@ -606,12 +607,15 @@ export const captureRecordingArtwork = async ({ recordingId, source, conn }) => 
   if (!source || failedArtworkSources.has(source)) return null
   if (await findArtwork({ kind: 'recording', id: recordingId })) return null
   const image = await fetchProgrammeImageOrThrow({ source, conn })
-  if (!image) {
+  if (!image || await isStandInPicture({ source, image })) {
     failedArtworkSources.add(source)
     return null
   }
   return saveArtwork({ kind: 'recording', id: recordingId, image })
 }
+
+const isStandInPicture = async ({ source, image }) =>
+  (await screenPictureBytes({ source, bytes: image.body }).catch(() => null))?.verdict === STAND_IN_VERDICT
 
 const captureUpcomingArtwork = async (conn) => {
   const upcoming = (await listUpcoming(conn)).filter((e) => e.enabled && e.image)

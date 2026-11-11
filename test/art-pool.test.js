@@ -111,6 +111,7 @@ const poolWith = (over = {}) => createArtPool({
   cache: memoryCache(),
   poolStore: memoryCache(),
   loadSavedArtwork: async () => ({ body: Buffer.from('jpeg') }),
+  savedCopyVerdict: async () => 'ok',
   thumbnailFor: async ({ source, width }) => ({ body: Buffer.from(`${source}|${width}`), contentType: 'image/webp' }),
   chosenBackground: async () => null,
   ...over,
@@ -312,7 +313,7 @@ const jpegOf = (text) => Buffer.concat([JPEG_START, Buffer.from(text)])
 const webpOf = (text) => Buffer.concat([WEBP_START, Buffer.from(text)])
 const textAfter = (start, body) => body.subarray(start.length).toString()
 
-const recordingImageRoute = ({ episodePicture = async () => ({ image: null, pending: false, final: true }) } = {}) => {
+const recordingImageRoute = ({ episodePicture = async () => ({ image: null, pending: false, final: true }), copyVerdict = async () => 'ok' } = {}) => {
   const widths = []
   const episodeRequests = []
   const route = serveImageRoute({
@@ -330,6 +331,7 @@ const recordingImageRoute = ({ episodePicture = async () => ({ image: null, pend
         episodeRequests.push(request)
         return episodePicture(request)
       },
+      copyVerdict,
     }),
   })
   const call = async ({ id = 'r1', query = {} } = {}) => {
@@ -384,6 +386,36 @@ test('the recording image route runs the episode chain for a recording with no s
   assert.equal(waiting.headers['x-art-state'], 'pending')
 })
 
+test('the recording image route screens a saved copy on read and never serves a stand-in or a title card ahead of the episode chain', async () => {
+  for (const verdict of ['stand-in', 'weak']) {
+    const { call, episodeRequests, widths } = recordingImageRoute({
+      copyVerdict: async () => verdict,
+      episodePicture: async () => ({ image: { body: webpOf('frame'), contentType: 'image/webp' }, pending: false }),
+    })
+    const res = await call({ query: { w: '384' } })
+    assert.equal(textAfter(WEBP_START, res.body), 'frame')
+    assert.deepEqual(episodeRequests, [{ recordingId: 'r1', width: 384 }])
+    assert.deepEqual(widths, [])
+  }
+})
+
+test('the recording image route checks warmth with the known verdict and never decodes a saved copy', async () => {
+  const route = recordingImageRouteOf({
+    versionOf: async () => 'v1',
+    thumbnails: () => ({ has: () => true }),
+    copyVerdict: async () => { throw new Error('decoded on a warmth check') },
+    knownCopyVerdict: async (id) => (id === 'r1' ? 'ok' : 'weak'),
+    isEpisodeWarm: async () => false,
+  })
+  assert.equal(await route.isWarm({ recording_id: 'r1', width: 384 }), true)
+  assert.equal(await route.isWarm({ recording_id: 'r2', width: 384 }), false)
+})
+
+test('recordingArt leaves out a saved copy that the gate calls a stand-in', async () => {
+  const art = await poolWith({ savedCopyVerdict: async () => 'stand-in' }).recordingArt('r1')
+  assert.equal(art.entries.some((entry) => entry.source === 'guide'), false)
+})
+
 test('tvmazePoolOf puts the widest background first so a tiny main picture never leads the hero', () => {
   const sized = (id, width, main = false) => ({ ...tvImage({ id, main }), resolutions: { original: { url: `https://tvmaze/${id}.jpg`, width, height: Math.round(width * 9 / 16) } } })
   const pool = tvmazePoolOf({ show: {}, images: [sized('tiny', 219, true), sized('full', 1920), sized('mid', 1280)] })
@@ -426,6 +458,8 @@ test('the recording image route keys a saved picture by its file version and che
   const reads = []
   const episodeChecks = []
   const route = recordingImageRouteOf({
+    copyVerdict: async () => 'ok',
+    knownCopyVerdict: async () => 'ok',
     versionOf: async (id) => (id === 'r1' ? '120-5' : null),
     loadOriginal: async (id) => {
       reads.push(id)

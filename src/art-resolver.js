@@ -3,6 +3,7 @@ import sharp from 'sharp'
 
 import { db } from './db.js'
 import { newPictureStamp } from './programme-stamps.js'
+import { GATE_RULE_VERSION, WEAK_VERDICT } from './picture-gate.js'
 import { isLandscapeSize } from './image-thumbnails.js'
 import { showTitleKey } from './show-artwork.js'
 import { POSTER_SHAPE, isPortraitSize } from './show-poster.js'
@@ -14,6 +15,7 @@ export const ONE_OFF_KIND = 'one-off'
 export const TITLE_KINDS = [MOVIE_KIND, SERIES_KIND, ONE_OFF_KIND]
 export const LANDSCAPE_SHAPE = 'landscape'
 export const FINAL_STAGE = 'none'
+export const WEAK_STAGE = 'weak'
 
 export const TITLE_CHAINS = {
   [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', FINAL_STAGE],
@@ -109,6 +111,7 @@ export const createArtResolver = ({
   loadImage,
   sizeOf = imageSizeOf,
   settingsKeyOf = async () => '',
+  ruleVersion = GATE_RULE_VERSION,
   store = databaseStore,
   now = Date.now,
   budgetMs = RESOLVE_BUDGET_MS,
@@ -197,7 +200,7 @@ export const createArtResolver = ({
     if (chosen.sources[0]) return { stage: 'choice', origin: chosen.sources[0], transform: chosenTransformOf(ctx.shape), pending: false }
     const local = await localEvidenceOf({ ctx, deadline })
     if (local.pending) return PENDING_RESULT
-    const fingerprint = fingerprintOf({ ctx, local, settingsKey: await settingsKeyOf(ctx).catch(() => '') })
+    const fingerprint = fingerprintOf({ ctx, local, ruleVersion, settingsKey: await settingsKeyOf(ctx).catch(() => '') })
     const key = resolutionKeyOf(ctx)
     const saved = await store.read(key).catch(() => null)
     if (saved && saved.fingerprint === fingerprint && Number(saved.next_check_at) > now()) return resultOfRow(saved)
@@ -217,14 +220,16 @@ export const createArtResolver = ({
   }
 
   const runTitleChain = async ({ ctx, local, fingerprint, saved, deadline }) => {
-    let weak = null
+    let derivable = null
+    let titleCard = null
     let errored = false
     const settle = (result) => (errored ? PENDING_RESULT : remember({ ctx, fingerprint, saved, result }))
+    const lastResort = () => (titleCard ? reshapedResultOf({ stage: WEAK_STAGE, picture: titleCard }) : FINAL_RESULT)
     for (const stage of chainOf({ kind: ctx.kind })) {
       if (stage === 'choice') continue
-      if (stage === FINAL_STAGE) return settle(FINAL_RESULT)
+      if (stage === FINAL_STAGE) return settle(lastResort())
       if (stage === 'derived') {
-        if (weak) return settle(derivedResultOf(weak))
+        if (derivable) return settle(reshapedResultOf({ stage: 'derived', picture: derivable }))
         continue
       }
       const found = local.found[stage] ?? await stageWithin({ stage, ctx, deadline })
@@ -233,42 +238,52 @@ export const createArtResolver = ({
         const verdict = await judge({ origin, shape: ctx.shape, minWidth: minWidthOf({ minWidths, stage, shape: ctx.shape }), deadline })
         if (verdict.pending) return PENDING_RESULT
         if (verdict.errored) errored = true
-        if (verdict.fits) return remember({ ctx, fingerprint, saved, result: { stage, origin, transform: 'none', pending: false }, errored })
-        if (verdict.loaded && !weak) weak = { origin, rightShape: verdict.rightShape }
+        if (verdict.titleCard) titleCard ??= { origin, rightShape: verdict.rightShape }
+        else if (verdict.fits) return remember({ ctx, fingerprint, saved, result: { stage, origin, transform: 'none', pending: false }, errored })
+        else if (verdict.loaded) derivable ??= { origin, rightShape: verdict.rightShape }
       }
     }
-    return settle(FINAL_RESULT)
+    return settle(lastResort())
   }
 
   const runOuterChain = async ({ chain, ctx, budget = outerBudgetMs }) => {
     const deadline = now() + budget
     let pendingSeen = false
+    let titleCard = null
+    const lastResort = () => {
+      if (titleCard) return provisionalIf({ result: titleCard, pendingSeen })
+      return pendingSeen ? PENDING_RESULT : FINAL_RESULT
+    }
     for (const stage of chain) {
-      if (stage === FINAL_STAGE) return pendingSeen ? PENDING_RESULT : FINAL_RESULT
+      if (stage === FINAL_STAGE) return lastResort()
       if (stage === 'title') {
         const fromTitle = await resolveTitle({ ...ctx, recordingId: null, eventId: null })
         if (fromTitle.pending) pendingSeen = true
+        else if (fromTitle.stage === WEAK_STAGE) titleCard ??= fromTitle
         else if (fromTitle.stage !== FINAL_STAGE) return provisionalIf({ result: fromTitle, pendingSeen })
         continue
       }
       const found = await stageWithin({ stage, ctx, deadline })
       if (found.pending) pendingSeen = true
       const loaded = await firstLoaded({ sources: found.sources, deadline })
+      if (loaded.titleCard) titleCard ??= { stage: WEAK_STAGE, origin: loaded.titleCard, transform: 'none', pending: false }
       if (loaded.origin) return provisionalIf({ result: { stage, origin: loaded.origin, transform: 'none', pending: false }, pendingSeen })
       if (loaded.pending) pendingSeen = true
     }
-    return pendingSeen ? PENDING_RESULT : FINAL_RESULT
+    return lastResort()
   }
 
   const firstLoaded = async ({ sources, deadline }) => {
     let failed = false
+    let titleCard = null
     for (const origin of sources) {
       const image = await within(loadImage(origin), deadline - now())
-      if (image === TIMED_OUT) return { origin: null, pending: true }
+      if (image === TIMED_OUT) return { origin: null, pending: true, titleCard }
       if (image === LOAD_FAILED) failed = true
-      else if (image) return { origin, pending: false }
+      else if (image?.verdict === WEAK_VERDICT) titleCard ??= origin
+      else if (image) return { origin, pending: false, titleCard }
     }
-    return { origin: null, pending: failed }
+    return { origin: null, pending: failed, titleCard }
   }
 
   const stageWithin = async ({ stage, ctx, deadline }) => {
@@ -287,7 +302,7 @@ export const createArtResolver = ({
     const size = await sizeOf(image).catch(() => null)
     if (!size?.width) return { loaded: false }
     const rightShape = shape === POSTER_SHAPE ? isPortraitSize(size) : isLandscapeSize(size)
-    return { loaded: true, rightShape, fits: rightShape && size.width >= minWidth }
+    return { loaded: true, rightShape, fits: rightShape && size.width >= minWidth, titleCard: image.verdict === WEAK_VERDICT }
   }
 
   const remember = async ({ ctx, fingerprint, saved, result, errored = false }) => {
@@ -340,7 +355,7 @@ export const createArtResolver = ({
     if (!saved || Number(saved.next_check_at) <= now()) return PEEK_DUE
     const local = await localEvidenceOf({ ctx, deadline })
     if (local.pending) return PEEK_DUE
-    const fingerprint = fingerprintOf({ ctx, local, settingsKey: await settingsKeyOf(ctx).catch(() => '') })
+    const fingerprint = fingerprintOf({ ctx, local, ruleVersion, settingsKey: await settingsKeyOf(ctx).catch(() => '') })
     return saved.fingerprint === fingerprint ? { due: false, ...resultOfRow(saved) } : PEEK_DUE
   }
 
@@ -390,9 +405,10 @@ export const imageSizeOf = async (image) => {
   return { width, height }
 }
 
-const fingerprintOf = ({ ctx, local, settingsKey }) => createHash('sha256')
+const fingerprintOf = ({ ctx, local, ruleVersion, settingsKey }) => createHash('sha256')
   .update(JSON.stringify([
     FINGERPRINT_VERSION,
+    ruleVersion,
     ctx.kind,
     ctx.shape,
     LOCAL_STAGES.map((stage) => local.found[stage]?.sources ?? []),
@@ -401,10 +417,10 @@ const fingerprintOf = ({ ctx, local, settingsKey }) => createHash('sha256')
   .digest('hex')
   .slice(0, FINGERPRINT_LENGTH)
 
-const derivedResultOf = (weak) => ({
-  stage: 'derived',
-  origin: weak.origin,
-  transform: weak.rightShape ? 'none' : 'pad',
+const reshapedResultOf = ({ stage, picture }) => ({
+  stage,
+  origin: picture.origin,
+  transform: picture.rightShape ? 'none' : 'pad',
   pending: false,
 })
 
@@ -451,7 +467,7 @@ const PEEK_DUE = { due: true }
 const UNSETTLED_FILM_LOOKUP = { sources: [], pending: true }
 const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OFF_KIND }
 const LOCAL_STAGES = ['plex', 'recording', 'guide']
-const SETTLED_STAGES = new Set(['derived', FINAL_STAGE])
+const SETTLED_STAGES = new Set(['derived', WEAK_STAGE, FINAL_STAGE])
 const TIMED_OUT = Symbol('timed out')
 const LOAD_FAILED = Symbol('load failed')
 const NO_SOURCES = { sources: [], pending: false }
