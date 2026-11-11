@@ -7,7 +7,7 @@ import { artworkVersionOf, findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
 import { OK_VERDICT, STAND_IN_VERDICT } from './picture-gate.js'
-import { findArtSourceThumbnail, findEpisodeThumbnail, isArtSourceWarm, isEpisodeArtWarm, recordingCopyVerdict } from './epg.js'
+import { findArtSourceThumbnail, findEpisodeThumbnail, isArtSourceWarm, isEpisodeArtWarm, knownRecordingCopyVerdict, recordingCopyVerdict } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { imageRouteOf, serveImageRoute } from './image-routes.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf, withPlexRows } from './library.js'
@@ -93,6 +93,7 @@ export const recordingImageRoute = ({
   episodePicture = findEpisodeThumbnail,
   isEpisodeWarm = isEpisodeArtWarm,
   copyVerdict = recordingCopyVerdict,
+  knownCopyVerdict = knownRecordingCopyVerdict,
 } = {}) => imageRouteOf({
   path: '/api/recordings/:recording_id/image',
   widthOf: (requested) => (requested === undefined ? ORIGINAL_WIDTH : heroWidthFrom(requested)),
@@ -111,7 +112,7 @@ export const recordingImageRoute = ({
   },
   isWarm: async ({ recording_id: recordingId, width }) => {
     const version = await Promise.resolve().then(() => versionOf(recordingId)).catch(() => null)
-    if (!version || await copyVerdict(recordingId) !== OK_VERDICT) return isEpisodeWarm({ recordingId, width: episodeWidthOf(width) })
+    if (!version || await knownCopyVerdict(recordingId) !== OK_VERDICT) return isEpisodeWarm({ recordingId, width: episodeWidthOf(width) })
     return width === ORIGINAL_WIDTH || thumbnails().has({ key: recordingThumbnailKeyOf({ recordingId, version }), width })
   },
 })

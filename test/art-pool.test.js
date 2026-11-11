@@ -399,6 +399,18 @@ test('the recording image route screens a saved copy on read and never serves a 
   }
 })
 
+test('the recording image route checks warmth with the known verdict and never decodes a saved copy', async () => {
+  const route = recordingImageRouteOf({
+    versionOf: async () => 'v1',
+    thumbnails: () => ({ has: () => true }),
+    copyVerdict: async () => { throw new Error('decoded on a warmth check') },
+    knownCopyVerdict: async (id) => (id === 'r1' ? 'ok' : 'weak'),
+    isEpisodeWarm: async () => false,
+  })
+  assert.equal(await route.isWarm({ recording_id: 'r1', width: 384 }), true)
+  assert.equal(await route.isWarm({ recording_id: 'r2', width: 384 }), false)
+})
+
 test('recordingArt leaves out a saved copy that the gate calls a stand-in', async () => {
   const art = await poolWith({ savedCopyVerdict: async () => 'stand-in' }).recordingArt('r1')
   assert.equal(art.entries.some((entry) => entry.source === 'guide'), false)
@@ -447,6 +459,7 @@ test('the recording image route keys a saved picture by its file version and che
   const episodeChecks = []
   const route = recordingImageRouteOf({
     copyVerdict: async () => 'ok',
+    knownCopyVerdict: async () => 'ok',
     versionOf: async (id) => (id === 'r1' ? '120-5' : null),
     loadOriginal: async (id) => {
       reads.push(id)

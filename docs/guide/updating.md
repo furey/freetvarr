@@ -115,7 +115,7 @@ These releases change something on your install when you update to them. Read ea
 [Release notes for `2.24.0`](https://github.com/furey/freetvarr/releases/tag/2.24.0)
 
 - **Database**: the first start adds one database change (database change `0051`). `0051` adds two columns to the picture checks: where a channel logo or badge sits in each corner of a picture, and how much detail the picture has, so Freetvarr can find channel title cards and use them only when no better picture exists. A version that is older than `0051` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
-- **Pictures**: the first start measures every saved guide and recording picture again, once, in the background, and chooses each title's picture again once.
+- **Pictures**: the first start measures every saved guide and recording picture again, once, in the background, and chooses each title's picture again once. A recording picture that is a channel title card stays in the recording's picture choices. Freetvarr shows it only when no better picture exists: for a recording, the episode picture or a frame comes first; for a show, online show art comes first.
 
 ### 2.23.0
 

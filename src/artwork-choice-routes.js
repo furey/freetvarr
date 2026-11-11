@@ -17,7 +17,7 @@ import {
   artworkUploads,
   prepareUpload,
 } from './artwork-uploads.js'
-import { artworkOriginImage, automaticShowSources, isStandInCandidate, resolvedArtStamps } from './epg.js'
+import { artworkOriginImage, automaticShowSources, isStandInOrigin, resolvedArtStamps } from './epg.js'
 import { storedTmdbKey } from './fallback-artwork.js'
 import { PROGRAMME_IMAGE_WIDTHS, thumbnailWidthFrom } from './image-thumbnails.js'
 import { kindOf } from './library.js'
@@ -192,7 +192,7 @@ const uploadBody = (req, res, next) => uploadParser(req, res, (err) => {
 export const createArtworkCandidates = ({
   showSources,
   automaticSources = automaticShowSources,
-  isStandIn = isStandInCandidate,
+  isStandIn = isStandInOrigin,
   plexUrl = async () => (await getPlexConnection().catch(() => null))?.url ?? null,
   hasTmdbKey = async () => Boolean(await storedTmdbKey()),
   now = Date.now,
@@ -328,11 +328,9 @@ const fallbackEntriesOf = (source) => {
 }
 
 const withoutStandInsOf = async ({ candidates, isStandIn }) => {
-  const kept = []
-  for (const candidate of candidates) {
-    if (candidate.source !== 'guide' || !(await Promise.resolve(isStandIn(candidate.origin)).catch(() => false))) kept.push(candidate)
-  }
-  return kept
+  const standIns = await Promise.all(candidates.map((candidate) => candidate.source === 'guide'
+    && Promise.resolve().then(() => isStandIn(candidate.origin)).catch(() => false)))
+  return candidates.filter((candidate, at) => !standIns[at])
 }
 
 const guideEntriesOf = (rows) => [...rows]

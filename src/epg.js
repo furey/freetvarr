@@ -1030,6 +1030,9 @@ export const recordingCopyVerdict = (recordingId) => pictureGate.screen(`${RECOR
   () => STAND_IN_VERDICT,
 )
 
+export const knownRecordingCopyVerdict = (recordingId) => pictureGate.knownVerdict(`${RECORDING_ORIGIN_PREFIX}${recordingId}`)
+  .catch(() => STAND_IN_VERDICT)
+
 const plexImageOf = async (origin) => {
   const connection = await getPlexConnection().catch(() => null)
   return connection ? programmeImages.imageOrErrorFor(plexResizedSourceOf(plexSourceOf({ origin, ...connection }))) : null
@@ -1096,11 +1099,25 @@ const showArtSources = async ({ title, kind = null }) => {
   const artworkKind = kind ?? await guideKindFor(title)
   const fromPlex = await showArtwork.plexSourcesFor(title, { kind: artworkKind }).catch(() => [])
   if (fromPlex.length) return fromPlex
-  const recorded = await recordingImagesFor(title)
-  if (recorded.length) return recorded
-  const sources = isFilmKind(artworkKind) ? [] : await showArtwork.sourcesFor(title).catch(() => [])
-  return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind: artworkKind }).catch(() => [])
+  return recordedOrOnlineSourcesOf({
+    recorded: await recordingImagesFor(title),
+    verdictOf: knownOriginVerdict,
+    online: () => onlineShowSources({ title, kind: artworkKind }),
+  })
 }
+
+export const recordedOrOnlineSourcesOf = async ({ recorded, verdictOf, online }) => {
+  if (!recorded.length) return online()
+  const verdicts = await Promise.all(recorded.map((origin) => verdictOf(origin)))
+  return verdicts.every((verdict) => verdict === WEAK_VERDICT) ? [...await online(), ...recorded] : recorded
+}
+
+const onlineShowSources = async ({ title, kind }) => {
+  const sources = isFilmKind(kind) ? [] : await showArtwork.sourcesFor(title).catch(() => [])
+  return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind }).catch(() => [])
+}
+
+const knownOriginVerdict = (origin) => pictureGate.knownVerdict(origin).catch(() => OK_VERDICT)
 
 const findTitleImage = async ({ title, width, kind, shape }) => {
   if (!title) return NO_IMAGE
@@ -1139,10 +1156,6 @@ const resolvedThumbnail = ({ resolution: { origin, transform, stage }, width, sh
     loadOriginal: () => resolvedOriginalOf({ origin, transform, shape, ownerChoice }),
   }).catch(() => null)
 }
-
-export const isStandInCandidate = async (origin) => (String(origin ?? '').startsWith(RECORDING_ORIGIN_PREFIX)
-  ? await recordingCopyVerdict(origin.slice(RECORDING_ORIGIN_PREFIX.length)) === STAND_IN_VERDICT
-  : isStandInOrigin(origin))
 
 export const isStandInOrigin = async (origin) => await pictureGate.knownVerdict(origin).catch(() => null) === STAND_IN_VERDICT
 
@@ -1375,7 +1388,12 @@ const resolveWithin = (promise, ms) => Promise.race([
 
 const showArtOriginal = async (source) => {
   const image = await showSourceImage(source)
-  return image && landscapeOf(image).catch(() => image)
+  return image && widenedShowImageOf(image)
+}
+
+export const widenedShowImageOf = async (image, widen = landscapeOf) => {
+  const wide = await widen(image).catch(() => image)
+  return image.verdict && wide !== image ? { ...wide, verdict: image.verdict } : wide
 }
 
 const bestImageOf = async (chains) => {
@@ -1480,7 +1498,7 @@ const refreshLogoHashes = async (channels = []) => {
     const logo = image?.body ? await logoTraitsOf(image.body).catch(() => null) : null
     if (logo?.hash) logoHashes.set(key, logo)
   }
-  placeholderPictures.setLogos([...logoHashes.values()])
+  await placeholderPictures.setLogos([...logoHashes.values()])
 }
 
 export const forgetPlaceholderPictures = async ({
@@ -1488,11 +1506,13 @@ export const forgetPlaceholderPictures = async ({
   pictures = guidePictures,
   placeholders = placeholderPictures,
   verdictOfOrigin = (origin) => pictureGate.knownVerdict(origin),
+  measureRecordings = () => measureRecordingCopies({ database }),
   airings = guideAirings,
   feed = artFeed,
 } = {}) => {
   await placeholders.saveFamilies()
   const dropped = await pictures.dropPlaceholders(await guidePictureKeepsOf(database))
+  await measureRecordings().catch(() => 0)
   const rows = await database('art_resolutions')
     .where((query) => query.where('origin', 'like', 'http%').orWhere('origin', 'like', 'guide-picture:%').orWhere('origin', 'like', 'recording:%'))
     .where('next_check_at', '>', 0)
@@ -1507,6 +1527,23 @@ export const forgetPlaceholderPictures = async ({
   const airingTitles = await newStandInAiringTitlesOf({ airings: await airings().catch(() => []), placeholders, database })
   const keys = [...dropped.map(showKeyOf), ...airingTitles.map(showKeyOf)]
   return announcePictureChanges({ changes, keys, database, feed })
+}
+
+export const measureRecordingCopies = async ({
+  database = db,
+  placeholders = placeholderPictures,
+  screen = (origin) => pictureGate.screen(origin),
+} = {}) => {
+  await placeholders.load()
+  const rows = await database('recordings').whereNotNull('image_path').select('recording_id')
+  let measured = 0
+  for (const { recording_id: recordingId } of rows) {
+    const origin = `${RECORDING_ORIGIN_PREFIX}${recordingId}`
+    if (placeholders.isMeasured(origin)) continue
+    await screen(origin).catch(() => null)
+    measured += 1
+  }
+  return measured
 }
 
 const isOutranked = ({ verdict, stage }) => verdict === STAND_IN_VERDICT || (verdict === WEAK_VERDICT && stage !== WEAK_STAGE)

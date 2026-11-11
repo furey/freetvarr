@@ -207,3 +207,49 @@ test('the gate rule version is part of the resolver fingerprint, so a rule chang
   await resolverWith(`${GATE_RULE_VERSION}-next`).resolve({ title: 'Lingo' })
   assert.equal(loads.length, 2)
 })
+
+test('channel logo marks are kept in a setting, so a restart judges a title card weak before the guide pictures job runs', async () => {
+  const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
+  cleanups.push(() => database.destroy())
+  await upPictureChecks(database)
+  await upPictureCheckMarks(database)
+  await database.schema.createTable('settings', (t) => {
+    t.string('key').primary()
+    t.text('value')
+  })
+  const images = {
+    'https://img.example.com/fetch/bridge-of-lies': { body: await sevenCard('Bridge of Lies') },
+    'https://img.example.com/fetch/the-chase': { body: await sevenCard('The Chase') },
+  }
+  const before = createPlaceholderPictures({ database })
+  await before.setLogos([await logoTraitsOf(sevenLogo)])
+  assert.equal((await gateOver({ checks: before, images }).screen('https://img.example.com/fetch/bridge-of-lies')).verdict, 'weak')
+  const restarted = gateOver({ checks: createPlaceholderPictures({ database }), images })
+  assert.equal(await restarted.knownVerdict('https://img.example.com/fetch/bridge-of-lies'), 'weak')
+  assert.equal((await restarted.screen('https://img.example.com/fetch/the-chase')).verdict, 'weak')
+})
+
+test('a picture that cannot be measured is stored once, judged ok or by name, and never twinned with other unmeasurable pictures', async () => {
+  const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
+  cleanups.push(() => database.destroy())
+  await upPictureChecks(database)
+  await upPictureCheckMarks(database)
+  let decodes = 0
+  const checks = createPlaceholderPictures({ database, traitsOf: async () => { decodes += 1; return null } })
+  const broken = { body: Buffer.from('not a picture') }
+  const titles = (source, names) => names.map((title) => ({ source, title }))
+  checks.noteTitles([
+    ...titles('https://img.example.com/a/1.jpg', ['Alpha', 'Bravo', 'Charlie', 'Delta']),
+    ...titles('https://img.example.com/b/2.jpg', ['Echo', 'Foxtrot', 'Golf', 'Hotel']),
+  ])
+  for (let at = 0; at < 3; at += 1) {
+    assert.equal((await checks.judge({ source: 'https://img.example.com/a/1.jpg', image: broken })).verdict, 'ok')
+    assert.equal((await checks.judge({ source: 'https://img.example.com/b/2.jpg', image: broken })).verdict, 'ok')
+  }
+  assert.equal(decodes, 2)
+  assert.equal((await database('picture_checks').where({ source_url: 'https://img.example.com/a/1.jpg' }).first()).marks, '')
+  assert.deepEqual(await checks.judge({ source: 'https://img.example.com/x/9go_logo.png', image: broken }), { verdict: 'stand-in', reason: 'name' })
+  const reloaded = createPlaceholderPictures({ database, traitsOf: async () => { throw new Error('decoded again') } })
+  assert.equal((await reloaded.judge({ source: 'https://img.example.com/a/1.jpg', image: broken })).verdict, 'ok')
+  assert.equal(reloaded.isMeasured('https://img.example.com/a/1.jpg'), true)
+})

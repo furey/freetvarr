@@ -19,6 +19,7 @@ export const WEAK_VERDICT = 'weak'
 export const STAND_IN_VERDICT = 'stand-in'
 export const CARD_REASON = 'card'
 
+export const LOGO_TRAITS_SETTING = 'picture_logo_traits'
 export const PLACEHOLDER_FAMILIES = 5
 export const LOGO_LIKE_FAMILIES = 3
 export const LOGO_LIKE_DISTANCE = 16
@@ -101,23 +102,35 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
   const markIndex = createMarkIndex()
   let logoHashes = []
   let logoMarks = []
+  let logosSet = false
+  let savedLogos = null
   let loading = null
 
   const load = () => {
-    loading ??= database('picture_checks').select('source_url', 'hash', 'clear_share', 'families', 'marks', 'detail')
-      .then((rows) => rows.forEach((row) => index({
-        source: row.source_url,
-        traits: traitsOfRow(row),
-        families: new Set(String(row.families ?? '').split(' ').filter(Boolean)),
-      })))
-      .catch(() => {})
+    loading ??= Promise.all([loadChecks(), loadLogos()])
     return loading
   }
+
+  const loadChecks = () => database('picture_checks').select('source_url', 'hash', 'clear_share', 'families', 'marks', 'detail')
+    .then((rows) => rows.forEach((row) => index({
+      source: row.source_url,
+      traits: traitsOfRow(row),
+      families: new Set(String(row.families ?? '').split(' ').filter(Boolean)),
+    })))
+    .catch(() => {})
+
+  const loadLogos = () => database('settings').where({ key: LOGO_TRAITS_SETTING }).first('value')
+    .then((row) => {
+      savedLogos ??= row?.value ?? null
+      if (!logosSet) applyLogos(logosOfSetting(row?.value))
+    })
+    .catch(() => {})
 
   const index = ({ source, traits, families }) => {
     const earlier = checks.get(source)?.traits.hash
     if (earlier && earlier !== traits.hash) sourcesByHash.get(earlier)?.delete(source)
     checks.set(source, { traits, families })
+    if (!traits.hash) return
     const sources = sourcesByHash.get(traits.hash) ?? new Set()
     sourcesByHash.set(traits.hash, sources.add(source))
     if (traits.marks != null) markIndex.add({ source, marks: marksOf(traits.marks), detail: traits.detail })
@@ -149,7 +162,7 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
   const reasonFor = (source, name = null) => placeholderReasonOf({
     source,
     name,
-    traits: checks.get(source)?.traits ?? null,
+    traits: measuredTraitsOf(source),
     families: familiesOf(source),
     logoHashes,
   })
@@ -158,7 +171,7 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     if (!source) return OK_JUDGEMENT
     const reason = reasonFor(source, name)
     if (reason) return { verdict: STAND_IN_VERDICT, reason }
-    const traits = checks.get(source)?.traits
+    const traits = measuredTraitsOf(source)
     return isCardPicture({ traits, logoMarks, learnedFamilies: learnedFamiliesFor(source) })
       ? { verdict: WEAK_VERDICT, reason: CARD_REASON }
       : OK_JUDGEMENT
@@ -173,9 +186,23 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     }
   }
 
-  const setLogos = (logos = []) => {
+  const measuredTraitsOf = (source) => {
+    const traits = checks.get(source)?.traits
+    return traits?.hash ? traits : null
+  }
+
+  const applyLogos = (logos) => {
     logoHashes = [...new Set(logos.map((logo) => logo?.hash).filter((hash) => hash && isUsableLogoHash(hash)))]
     logoMarks = [...new Set(logos.map((logo) => logo?.mark).filter(Boolean))].flatMap((mark) => marksOf(mark))
+  }
+
+  const setLogos = async (logos = []) => {
+    logosSet = true
+    applyLogos(logos)
+    const value = JSON.stringify(logos.filter((logo) => logo?.hash).map(({ hash, mark = null }) => ({ hash, mark })))
+    if (value === savedLogos) return
+    savedLogos = value
+    await database('settings').insert({ key: LOGO_TRAITS_SETTING, value }).onConflict('key').merge().catch(() => {})
   }
 
   const judge = async ({ source, title = null, image = null, name = null }) => {
@@ -185,8 +212,7 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     if (!needsMeasuring(source) || !image || reasonFor(source, name) === 'name') return verdictOf(source, { name })
     const loaded = typeof image === 'function' ? await image() : image
     if (!loaded?.body) return verdictOf(source, { name })
-    const traits = await traitsOf(loaded.body).catch(() => null)
-    if (!traits) return verdictOf(source, { name })
+    const traits = await traitsOf(loaded.body).catch(() => null) ?? UNMEASURABLE_TRAITS
     const families = new Set([...(checks.get(source)?.families ?? []), ...(guideFamilies.get(source) ?? [])])
     index({ source, traits, families })
     await database('picture_checks').insert({
@@ -202,6 +228,8 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
   }
 
   const needsMeasuring = (source) => checks.get(source)?.traits.marks == null
+
+  const isMeasured = (source) => !needsMeasuring(source)
 
   const check = async (picture) => {
     const judged = await judge(picture)
@@ -229,7 +257,7 @@ export const createPlaceholderPictures = ({ database = db, traitsOf = pictureTra
     return new Set([...new Set([...checks.keys(), ...guideFamilies.keys()])].filter(isPlaceholder))
   }
 
-  return { check, judge, verdictOf, noteTitles, saveFamilies, setLogos, isPlaceholder, placeholderSources, load }
+  return { check, judge, verdictOf, noteTitles, saveFamilies, setLogos, isPlaceholder, isMeasured, placeholderSources, load }
 }
 
 const traitsOfRow = (row) => ({
@@ -239,7 +267,17 @@ const traitsOfRow = (row) => ({
   detail: row.detail == null ? null : Number(row.detail),
 })
 
+const logosOfSetting = (value) => {
+  try {
+    const logos = JSON.parse(value || '[]')
+    return Array.isArray(logos) ? logos : []
+  } catch {
+    return []
+  }
+}
+
 const OK_JUDGEMENT = Object.freeze({ verdict: OK_VERDICT, reason: null })
+const UNMEASURABLE_TRAITS = Object.freeze({ hash: '', clearShare: 0, marks: '', detail: null })
 const NO_CORNERS = { marks: '', detail: null }
 
 const clearShareOf = async (small) => {
