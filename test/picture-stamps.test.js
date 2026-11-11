@@ -140,12 +140,15 @@ test('the guide pictures pass measures each recording copy that has no measureme
   await db('recordings').whereIn('recording_id', ['m1', 'm2', 'm3']).delete()
 })
 
-test('show art offers online pictures ahead of recording copies only when every copy is a title card', async () => {
+test('show art offers online pictures ahead of recording copies only when no copy is ok', async () => {
   const online = async () => ['https://static.tvmaze.com/gruen.jpg']
-  const verdicts = { 'recording:a': 'weak', 'recording:b': 'weak', 'recording:c': 'ok' }
+  const verdicts = { 'recording:a': 'weak', 'recording:b': 'weak', 'recording:c': 'ok', 'recording:d': 'stand-in' }
   const verdictOf = async (origin) => verdicts[origin]
   assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:a', 'recording:b'], verdictOf, online }), [
     'https://static.tvmaze.com/gruen.jpg', 'recording:a', 'recording:b',
+  ])
+  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:d', 'recording:a'], verdictOf, online }), [
+    'https://static.tvmaze.com/gruen.jpg', 'recording:d', 'recording:a',
   ])
   assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:a', 'recording:c'], verdictOf, online }), ['recording:a', 'recording:c'])
   assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: [], verdictOf, online }), ['https://static.tvmaze.com/gruen.jpg'])

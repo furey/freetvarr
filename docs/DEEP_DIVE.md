@@ -1474,7 +1474,7 @@ Guide and Freeview addresses often give a channel logo or a channel default imag
 - `servedThumbnail` checks the known verdict before it reads the [image cache](#image-cache), so a cached thumbnail of an address that became a stand-in is not served.
 - `sync.js` checks a recording picture with `screenPictureBytes` before `saveArtwork`, and saves no stand-in. The recording image route checks a saved copy on read (`recordingCopyVerdict`): a stand-in or a title card goes to the episode chain. Its warm check uses the known verdict (`knownRecordingCopyVerdict`) and decodes nothing.
 - `recordingArt` leaves out a saved copy that is a stand-in. A title-card copy stays in the pool.
-- `getProgrammeImage` tries the recording copies of a title before online show art (`recordedOrOnlineSourcesOf`). When every copy is a known title card, online show art comes first, so a title card shows only when no online picture loads. A portrait picture keeps its verdict when it is padded to landscape (`widenedShowImageOf`).
+- `getProgrammeImage` tries the recording copies of a title before online show art (`recordedOrOnlineSourcesOf`). When no copy is known to be ok (each one is a title card or a stand-in), online show art comes first, so a title card shows only when no online picture loads. A portrait picture keeps its verdict when it is padded to landscape (`widenedShowImageOf`).
 - **Change picture** leaves out guide candidates that are stand-ins (`isStandInOrigin`). It uses the known verdict of each candidate, checks all candidates at the same time, and decodes nothing.
 
 `placeholderReasonOf` checks, in order:

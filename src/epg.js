@@ -1109,7 +1109,7 @@ const showArtSources = async ({ title, kind = null }) => {
 export const recordedOrOnlineSourcesOf = async ({ recorded, verdictOf, online }) => {
   if (!recorded.length) return online()
   const verdicts = await Promise.all(recorded.map((origin) => verdictOf(origin)))
-  return verdicts.every((verdict) => verdict === WEAK_VERDICT) ? [...await online(), ...recorded] : recorded
+  return verdicts.some((verdict) => verdict === OK_VERDICT) ? recorded : [...await online(), ...recorded]
 }
 
 const onlineShowSources = async ({ title, kind }) => {
