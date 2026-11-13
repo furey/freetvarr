@@ -7,6 +7,7 @@ export const FEEDBACK_KINDS = new Set([
   'not_interested',
   'thumb_up',
   'thumb_down',
+  'fewer_like_this',
   'thumb_clear',
   'programme_opened',
   'theme_muted',
@@ -15,7 +16,7 @@ export const FEEDBACK_KINDS = new Set([
   'theme_unboosted',
 ])
 
-export const CHOICE_KINDS = new Set(['not_interested', 'thumb_up', 'thumb_down', 'thumb_clear', 'theme_muted', 'theme_unmuted', 'theme_boosted', 'theme_unboosted'])
+export const CHOICE_KINDS = new Set(['not_interested', 'thumb_up', 'thumb_down', 'fewer_like_this', 'thumb_clear', 'theme_muted', 'theme_unmuted', 'theme_boosted', 'theme_unboosted'])
 
 export const VIEWING_HISTORY_KEY = 'viewing_history_enabled'
 export const HISTORY_RETENTION_MS = 730 * 24 * 60 * 60 * 1000

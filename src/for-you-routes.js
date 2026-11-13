@@ -8,6 +8,7 @@ import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmb
 import { currentOtherLanguageFilms, forgetForYouCache, getForYou, getHiddenShows, getPickable, getThemeSettings, isForYouEnabled, setThemeOn, startForYou, titlesForKeys, unhideShow, unmuteTheme } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
+import { showKeyOf } from './web/show-key.js'
 import { OTHER_LANGUAGE_CHOICES } from './top-rated.js'
 import { isViewingHistoryEnabled, logUserEvent, setViewingHistoryEnabled } from './user-events-log.js'
 
@@ -30,6 +31,16 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
       const explanation = (await getForYou()).explanations.get(String(req.params.id))
       if (!explanation) return res.status(404).json({ error: 'That programme is not in your suggestions' })
       res.json(explanation)
+    } catch (err) {
+      res.status(503).json({ error: err.message })
+    }
+  })
+
+  app.get('/api/for-you/taste', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    if (!(await isForYouEnabled())) return res.json({ enabled: false, theme: null })
+    try {
+      res.json({ enabled: true, ...titleTasteFrom({ taste: (await getForYou()).taste, title: req.query.title }) })
     } catch (err) {
       res.status(503).json({ error: err.message })
     }
@@ -120,6 +131,18 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
   })
 
   if (start) appVersion().then((version) => startForYou({ version })).catch(() => {})
+}
+
+export const titleTasteFrom = ({ taste, title }) => {
+  const key = showKeyOf(String(title || ''))
+  const theme = taste?.titles?.[key]?.theme ?? null
+  const hiddenThemes = taste?.hiddenThemes ?? []
+  return {
+    seriesKey: key,
+    hidden: Boolean(taste?.hiddenShows?.includes(key)),
+    theme,
+    themeHidden: Boolean(theme && (hiddenThemes.includes(theme.key) || (theme.sport && hiddenThemes.includes('sport')))),
+  }
 }
 
 export const limitFrom = (value) => {

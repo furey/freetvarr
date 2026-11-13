@@ -201,8 +201,8 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
     { key: 'programme-info', label: 'Programme info', icon: 'info' },
   ].filter(Boolean)
   const more = [
-    { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
-    item.theme?.key && { key: 'fewer-theme', label: hideThemeLabelOf(item.theme), icon: 'hide' },
+    { key: 'not-interested', label: dislikeLabelsOf({ kind: item.programmeKind }).show, icon: 'hide' },
+    item.theme?.key && { key: 'fewer-theme', label: dislikeLabelsOf({ theme: item.theme }).theme, icon: 'hide' },
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)
@@ -215,7 +215,7 @@ const readyMenuOf = (item) => ({
     { key: 'show', label: 'Go to show', icon: 'options' },
   ],
   more: [
-    { key: 'not-interested', label: `Not interested in ${item.title}`, icon: 'hide' },
+    { key: 'not-interested', label: dislikeLabelsOf({ kind: item.programmeKind }).show, icon: 'hide' },
     { key: 'why', label: 'Why this?', icon: 'why' },
   ],
 })
@@ -265,7 +265,9 @@ export const feedbackOf = ({ kind, item, source }) => ({
 
 export const thumbToggleOf = ({ current, direction }) => (current === direction
   ? { next: null, kind: 'thumb_clear' }
-  : { next: direction, kind: direction === 'up' ? 'thumb_up' : 'thumb_down' })
+  : { next: direction, kind: direction === 'up' ? 'thumb_up' : 'fewer_like_this' })
+
+export const FEWER_TOAST = "You'll see fewer shows like this"
 
 export const programmeOpenedOf = ({ programme, channelId }) => feedbackOf({
   kind: 'programme_opened',
@@ -375,13 +377,34 @@ export const chooserShownOf = ({ coldStart, pickable = [], skippedAt = null, pic
 
 export const doneLabelOf = (count) => (count ? `Done · ${count} picked` : 'Done')
 
-export const hiddenToastOf = (title) => `${title} is hidden from For you`
+export const dislikeLabelsOf = ({ kind = null, theme = null }) => ({
+  show: `Hide this ${programmeNounOf(kind)}`,
+  theme: theme ? `Hide ${themeShowsOf(theme)}` : null,
+})
 
-export const hideThemeLabelOf = (theme) => `Hide ${theme.title}`
+export const themeShowsOf = (theme) => {
+  const key = theme?.key ?? theme?.themeKey
+  if (key === 'sport') return 'sport shows'
+  const name = String(theme?.title || '').replace(/ shows$/i, '')
+  if (/^life in /i.test(name)) return `shows about ${sentenceCaseOf(name)}`
+  return `${theme?.seasonal ? name : sentenceCaseOf(name)} shows`
+}
 
-export const themeMutedToastOf = (theme) => (theme.seasonal
-  ? `The ${theme.title} row is hidden until next ${theme.title}`
-  : `The ${theme.title} row is hidden for 90 days`)
+export const hiddenThemeTitleOf = (theme) => capitalisedOf(themeShowsOf(theme))
+
+export const programmeHiddenToastOf = (kind) => `This ${programmeNounOf(kind)} is hidden for 90 days`
+
+export const themeHiddenToastOf = (theme) => (theme.seasonal
+  ? `${hiddenThemeTitleOf(theme)} are hidden until next ${theme.title}`
+  : `${hiddenThemeTitleOf(theme)} are hidden for 90 days`)
+
+const programmeNounOf = (kind) => (kind === 'movie' ? 'film' : 'show')
+
+const capitalisedOf = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`
+
+const sentenceCaseOf = (name) => (PROPER_LEADS.test(name) || !/^[A-Z][a-z]/.test(name) ? name : `${name[0].toLowerCase()}${name.slice(1)}`)
+
+const PROPER_LEADS = /^(Australian|American|British|English|Irish|Scottish|Welsh|New Zealand)\b/
 
 export const themeGroupsOf = (themes = []) => [
   { label: 'Themes', themes: themes.filter((theme) => !theme.sport && !theme.seasonal) },
@@ -395,7 +418,7 @@ export const themeBoostedToastOf = (theme) => `More ${theme.title} suggestions f
 
 export const rowMenuOf = (theme) => [
   !theme.seasonal && { key: 'boost-theme', label: `More ${theme.title}`, icon: 'more' },
-  { key: 'mute-theme', label: hideThemeLabelOf(theme), icon: 'hide' },
+  { key: 'mute-theme', label: dislikeLabelsOf({ theme }).theme, icon: 'hide' },
 ].filter(Boolean)
 
 export const themeFeedbackOf = ({ kind, theme, source }) => ({

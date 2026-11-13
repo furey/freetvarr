@@ -121,8 +121,10 @@ export const ForYouOverlays = {
           <button v-for="entry in menu.actions" :key="entry.key" type="button" class="ui-group-row library-menu-item"
             @click="ctl.choose(entry.key)">
             <for-you-icon :name="entry.icon" :class="'is-' + entry.icon" />
-            <span class="library-menu-label">{{ entry.label }}</span>
-            <small v-if="entry.detail" class="library-menu-detail">{{ entry.detail }}</small>
+            <span class="library-menu-text">
+              <span class="library-menu-label">{{ entry.label }}</span>
+              <small v-if="entry.detail" class="library-menu-detail">{{ entry.detail }}</small>
+            </span>
           </button>
         </div>
         <div class="ui-group for-you-thumbs" role="group" aria-label="Feedback">

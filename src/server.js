@@ -1398,7 +1398,7 @@ const tvheadendValueOf = async ({ load, whenUnconfigured }) => {
 const heroForYouPayload = async () => {
   if (!(await isForYouEnabled())) return null
   const result = await resultWithin({ promise: getForYou(), ms: HERO_FOR_YOU_WAIT_MS })
-  return result ? publicResultOf({ result, limit: limitFrom(undefined) }) : null
+  return result ? { ...publicResultOf({ result, limit: limitFrom(undefined) }), taste: result.taste ?? null } : null
 }
 
 const resultWithin = ({ promise, ms }) => Promise.race([

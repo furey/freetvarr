@@ -4,6 +4,7 @@ import {
   OTHER_LANGUAGE_OPTIONS,
   TIER_OVERRIDES,
   hiddenShowsOf,
+  hiddenThemeTitleOf,
   historyClearCopyOf,
   themeGroupsOf,
   themesOnCountOf,
@@ -44,7 +45,7 @@ export const SuggestionsSettingsView = {
           <button type="button" class="ui-group-row suggestions-row-button" data-setting="hidden-shows" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
               <span class="settings-row-title">Hidden shows</span>
-              <span class="settings-row-meta">Shows and themes you hid from For you</span>
+              <span class="settings-row-meta">Shows and themes you hid from Home and For you</span>
             </span>
             <span class="suggestions-count ui-tabular"><span v-if="!hiddenLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ hidden.length }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
@@ -113,15 +114,17 @@ export const SuggestionsSettingsView = {
         <p class="suggestions-footnote">Your viewing history stays on this box. It is never sent anywhere. {{ lookupText }} The Genres switch is in <a href="#/settings/film-tv-info">Film and TV info</a>. No tracking, no analytics, and Freetvarr is <a :href="repoHref" target="_blank" rel="noopener noreferrer">open source</a>.</p>
       </div>
 
-      <ui-sheet :open="hiddenOpen" title="Hidden shows" subtitle="For you leaves these out. Show one again to get suggestions for it." @close="hiddenOpen = false">
+      <ui-sheet :open="hiddenOpen" title="Hidden shows" subtitle="Home and For you leave these out. Show one again to get suggestions for it." @close="hiddenOpen = false">
         <div v-if="hidden.length" class="ui-group">
           <div v-for="show in hidden" :key="show.seriesKey" class="ui-group-row suggestions-hidden-row">
-            <span class="suggestions-hidden-title">{{ show.title || show.seriesKey }}</span>
+            <span class="suggestions-hidden-text">
+              <span class="suggestions-hidden-title">{{ show.theme ? hiddenThemeTitleOf(show) : show.title || show.seriesKey }}</span>
+            </span>
             <button type="button" class="ui-button ui-button-secondary is-small" :disabled="unhiding === show.seriesKey"
               @click="showAgain(show)">Show again</button>
           </div>
         </div>
-        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or Fewer like this on a For you card to hide a show.</p>
+        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or Fewer like this on Home or For you to hide a show.</p>
       </ui-sheet>
 
       <ui-sheet :open="themesOpen" title="Themes" subtitle="For you shows a theme row when you record and watch a lot of that kind of programme, and a seasonal row in the days around an occasion." @close="themesOpen = false">
@@ -284,7 +287,7 @@ export const SuggestionsSettingsView = {
     onMounted(load)
 
     return {
-      themes, themesLoaded, themesOpen, themeGroups, themesOnCount, savingTheme, setTheme,
+      hiddenThemeTitleOf, themes, themesLoaded, themesOpen, themeGroups, themesOnCount, savingTheme, setTheme,
       settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, lookupText, repoHref: REPO_HREF,
       otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }

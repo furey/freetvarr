@@ -66,6 +66,7 @@ export const currentCandidateTestOf = ({
     if (listed[type]) return listed[type].has((source.episode ?? source.movie)?.recordingId)
     if (type === 'upcoming') return scheduled.has(String(source.item?.programId)) && !active.has(String(source.item?.programId))
     if (type === 'for-you' || type === 'top-rated') return !isHiddenSuggestion({ item: source.item ?? {}, hiddenKeys })
+    if (type === 'on-now') return !isHiddenSuggestion({ item: { title: source.program?.title ?? '', theme: source.theme }, hiddenKeys })
     return true
   }
 }
@@ -92,6 +93,7 @@ export const heroCandidatesOf = ({
   movies = [],
   forYou = null,
   topRated = null,
+  taste = null,
   nowMs,
   timeZone,
   stampUrl = artworkStamps.stampUrl,
@@ -104,7 +106,7 @@ export const heroCandidatesOf = ({
     recording && recordingNowSlideOf({ recording, channel, nowMs, timeZone, stampUrl }),
     forYou,
     topRated,
-    onNowSlideOf({ entries: nowEntries, recording, nowMs, timeZone, stampUrl }),
+    onNowSlideOf({ entries: nowEntries, recording, taste, nowMs, timeZone, stampUrl }),
     ...upcomingSlidesOf({ upcoming, activeProgramIds, shows, nowMs, timeZone, stampUrl }),
     ...watchlistSlidesOf({ items: watchlist, nowMs, timeZone, stampUrl }),
     ...firstOfKind(movies).map((movie) => movieSlideOf({ movie, nowMs, timeZone, stampUrl })),
@@ -282,19 +284,52 @@ const recordingNowSlideOf = ({ recording, channel, nowMs, timeZone, stampUrl }) 
   }
 }
 
-const onNowSlideOf = ({ entries, recording, nowMs, timeZone, stampUrl }) => {
-  const entry = entries.find((e) => e.channel?.pinned
+const onNowSlideOf = ({ entries, recording, taste, nowMs, timeZone, stampUrl }) => {
+  const entry = onNowPickOf({ entries, recording, taste, nowMs })
+  if (!entry) return null
+  return onNowEntrySlideOf({ channel: entry.channel, program: entry.now, theme: titleTasteOf({ taste, title: entry.now.title })?.theme ?? null, nowMs, timeZone, stampUrl })
+}
+
+export const onNowPickOf = ({ entries = [], recording = null, taste = null, nowMs }) => entries
+  .filter((e) => e.channel?.pinned
     && !e.channel.offAir
     && e.now
     && e.now.start <= nowMs
     && e.now.end > nowMs
     && liveGenreOf(e.now.genre)
     && String(e.channel.id) !== String(recording?.channelId))
-  if (!entry) return null
-  return onNowEntrySlideOf({ channel: entry.channel, program: entry.now, nowMs, timeZone, stampUrl })
+  .filter((e) => isWantedLive({ program: e.now, taste }))
+  .map((e, order) => ({ e, order, affinity: liveAffinityOf({ program: e.now, taste }) }))
+  .sort((a, b) => b.affinity - a.affinity || a.order - b.order)
+  .map(({ e }) => e)[0] ?? null
+
+const isWantedLive = ({ program, taste }) => {
+  if (!taste) return true
+  const key = showKeyOf(program.title)
+  if (taste.hiddenShows?.includes(key)) return false
+  const known = taste.titles?.[key]
+  if (known?.theme && isHiddenTheme({ theme: known.theme, taste })) return false
+  if (liveGenreOf(program.genre) !== 'sport' || !known) return true
+  return known.kind === 'sport' && Boolean(known.sportCode)
 }
 
-const onNowEntrySlideOf = ({ channel, program, nowMs, timeZone, stampUrl }) => {
+const isHiddenTheme = ({ theme, taste }) => {
+  const hidden = taste.hiddenThemes ?? []
+  return hidden.includes(theme.key) || Boolean(theme.sport && hidden.includes('sport'))
+}
+
+const liveAffinityOf = ({ program, taste }) => {
+  if (!taste) return 0
+  const key = showKeyOf(program.title)
+  const theme = taste.titles?.[key]?.theme
+  const showScore = taste.showAffinity?.[key] > 0 ? 2 : 0
+  const themeScore = theme && taste.themeShares?.[theme.key] > 0 ? 1 : 0
+  return showScore + themeScore
+}
+
+const titleTasteOf = ({ taste, title }) => taste?.titles?.[showKeyOf(title)] ?? null
+
+const onNowEntrySlideOf = ({ channel, program, theme = null, nowMs, timeZone, stampUrl }) => {
   const genre = liveGenreOf(program.genre)
   const left = minutesUntil({ ms: program.end, nowMs })
   return {
@@ -311,7 +346,7 @@ const onNowEntrySlideOf = ({ channel, program, nowMs, timeZone, stampUrl }) => {
     secondary: { action: 'record', label: 'Record' },
     programId: program.program_id,
     target: { channel: liveChannelFrom(channel), program: { ...program, channelId: channel.id } },
-    source: { channel, program },
+    source: { channel, program, theme },
     endsAt: program.end,
   }
 }
