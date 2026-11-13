@@ -45,8 +45,8 @@ export const FREEVIEW_FIRST_GUIDE_CHAIN = ['freeview', 'freeview-title', 'own', 
 
 export const freeviewAiringOriginsOf = ({ episode = [], show = [] }) => [...new Set([...episode, ...show].filter(Boolean))]
 
-export const recordingPictureOrderOf = ({ freeviewEpisode = [], own = null, freeviewShow = [], freeviewTitle = null, sameTitle = [] }) =>
-  [...new Set([...freeviewEpisode, own, ...freeviewShow, freeviewTitle, ...sameTitle].filter(Boolean))]
+export const recordingSaveChainOf = ({ freeviewFirst = false }) =>
+  (freeviewFirst ? FREEVIEW_FIRST_GUIDE_CHAIN : GUIDE_ONLY_CHAIN).filter((stage) => stage !== 'title')
 
 export const programmeWarmOriginsOf = ({ freeview = [], freeviewTitle = null, own = null, ownCopy = null, titleCopy = null, sameTitle = [] }) => {
   const guide = own ? [own, ownCopy] : [titleCopy, ...sameTitle]
@@ -157,6 +157,12 @@ export const createArtResolver = ({
     if (result.pending || result.provisional) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
     return result
   }
+
+  const resolveRecordingPicture = ({ title, freeviewFirst = false, ...extra }) => runOuterChain({
+    chain: recordingSaveChainOf({ freeviewFirst }),
+    ctx: { ...extra, title, titleKey: showTitleKey(title), shape: LANDSCAPE_SHAPE },
+    budget: followUpBudgetMs,
+  })
 
   const resolveTitleOnce = ({ ctx, budget }) =>
     settleAnswer({ ctx, key: resolutionKeyOf(ctx), result: resolveTitleWithin({ ctx, budget }) })
@@ -369,7 +375,7 @@ export const createArtResolver = ({
     return changes
   }
 
-  return { resolve, peek, forget, invalidate, stampsByKey }
+  return { resolve, resolveRecordingPicture, peek, forget, invalidate, stampsByKey }
 }
 
 const provisionalIf = ({ result, pendingSeen }) => (pendingSeen ? { ...result, provisional: true } : result)

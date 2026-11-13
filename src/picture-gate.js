@@ -14,9 +14,6 @@ export const GATE_RULE_VERSION = 'gate-1'
 
 export const pictureChecks = createPlaceholderPictures()
 
-export const screenPictureBytes = ({ source, bytes, title = null, checks = pictureChecks }) =>
-  checks.judge({ source, title, image: { body: bytes } })
-
 export const createPictureGate = ({
   checks = pictureChecks,
   readers = {},

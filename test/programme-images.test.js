@@ -37,6 +37,7 @@ const eventsGrid = () => {
       event(104, null, 3),
       event(105, `${base}/img/missing.jpg`, 4, 'Shared Show'),
       event(106, `${base}/img/block.jpg`, 5, 'Shared Show'),
+      event(107, `${base}/img/814112_default_program_image.png`, 6, 'Big Brother'),
     ],
   }
 }
@@ -46,6 +47,7 @@ const routes = {
   '/api/epggrab/channel/grid': () => ({ json: { entries: [] } }),
   '/api/epg/events/grid': () => ({ json: eventsGrid() }),
   '/img/block.jpg': () => ({ contentType: 'image/jpeg', body: JPEG }),
+  '/img/814112_default_program_image.png': () => ({ contentType: 'image/jpeg', body: JPEG }),
   '/img/page': () => ({ contentType: 'text/html', body: '<html>not an image</html>' }),
   '/img/json': () => ({ contentType: 'application/json', body: '{"image":false}' }),
 }
@@ -92,7 +94,7 @@ test('getGuideDay: the browser payload carries has_image, never the image URL', 
   const day = await epg.getGuideDay({ day: 0 })
   const programs = day.programs[CHANNEL]
   assert.deepEqual(programs.map((p) => [p.program_id, p.has_image]), [
-    [101, true], [102, true], [103, true], [104, false], [105, true], [106, true],
+    [101, true], [102, true], [103, true], [104, false], [105, true], [106, true], [107, true],
   ])
   assert.ok(!JSON.stringify(day).includes('/img/'))
   assert.ok(programs.every((p) => !('image' in p)))
@@ -105,27 +107,54 @@ test('searchGuide: results carry has_image without the image URL', async () => {
   assert.ok(!('image' in results[0]))
 })
 
-test('getProgrammeImage: serves the image of a known event', async () => {
-  const image = await epg.getProgrammeImage({ eventId: '101' })
+test('recordingPictureFor: a recording saves the picture of its airing', async () => {
+  const { image, settled } = await epg.recordingPictureFor({ eventId: '101' })
   assert.equal(image.contentType, 'image/jpeg')
   assert.deepEqual(image.body, JPEG)
+  assert.equal(settled, true)
 })
 
-test('getProgrammeImage: unknown and imageless events resolve to nothing (the route answers 404)', async () => {
-  assert.equal(await epg.getProgrammeImage({ eventId: '999' }), null)
-  assert.equal(await epg.getProgrammeImage({ eventId: '104' }), null)
+test('recordingPictureFor: unknown and imageless airings save no picture, and are not asked again', async () => {
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '999' }), { image: null, settled: false })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '104' }), { image: null, settled: true })
 })
 
-test('getProgrammeImage: rejects an upstream answer that is not an image', async () => {
-  assert.equal(await epg.getProgrammeImage({ eventId: '102' }), null)
-  assert.equal(await epg.getProgrammeImage({ eventId: '103' }), null)
+test('recordingPictureFor: an upstream answer that is not an image is no picture', async () => {
+  assert.equal((await epg.recordingPictureFor({ eventId: '102' })).image, null)
+  assert.equal((await epg.recordingPictureFor({ eventId: '103' })).image, null)
 })
 
-test('getProgrammeImage: a dead image link falls back to another airing of the same title', async () => {
-  const image = await epg.getProgrammeImage({ eventId: '105' })
+test('recordingPictureFor: a dead image link falls back to another airing of the same title', async () => {
+  const { image } = await epg.recordingPictureFor({ eventId: '105' })
   assert.deepEqual(image.body, JPEG)
   const thumbnail = await epg.getProgrammeThumbnail({ eventId: '105', width: 192 })
   assert.equal(thumbnail.contentType, 'image/webp')
+})
+
+test('recordingPictureFor: a stand-in picture is never saved for a recording', async () => {
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '107' }), { image: null, settled: true })
+  assert.deepEqual(await epg.recordingPictureFor({ title: 'Big Brother', source: `${base}/img/814112_default_program_image.png` }), { image: null, settled: true })
+})
+
+test('recordingPictureFor: a TVHeadend entry gone from the guide uses its own image and title', async () => {
+  const { image, settled } = await epg.recordingPictureFor({ eventId: '5555', title: 'Old Show', source: `${base}/img/block.jpg` })
+  assert.deepEqual(image.body, JPEG)
+  assert.equal(settled, true)
+})
+
+test('saveRecordingPicture: saves a settled picture, asks again for an unsettled one, and saves it on the last attempt', async () => {
+  const saved = []
+  const save = async ({ id }) => saved.push(id)
+  const picture = { body: JPEG, contentType: 'image/jpeg' }
+  const outcomeOf = (found, lastAttempt = false) => epg.saveRecordingPicture({ recordingId: `r${saved.length}`, lastAttempt, findPicture: async () => found, save })
+  assert.equal(await outcomeOf({ image: picture, settled: true }), 'saved')
+  assert.equal(await outcomeOf({ image: picture, settled: false }), 'retry')
+  assert.equal(await outcomeOf({ image: picture, settled: false }, true), 'saved')
+  assert.equal(await outcomeOf({ image: null, settled: true }), 'missed')
+  assert.equal(await outcomeOf({ image: null, settled: false }), 'retry')
+  assert.equal(await outcomeOf({ image: null, settled: false }, true), 'missed')
+  assert.equal(await epg.saveRecordingPicture({ recordingId: 'boom', findPicture: async () => { throw new Error('down') }, save }), 'retry')
+  assert.deepEqual(saved, ['r0', 'r1'])
 })
 
 test('getProgrammeThumbnail: unknown and imageless events give nothing; a known image comes back as a WebP thumbnail', async () => {

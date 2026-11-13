@@ -46,7 +46,6 @@ import {
   freeviewAiringOriginsOf,
   guideSourcesOf,
   programmeWarmOriginsOf,
-  recordingPictureOrderOf,
   stillsAllowed,
   isGuessedFilmKind,
   kindHintFrom,
@@ -818,15 +817,35 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
   })
 }
 
-export const getProgrammeImage = async ({ eventId, fallbackSource = null } = {}) => {
-  const { own, sameTitle, title, kind } = await programmeImageSources({ eventId, fallbackSource })
-  const freeview = freeviewAu.isOn() ? await freeviewImagesOf({ eventId, title }) : NO_FREEVIEW_IMAGES
-  const sources = recordingPictureOrderOf({ freeviewEpisode: freeview.episode, own, freeviewShow: freeview.show, freeviewTitle: freeview.title, sameTitle })
-  return bestImageOf([
-    { sources, load: screenedImageOfOrigin },
-    { sources: await showArtSources({ title, kind }), load: showArtOriginal },
-  ])
+export const recordingPictureFor = async ({ eventId = null, title = null, source = null } = {}) => {
+  const programme = await programmeImageSources({ eventId, fallbackSource: source, fallbackTitle: title })
+  if (!programme.title && !programme.own) return NO_RECORDING_PICTURE
+  const resolution = await artResolver.resolveRecordingPicture({
+    title: programme.title,
+    eventId,
+    ownSource: programme.own,
+    sameTitleSources: programme.sameTitle,
+    freeviewFirst: freeviewAu.isOn(),
+  })
+  const settled = !resolution.pending && !resolution.provisional
+  if (!resolution.origin) return { image: null, settled }
+  const image = await screenedImageOfOrigin(resolution.origin)
+  return { image, settled: settled && Boolean(image) }
 }
+
+export const saveRecordingPicture = async ({ recordingId, lastAttempt = false, findPicture = recordingPictureFor, save = saveArtwork, ...airing }) => {
+  const { image, settled } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
+  if (image && (settled || lastAttempt)) {
+    await save({ kind: 'recording', id: recordingId, image })
+    return RECORDING_PICTURE_SAVED
+  }
+  return settled || lastAttempt ? RECORDING_PICTURE_MISSED : RECORDING_PICTURE_RETRY
+}
+
+export const RECORDING_PICTURE_SAVED = 'saved'
+export const RECORDING_PICTURE_MISSED = 'missed'
+export const RECORDING_PICTURE_RETRY = 'retry'
+const NO_RECORDING_PICTURE = { image: null, settled: false }
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
 
@@ -1076,14 +1095,14 @@ export const findPersonThumbnail = async ({ source, width }) => {
   return thumbnailStore.thumbnailFor({ key: `person:${source}`, width, loadOriginal: () => personImages.imageFor(source) })
 }
 
-const programmeImageSources = async ({ eventId, fallbackSource }) => {
+const programmeImageSources = async ({ eventId, fallbackSource, fallbackTitle = null }) => {
   const guide = await getCachedGuide().catch(() => null)
-  const inGuide = guide?.programByEventId.get(String(eventId))
-  const saved = inGuide || fallbackSource
+  const inGuide = eventId == null ? null : guide?.programByEventId.get(String(eventId))
+  const saved = inGuide || fallbackSource || eventId == null
     ? null
     : await savedProgramFor({ programId: eventId }).catch(logHistoryError('image'))
   const own = inGuide?.image || fallbackSource || saved?.image || null
-  const title = inGuide?.title ?? saved?.title ?? null
+  const title = inGuide?.title ?? saved?.title ?? fallbackTitle
   const sameTitle = (guide?.imagesByTitle.get(titleKeyOf(title)) || []).filter((source) => source !== own).slice(0, MAX_IMAGE_SOURCES - 1)
   const programme = inGuide ?? saved
   return { own, sameTitle, title, kind: inGuide?.kind ?? null, channelId: channelIdOfProgramme({ guide, programme }) }
@@ -1094,30 +1113,10 @@ const channelIdOfProgramme = ({ guide, programme }) => {
   return guide?.channels.find((channel) => String(channel.epgId) === String(programme.channel_id))?.id ?? null
 }
 
-const showArtSources = async ({ title, kind = null }) => {
-  if (!title) return []
-  const artworkKind = kind ?? await guideKindFor(title)
-  const fromPlex = await showArtwork.plexSourcesFor(title, { kind: artworkKind }).catch(() => [])
-  if (fromPlex.length) return fromPlex
-  return recordedOrOnlineSourcesOf({
-    recorded: await recordingImagesFor(title),
-    verdictOf: knownOriginVerdict,
-    online: () => onlineShowSources({ title, kind: artworkKind }),
-  })
-}
-
-export const recordedOrOnlineSourcesOf = async ({ recorded, verdictOf, online }) => {
-  if (!recorded.length) return online()
-  const verdicts = await Promise.all(recorded.map((origin) => verdictOf(origin)))
-  return verdicts.some((verdict) => verdict === OK_VERDICT) ? recorded : [...await online(), ...recorded]
-}
-
 const onlineShowSources = async ({ title, kind }) => {
   const sources = isFilmKind(kind) ? [] : await showArtwork.sourcesFor(title).catch(() => [])
   return sources.length ? sources : fallbackArtwork.sourcesFor(title, { kind }).catch(() => [])
 }
-
-const knownOriginVerdict = (origin) => pictureGate.knownVerdict(origin).catch(() => OK_VERDICT)
 
 const findTitleImage = async ({ title, width, kind, shape }) => {
   if (!title) return NO_IMAGE
@@ -1204,7 +1203,7 @@ const seriesOnlineArtwork = async ({ title, kind }) => {
   const tvmaze = await showArtwork.tvmazeArtworkFor(title).catch(() => NO_ARTWORK)
   if (tvmaze.sources.length) return tvmaze
   if (tvmaze.pending) {
-    showArtSources({ title, kind })
+    onlineShowSources({ title, kind })
     return tvmaze
   }
   return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
@@ -1388,24 +1387,7 @@ const resolveWithin = (promise, ms) => Promise.race([
 
 const showArtOriginal = async (source) => {
   const image = await showSourceImage(source)
-  return image && widenedShowImageOf(image)
-}
-
-export const widenedShowImageOf = async (image, widen = landscapeOf) => {
-  const wide = await widen(image).catch(() => image)
-  return image.verdict && wide !== image ? { ...wide, verdict: image.verdict } : wide
-}
-
-const bestImageOf = async (chains) => {
-  let titleCard = null
-  for (const { sources, load } of chains) {
-    for (const source of sources) {
-      const image = await load(source)
-      if (image?.verdict === WEAK_VERDICT) titleCard ??= image
-      else if (image) return image
-    }
-  }
-  return titleCard
+  return image && landscapeOf(image).catch(() => image)
 }
 
 const titleKeyOf = (title) => String(title || '').trim().toLowerCase()

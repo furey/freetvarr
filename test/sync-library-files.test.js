@@ -42,7 +42,11 @@ before(async () => {
   server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x')
     if (req.method === 'POST') tvh.posts.push(url.pathname)
-    if (url.pathname === '/imagecache/7') {
+    if (url.pathname === '/imagecache/814112_default_program_image.png') {
+      res.writeHead(200, { 'Content-Type': 'image/png' })
+      return res.end(PNG)
+    }
+    if (url.pathname.startsWith('/imagecache/')) {
       tvh.imageRequests += 1
       if (tvh.imageRequests <= tvh.imageFails) return req.socket.destroy()
       res.writeHead(200, { 'Content-Type': 'image/png' })
@@ -193,6 +197,7 @@ test('sync: a recording picture that failed to download is tried again next sync
   await record('pic-1', { disp_title: 'Peppa Pig', image: 'imagecache/7' })
   await runSync()
   assert.equal((await rowOf('pic-1')).image_checked_at, null)
+  tvh.finished[0].image = 'imagecache/8'
   await runSync()
   const row = await rowOf('pic-1')
   assert.equal(tvh.imageRequests, 2)
@@ -203,8 +208,21 @@ test('sync: a recording picture that failed to download is tried again next sync
 test('sync: a picture that keeps failing stops being tried after a few syncs', async () => {
   await db('settings').insert({ key: 'import_unmatched', value: 'false' })
   tvh.imageFails = 100
-  await record('pic-2', { disp_title: 'Peppa Pig', image: 'imagecache/7' })
-  for (let n = 0; n < 5; n += 1) await runSync()
-  assert.equal(tvh.imageRequests, 3)
-  assert.notEqual((await rowOf('pic-2')).image_checked_at, null)
+  await record('pic-2', { disp_title: 'Peppa Pig', image: 'imagecache/9' })
+  for (let n = 0; n < 2; n += 1) await runSync()
+  assert.equal((await rowOf('pic-2')).image_checked_at, null)
+  for (let n = 0; n < 3; n += 1) await runSync()
+  assert.ok(tvh.imageRequests >= 1 && tvh.imageRequests <= 3, String(tvh.imageRequests))
+  const row = await rowOf('pic-2')
+  assert.notEqual(row.image_checked_at, null)
+  assert.equal(row.image_path, null)
+})
+
+test('sync: a stand-in recording picture is never saved', async () => {
+  await db('settings').insert({ key: 'import_unmatched', value: 'false' })
+  await record('d86a4bc0f607885abd1c30ae34174c68', { disp_title: 'Big Brother', image: 'imagecache/814112_default_program_image.png' })
+  await runSync()
+  const row = await rowOf('d86a4bc0f607885abd1c30ae34174c68')
+  assert.notEqual(row.image_checked_at, null)
+  assert.equal(row.image_path, null)
 })

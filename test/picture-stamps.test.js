@@ -8,8 +8,7 @@ const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'freetv
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db } = await import('../src/db.js')
-const { forgetPlaceholderPictures, measureRecordingCopies, recordedOrOnlineSourcesOf, resolvedArtStamps, widenedShowImageOf } = await import('../src/epg.js')
-const sharp = (await import('sharp')).default
+const { forgetPlaceholderPictures, measureRecordingCopies, resolvedArtStamps } = await import('../src/epg.js')
 const { createArtFeed } = await import('../src/art-feed.js')
 const { createProgrammeStamps } = await import('../src/programme-stamps.js')
 const { pruneLookupCaches } = await import('../src/cache-prune.js')
@@ -138,27 +137,4 @@ test('the guide pictures pass measures each recording copy that has no measureme
   assert.equal(measured, 1)
   assert.deepEqual(screened, ['recording:m1'])
   await db('recordings').whereIn('recording_id', ['m1', 'm2', 'm3']).delete()
-})
-
-test('show art offers online pictures ahead of recording copies only when no copy is ok', async () => {
-  const online = async () => ['https://static.tvmaze.com/gruen.jpg']
-  const verdicts = { 'recording:a': 'weak', 'recording:b': 'weak', 'recording:c': 'ok', 'recording:d': 'stand-in' }
-  const verdictOf = async (origin) => verdicts[origin]
-  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:a', 'recording:b'], verdictOf, online }), [
-    'https://static.tvmaze.com/gruen.jpg', 'recording:a', 'recording:b',
-  ])
-  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:d', 'recording:a'], verdictOf, online }), [
-    'https://static.tvmaze.com/gruen.jpg', 'recording:d', 'recording:a',
-  ])
-  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: ['recording:a', 'recording:c'], verdictOf, online }), ['recording:a', 'recording:c'])
-  assert.deepEqual(await recordedOrOnlineSourcesOf({ recorded: [], verdictOf, online }), ['https://static.tvmaze.com/gruen.jpg'])
-})
-
-test('a portrait title card keeps its weak verdict when it is widened to a landscape picture', async () => {
-  const body = await sharp({ create: { width: 300, height: 600, channels: 3, background: '#d0021b' } }).jpeg().toBuffer()
-  const wide = await widenedShowImageOf({ body, contentType: 'image/jpeg', verdict: 'weak' })
-  const { width, height } = await sharp(wide.body).metadata()
-  assert.ok(width > height)
-  assert.equal(wide.verdict, 'weak')
-  assert.equal((await widenedShowImageOf({ body, contentType: 'image/jpeg' })).verdict, undefined)
 })

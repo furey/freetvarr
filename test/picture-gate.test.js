@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import { up as upPictureChecks } from '../migrations/0049_picture_checks.js'
 import { up as upPictureCheckMarks } from '../migrations/0051_picture_check_marks.js'
 import { createArtResolver } from '../src/art-resolver.js'
-import { GATE_RULE_VERSION, createPictureGate, screenPictureBytes } from '../src/picture-gate.js'
+import { GATE_RULE_VERSION, createPictureGate } from '../src/picture-gate.js'
 import { createPlaceholderPictures, logoTraitsOf } from '../src/picture-placeholders.js'
 
 const SEVEN_SHAPE = 'points="40,40 360,40 200,360 120,360 250,110 40,110"'
@@ -168,13 +168,21 @@ test('a cached thumbnail of a source later judged a stand-in is not served', asy
 test('recording copies are screened at save and on read, by the guide address they came from and by their bytes', async () => {
   const { checks } = await memoryChecks()
   const named = 'https://img-store-prod.switch.tv/images/0027/814112_default_program_image.png'
-  assert.equal((await screenPictureBytes({ source: named, bytes: await sceneOf(7), checks })).verdict, 'stand-in')
   const images = {
+    [named]: { body: await sceneOf(7) },
     'recording:d86a4bc0f607885abd1c30ae34174c68': { body: await sceneOf(7) },
     'recording:card': { body: await sevenCard('Seven News') },
     'recording:real': { body: await sceneOf(8) },
   }
   const gate = gateOver({ checks, images, recordingSources: { d86a4bc0f607885abd1c30ae34174c68: named } })
+  assert.equal((await gate.screen(named)).verdict, 'stand-in')
+  const save = await createArtResolver({
+    stages: { own: async ({ ownSource }) => ({ sources: [ownSource] }), 'same-title': async () => ({ sources: ['recording:card'] }) },
+    loadImage: gate.load,
+    store: noStore,
+    followUpDelaysMs: [],
+  }).resolveRecordingPicture({ title: 'Big Brother', eventId: 'bb', ownSource: named })
+  assert.deepEqual([save.stage, save.origin], ['weak', 'recording:card'])
   assert.equal(await gate.load('recording:d86a4bc0f607885abd1c30ae34174c68'), null)
   assert.equal((await gate.screen('recording:card')).verdict, 'weak')
   assert.equal((await gate.screen('recording:real')).verdict, 'ok')
