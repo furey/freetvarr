@@ -53,15 +53,15 @@ export const createTasteStore = ({ readHidden, peek = () => null }) => {
   }
   const current = async () => withHiddenNow({
     taste: last ?? peek()?.taste ?? null,
-    hidden: await readHidden().catch(() => ({ shows: [], themes: [] })),
+    hidden: await readHidden().catch(() => null),
   })
   return { note, current }
 }
 
 export const withHiddenNow = ({ taste, hidden }) => ({
   ...(taste ?? { titles: null, showAffinity: {}, themeShares: {} }),
-  hiddenShows: [...new Set([...(taste?.hiddenShows ?? []), ...hidden.shows])],
-  hiddenThemes: [...new Set([...(taste?.hiddenThemes ?? []), ...hidden.themes])],
+  hiddenShows: hidden ? [...new Set(hidden.shows)] : taste?.hiddenShows ?? [],
+  hiddenThemes: hidden ? [...new Set(hidden.themes)] : taste?.hiddenThemes ?? [],
 })
 
 export const getCurrentTaste = () => tasteStore.current()

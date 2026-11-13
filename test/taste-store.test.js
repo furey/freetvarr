@@ -63,10 +63,18 @@ test('taste store: falls back to the saved result, then to a taste with no title
   assert.equal(onNowPickOf({ entries: [entryOf({ id: 1, title: 'iFish' })], taste, nowMs: NOW }).now.title, 'iFish')
 })
 
-test('withHiddenNow: merges hidden keys without duplicates', () => {
-  const merged = withHiddenNow({ taste: { ...TASTE, hiddenShows: ['a'], hiddenThemes: ['fishing'] }, hidden: { shows: ['a', 'b'], themes: ['fishing', 'cooking'] } })
+test('withHiddenNow: the current hidden keys win, so an unhide applies before the next For you result', () => {
+  const saved = { ...TASTE, hiddenShows: ['ifish', 'a'], hiddenThemes: ['fishing'] }
+  const merged = withHiddenNow({ taste: saved, hidden: { shows: ['a', 'b', 'b'], themes: ['cooking'] } })
   assert.deepEqual(merged.hiddenShows, ['a', 'b'])
-  assert.deepEqual(merged.hiddenThemes, ['fishing', 'cooking'])
+  assert.deepEqual(merged.hiddenThemes, ['cooking'])
+})
+
+test('withHiddenNow: keeps the saved hidden keys when the current ones cannot be read', () => {
+  const saved = { ...TASTE, hiddenShows: ['ifish'], hiddenThemes: ['fishing'] }
+  const merged = withHiddenNow({ taste: saved, hidden: null })
+  assert.deepEqual(merged.hiddenShows, ['ifish'])
+  assert.deepEqual(merged.hiddenThemes, ['fishing'])
 })
 
 test('Fewer like this undo has its own event kind, logged even with history paused', () => {
