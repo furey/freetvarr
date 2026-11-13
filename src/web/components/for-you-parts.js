@@ -10,6 +10,8 @@ import {
   menuOf,
   reasonOf,
   whyRowsOf,
+  dislikeLabelsOf,
+  programmeKindOfItem,
 } from '/for-you.js'
 import { useLongPress } from '/shared/long-press.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
@@ -121,8 +123,10 @@ export const ForYouOverlays = {
           <button v-for="entry in menu.actions" :key="entry.key" type="button" class="ui-group-row library-menu-item"
             @click="ctl.choose(entry.key)">
             <for-you-icon :name="entry.icon" :class="'is-' + entry.icon" />
-            <span class="library-menu-label">{{ entry.label }}</span>
-            <small v-if="entry.detail" class="library-menu-detail">{{ entry.detail }}</small>
+            <span class="library-menu-text">
+              <span class="library-menu-label">{{ entry.label }}</span>
+              <small v-if="entry.detail" class="library-menu-detail">{{ entry.detail }}</small>
+            </span>
           </button>
         </div>
         <div class="ui-group for-you-thumbs" role="group" aria-label="Feedback">
@@ -186,7 +190,7 @@ export const ForYouOverlays = {
       </div>
       <template v-if="whyItem" #footer>
         <button type="button" class="ui-button ui-button-block for-you-why-action" @click="ctl.choose('not-interested', whyItem)">
-          <for-you-icon name="hide" /> Not interested in this show
+          <for-you-icon name="hide" /> {{ whyHideLabel }}
         </button>
         <button type="button" :class="['ui-button', 'ui-button-block', 'for-you-why-action', { 'is-on': whyThumb === 'down' }]"
           :aria-pressed="String(whyThumb === 'down')" @click="ctl.choose('thumb-down', whyItem)">
@@ -208,6 +212,7 @@ export const ForYouOverlays = {
     const menuReason = computed(() => (menuItem.value ? reasonOf(menuItem.value) : ''))
     const thumb = computed(() => props.ctl.thumbOf(menuItem.value))
     const whyThumb = computed(() => props.ctl.thumbOf(whyItem.value))
+    const whyHideLabel = computed(() => dislikeLabelsOf({ kind: programmeKindOfItem(whyItem.value) }).show)
     const whySubtitle = computed(() => (whyItem.value
       ? [whyItem.value.title, cardMetaOf({ item: whyItem.value, nowMs: nowMs.value, timeZone: tz.value })].filter(Boolean).join(' · ')
       : ''))
@@ -215,7 +220,7 @@ export const ForYouOverlays = {
     const signals = computed(() => props.ctl.why.data?.signals ?? [])
     const failedArt = ref({})
     const markFailed = (src) => { failedArt.value = { ...failedArt.value, [src]: true } }
-    return { failedArt, markFailed, stampedShowImage, menuItem, whyItem, rowTheme, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whySubtitle, whyRows, signals }
+    return { failedArt, markFailed, stampedShowImage, menuItem, whyItem, rowTheme, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whyHideLabel, whySubtitle, whyRows, signals }
   },
 }
 

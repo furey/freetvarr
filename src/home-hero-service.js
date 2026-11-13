@@ -282,6 +282,7 @@ export const rankedSlidesOf = ({ feed, nowMs, timeZone, stampUrl }) => {
     movies: feed.movies ?? [],
     forYou,
     topRated,
+    taste: feed.forYouPayload?.taste ?? null,
     nowMs,
     timeZone,
     stampUrl,

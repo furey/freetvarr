@@ -59,8 +59,10 @@ export const LibraryMenuSheet = {
             :class="['ui-group-row', 'library-menu-item', { 'is-danger': item.danger, 'is-pending': pendingKey === item.key, 'is-unavailable': item.disabled }]"
             :disabled="busy || item.disabled" :aria-busy="pendingKey === item.key" @click="$emit('choose', item.key)">
             <span v-if="pendingKey === item.key" class="spinner library-menu-spinner" aria-hidden="true"></span><menu-icon v-else :name="item.icon" :class="'is-' + item.icon" />
-            <span class="library-menu-label">{{ pendingKey === item.key ? menuPendingLabelOf(item.key) : item.label }}</span>
-            <small v-if="item.detail" class="library-menu-detail">{{ item.detail }}</small>
+            <span class="library-menu-text">
+              <span class="library-menu-label">{{ pendingKey === item.key ? menuPendingLabelOf(item.key) : item.label }}</span>
+              <small v-if="item.detail" class="library-menu-detail">{{ item.detail }}</small>
+            </span>
           </button>
         </div>
         <p v-if="tip" class="library-menu-tip">{{ tip }}</p>
@@ -491,6 +493,12 @@ const MENU_ICONS = {
   series: [circle(12, 12, 9), dot(4.5)],
   show: [{ tag: 'rect', attrs: { x: 3, y: 4, width: 18, height: 13, rx: 2 } }, path('M8 21h8M12 17v4')],
   skip: [circle(12, 12, 9), path('m5.6 5.6 12.8 12.8')],
+  hide: [
+    path('M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7'),
+    path('M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6'),
+    path('M9.9 9.9a3 3 0 1 0 4.2 4.2'),
+    path('m2 2 20 20'),
+  ],
   plus: [path('M12 5v14M5 12h14')],
   move: [path('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'), path('M8.5 13h7M13 10.5l2.5 2.5-2.5 2.5')],
 }

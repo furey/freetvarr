@@ -22,6 +22,7 @@ import {
 } from '/home-feed.js'
 import { FOR_YOU_HREF, FOR_YOU_URL, feedbackOf, homeRowOf, isScheduled, scheduledKeysOf, suggestionCountOf } from '/for-you.js'
 import {
+  dislikeItemOfSlide,
   guideMatchMenuOf,
   onNowMenuOf,
   programmeArtOf,
@@ -452,13 +453,15 @@ export const HomeView = {
 
     const SLIDE_MENUS = {
       'on-now': (slide) => ({
-        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, movieChoice: slide.target.program.movieChoice }),
+        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, movieChoice: slide.target.program.movieChoice, dislike: dislikeItemOfSlide(slide) }),
         actions: {
           'watch-live': () => SLIDE_ACTIONS['watch-live'](slide),
           'record-episode': () => openSlideProgramme(slide, 'episode'),
           'record-series': () => openSlideProgramme(slide, 'series'),
           'programme-info': () => openSlideProgramme(slide),
           'movie-kind': () => changeKindOf(slide.target.program),
+          'not-interested': () => forYou.choose('not-interested', dislikeItemOfSlide(slide)),
+          'fewer-theme': () => forYou.choose('fewer-theme', dislikeItemOfSlide(slide)),
         },
       }),
       recording: (slide) => {

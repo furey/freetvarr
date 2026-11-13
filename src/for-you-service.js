@@ -35,13 +35,43 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 8
+export const SCORING_VERSION = 9
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
 export const getForYou = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
-  return forYouCache.get({ nowMs })
+  const result = await forYouCache.get({ nowMs })
+  tasteStore.note(result)
+  return result
+}
+
+export const createTasteStore = ({ readHidden, peek = () => null }) => {
+  let last = null
+  const note = (result) => {
+    if (result?.taste) last = result.taste
+  }
+  const current = async () => withHiddenNow({
+    taste: last ?? peek()?.taste ?? null,
+    hidden: await readHidden().catch(() => null),
+  })
+  return { note, current }
+}
+
+export const withHiddenNow = ({ taste, hidden }) => ({
+  ...(taste ?? { titles: null, showAffinity: {}, themeShares: {} }),
+  hiddenShows: hidden ? [...new Set(hidden.shows)] : taste?.hiddenShows ?? [],
+  hiddenThemes: hidden ? [...new Set(hidden.themes)] : taste?.hiddenThemes ?? [],
+})
+
+export const getCurrentTaste = () => tasteStore.current()
+
+export const hiddenKeysOf = async ({ nowMs = Date.now() } = {}) => {
+  const [hidden, off] = await Promise.all([getHiddenShows({ nowMs }), themesOffSetting()])
+  return {
+    shows: hidden.filter((entry) => !entry.theme).map((entry) => entry.seriesKey),
+    themes: [...hidden.filter((entry) => entry.theme).map((entry) => entry.themeKey), ...off],
+  }
 }
 
 export const cachedForYouIds = () => forYouIdsOf(forYouCache.peek())
@@ -669,3 +699,7 @@ const RATINGS_WARM_DELAY_MS = 60 * 1000
 const NIGHT_START = 2
 const NIGHT_END = 6
 const OVERDUE_MS = 36 * 60 * 60 * 1000
+
+const tasteStore = createTasteStore({ readHidden: () => hiddenKeysOf(), peek: () => forYouCache.peek() })
+
+forYouResultListeners.add((result) => tasteStore.note(result))

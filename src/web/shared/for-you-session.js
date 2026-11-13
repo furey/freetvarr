@@ -10,9 +10,12 @@ import { showHrefOf, showKeyOf } from '/show-key.js'
 import { playRecording } from '/shared/playback-session.js'
 import { episodeById, recordingRowOf } from '/show-page.js'
 import {
+  FEWER_TOAST,
   feedbackOf,
   sheetRequestOf,
-  hiddenToastOf,
+  programmeHiddenToastOf,
+  programmeKindOfItem,
+  themeHiddenToastOf,
   identityOf,
   liveChannelOfItem,
   shownBatchesOf,
@@ -20,7 +23,6 @@ import {
   themeBoostedToastOf,
   themeFeedbackOf,
   themeHiddenKeyOf,
-  themeMutedToastOf,
   thumbToggleOf,
 } from '/for-you.js'
 
@@ -197,6 +199,13 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     const { next, kind } = thumbToggleOf({ current: thumbs.value[key] ?? null, direction })
     thumbs.value = { ...thumbs.value, [key]: next }
     sendFeedback(feedbackOf({ kind, item, source }))
+    if (kind === 'fewer_like_this') toast({ text: FEWER_TOAST, action: { label: 'Undo', run: () => undoFewer(item) } })
+  }
+
+  const undoFewer = async (item) => {
+    thumbs.value = { ...thumbs.value, [identityOf(item)]: null }
+    await sendFeedback(feedbackOf({ kind: 'fewer_like_this_undo', item, source }))
+    onChanged()
   }
 
   const hide = (item) => {
@@ -204,7 +213,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     closeWhy()
     forYouHidden.value = new Set([...forYouHidden.value, key])
     sendFeedback(feedbackOf({ kind: 'not_interested', item, source }))
-    toast({ text: hiddenToastOf(item.title), action: { label: 'Undo', run: () => undoHide(item) } })
+    toast({ text: programmeHiddenToastOf(programmeKindOfItem(item)), action: { label: 'Undo', run: () => undoHide(item) } })
   }
 
   const undoHide = async (item) => {
@@ -245,7 +254,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     closeWhy()
     forYouMutedThemes.value = new Set([...forYouMutedThemes.value, theme.key])
     sendFeedback(themeFeedbackOf({ kind: 'theme_muted', theme, source }))
-    toast({ text: themeMutedToastOf(theme), action: { label: 'Undo', run: () => undoMuteTheme(theme) } })
+    toast({ text: themeHiddenToastOf(theme), action: { label: 'Undo', run: () => undoMuteTheme(theme) } })
   }
 
   const undoMuteTheme = async (theme) => {

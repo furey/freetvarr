@@ -523,6 +523,10 @@ Do these in order. The times are for someone doing it the first time.
 
 After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so Fetch My Recordings and `fetchtv` find none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
 
+Cancelling does not wipe a Mighty. On the author's cancelled Mighty, the hard drive still held all 241 recordings. The recordings are still out of reach, because the box encrypts each one on its drive. A copy taken straight from the drive does not play anywhere else: the author's test of a free-to-air recording showed only green blocks. Only the box can decrypt the recordings, and a cancelled box does not show them.
+
+The cancelled box also keeps your Wi-Fi network name and password, and joins your Wi-Fi each time it starts. Its drive also holds your recording history. If the box leaves your home, change your Wi-Fi password, and keep or destroy the Mighty's hard drive.
+
 Fetch pays any refund to the card on file. If Fetch owes you money, check your card under **Update Billing Details** before you cancel.
 
 If you got Fetch through your internet provider, cancel through that provider instead. Ask it whether you must return the box.

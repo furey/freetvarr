@@ -130,6 +130,7 @@ export const getLibraryEpisodes = async ({
   loadOverrides = loadKindOverrides,
   loadEvidence = loadSeriesEvidence,
   loadItems = loadPlexItems,
+  nowMs = Date.now(),
 } = {}) => {
   const [recordingRows, itemRows, seriesData, moviesRoot, stamps, kindOverrides, evidence] = await Promise.all([
     loadRows(),
@@ -140,7 +141,7 @@ export const getLibraryEpisodes = async ({
     loadOverrides().catch(() => new Map()),
     loadEvidence().catch(() => new Map()),
   ])
-  const rows = withPlexRows({ rows: recordingRows, itemRows })
+  const rows = withPlexRows({ rows: recordingRows, itemRows, nowMs })
   const ruleKeys = new Set(seriesByKey(seriesData.series).keys())
   return { episodes: libraryEpisodesOf({ rows, state, limit, kind, moviesRoot, stamps, kindOverrides, ruleKeys, evidence }) }
 }

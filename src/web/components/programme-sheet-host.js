@@ -22,6 +22,8 @@ import { recordedMsOf, stopConfirmOf, stopRecordingOutcome } from '/stop-recordi
 import { ActionConfirm, MenuIcon } from '/components/library-menus.js'
 import { movieChoiceIconOf, movieChoiceLabelOf } from '/movie-choice.js'
 import { changeProgrammeKind } from '/shared/programme-kind-session.js'
+import { useForYouActions } from '/shared/for-you-session.js'
+import { dislikeGroupOf } from '/home-menus.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
@@ -153,6 +155,7 @@ export const ProgrammeSheetHost = {
             </div>
             <button v-if="canShowInGuide" type="button" class="programme-sheet-guide-link" @click="showSelectedInGuide">Show in TV guide <chevron-right-icon /></button>
             <button v-if="movieChoiceLabel" type="button" class="programme-sheet-guide-link" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /> {{ movieChoiceLabel }}</button>
+            <button v-for="item in dislikeItems" :key="item.key" type="button" class="programme-sheet-guide-link" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /> {{ item.label }}</button>
           </div>
         </template>
         </div>
@@ -211,6 +214,8 @@ export const ProgrammeSheetHost = {
     const hdOffer = ref(null)
     const dayOffset = ref(0)
     const sheetProgramme = computed(() => selected.value?.program || null)
+    const sheetTaste = shallowRef(null)
+    const forYouActions = useForYouActions({ source: 'programme-info' })
     const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen, loading: ratingLoading } = useProgrammeRatings(sheetProgramme)
 
     const nowMs = computed(() => Math.floor(now.value.getTime() / 60_000) * 60_000)
@@ -509,6 +514,26 @@ export const ProgrammeSheetHost = {
 
     const movieChoiceLabel = computed(() => movieChoiceLabelOf(selected.value?.program?.movieChoice))
     const movieChoiceIcon = computed(() => movieChoiceIconOf(selected.value?.program?.movieChoice))
+
+    watch(() => sheetProgramme.value?.title, async (title) => {
+      sheetTaste.value = null
+      if (!title) return
+      const taste = await api('GET', `/api/for-you/taste?title=${encodeURIComponent(title)}`).catch(() => null)
+      if (sheetProgramme.value?.title === title) sheetTaste.value = taste
+    })
+    const dislikeItem = computed(() => {
+      const program = sheetProgramme.value
+      const taste = sheetTaste.value
+      if (!program?.title || !taste?.enabled || taste.hidden) return null
+      return { title: program.title, start: program.start ?? null, channelId: program.channelId ?? selected.value?.channel?.id ?? null, programmeKind: program.kind ?? null, theme: taste.themeHidden ? null : taste.theme }
+    })
+    const dislikeItems = computed(() => dislikeGroupOf(dislikeItem.value).filter(Boolean))
+    const chooseDislike = (key) => {
+      const item = dislikeItem.value
+      if (!item) return
+      closeModal()
+      forYouActions.choose(key, item)
+    }
 
     const changeSelectedKind = () => {
       const { program } = selected.value
@@ -848,7 +873,7 @@ export const ProgrammeSheetHost = {
     return {
       pendingActionLabelOf, ANY_CHANNEL_HINT,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
-      canWatchLive, watchSelected, fromStartRecording, fromStartLine, watchSelectedFromStart, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind,
+      canWatchLive, watchSelected, fromStartRecording, fromStartLine, watchSelectedFromStart, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind, dislikeItems, chooseDislike,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,

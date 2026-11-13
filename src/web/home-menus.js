@@ -1,18 +1,29 @@
 import { recordWordingOf } from './record-wording.js'
 import { movieKindRowOf } from './movie-choice.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
+import { dislikeLabelsOf, programmeKindOfItem } from './for-you.js'
 
 export const PROGRAMME_INFO = { key: 'programme-info', label: 'Programme info', icon: 'info' }
 export const GO_TO_SHOW = { key: 'show', label: 'Go to show', icon: 'show' }
 
-export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null, movieChoice = null }) => [
+export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null, movieChoice = null, dislike = null }) => [
   [
     { key: 'watch-live', label: 'Watch live', icon: 'play', detail: channelName },
     { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: 'From now' },
     seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO, movieKindRowOf(movieChoice)],
+  dislikeGroupOf(dislike),
 ].map(compact).filter((group) => group.length)
+
+export const dislikeGroupOf = (dislike) => {
+  if (!dislike?.title) return []
+  const labels = dislikeLabelsOf({ kind: programmeKindOfItem(dislike), theme: dislike.theme?.key ? dislike.theme : null })
+  return [
+    { key: 'not-interested', label: labels.show, icon: 'hide' },
+    labels.theme && { key: 'fewer-theme', label: labels.theme, icon: 'hide' },
+  ]
+}
 
 export const recordingNowMenuOf = ({ channelName = '', canStartOver = false }) => [
   [
@@ -67,6 +78,16 @@ export const programmeArtOf = (program) => (program.has_image && program.program
   : showArtOf(program.title))
 
 export const skippedTextOf = (title, kind = null) => recordWordingOf({ kind }).skippedText(title)
+
+export const dislikeItemOfSlide = (slide) => (slide?.type === 'on-now' && slide.source?.program
+  ? {
+      title: slide.source.program.title,
+      start: slide.source.program.start ?? null,
+      channelId: slide.source.channel?.id ?? null,
+      programmeKind: slide.source.program.kind ?? null,
+      theme: slide.source.theme ?? null,
+    }
+  : null)
 
 const SECONDARY_MENU_KEYS = { 'watch-live': 'watch-live', record: 'record-episode', guide: 'programme-info' }
 
