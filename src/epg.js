@@ -26,7 +26,7 @@ import {
   listChannelTriplets,
   TvheadendError,
 } from './tvheadend.js'
-import { createProgrammeImages, guideImageHosts, hostOfSource } from './programme-images.js'
+import { createProgrammeImages, guideImageHosts, hostOfSource, isRecentFailure } from './programme-images.js'
 import { createGuidePictures, guidePictureCandidatesOf } from './guide-pictures.js'
 import { logoTraitsOf } from './picture-placeholders.js'
 import { OK_VERDICT, STAND_IN_VERDICT, WEAK_VERDICT, createPictureGate, pictureChecks } from './picture-gate.js'
@@ -817,35 +817,67 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
   })
 }
 
-export const recordingPictureFor = async ({ eventId = null, title = null, source = null } = {}) => {
+export const recordingPictureFor = async ({ eventId = null, title = null, source = null, run = createRecordingPictureRun() } = {}) => {
   const programme = await programmeImageSources({ eventId, fallbackSource: source, fallbackTitle: title })
   if (!programme.title && !programme.own) return NO_RECORDING_PICTURE
+  const tracked = deferredLoadsOf(run.load)
   const resolution = await artResolver.resolveRecordingPicture({
     title: programme.title,
     eventId,
     ownSource: programme.own,
-    sameTitleSources: programme.sameTitle,
-    freeviewFirst: freeviewAu.isOn(),
+    budget: RECORDING_SAVE_BUDGET_MS,
+    load: tracked.load,
   })
   const settled = !resolution.pending && !resolution.provisional
-  if (!resolution.origin) return { image: null, settled }
-  const image = await screenedImageOfOrigin(resolution.origin)
-  return { image, settled: settled && Boolean(image) }
+  const deferred = !settled && tracked.deferred()
+  if (!resolution.origin) return { image: null, settled, deferred }
+  const image = await run.load(resolution.origin).catch(() => null)
+  return { image, settled: settled && Boolean(image), deferred }
+}
+
+export const createRecordingPictureRun = ({ load = (origin) => pictureGate.load(origin), loadTimeoutMs = RECORDING_PICTURE_LOAD_MS } = {}) => {
+  const skippedHosts = new Set()
+  const loadWithin = async (origin) => {
+    const host = pictureHostOf(origin)
+    if (skippedHosts.has(host)) throw skippedHostError(host)
+    const image = await resolveWithin(load(origin), loadTimeoutMs)
+    if (image !== TIMED_OUT) return image
+    skippedHosts.add(host)
+    throw new Error(`${host} did not answer within ${loadTimeoutMs} ms`)
+  }
+  return { load: loadWithin, skippedHosts }
 }
 
 export const saveRecordingPicture = async ({ recordingId, lastAttempt = false, findPicture = recordingPictureFor, save = saveArtwork, ...airing }) => {
-  const { image, settled } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
+  const { image, settled, deferred = false } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
   if (image && (settled || lastAttempt)) {
     await save({ kind: 'recording', id: recordingId, image })
     return RECORDING_PICTURE_SAVED
   }
+  if (deferred) return RECORDING_PICTURE_DEFERRED
   return settled || lastAttempt ? RECORDING_PICTURE_MISSED : RECORDING_PICTURE_RETRY
 }
 
 export const RECORDING_PICTURE_SAVED = 'saved'
 export const RECORDING_PICTURE_MISSED = 'missed'
 export const RECORDING_PICTURE_RETRY = 'retry'
-const NO_RECORDING_PICTURE = { image: null, settled: false }
+export const RECORDING_PICTURE_DEFERRED = 'deferred'
+const NO_RECORDING_PICTURE = { image: null, settled: false, deferred: false }
+
+const deferredLoadsOf = (load) => {
+  let deferred = false
+  const tracked = (origin) => load(origin).catch((error) => {
+    if (isDeferredLoad(error)) deferred = true
+    throw error
+  })
+  return { load: tracked, deferred: () => deferred }
+}
+
+const isDeferredLoad = (error) => isRecentFailure(error) || error?.code === SKIPPED_HOST_CODE
+
+const skippedHostError = (host) => Object.assign(new Error(`${host} timed out earlier in this run`), { code: SKIPPED_HOST_CODE })
+
+const pictureHostOf = (origin) => hostOfSource(origin) ?? String(origin ?? '').split(/[:/]/)[0]
 
 export const getProgrammeThumbnail = async (options) => (await findProgrammeThumbnail(options)).image
 
@@ -1742,6 +1774,8 @@ const artResolver = createArtResolver({
     }),
     saved: async ({ title }) => ({ sources: [await guidePictures.originFor(title)].filter(Boolean) }),
     freeview: async ({ eventId }) => ({ sources: freeviewAiringOriginsOf(await freeviewImagesOf({ eventId })) }),
+    'freeview-episode': async ({ eventId }) => ({ sources: (await freeviewImagesOf({ eventId })).episode }),
+    'freeview-show': async ({ eventId }) => ({ sources: (await freeviewImagesOf({ eventId })).show }),
     'freeview-title': async ({ title }) => ({ sources: [await guidePictures.preferredOriginFor(title)].filter(Boolean) }),
     online: onlineStage,
     own: async ({ ownSource }) => ({ sources: [ownSource, await guidePictures.originForSource(ownSource)].filter(Boolean) }),
@@ -1784,6 +1818,9 @@ const TVMAZE_IMAGE_HOST = 'static.tvmaze.com'
 let guidePictureRun = null
 let freeviewProblem = null
 const SHOW_IMAGE_BUDGET_MS = 3000
+const RECORDING_SAVE_BUDGET_MS = 10_000
+const RECORDING_PICTURE_LOAD_MS = 4000
+const SKIPPED_HOST_CODE = 'skipped-host'
 const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')

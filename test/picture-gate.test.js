@@ -177,7 +177,7 @@ test('recording copies are screened at save and on read, by the guide address th
   const gate = gateOver({ checks, images, recordingSources: { d86a4bc0f607885abd1c30ae34174c68: named } })
   assert.equal((await gate.screen(named)).verdict, 'stand-in')
   const save = await createArtResolver({
-    stages: { own: async ({ ownSource }) => ({ sources: [ownSource] }), 'same-title': async () => ({ sources: ['recording:card'] }) },
+    stages: { own: async ({ ownSource }) => ({ sources: [ownSource] }), saved: async () => ({ sources: ['recording:card'] }) },
     loadImage: gate.load,
     store: noStore,
     followUpDelaysMs: [],

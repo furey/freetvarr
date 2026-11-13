@@ -115,8 +115,8 @@ test('recordingPictureFor: a recording saves the picture of its airing', async (
 })
 
 test('recordingPictureFor: unknown and imageless airings save no picture, and are not asked again', async () => {
-  assert.deepEqual(await epg.recordingPictureFor({ eventId: '999' }), { image: null, settled: false })
-  assert.deepEqual(await epg.recordingPictureFor({ eventId: '104' }), { image: null, settled: true })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '999' }), { image: null, settled: false, deferred: false })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '104' }), { image: null, settled: true, deferred: false })
 })
 
 test('recordingPictureFor: an upstream answer that is not an image is no picture', async () => {
@@ -124,16 +124,16 @@ test('recordingPictureFor: an upstream answer that is not an image is no picture
   assert.equal((await epg.recordingPictureFor({ eventId: '103' })).image, null)
 })
 
-test('recordingPictureFor: a dead image link falls back to another airing of the same title', async () => {
+test('recordingPictureFor: a dead image link saves no picture of another airing; the guide cell still shows one live', async () => {
   const { image } = await epg.recordingPictureFor({ eventId: '105' })
-  assert.deepEqual(image.body, JPEG)
+  assert.equal(image, null)
   const thumbnail = await epg.getProgrammeThumbnail({ eventId: '105', width: 192 })
   assert.equal(thumbnail.contentType, 'image/webp')
 })
 
 test('recordingPictureFor: a stand-in picture is never saved for a recording', async () => {
-  assert.deepEqual(await epg.recordingPictureFor({ eventId: '107' }), { image: null, settled: true })
-  assert.deepEqual(await epg.recordingPictureFor({ title: 'Big Brother', source: `${base}/img/814112_default_program_image.png` }), { image: null, settled: true })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '107' }), { image: null, settled: true, deferred: false })
+  assert.deepEqual(await epg.recordingPictureFor({ title: 'Big Brother', source: `${base}/img/814112_default_program_image.png` }), { image: null, settled: true, deferred: false })
 })
 
 test('recordingPictureFor: a TVHeadend entry gone from the guide uses its own image and title', async () => {
@@ -154,7 +154,28 @@ test('saveRecordingPicture: saves a settled picture, asks again for an unsettled
   assert.equal(await outcomeOf({ image: null, settled: false }), 'retry')
   assert.equal(await outcomeOf({ image: null, settled: false }, true), 'missed')
   assert.equal(await epg.saveRecordingPicture({ recordingId: 'boom', findPicture: async () => { throw new Error('down') }, save }), 'retry')
+  assert.equal(await outcomeOf({ image: null, settled: false, deferred: true }), 'deferred')
+  assert.equal(await outcomeOf({ image: null, settled: false, deferred: true }, true), 'deferred')
   assert.deepEqual(saved, ['r0', 'r1'])
+})
+
+test('createRecordingPictureRun: a host that times out is skipped for the rest of the run, without counting as a try', async () => {
+  const loads = []
+  const run = epg.createRecordingPictureRun({
+    loadTimeoutMs: 20,
+    load: (origin) => {
+      loads.push(origin)
+      return origin.includes('slow.example') ? new Promise(() => {}) : Promise.resolve({ body: JPEG })
+    },
+  })
+  await assert.rejects(run.load('https://slow.example/a.jpg'), /did not answer/)
+  const startedAt = Date.now()
+  await assert.rejects(run.load('https://slow.example/b.jpg'), (error) => error.code === 'skipped-host')
+  assert.ok(Date.now() - startedAt < 15)
+  assert.deepEqual((await run.load('https://fast.example/c.jpg')).body, JPEG)
+  assert.deepEqual(loads, ['https://slow.example/a.jpg', 'https://fast.example/c.jpg'])
+  const skipped = await epg.recordingPictureFor({ eventId: '101', run: epg.createRecordingPictureRun({ load: async () => { throw Object.assign(new Error('recent'), { code: 'recent-failure' }) } }) })
+  assert.deepEqual(skipped, { image: null, settled: false, deferred: true })
 })
 
 test('getProgrammeThumbnail: unknown and imageless events give nothing; a known image comes back as a WebP thumbnail', async () => {

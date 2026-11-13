@@ -45,8 +45,7 @@ export const FREEVIEW_FIRST_GUIDE_CHAIN = ['freeview', 'freeview-title', 'own', 
 
 export const freeviewAiringOriginsOf = ({ episode = [], show = [] }) => [...new Set([...episode, ...show].filter(Boolean))]
 
-export const recordingSaveChainOf = ({ freeviewFirst = false }) =>
-  (freeviewFirst ? FREEVIEW_FIRST_GUIDE_CHAIN : GUIDE_ONLY_CHAIN).filter((stage) => stage !== 'title')
+export const RECORDING_SAVE_CHAIN = ['freeview-episode', 'own', 'freeview-show', 'freeview-title', 'saved', FINAL_STAGE]
 
 export const programmeWarmOriginsOf = ({ freeview = [], freeviewTitle = null, own = null, ownCopy = null, titleCopy = null, sameTitle = [] }) => {
   const guide = own ? [own, ownCopy] : [titleCopy, ...sameTitle]
@@ -158,10 +157,11 @@ export const createArtResolver = ({
     return result
   }
 
-  const resolveRecordingPicture = ({ title, freeviewFirst = false, ...extra }) => runOuterChain({
-    chain: recordingSaveChainOf({ freeviewFirst }),
+  const resolveRecordingPicture = ({ title, budget = followUpBudgetMs, load = loadImage, ...extra }) => runOuterChain({
+    chain: RECORDING_SAVE_CHAIN,
     ctx: { ...extra, title, titleKey: showTitleKey(title), shape: LANDSCAPE_SHAPE },
-    budget: followUpBudgetMs,
+    budget,
+    load,
   })
 
   const resolveTitleOnce = ({ ctx, budget }) =>
@@ -252,7 +252,7 @@ export const createArtResolver = ({
     return settle(lastResort())
   }
 
-  const runOuterChain = async ({ chain, ctx, budget = outerBudgetMs }) => {
+  const runOuterChain = async ({ chain, ctx, budget = outerBudgetMs, load = loadImage }) => {
     const deadline = now() + budget
     let pendingSeen = false
     let titleCard = null
@@ -271,7 +271,7 @@ export const createArtResolver = ({
       }
       const found = await stageWithin({ stage, ctx, deadline })
       if (found.pending) pendingSeen = true
-      const loaded = await firstLoaded({ sources: found.sources, deadline })
+      const loaded = await firstLoaded({ sources: found.sources, deadline, load })
       if (loaded.titleCard) titleCard ??= { stage: WEAK_STAGE, origin: loaded.titleCard, transform: 'none', pending: false }
       if (loaded.origin) return provisionalIf({ result: { stage, origin: loaded.origin, transform: 'none', pending: false }, pendingSeen })
       if (loaded.pending) pendingSeen = true
@@ -279,11 +279,11 @@ export const createArtResolver = ({
     return lastResort()
   }
 
-  const firstLoaded = async ({ sources, deadline }) => {
+  const firstLoaded = async ({ sources, deadline, load }) => {
     let failed = false
     let titleCard = null
     for (const origin of sources) {
-      const image = await within(loadImage(origin), deadline - now())
+      const image = await within(load(origin), deadline - now())
       if (image === TIMED_OUT) return { origin: null, pending: true, titleCard }
       if (image === LOAD_FAILED) failed = true
       else if (image?.verdict === WEAK_VERDICT) titleCard ??= origin
