@@ -274,6 +274,7 @@ test('getLibraryEpisodes: New uses the Plex added rule for Plex items', async ()
     }),
     state: 'new',
     limit: 10,
+    nowMs: NOW,
   })
   assert.deepEqual(episodes.map((entry) => entry.recordingId), ['plex-7'])
 })
