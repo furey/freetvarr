@@ -50,9 +50,11 @@ Each day's grid runs to 3am the next morning, so a late film stays on the same p
 
 Press a programme's cell to open its programme sheet: the programme image, title, season and episode, channel, time, and synopsis. On a phone the sheet slides up from the bottom. On a wide screen it opens as a dialog. To close it, press **Close**, press `Esc`, press outside it, or swipe it down on a phone. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none); see [Missing pictures](#missing-pictures) for what Freetvarr shows when the feed has no image.
 
+While **Show For you** is on, the sheet also has **Hide this show** (**Hide this film** for a film) and, for a show with a theme, **Hide** with the kind of show, such as **Hide crime drama shows**. They do the same as the For you menu items; see [For you](/guide/for-you#the-for-you-page).
+
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme sheet with This episode and Every episode" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet with This episode and Every episode, and the Hide this show and Hide crime drama shows links" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -82,7 +84,7 @@ When Freetvarr gets it wrong, the programme sheet has a link to correct it. A pr
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme-movie.png" alt="A programme sheet for a film, with the Not a movie link" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme-movie.png" alt="A programme sheet for a film, with the Not a movie and Hide this film links" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
