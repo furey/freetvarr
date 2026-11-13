@@ -1348,14 +1348,21 @@ a.settings-row-link:hover {
   justify-content: space-between;
 }
 
-.suggestions-hidden-title {
+.suggestions-hidden-text {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  overflow: hidden;
+}
+
+.suggestions-hidden-title {
+  min-width: 0;
   font-size: 15px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 @media (max-width: 767px), (max-height: 500px) {

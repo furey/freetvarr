@@ -12,7 +12,7 @@ import {
   forYouSlideOf,
   forYouReadyOf,
   sheetRequestOf,
-  hiddenToastOf,
+  programmeHiddenToastOf,
   historyClearCopyOf,
   homeRowOf,
   isScheduled,
@@ -201,7 +201,7 @@ test('menuOf: Watch live only while on, record actions until scheduled, and the 
   assert.deepEqual(later.actions.map((a) => a.key), ['record-episode', 'programme-info'])
   assert.equal(later.actions[0].detail, 'Wed 7:30pm')
   assert.deepEqual(menuOf({ item: item(), scheduled: true, nowMs, timeZone }).actions.map((a) => a.key), ['show', 'programme-info'])
-  assert.deepEqual(later.more.map((a) => a.label), ['Not interested in Grand Designs Australia', 'Why this?'])
+  assert.deepEqual(later.more.map((a) => a.label), ['Hide this show', 'Why this?'])
 })
 
 test('sheetRequestOf: opens the programme sheet on its guide day with the right strength', () => {
@@ -321,7 +321,7 @@ test('settings copy: level summary, hardware reason, clear-history line, and hid
   assert.match(tierReasonOf({}), /not checked/)
   assert.equal(historyClearCopyOf(214), 'Removes 214 history entries, including your thumbs up and down and your hidden shows. Suggestions start again from new.')
   assert.equal(historyClearCopyOf(0), 'Removes your viewing history, your thumbs up and down, and your hidden shows. Suggestions start again from new.')
-  assert.equal(hiddenToastOf('Grand Designs Australia'), 'Grand Designs Australia is hidden from For you')
+  assert.equal(programmeHiddenToastOf('series'), 'This show is hidden for 90 days')
 })
 
 test('whyRowsOf: strongest reason first, bars relative to it, and an icon by meaning', () => {
@@ -346,9 +346,9 @@ test('forYouReadyOf: ready once the suggestions leave cold start and For you is 
 
 test('menuOf: the movie row sits between Not interested and Why this, labelled by the choice', () => {
   const labelsOf = (movieChoice) => menuOf({ item: item({ movieChoice }), nowMs, timeZone }).more.map((a) => a.label)
-  assert.deepEqual(labelsOf('not-movie'), ['Not interested in Grand Designs Australia', 'Not a movie', 'Why this?'])
-  assert.deepEqual(labelsOf('movie'), ['Not interested in Grand Designs Australia', 'This is a movie', 'Why this?'])
-  assert.deepEqual(labelsOf(null), ['Not interested in Grand Designs Australia', 'Why this?'])
+  assert.deepEqual(labelsOf('not-movie'), ['Hide this show', 'Not a movie', 'Why this?'])
+  assert.deepEqual(labelsOf('movie'), ['Hide this show', 'This is a movie', 'Why this?'])
+  assert.deepEqual(labelsOf(null), ['Hide this show', 'Why this?'])
   assert.equal(menuOf({ item: item({ movieChoice: 'movie' }), nowMs, timeZone }).more[1].icon, 'movie')
   assert.equal(menuOf({ item: item({ movieChoice: 'not-movie' }), nowMs, timeZone }).more[1].icon, 'not-movie')
 })
@@ -368,9 +368,9 @@ test('programOf: carries the movie choice so the programme sheet can offer it', 
   assert.equal(programOf({ title: 'Heron' }).movieChoice, null)
 })
 
-test('turning a thumb off sends a clear, and switching sides sends the new thumb', () => {
-  assert.deepEqual(thumbToggleOf({ current: null, direction: 'down' }), { next: 'down', kind: 'thumb_down' })
-  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'thumb_clear' })
+test('turning More like this off sends a clear, turning Fewer like this off sends its undo, and switching sides sends the new thumb', () => {
+  assert.deepEqual(thumbToggleOf({ current: null, direction: 'down' }), { next: 'down', kind: 'fewer_like_this' })
+  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'fewer_like_this_undo' })
   assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'up' }), { next: 'up', kind: 'thumb_up' })
   assert.deepEqual(thumbToggleOf({ current: 'up', direction: 'up' }), { next: null, kind: 'thumb_clear' })
 })

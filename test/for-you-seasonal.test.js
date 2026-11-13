@@ -29,7 +29,7 @@ const {
   windowsOf,
 } = await import('../src/for-you-occasions.js')
 const { MATARIKI_OBSERVANCE_DAYS, buildOccasionDates, diwaliOf } = await import('../scripts/build-occasion-dates.mjs')
-const { rowMenuOf, sectionsOf, themeGroupsOf, themeMutedToastOf } = await import('../src/web/for-you.js')
+const { rowMenuOf, sectionsOf, themeGroupsOf, themeHiddenToastOf } = await import('../src/web/for-you.js')
 const table = JSON.parse(await fs.readFile(new URL('../src/data/occasion-dates.json', import.meta.url), 'utf8'))
 
 const HOUR = 60 * 60 * 1000
@@ -343,9 +343,9 @@ test('mute: a hidden occasion stays hidden until its next window opens', () => {
 
 test('web: a seasonal row offers only Hide, keeps two airings of a title, and sits after Coming up', () => {
   const theme = { key: 'seasonal-christmas', title: 'Christmas', phrase: 'Christmas', seasonal: true }
-  assert.deepEqual(rowMenuOf(theme), [{ key: 'mute-theme', label: 'Hide Christmas', icon: 'hide' }])
-  assert.equal(themeMutedToastOf(theme), 'The Christmas row is hidden until next Christmas')
-  assert.equal(themeMutedToastOf({ key: 'cooking', title: 'Cooking' }), 'The Cooking row is hidden for 90 days')
+  assert.deepEqual(rowMenuOf(theme), [{ key: 'mute-theme', label: 'Hide Christmas shows', icon: 'hide' }])
+  assert.equal(themeHiddenToastOf(theme), 'Christmas shows are hidden until next Christmas')
+  assert.equal(themeHiddenToastOf({ key: 'cooking', title: 'Cooking' }), 'Cooking shows are hidden for 90 days')
   const item = (id, title) => ({ id, title, seriesKey: title.toLowerCase().replace(/\s+/g, '-'), channelId: 'seven', start: NOW + HOUR, stop: NOW + 2 * HOUR })
   const payload = { sections: [
     { key: 'might-like', title: 'You might like', items: [item('1', 'Other')] },

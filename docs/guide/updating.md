@@ -110,6 +110,13 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.25.0
+
+[Release notes for `2.25.0`](https://github.com/furey/freetvarr/releases/tag/2.25.0)
+
+- **For you**: the first start works out the suggestions again from new, once, so For you takes longer than usual to show after that start.
+- **Fewer like this**: a show you marked **Fewer like this** before `2.25.0` stays hidden and stays in **Hidden shows**, with **Show again**. From `2.25.0`, **Fewer like this** lowers the show and the shows like it, and does not hide the show. See [For you](/guide/for-you#the-for-you-page).
+
 ### 2.24.0
 
 [Release notes for `2.24.0`](https://github.com/furey/freetvarr/releases/tag/2.24.0)

@@ -51,7 +51,7 @@ The order changes each hour. **Recording now** and **Live news** or **Live sport
 | **New episode**                 | A new episode of a show you watch.                                                                                                     | **Play**, **Episodes**                                                    |
 | **Recording now**               | A programme TVHeadend records now.                                                                                                     | **Watch from the start** (when it can play the recording), **Watch live** |
 | **For you**                     | A suggestion from [For you](/guide/for-you), with the reason.                                                                          | **Record** or **Record series**, **Details**                              |
-| **Live news** or **Live sport** | A news or sports programme on now on a favourite channel.                                                                              | **Watch live**, **Record**                                                |
+| **Live news** or **Live sport** | A news programme or a sports match on now on a favourite channel. See [Live news and sport](#live-news-and-sport).                     | **Watch live**, **Record**                                                |
 | **Recording tonight**           | One of the next recordings, with **Recording today**, **Recording tomorrow**, or **Recording** and the weekday when it is not tonight. | **Recording options** or **Details**, **Scheduled**                       |
 | **Now in the guide**            | A show on your [watchlist](/guide/tv-guide#watchlist), now in the TV guide.                                                            | **Record** or **Record series**, **Details**                              |
 | **Unwatched movie**             | A film you recorded and have not watched.                                                                                              | **Play** or **Resume**, **Details**                                       |
@@ -60,6 +60,16 @@ The order changes each hour. **Recording now** and **Live news** or **Live sport
 **Details** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home, where you can record it.
 
 Each slide also has a **⋯** button. It opens the same actions as the matching row below: the episode menu for a recording, the For you menu for a suggestion, and the live or scheduled menu for a programme. See [More actions](#more-actions).
+
+### Live news and sport
+
+The **Live news** or **Live sport** slide shows one programme that is on now on a favourite channel. Freetvarr picks it with these rules:
+
+- It leaves out a show you hid, and a show in a kind of show you hid. See [Hidden shows](/guide/for-you#for-you-settings).
+- A programme counts as sport only when [For you](/guide/for-you#theme-rows) files it under a sport, such as **Rugby league** or **Cricket**. A fishing or motoring show that the guide lists as sport does not count.
+- A show you watch or record, or a kind of show you watch or record, comes before the others.
+
+The **⋯** menu of this slide also has **Hide this show** (**Hide this film** for a film) and **Hide** with the kind of show, such as **Hide fishing shows**. Either one takes the slide away at once, and a message with **Undo** says what is hidden for 90 days. The [Hidden shows](/guide/for-you#for-you-settings) list in the For you settings shows what you hid, with **Show again**.
 
 ## Rows
 
@@ -83,12 +93,12 @@ Every card and every **Recording tonight** row has a **⋯** menu. To open it:
 
 The menu depends on the row:
 
-| Row                   | Menu                                                                                                                                                            |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                                                     |
-| **For you**           | **Record this episode**, **Record series**, **Programme info**, **Not interested in** and the title, **Not a movie** or **This is a movie**, and **Why this?**. |
-| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                                             |
-| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**.                  |
+| Row                   | Menu                                                                                                                                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                                                                                                                                                             |
+| **For you**           | **Record this episode**, **Record series**, **Programme info**, **More like this**, **Fewer like this**, **Hide this show**, **Hide** with the kind of show, **Not a movie** or **This is a movie**, and **Why this?**. See [For you](/guide/for-you#the-for-you-page). |
+| **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                                                                                                                                                     |
+| **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**.                                                                                                                          |
 
 For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
 

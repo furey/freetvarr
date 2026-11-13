@@ -10,6 +10,8 @@ export const ABANDON_MIN_STARTS = 3
 export const ABANDON_MAX_RATIO = 0.15
 export const NOT_INTERESTED_DAYS = 90
 export const DISMISS_WINDOW_DAYS = 30
+export const FEWER_FACTOR = 0.2
+export const FEWER_MIN_WEIGHT = 0.05
 
 export const decayOf = ({ ts, nowMs, halfLifeDays = HALF_LIFE_DAYS }) => {
   if (!Number.isFinite(ts)) return 0.5
@@ -82,9 +84,12 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'recording_deleted' && !meta?.watched) show.unwatchedDeletes.push(ts)
     if (event.kind === 'thumb_up') show.thumbsUp.push(ts)
     if (event.kind === 'thumb_down') show.thumbsDown.push(ts)
+    if (event.kind === 'fewer_like_this') show.fewer.push(ts)
+    if (event.kind === 'fewer_like_this_undo') show.fewer = []
     if (event.kind === 'thumb_clear') {
       show.thumbsUp = []
       show.thumbsDown = []
+      show.fewer = []
     }
     if (event.kind === 'not_interested') show.notInterested.push(ts)
     if (event.kind === 'not_interested_undo') show.notInterested = []
@@ -137,6 +142,21 @@ export const isHiddenShow = ({ show, nowMs }) => {
   return show.notInterested.some((ts) => nowMs - ts < NOT_INTERESTED_DAYS * DAY_MS)
 }
 
+export const fewerWeightOf = ({ show, nowMs }) => {
+  const latest = Math.max(0, ...show.fewer)
+  if (!latest || latest < Math.max(0, ...show.thumbsUp)) return 0
+  const weight = decayOf({ ts: latest, nowMs })
+  return weight < FEWER_MIN_WEIGHT ? 0 : weight
+}
+
+export const fewerMarkOf = (show) => Math.max(0, ...show.fewer)
+
+export const fewerFactorOf = (weight) => FEWER_FACTOR + (1 - FEWER_FACTOR) * (1 - Math.max(0, Math.min(1, weight)))
+
+export const fewerShowsOf = (profile) => [...profile.shows.values()]
+  .filter((show) => show.fewerWeight > 0)
+  .sort((a, b) => b.fewerWeight - a.fewerWeight)
+
 const isThumbedDown = (show) => show.thumbsDown.length > 0 && Math.max(...show.thumbsDown) > Math.max(0, ...show.thumbsUp)
 
 export const channelHabitOf = ({ habits, channelId, hour }) => {
@@ -184,6 +204,8 @@ const emptyShow = ({ key, title }) => ({
   unwatchedDeletes: [],
   thumbsUp: [],
   thumbsDown: [],
+  fewer: [],
+  fewerWeight: 0,
   notInterested: [],
   dismissed: [],
   accepted: [],
@@ -244,6 +266,7 @@ const scoreShow = ({ show, nowMs }) => {
   show.affinity = base * (show.abandoned ? ABANDON_PENALTY : 1) * (stopped ? 0.5 : 1)
   show.hidden = isHiddenShow({ show, nowMs })
   if (show.hidden) show.affinity = 0
+  show.fewerWeight = fewerWeightOf({ show, nowMs })
   show.lastActivityTs = Math.max(
     0,
     ...episodes.map((episode) => episode.ts || 0),
