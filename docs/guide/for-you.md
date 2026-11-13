@@ -53,9 +53,10 @@ Press a card to act on it. What happens depends on the suggestion:
 Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
 - **Play**, **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
-- **More like this** and **Fewer like this**: tell Freetvarr what you think of the show. **Fewer like this** also hides the show from For you, until you press it again on the same card or press **Show again** in **Hidden shows**.
-- **Not interested in** the show: hides it from For you for 90 days.
-- **Hide** and the theme of the row, such as **Hide Cooking** or **Hide Christmas**: on cards in a theme row or a seasonal row only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows) and [Seasonal rows](#seasonal-rows).
+- **More like this**: tells Freetvarr that you like the show, so shows like it count for more.
+- **Fewer like this**: lowers the show and the shows like it, by kind of show and by how close their descriptions are. The show is not hidden. The effect is strongest at first and halves every 60 days. A message says `You'll see fewer shows like this`; press **Undo** on it, or press **Fewer like this** again on the same card, to take it back.
+- **Hide this show** (**Hide this film** for a film): hides it from For you and the Home highlights for 90 days.
+- **Hide** with the kind of show, such as **Hide cooking shows** or **Hide Christmas shows**: on cards with a theme only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows) and [Seasonal rows](#seasonal-rows).
 - **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
 
@@ -90,11 +91,11 @@ A theme row leaves out the shows you already record or watch, as these show unde
 Press **⋯** beside the title of a theme row or the sport row for these choices:
 
 - **More** and the theme, such as **More Cooking**: makes the theme count half as much again towards its row. Press **Undo** on the message to take it back.
-- **Hide** and the theme, such as **Hide Cooking**: hides the row for 90 days. After that, the theme counts as before. Press **Undo** on the message to bring the row back, with any **More** you chose before. Pressing **More** later also brings the row back.
+- **Hide** with the kind of show, such as **Hide cooking shows**: hides the row and those shows for 90 days. The message says `Cooking shows are hidden for 90 days`. After that, the theme counts as before. Press **Undo** on the message to bring the row back, with any **More** you chose before. Pressing **More** later also brings the row back.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/for-you">
-  <img src="../img/screenshot-for-you-row-menu.png" alt="The menu of the Cooking theme row, with More Cooking and Hide Cooking" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you-row-menu.png" alt="The menu of the Cooking theme row, with More Cooking and Hide cooking shows" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -143,7 +144,7 @@ These never count:
 
 The row needs at least four programmes from at least three shows, all on or before the last day of the row. It shows up to two airings of one show. It leaves out the shows in the rows above it, and the rows below it leave out its shows. When two occasions overlap, such as Hanukkah and Christmas, the row is for the occasion with the nearest date. If that occasion has too few programmes, the row is for the other.
 
-Press **⋯** beside the title of a seasonal row for **Hide** and the occasion, such as **Hide Christmas**. The row then stays hidden until the next time the occasion comes round. Press **Undo** on the message to bring the row back.
+Press **⋯** beside the title of a seasonal row for **Hide** with the occasion, such as **Hide Christmas shows**. The row then stays hidden until the next time the occasion comes round, and the message says `Christmas shows are hidden until next Christmas`. Press **Undo** on the message to bring the row back.
 
 To turn an occasion off, or to turn a hidden occasion back on, open **Themes** in the [For you settings](#for-you-settings) and use the **Seasonal** group.
 
@@ -176,16 +177,16 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-| Setting                      | What it does                                                                                                                                                                                                                                                                               |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                                                                                                                                                                |
-| **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                                                                                                                                                             |
-| **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English.                                                                                                                                     |
-| **Themes**                   | Lists every theme and sport, and in the **Seasonal** group the occasions of your country, each with a switch, on by default. Turn one off to stop its row; a theme's shows also stop counting towards the rows. A hidden theme or occasion shows as off; turn it on to bring the row back. |
-| **Hidden shows**             | Lists the shows you marked **Not interested** or **Fewer like this**, and the themes and occasions you hid. Press **Show again** to get suggestions for a show, a theme, or an occasion again.                                                                                             |
-| **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                                                                                                                                                                 |
-| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Not interested** still count.                                                                                                                                                 |
-| **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.                                                                                                                                                  |
+| Setting                      | What it does                                                                                                                                                                                                                                                                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                                                                                                                                                                    |
+| **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                                                                                                                                                                 |
+| **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English.                                                                                                                                         |
+| **Themes**                   | Lists every theme and sport, and in the **Seasonal** group the occasions of your country, each with a switch, on by default. Turn one off to stop its row; a theme's shows also stop counting towards the rows. A hidden theme or occasion shows as off; turn it on to bring the row back.     |
+| **Hidden shows**             | Lists the shows you hid, by title, and the kinds of show you hid, such as **Fishing shows**. Home and For you leave them out. Press **Show again** to get suggestions for them again. A show you marked **Fewer like this** before version `2.25.0` stays here until you press **Show again**. |
+| **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                                                                                                                                                                     |
+| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Hide** still count.                                                                                                                                                               |
+| **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.                                                                                                                                                      |
 
 **Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres, and, with **Ratings** on, asks TVmaze for the scores of the series it found. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 
