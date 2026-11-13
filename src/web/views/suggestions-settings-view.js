@@ -99,7 +99,7 @@ export const SuggestionsSettingsView = {
               @update:model-value="save({ historyEnabled: !$event })">
               <span class="settings-toggle-text">
                 <span class="settings-row-title">Pause history</span>
-                <span class="settings-row-meta">Freetvarr stops noting what you watch until you turn this off. More like this, Fewer like this, and Not interested still count.</span>
+                <span class="settings-row-meta">Freetvarr stops noting what you watch until you turn this off. More like this, Fewer like this, and Hide still count.</span>
               </span>
             </toggle-switch>
           </div>
@@ -124,7 +124,7 @@ export const SuggestionsSettingsView = {
               @click="showAgain(show)">Show again</button>
           </div>
         </div>
-        <p v-else class="settings-row-meta">No hidden shows. Choose Not interested or Fewer like this on Home or For you to hide a show.</p>
+        <p v-else class="settings-row-meta">No hidden shows. Choose Hide this show on Home or For you to hide a show.</p>
       </ui-sheet>
 
       <ui-sheet :open="themesOpen" title="Themes" subtitle="For you shows a theme row when you record and watch a lot of that kind of programme, and a seasonal row in the days around an occasion." @close="themesOpen = false">

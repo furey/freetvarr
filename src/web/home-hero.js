@@ -309,8 +309,8 @@ const isWantedLive = ({ program, taste }) => {
   if (taste.hiddenShows?.includes(key)) return false
   const known = taste.titles?.[key]
   if (known?.theme && isHiddenTheme({ theme: known.theme, taste })) return false
-  if (liveGenreOf(program.genre) !== 'sport' || !known) return true
-  return known.kind === 'sport' && Boolean(known.sportCode)
+  if (liveGenreOf(program.genre) !== 'sport' || !taste.titles) return true
+  return known?.kind === 'sport' && Boolean(known.sportCode)
 }
 
 const isHiddenTheme = ({ theme, taste }) => {

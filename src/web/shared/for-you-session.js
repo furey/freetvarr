@@ -14,6 +14,7 @@ import {
   feedbackOf,
   sheetRequestOf,
   programmeHiddenToastOf,
+  programmeKindOfItem,
   themeHiddenToastOf,
   identityOf,
   liveChannelOfItem,
@@ -203,7 +204,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
 
   const undoFewer = async (item) => {
     thumbs.value = { ...thumbs.value, [identityOf(item)]: null }
-    await sendFeedback(feedbackOf({ kind: 'thumb_clear', item, source }))
+    await sendFeedback(feedbackOf({ kind: 'fewer_like_this_undo', item, source }))
     onChanged()
   }
 
@@ -212,7 +213,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     closeWhy()
     forYouHidden.value = new Set([...forYouHidden.value, key])
     sendFeedback(feedbackOf({ kind: 'not_interested', item, source }))
-    toast({ text: programmeHiddenToastOf(item.kind ?? item.programmeKind), action: { label: 'Undo', run: () => undoHide(item) } })
+    toast({ text: programmeHiddenToastOf(programmeKindOfItem(item)), action: { label: 'Undo', run: () => undoHide(item) } })
   }
 
   const undoHide = async (item) => {

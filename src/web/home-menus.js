@@ -1,7 +1,7 @@
 import { recordWordingOf } from './record-wording.js'
 import { movieKindRowOf } from './movie-choice.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
-import { dislikeLabelsOf } from './for-you.js'
+import { dislikeLabelsOf, programmeKindOfItem } from './for-you.js'
 
 export const PROGRAMME_INFO = { key: 'programme-info', label: 'Programme info', icon: 'info' }
 export const GO_TO_SHOW = { key: 'show', label: 'Go to show', icon: 'show' }
@@ -18,7 +18,7 @@ export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null,
 
 export const dislikeGroupOf = (dislike) => {
   if (!dislike?.title) return []
-  const labels = dislikeLabelsOf({ kind: dislike.kind, theme: dislike.theme?.key ? dislike.theme : null })
+  const labels = dislikeLabelsOf({ kind: programmeKindOfItem(dislike), theme: dislike.theme?.key ? dislike.theme : null })
   return [
     { key: 'not-interested', label: labels.show, icon: 'hide' },
     labels.theme && { key: 'fewer-theme', label: labels.theme, icon: 'hide' },
@@ -84,7 +84,7 @@ export const dislikeItemOfSlide = (slide) => (slide?.type === 'on-now' && slide.
       title: slide.source.program.title,
       start: slide.source.program.start ?? null,
       channelId: slide.source.channel?.id ?? null,
-      kind: slide.source.program.kind ?? null,
+      programmeKind: slide.source.program.kind ?? null,
       theme: slide.source.theme ?? null,
     }
   : null)

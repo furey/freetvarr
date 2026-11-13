@@ -61,7 +61,7 @@ test('onNowMenuOf: the dislike group names the show and its theme', () => {
 
 test('dislikeItemOfSlide: an On now slide gives the feedback item; other slides give none', () => {
   const slide = { type: 'on-now', source: { channel: { id: 1 }, program: { title: 'iFish', start: NOW }, theme: FISHING } }
-  assert.deepEqual(dislikeItemOfSlide(slide), { title: 'iFish', start: NOW, channelId: 1, kind: null, theme: FISHING })
+  assert.deepEqual(dislikeItemOfSlide(slide), { title: 'iFish', start: NOW, channelId: 1, programmeKind: null, theme: FISHING })
   assert.equal(dislikeItemOfSlide({ type: 'upcoming', source: {} }), null)
 })
 
@@ -112,7 +112,7 @@ test('dislikeLabelsOf: one wording for the show item and the theme item', async 
 test('Fewer like this: the thumb sends fewer_like_this and its toast says what happens', async () => {
   const { FEWER_TOAST, thumbToggleOf } = await import('../src/web/for-you.js')
   assert.deepEqual(thumbToggleOf({ current: null, direction: 'down' }), { next: 'down', kind: 'fewer_like_this' })
-  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'thumb_clear' })
+  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'fewer_like_this_undo' })
   assert.equal(FEWER_TOAST, "You'll see fewer shows like this")
 })
 

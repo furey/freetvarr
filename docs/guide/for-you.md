@@ -204,6 +204,6 @@ The first time it uses Standard or Plus, Freetvarr downloads the language model 
 
 ## Viewing history
 
-Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Not interested** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → WATCHING → **For you** control it. **Pause history** still keeps your **More like this**, **Fewer like this**, and **Not interested** choices. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
+Freetvarr notes what you watch and record so For you can learn from it: live channels you watch, recordings you play, programmes whose details you open, recordings and series you schedule or cancel, and your **More like this**, **Fewer like this**, and **Hide** choices. The history stays on the computer that runs Freetvarr, in its database. **Pause history** and **Clear viewing history** in Settings → WATCHING → **For you** control it. **Pause history** still keeps your **More like this**, **Fewer like this**, and **Hide** choices. Freetvarr keeps cards it showed you for 30 days and everything else for up to two years.
 
 Your viewing history never leaves that computer: the lookups send TVmaze and Wikidata show titles only, and Freetvarr has no tracking or analytics.

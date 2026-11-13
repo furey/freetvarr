@@ -201,7 +201,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
     { key: 'programme-info', label: 'Programme info', icon: 'info' },
   ].filter(Boolean)
   const more = [
-    { key: 'not-interested', label: dislikeLabelsOf({ kind: item.programmeKind }).show, icon: 'hide' },
+    { key: 'not-interested', label: dislikeLabelsOf({ kind: programmeKindOfItem(item) }).show, icon: 'hide' },
     item.theme?.key && { key: 'fewer-theme', label: dislikeLabelsOf({ theme: item.theme }).theme, icon: 'hide' },
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
@@ -215,7 +215,7 @@ const readyMenuOf = (item) => ({
     { key: 'show', label: 'Go to show', icon: 'options' },
   ],
   more: [
-    { key: 'not-interested', label: dislikeLabelsOf({ kind: item.programmeKind }).show, icon: 'hide' },
+    { key: 'not-interested', label: dislikeLabelsOf({ kind: programmeKindOfItem(item) }).show, icon: 'hide' },
     { key: 'why', label: 'Why this?', icon: 'why' },
   ],
 })
@@ -264,7 +264,7 @@ export const feedbackOf = ({ kind, item, source }) => ({
 })
 
 export const thumbToggleOf = ({ current, direction }) => (current === direction
-  ? { next: null, kind: 'thumb_clear' }
+  ? { next: null, kind: direction === 'down' ? 'fewer_like_this_undo' : 'thumb_clear' }
   : { next: direction, kind: direction === 'up' ? 'thumb_up' : 'fewer_like_this' })
 
 export const FEWER_TOAST = "You'll see fewer shows like this"
@@ -376,6 +376,8 @@ export const chooserShownOf = ({ coldStart, pickable = [], skippedAt = null, pic
 }
 
 export const doneLabelOf = (count) => (count ? `Done · ${count} picked` : 'Done')
+
+export const programmeKindOfItem = (item) => item?.programmeKind ?? (item?.kind === 'movie' ? 'movie' : null)
 
 export const dislikeLabelsOf = ({ kind = null, theme = null }) => ({
   show: `Hide this ${programmeNounOf(kind)}`,

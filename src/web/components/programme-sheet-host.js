@@ -525,7 +525,7 @@ export const ProgrammeSheetHost = {
       const program = sheetProgramme.value
       const taste = sheetTaste.value
       if (!program?.title || !taste?.enabled || taste.hidden) return null
-      return { title: program.title, start: program.start ?? null, channelId: program.channelId ?? selected.value?.channel?.id ?? null, kind: program.kind ?? null, theme: taste.themeHidden ? null : taste.theme }
+      return { title: program.title, start: program.start ?? null, channelId: program.channelId ?? selected.value?.channel?.id ?? null, programmeKind: program.kind ?? null, theme: taste.themeHidden ? null : taste.theme }
     })
     const dislikeItems = computed(() => dislikeGroupOf(dislikeItem.value).filter(Boolean))
     const chooseDislike = (key) => {

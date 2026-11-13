@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { currentOtherLanguageFilms, forgetForYouCache, getForYou, getHiddenShows, getPickable, getThemeSettings, isForYouEnabled, setThemeOn, startForYou, titlesForKeys, unhideShow, unmuteTheme } from './for-you-service.js'
+import { currentOtherLanguageFilms, forgetForYouCache, getCurrentTaste, getForYou, getHiddenShows, getPickable, getThemeSettings, isForYouEnabled, setThemeOn, startForYou, titlesForKeys, unhideShow, unmuteTheme } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { showKeyOf } from './web/show-key.js'
@@ -40,7 +40,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     res.setHeader('Cache-Control', 'no-store')
     if (!(await isForYouEnabled())) return res.json({ enabled: false, theme: null })
     try {
-      res.json({ enabled: true, ...titleTasteFrom({ taste: (await getForYou()).taste, title: req.query.title }) })
+      res.json({ enabled: true, ...titleTasteFrom({ taste: await getCurrentTaste(), title: req.query.title }) })
     } catch (err) {
       res.status(503).json({ error: err.message })
     }

@@ -608,3 +608,52 @@ test('fewer like this fades with the sixty-day half-life and clears with the thu
   assert.equal(weightOf([feedback('fewer_like_this', 'MKR', 3), feedback('thumb_clear', 'MKR', 2)]), 0)
   assert.equal(weightOf([feedback('fewer_like_this', 'MKR', 3), feedback('thumb_up', 'MKR', 2)]), 0)
 })
+
+test('undoing Fewer like this clears only the fewer mark and keeps the thumbs', () => {
+  const show = profileOf({
+    events: [feedback('thumb_up', 'MKR', 9), feedback('thumb_down', 'Rake', 8), feedback('fewer_like_this', 'MKR', 3), feedback('fewer_like_this_undo', 'MKR', 2)],
+    nowMs: NOW,
+  }).shows
+  assert.deepEqual(show.get('mkr').fewer, [])
+  assert.equal(show.get('mkr').thumbsUp.length, 1)
+  assert.equal(show.get('rake').thumbsDown.length, 1)
+})
+
+test('fewer like this marks are strongest first and stop counting below 0.05', async () => {
+  const { fewerShowsOf } = await import('../src/for-you-profile.js')
+  const profile = profileOf({
+    events: [feedback('fewer_like_this', 'Old Show', 300), feedback('fewer_like_this', 'Older Pick', 40), feedback('fewer_like_this', 'New Pick', 1)],
+    nowMs: NOW,
+  })
+  assert.equal(profile.shows.get('old-show').fewerWeight, 0)
+  assert.deepEqual(fewerShowsOf(profile).map((show) => show.key), ['new-pick', 'older-pick'])
+})
+
+test('fewer like this does not lower a show the household likes or thumbed up later', () => {
+  const cooking = 'Home cooks compete in a kitchen cooking contest to win the trophy'
+  const programmes = [airing('MKR', { synopsis: cooking }), airing('Kitchen Battle', { synopsis: cooking })]
+  const base = [...baseEvents(), ...watched('MKR', { episodes: 4 })]
+  const scoreOf = (result, title) => itemFor(result, title)?.score ?? null
+  const before = run({ programmes, events: base })
+  const thumbedLater = run({ programmes, events: [...base, feedback('fewer_like_this', 'MKR', 3), feedback('thumb_up', 'Kitchen Battle', 1)] })
+  const thumbedEarlier = run({ programmes, events: [...base, feedback('thumb_up', 'Kitchen Battle', 5), feedback('fewer_like_this', 'MKR', 1)] })
+  const liked = [...base, ...watched('Kitchen Battle', { episodes: 6, daysAgo: 2 })]
+  const likedBefore = run({ programmes, events: liked })
+  const likedAfter = run({ programmes, events: [...liked, feedback('fewer_like_this', 'MKR', 1)] })
+  assert.ok(scoreOf(thumbedLater, 'Kitchen Battle') >= scoreOf(before, 'Kitchen Battle'))
+  assert.ok((scoreOf(thumbedEarlier, 'Kitchen Battle') ?? 0) < scoreOf(thumbedLater, 'Kitchen Battle'))
+  assert.ok(scoreOf(likedBefore, 'Kitchen Battle') !== null)
+  assert.equal(scoreOf(likedAfter, 'Kitchen Battle'), scoreOf(likedBefore, 'Kitchen Battle'))
+})
+
+test('a new household still gets title themes, so a fishing show on a pinned channel is not live sport', async () => {
+  const { onNowPickOf } = await import('../src/web/home-hero.js')
+  const fish = airing('iFish', { genre: 64, start: NOW - 10 * 60 * 1000 })
+  const result = run({ programmes: [fish], events: [], pinnedChannelIds: [SEVEN], guideCategories: new Map([['ifish', ['Sports']]]), themesOff: ['cooking'] })
+  assert.equal(result.coldStart, true)
+  assert.equal(result.taste.titles.ifish.theme.key, 'fishing')
+  assert.ok(result.taste.hiddenThemes.includes('cooking'))
+  const entries = [{ channel: { id: SEVEN, name: '7 Sydney', pinned: true }, now: fish }]
+  assert.equal(onNowPickOf({ entries, taste: result.taste, nowMs: NOW }), null)
+  assert.equal(onNowPickOf({ entries, taste: null, nowMs: NOW }).now.title, 'iFish')
+})

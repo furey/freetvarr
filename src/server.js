@@ -228,7 +228,7 @@ import { plexItemPlaybackRow, saveItemPosition } from './plex-library-store.js'
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, createSnapshotSaver, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
-import { cachedForYouIds, forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou } from './for-you-service.js'
+import { cachedForYouIds, forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou, getCurrentTaste } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -1398,7 +1398,8 @@ const tvheadendValueOf = async ({ load, whenUnconfigured }) => {
 const heroForYouPayload = async () => {
   if (!(await isForYouEnabled())) return null
   const result = await resultWithin({ promise: getForYou(), ms: HERO_FOR_YOU_WAIT_MS })
-  return result ? { ...publicResultOf({ result, limit: limitFrom(undefined) }), taste: result.taste ?? null } : null
+  const taste = await getCurrentTaste()
+  return result ? { ...publicResultOf({ result, limit: limitFrom(undefined) }), taste } : { enabled: true, coldStart: false, topPick: null, sections: [], taste }
 }
 
 const resultWithin = ({ promise, ms }) => Promise.race([

@@ -11,6 +11,7 @@ export const ABANDON_MAX_RATIO = 0.15
 export const NOT_INTERESTED_DAYS = 90
 export const DISMISS_WINDOW_DAYS = 30
 export const FEWER_FACTOR = 0.2
+export const FEWER_MIN_WEIGHT = 0.05
 
 export const decayOf = ({ ts, nowMs, halfLifeDays = HALF_LIFE_DAYS }) => {
   if (!Number.isFinite(ts)) return 0.5
@@ -84,6 +85,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'thumb_up') show.thumbsUp.push(ts)
     if (event.kind === 'thumb_down') show.thumbsDown.push(ts)
     if (event.kind === 'fewer_like_this') show.fewer.push(ts)
+    if (event.kind === 'fewer_like_this_undo') show.fewer = []
     if (event.kind === 'thumb_clear') {
       show.thumbsUp = []
       show.thumbsDown = []
@@ -143,12 +145,17 @@ export const isHiddenShow = ({ show, nowMs }) => {
 export const fewerWeightOf = ({ show, nowMs }) => {
   const latest = Math.max(0, ...show.fewer)
   if (!latest || latest < Math.max(0, ...show.thumbsUp)) return 0
-  return decayOf({ ts: latest, nowMs })
+  const weight = decayOf({ ts: latest, nowMs })
+  return weight < FEWER_MIN_WEIGHT ? 0 : weight
 }
+
+export const fewerMarkOf = (show) => Math.max(0, ...show.fewer)
 
 export const fewerFactorOf = (weight) => FEWER_FACTOR + (1 - FEWER_FACTOR) * (1 - Math.max(0, Math.min(1, weight)))
 
-export const fewerShowsOf = (profile) => [...profile.shows.values()].filter((show) => show.fewerWeight > 0)
+export const fewerShowsOf = (profile) => [...profile.shows.values()]
+  .filter((show) => show.fewerWeight > 0)
+  .sort((a, b) => b.fewerWeight - a.fewerWeight)
 
 const isThumbedDown = (show) => show.thumbsDown.length > 0 && Math.max(...show.thumbsDown) > Math.max(0, ...show.thumbsUp)
 

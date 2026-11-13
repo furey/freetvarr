@@ -368,9 +368,9 @@ test('programOf: carries the movie choice so the programme sheet can offer it', 
   assert.equal(programOf({ title: 'Heron' }).movieChoice, null)
 })
 
-test('turning a thumb off sends a clear, and switching sides sends the new thumb', () => {
+test('turning More like this off sends a clear, turning Fewer like this off sends its undo, and switching sides sends the new thumb', () => {
   assert.deepEqual(thumbToggleOf({ current: null, direction: 'down' }), { next: 'down', kind: 'fewer_like_this' })
-  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'thumb_clear' })
+  assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'down' }), { next: null, kind: 'fewer_like_this_undo' })
   assert.deepEqual(thumbToggleOf({ current: 'down', direction: 'up' }), { next: 'up', kind: 'thumb_up' })
   assert.deepEqual(thumbToggleOf({ current: 'up', direction: 'up' }), { next: null, kind: 'thumb_clear' })
 })

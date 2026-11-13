@@ -17,7 +17,9 @@ import {
   channelHabitOf,
   createKeyResolver,
   engagedShowCountOf,
+  LIKED_AFFINITY,
   fewerFactorOf,
+  fewerMarkOf,
   fewerShowsOf,
   hourHabitOf,
   likedShowsOf,
@@ -176,10 +178,8 @@ export const buildForYou = ({
     used: usedKeysOf(baseSections.filter((section) => SEASONAL_AFTER.includes(section.key))),
   })
   const withSeasonal = withSeasonalSection({ sections: baseSections, seasonal })
-  const themes = coldStart
-    ? { sections: [] }
-    : themeSectionsOf({ allowed, upcoming, history, recordings, events, keyOf, records, scored: best, context, vectorsByHash, tier, guideCategories, themesOff, limit, used: usedKeysOf(withSeasonal), usedIds: usedIdsOf(withSeasonal) })
-  const sections = withThemeSections({ sections: withSeasonal, themeSections: themes.sections })
+  const themes = themeSectionsOf({ allowed, upcoming, history, recordings, events, keyOf, records, scored: best, context, vectorsByHash, tier, guideCategories, themesOff, limit, used: usedKeysOf(withSeasonal), usedIds: usedIdsOf(withSeasonal) })
+  const sections = withThemeSections({ sections: withSeasonal, themeSections: coldStart ? [] : themes.sections })
   const explanations = new Map(scored.map((entry) => [entry.item.id, explanationOf({ entry, context })]))
   for (const section of sections) {
     const explain = ROW_EXPLANATIONS[section.key] || section.explain
@@ -524,7 +524,7 @@ const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, ve
       return keyVectors.get(key)
     }
     const anchorsOf = (shows, weightOf) => shows
-      .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), vector: keyVector(show.key) }))
+      .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), mark: fewerMarkOf(show), vector: keyVector(show.key) }))
       .filter((anchor) => anchor.vector)
     const anchors = anchorsOf(liked, (show) => show.affinity)
     const fewerAnchors = anchorsOf(fewer, (show) => show.fewerWeight)
@@ -537,7 +537,7 @@ const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, ve
   const docs = new Map([...textsByKey].map(([key, texts]) => [key, [...texts.values()].join(' ')]))
   const vectors = bm25VectorsOf({ docs })
   const anchorsOf = (shows, weightOf) => shows
-    .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), vector: vectors.get(show.key) }))
+    .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), mark: fewerMarkOf(show), vector: vectors.get(show.key) }))
     .filter((anchor) => anchor.vector?.size)
   return {
     method: 'bm25',
@@ -595,7 +595,7 @@ const scoreAiring = ({ programme, context }) => {
   if ((context.coldStart || movie) && hour >= PRIME_START && hour < PRIME_END) add('prime', W.prime, 'On in prime time')
   if (context.coldStart && programme.image) add('image', W.image, 'Has artwork')
 
-  const multiplier = penaltyOf({ show, nowMs }) * fewerFactorOf(show?.fewerWeight ?? 0) * fewerLikeFactorOf({ programme, key, context })
+  const multiplier = penaltyOf({ show, nowMs }) * fewerFactorOf(show?.fewerWeight ?? 0) * fewerLikeFactorOf({ programme, key, show, context })
   const total = contributions.reduce((sum, contribution) => sum + contribution.weight, 0) * multiplier
   if (!(total > 0)) return null
   contributions.sort((a, b) => b.weight - a.weight)
@@ -889,17 +889,21 @@ const reasonOf = (contributions) => {
   return top.feature === 'genre' && similar && similar.weight >= top.weight * SIMILAR_REASON_RATIO ? similar : top
 }
 
-const fewerLikeFactorOf = ({ programme, key, context }) => {
+const fewerLikeFactorOf = ({ programme, key, show, context }) => {
   const { fewerAnchors = [], vectorOf, cosine, scale, fewerCache } = context.similarity
-  if (!fewerAnchors.length) return 1
+  if (!fewerAnchors.length || isLikedShow(show)) return 1
   const vector = vectorOf(programme)
   if (!vector) return 1
-  if (fewerCache.has(vector)) return fewerCache.get(vector)
-  const [nearest] = nearestLikedOf({ vector, anchors: fewerAnchors, cosine, excludeKey: key, topK: 1 })
-  const factor = nearest ? fewerFactorOf(similarityScoreOf({ similarity: nearest.similarity, ...scale }) * nearest.affinity) : 1
-  fewerCache.set(vector, factor)
-  return factor
+  if (!fewerCache.has(vector)) {
+    const [nearest] = nearestLikedOf({ vector, anchors: fewerAnchors, cosine, excludeKey: key, topK: 1 })
+    fewerCache.set(vector, nearest ? { ...nearest, mark: fewerAnchors.find((anchor) => anchor.key === nearest.key)?.mark ?? 0 } : null)
+  }
+  const nearest = fewerCache.get(vector)
+  if (!nearest || Math.max(0, ...(show?.thumbsUp ?? [])) > nearest.mark) return 1
+  return fewerFactorOf(similarityScoreOf({ similarity: nearest.similarity, ...scale }) * nearest.affinity)
 }
+
+const isLikedShow = (show) => Boolean(show && show.affinity >= LIKED_AFFINITY)
 
 const similarOf = ({ programme, key, context }) => {
   const { anchors, vectorOf, cosine, scale, cache } = context.similarity
