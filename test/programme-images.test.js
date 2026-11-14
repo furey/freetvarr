@@ -115,8 +115,8 @@ test('recordingPictureFor: a recording saves the picture of its airing', async (
 })
 
 test('recordingPictureFor: unknown and imageless airings save no picture, and are not asked again', async () => {
-  assert.deepEqual(await epg.recordingPictureFor({ eventId: '999' }), { image: null, settled: false, deferred: false, slowHost: false })
-  assert.deepEqual(await epg.recordingPictureFor({ eventId: '104' }), { image: null, settled: true, deferred: false, slowHost: false })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '999' }), { image: null, settled: false, deferred: false })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '104' }), { image: null, settled: true, deferred: false })
 })
 
 test('recordingPictureFor: an upstream answer that is not an image is no picture', async () => {
@@ -132,8 +132,8 @@ test('recordingPictureFor: a dead image link saves no picture of another airing;
 })
 
 test('recordingPictureFor: a stand-in picture is never saved for a recording', async () => {
-  assert.deepEqual(await epg.recordingPictureFor({ eventId: '107' }), { image: null, settled: true, deferred: false, slowHost: false })
-  assert.deepEqual(await epg.recordingPictureFor({ title: 'Big Brother', source: `${base}/img/814112_default_program_image.png` }), { image: null, settled: true, deferred: false, slowHost: false })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '107' }), { image: null, settled: true, deferred: false })
+  assert.deepEqual(await epg.recordingPictureFor({ title: 'Big Brother', source: `${base}/img/814112_default_program_image.png` }), { image: null, settled: true, deferred: false })
 })
 
 test('recordingPictureFor: a TVHeadend entry gone from the guide uses its own image and title', async () => {
@@ -175,45 +175,64 @@ test('createRecordingPictureRun: a host that times out is skipped for the rest o
   assert.deepEqual((await run.load('https://fast.example/c.jpg')).body, JPEG)
   assert.deepEqual(loads, ['https://slow.example/a.jpg', 'https://fast.example/c.jpg'])
   const skipped = await epg.recordingPictureFor({ eventId: '101', run: epg.createRecordingPictureRun({ load: async () => { throw Object.assign(new Error('recent'), { code: 'recent-failure' }) } }) })
-  assert.deepEqual(skipped, { image: null, settled: false, deferred: true, slowHost: false })
+  assert.deepEqual(skipped, { image: null, settled: false, deferred: true })
 })
 
-test('saveRecordingPicture: one slow TVHeadend image host does not hold back 20 recordings whose Freeview pictures load', async () => {
+const slowHostSaver = async ({ ownLoads = false } = {}) => {
   const imagecacheLoads = []
   const run = epg.createRecordingPictureRun({
     loadTimeoutMs: 30,
     load: (origin) => {
       if (!origin.startsWith('imagecache/')) return Promise.resolve({ body: JPEG, contentType: 'image/jpeg' })
       imagecacheLoads.push(origin)
-      return new Promise(() => {})
+      return ownLoads ? Promise.resolve({ body: Buffer.from(origin), contentType: 'image/jpeg' }) : new Promise(() => {})
     },
   })
   const { createArtResolver } = await import('../src/art-resolver.js')
   const resolver = createArtResolver({
     stages: {
+      'freeview-episode': async ({ title }) => ({ sources: title.endsWith('matched') ? [`guide-picture:episode-${title}`] : [] }),
       own: async ({ ownSource }) => ({ sources: [ownSource] }),
-      'freeview-show': async ({ title }) => ({ sources: [`guide-picture:fv-${title}`] }),
+      'freeview-show': async ({ title }) => ({ sources: [`guide-picture:show-${title}`] }),
     },
     store: { read: async () => null, write: async () => {}, markDue: async () => [], stamped: async () => [] },
     followUpDelaysMs: [],
   })
-  const saved = []
+  const saved = new Map()
+  const saveOf = ({ n, title = `Show ${n}`, lastAttempt = false }) => epg.saveRecordingPicture({
+    recordingId: `slow-${n}`,
+    title,
+    source: `imagecache/${n}`,
+    lastAttempt,
+    run,
+    resolver,
+    save: async ({ id, image }) => saved.set(id, image.body.toString()),
+  })
+  return { saveOf, saved, imagecacheLoads }
+}
+
+test('saveRecordingPicture: a slow TVHeadend image host saves no lower picture, holds no queue, and lets Freeview episode matches save at once', async () => {
+  const { saveOf, saved, imagecacheLoads } = await slowHostSaver()
   const startedAt = Date.now()
   const outcomes = []
-  for (let n = 0; n < 20; n += 1) {
-    outcomes.push(await epg.saveRecordingPicture({
-      recordingId: `slow-${n}`,
-      title: `Show ${n}`,
-      source: `imagecache/${n}`,
-      run,
-      resolver,
-      save: async ({ id }) => saved.push(id),
-    }))
-  }
-  assert.deepEqual(outcomes, Array(20).fill('saved'))
-  assert.equal(saved.length, 20)
+  for (let n = 0; n < 20; n += 1) outcomes.push(await saveOf({ n, title: n % 5 === 4 ? `Show ${n} matched` : `Show ${n}` }))
+  assert.ok(Date.now() - startedAt < 1000, `${Date.now() - startedAt} ms`)
+  assert.equal(outcomes[0], 'retry')
+  assert.deepEqual(outcomes.filter((outcome, n) => n % 5 === 4), Array(4).fill('saved'))
+  assert.deepEqual(outcomes.filter((outcome, n) => n > 0 && n % 5 !== 4), Array(15).fill('deferred'))
+  assert.deepEqual([...saved.keys()], ['slow-4', 'slow-9', 'slow-14', 'slow-19'])
+  assert.ok([...saved.values()].every((body) => body === JPEG.toString()))
   assert.deepEqual(imagecacheLoads, ['imagecache/0'])
-  assert.ok(Date.now() - startedAt < 1000)
+})
+
+test('saveRecordingPicture: the own image saves when its host answers in a later run; the last try saves the Freeview show copy', async () => {
+  const later = await slowHostSaver({ ownLoads: true })
+  assert.equal(await later.saveOf({ n: 1 }), 'saved')
+  assert.equal(later.saved.get('slow-1'), 'imagecache/1')
+  const lastTry = await slowHostSaver()
+  assert.equal(await lastTry.saveOf({ n: 2 }), 'retry')
+  assert.equal(await lastTry.saveOf({ n: 2, lastAttempt: true }), 'saved')
+  assert.equal(lastTry.saved.get('slow-2'), JPEG.toString())
 })
 
 test('getProgrammeThumbnail: unknown and imageless events give nothing; a known image comes back as a WebP thumbnail', async () => {

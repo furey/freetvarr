@@ -830,10 +830,9 @@ export const recordingPictureFor = async ({ eventId = null, title = null, source
   })
   const settled = !resolution.pending && !resolution.provisional
   const deferred = !settled && tracked.deferred()
-  const slowHost = !settled && tracked.slowHost()
-  if (!resolution.origin) return { image: null, settled, deferred, slowHost }
+  if (!resolution.origin) return { image: null, settled, deferred }
   const image = await run.load(resolution.origin).catch(() => null)
-  return { image, settled: settled && Boolean(image), deferred, slowHost }
+  return { image, settled: settled && Boolean(image), deferred }
 }
 
 export const createRecordingPictureRun = ({ load = (origin) => pictureGate.load(origin), loadTimeoutMs = RECORDING_PICTURE_LOAD_MS } = {}) => {
@@ -844,14 +843,14 @@ export const createRecordingPictureRun = ({ load = (origin) => pictureGate.load(
     const image = await resolveWithin(load(origin), loadTimeoutMs)
     if (image !== TIMED_OUT) return image
     skippedHosts.add(host)
-    throw Object.assign(new Error(`${host} did not answer within ${loadTimeoutMs} ms`), { code: SLOW_HOST_CODE })
+    throw new Error(`${host} did not answer within ${loadTimeoutMs} ms`)
   }
   return { load: loadWithin, skippedHosts }
 }
 
 export const saveRecordingPicture = async ({ recordingId, lastAttempt = false, findPicture = recordingPictureFor, save = saveArtwork, ...airing }) => {
-  const { image, settled, deferred = false, slowHost = false } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
-  if (image && (settled || slowHost || lastAttempt)) {
+  const { image, settled, deferred = false } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
+  if (image && (settled || lastAttempt)) {
     await save({ kind: 'recording', id: recordingId, image })
     return RECORDING_PICTURE_SAVED
   }
@@ -863,20 +862,16 @@ export const RECORDING_PICTURE_SAVED = 'saved'
 export const RECORDING_PICTURE_MISSED = 'missed'
 export const RECORDING_PICTURE_RETRY = 'retry'
 export const RECORDING_PICTURE_DEFERRED = 'deferred'
-const NO_RECORDING_PICTURE = { image: null, settled: false, deferred: false, slowHost: false }
+const NO_RECORDING_PICTURE = { image: null, settled: false, deferred: false }
 
 const trackedLoadsOf = (load) => {
   let deferred = false
-  let slowHost = false
   const tracked = (origin) => load(origin).catch((error) => {
     if (isDeferredLoad(error)) deferred = true
-    if (isSlowHostLoad(error)) slowHost = true
     throw error
   })
-  return { load: tracked, deferred: () => deferred, slowHost: () => slowHost }
+  return { load: tracked, deferred: () => deferred }
 }
-
-const isSlowHostLoad = (error) => error?.code === SLOW_HOST_CODE || error?.code === SKIPPED_HOST_CODE
 
 const isDeferredLoad = (error) => isRecentFailure(error) || error?.code === SKIPPED_HOST_CODE
 
@@ -1826,7 +1821,6 @@ const SHOW_IMAGE_BUDGET_MS = 3000
 const RECORDING_SAVE_BUDGET_MS = 10_000
 const RECORDING_PICTURE_LOAD_MS = 4000
 const SKIPPED_HOST_CODE = 'skipped-host'
-const SLOW_HOST_CODE = 'slow-host'
 const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')
