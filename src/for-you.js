@@ -448,7 +448,7 @@ const recordedEpisodesOf = ({ recordings, keyOf }) => {
   return keys
 }
 
-const genreTagsLookupOf = ({ records, airings }) => (programme) => {
+export const genreTagsLookupOf = ({ records, airings }) => (programme) => {
   const key = showKeyOf(programme.title)
   const record = records.get(key)
   const film = isFilmAiring({ programme, record, airingsInWeek: airings.get(key) || 1 })

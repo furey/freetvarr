@@ -33,7 +33,8 @@ const { identityOf, isHiddenSuggestion, menuOf, rowMenuOf, sectionsOf, categoryG
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 const NOW = Date.UTC(2026, 9, 20, 8, 0)
-const index = createCategoryIndex({ country: 'au' })
+const index = createCategoryIndex({ country: 'au', knownShows: { shows: {} } })
+const listed = createCategoryIndex({ country: 'au' })
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/for-you-category-vectors.json', import.meta.url), 'utf8'))
 
 const titleOfZone = (zone) => categoryCatalogueOf({ country: countryForTimeZone(zone) }).find((category) => category.key === 'local-life').title
@@ -144,49 +145,45 @@ test('kind gate: kids channels and OP-39 kids codes, sport, scripted and factual
   assert.equal(titleKindOf({}), 'unknown')
 })
 
-test('kind gate: fiction takes only fiction categories, kids take only Kids', () => {
-  const prototypes = new Map([['cooking-recipes', [axis(0)]], ['drama-family', [axis(1)]], ['reality-competition', [axis(2)]]])
-  const fiction = tagTitle({ index, facts: facts({ tvmazeType: 'Scripted' }), titleVector: blend([0, 0.9], [1, 0.5]), prototypes })
-  assert.deepEqual(fiction.entries.map((entry) => entry.facet), ['drama-family'])
+test('kind gate: fiction takes a format from its genres and no embedding topic, kids take only Kids', () => {
+  const prototypes = new Map([['cooking-recipes', [axis(0)]], ['nature-wildlife', [axis(1)]]])
+  const fiction = tagTitle({ index, facts: facts({ tvmazeType: 'Scripted', tvmazeGenres: ['Drama'] }), titleVector: blend([0, 0.9], [1, 0.5]), prototypes })
+  assert.deepEqual(fiction.entries.map((entry) => entry.group), ['drama'])
   const kids = tagTitle({ index, facts: facts({ genre: 0x50 }), titleVector: axis(0), prototypes })
   assert.deepEqual(kids.entries.map((entry) => entry.category), ['kids'])
 })
 
-test('a title takes one format and one topic at most, weighted by the 0.30 to 0.45 ramp', () => {
+test('embeddings give up to two topics above the 0.42 floor, and the format comes from rules and genres', () => {
   const prototypes = new Map([
-    ['reality-competition', [axis(0)]],
-    ['quiz-trivia', [axis(1)]],
     ['home-renovation', [axis(2)]],
     ['cooking-competition', [axis(3)]],
+    ['travel-journeys', [axis(4)]],
   ])
-  const tags = tagTitle({ index, facts: facts({ tvmazeType: 'Reality' }), titleVector: blend([0, 0.5], [1, 0.47], [2, 0.48], [3, 0.46]), prototypes })
-  assert.deepEqual(tags.entries.map((entry) => entry.category).sort(), ['home', 'reality'])
-  assert.ok(tags.entries.every((entry) => entry.member))
+  const tags = tagTitle({ index, facts: facts({ tvmazeType: 'Reality' }), titleVector: blend([2, 0.5], [3, 0.47], [4, 0.3]), prototypes })
+  assert.deepEqual(tags.entries.map((entry) => entry.group), ['reality', 'home', 'cooking'])
+  assert.equal(tags.entries[0].weight, 0.4)
   const sum = tags.entries.reduce((total, entry) => total + entry.weight, 0)
   assert.ok(Math.abs(sum - 1) < 1e-6)
-  const weak = tagTitle({ index, facts: facts({ tvmazeType: 'Reality' }), titleVector: blend([0, 0.36], [5, 0.9]), prototypes })
-  assert.equal(weak.entries.length, 1)
-  assert.ok(weak.entries[0].weight > 0.39 && weak.entries[0].weight < 0.41)
-  assert.equal(weak.entries[0].member, false)
+  const weak = tagTitle({ index, facts: facts({ tvmazeType: 'Reality' }), titleVector: blend([2, 0.4], [5, 0.9]), prototypes })
+  assert.deepEqual(weak.entries.map((entry) => [entry.group, entry.weight]), [['reality', 1]])
 })
 
-test('a far weaker second category is left out', () => {
-  const prototypes = new Map([['quiz-trivia', [axis(0)]], ['cooking-competition', [axis(1)]]])
-  const tags = tagTitle({ index, facts: facts({ tvmazeType: 'Game Show' }), titleVector: blend([0, 0.73], [1, 0.44]), prototypes })
-  assert.deepEqual(tags.entries.map((entry) => entry.category), ['quiz'])
+test('a far weaker second topic is left out, and a keyword topic needs no embedding', () => {
+  const prototypes = new Map([['home-renovation', [axis(0)]], ['cooking-competition', [axis(1)]]])
+  const tags = tagTitle({ index, facts: facts({ tvmazeType: 'Reality' }), titleVector: blend([0, 0.6], [1, 0.45]), prototypes })
+  assert.deepEqual(tags.entries.map((entry) => entry.group), ['reality', 'home'])
+  const keyword = tagTitle({ index, facts: facts({ title: 'Kitchen Heroes' }), titleVector: axis(0), prototypes })
+  assert.deepEqual(keyword.entries.map((entry) => entry.group), ['cooking'])
 })
 
-test('model vectors: The Block is home and reality, Love Island is reality dating, quiz shows are not cooking', () => {
+test('model vectors: My Kitchen Rules is cooking, The Block and House Rules stay under the floor, quiz shows take no topic', () => {
   assert.equal(fixture.catalogueVersion, CATEGORY_CATALOGUE_VERSION)
   const prototypes = new Map(Object.entries(fixture.prototypes).map(([key, list]) => [key, list.map(decoded)]))
-  const tagsOf = (title) => tagTitle({ index, facts: facts({ title, tvmazeType: 'Reality' }), titleVector: decoded(fixture.titles[title].vector), prototypes })
-  const block = tagsOf('The Block')
-  assert.deepEqual(block.entries.map((entry) => entry.category).sort(), ['home', 'reality'])
-  assert.equal(block.entries.find((entry) => entry.category === 'home').facet, 'home-renovation')
-  assert.deepEqual(tagsOf('Love Island Australia').entries.map((entry) => entry.facet), ['reality-dating'])
-  assert.equal(tagsOf('My Kitchen Rules').entries[0].facet, 'cooking-competition')
-  assert.ok(!tagsOf('Jeopardy!').entries.some((entry) => entry.category === 'cooking'))
-  assert.ok(!tagsOf('House Rules').entries.some((entry) => entry.category === 'cooking'))
+  const tagsOf = (title, tvmazeType = 'Reality') => tagTitle({ index, facts: facts({ title: 'Untitled', tvmazeType }), titleVector: decoded(fixture.titles[title].vector), prototypes })
+  assert.equal(tagsOf('My Kitchen Rules').entries.find((entry) => entry.slot === 'topic').facet, 'cooking-competition')
+  assert.deepEqual(tagsOf('The Block').entries.map((entry) => entry.group), ['reality'])
+  assert.deepEqual(tagsOf('House Rules').entries.map((entry) => entry.group), ['reality'])
+  assert.deepEqual(tagsOf('Jeopardy!', 'Game Show').entries.map((entry) => entry.group), ['quiz'])
 })
 
 test('sport titles: league before union, and fishing filed as sport goes to Fishing', () => {
@@ -207,7 +204,7 @@ test('sport titles: a sport code needs hard evidence, never the nearest prototyp
   const unknown = tagTitle({ index, facts: facts({ title: 'Iron Series', genreTags: ['sport'], channelNames: ['10 HD'] }), titleVector: nearLeague, prototypes })
   assert.equal(unknown.kind, 'sport')
   assert.equal(unknown.sportCode, null)
-  assert.ok(!unknown.entries.some((entry) => entry.category === 'sport'))
+  assert.deepEqual(unknown.entries.map((entry) => entry.group), ['other-sport'])
   const nrl = tagTitle({ index, facts: facts({ title: 'NRL: Storm v Panthers', genreTags: ['sport'] }), titleVector: blend([1, 0.6]), prototypes })
   assert.equal(nrl.sportCode, 'rugby-league')
   const factual = tagTitle({ index, facts: facts({ tvmazeType: 'Documentary' }), titleVector: blend([2, 0.6]), prototypes })
@@ -222,11 +219,11 @@ test('a motoring magazine with the guide category motor sport stays a motoring s
   assert.ok(magazine.entries.some((entry) => entry.facet === 'motoring'))
 })
 
-test('sport titles: a sport prototype never beats a non-sport category, and spearfishing is Fishing', () => {
+test('sport titles: Fishing needs a keyword, never a prototype, and spearfishing is Fishing', () => {
   const prototypes = new Map([['rugby-league', [axis(0)]], ['fishing', [axis(1)]]])
   const reef = tagTitle({ index, facts: facts({ title: 'Reef Hunters Championships', genreTags: ['sport'] }), titleVector: blend([0, 0.7], [1, 0.45]), prototypes })
   assert.equal(reef.sportCode, null)
-  assert.deepEqual(reef.entries.map((entry) => entry.facet), ['fishing'])
+  assert.deepEqual(reef.entries.map((entry) => entry.group), ['other-sport'])
   const spear = tagTitle({ index, facts: facts({ title: 'Spearfishing Championships', genreTags: ['sport'] }), titleVector: axis(0), prototypes })
   assert.deepEqual(spear.entries.map((entry) => entry.group), ['fishing'])
 })
@@ -253,6 +250,19 @@ test('basic tier: keyword and genre rules still tag titles', () => {
   assert.deepEqual(cooking.entries.map((entry) => entry.category), ['cooking'])
   const news = tagTitle({ index, facts: facts({ title: 'Seven News', genreTags: ['news'] }) })
   assert.equal(news.bulletin, true)
+})
+
+test('known shows: the list labels a title by exact key and wins over rules', () => {
+  const shark = tagTitle({ index: listed, facts: facts({ key: 'shark-tank', title: 'Shark Tank', tvmazeType: 'Reality' }) })
+  assert.deepEqual(shark.entries.map((entry) => entry.group), ['reality'])
+  const block = tagTitle({ index: listed, facts: facts({ key: 'the-block', title: 'The Block', tvmazeType: 'Reality' }) })
+  assert.deepEqual(block.entries.map((entry) => entry.group), ['reality', 'home'])
+})
+
+test('origin: the country token of the genre record is stored on the tags, never as a category', () => {
+  const tags = tagTitle({ index, facts: facts({ title: 'Kitchen Heroes', origin: 'gb' }) })
+  assert.equal(tags.origin, 'gb')
+  assert.ok(tags.entries.every((entry) => entry.group !== 'gb'))
 })
 
 test('affinity: record 3, watch 2, accepted 1, opened 0.5, counted once per episode', () => {

@@ -6,6 +6,7 @@ import { showTitleKey } from './show-artwork.js'
 import { FILM_MIN_MS } from './film-rule.js'
 import { MOVIE, NOT_MOVIE, ONE_OFF_KIND, SHOW_KIND, loadKindOverrides, withKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
+import { isLiveEventTitle } from './for-you-label-rules.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
 
@@ -87,7 +88,8 @@ export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) =>
   if (record?.kindOverride === MOVIE) return true
   if ([NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND].includes(record?.kindOverride)) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
-  if (record?.genreTags?.includes('movie')) return true
+  if (isLiveEventTitle(programme?.title)) return false
+  if (record?.genreTags?.includes('movie')) return !hasEpisodeDetails(programme)
   if (!isMovieLike(programme)) return false
   return genreTagsOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
 }

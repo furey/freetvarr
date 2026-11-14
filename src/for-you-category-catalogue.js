@@ -1,4 +1,4 @@
-export const CATEGORY_CATALOGUE_VERSION = 2
+export const CATEGORY_CATALOGUE_VERSION = 3
 
 export const categoryCatalogueOf = ({ country = '' } = {}) => {
   const place = countryNameOf(country)
@@ -81,139 +81,75 @@ const SPORT_LABELS = {
 const FACTUAL = ['factual', 'unknown']
 const FICTION = ['fiction', 'unknown']
 
+const format = ({ key, title, phrase = title.toLowerCase(), row = 'category', kinds, facets }) => ({ key, title, phrase, slot: 'format', row, kinds, facets })
+
+const topic = ({ key, title, phrase = title.toLowerCase(), row = 'category', kinds = FACTUAL, facets }) => ({ key, title, phrase, slot: 'topic', row, kinds, facets })
+
+const ruleFacet = (key, title) => ({ key, title, prototypes: [] })
+
 const CATALOGUE = [
-  {
+  format({
     key: 'reality',
     title: 'Reality',
-    phrase: 'reality',
-    slot: 'format',
-    row: 'category',
     kinds: FACTUAL,
-    facets: [
-      { key: 'reality-dating', title: 'Dating', prototypes: [
-        'Singles go on blind dates hoping to find love.',
-        'Strangers marry at first sight and test their relationships.',
-        'Islanders couple up in a villa, and the public votes for their favourite couple.',
-      ] },
-      { key: 'reality-competition', title: 'Reality competitions', prototypes: [
-        'Contestants compete in challenges and one is eliminated at the tribal council.',
-        'Celebrities take on a jungle challenge in a reality show as the public votes.',
-        'Couples compete to renovate houses, with judges scoring each room every week.',
-      ] },
-      { key: 'reality-life', title: 'Reality life', prototypes: [
-        'Cameras follow a famous family through the drama of their everyday lives.',
-        'Housemates live together under constant watch, and one is evicted each week.',
-        'A reality series about a group of friends, their parties, feuds and break-ups.',
-      ] },
-    ],
-  },
-  {
+    facets: [ruleFacet('reality-dating', 'Dating'), ruleFacet('reality-competition', 'Reality competitions'), ruleFacet('reality-life', 'Reality life')],
+  }),
+  format({
     key: 'quiz',
     title: 'Quiz and game shows',
     phrase: 'quiz and game show',
-    slot: 'format',
-    row: 'category',
     kinds: FACTUAL,
-    facets: [
-      { key: 'quiz-trivia', title: 'Quiz shows', prototypes: [
-        'Contestants answer trivia questions to win cash in a quiz show.',
-        'Contestants try to beat the chaser in a general knowledge quiz.',
-        'Teams answer questions on history, science and pop culture to win the quiz.',
-      ] },
-      { key: 'quiz-games', title: 'Game shows', prototypes: [
-        'Players spin the wheel and solve puzzles in a game show for prizes.',
-        'Contestants play games of luck and strategy to win the jackpot.',
-        'Families compete in a game show, guessing the most popular answers.',
-      ] },
-    ],
-  },
-  {
+    facets: [ruleFacet('quiz-trivia', 'Quiz shows'), ruleFacet('quiz-games', 'Game shows')],
+  }),
+  format({
     key: 'comedy',
     title: 'Comedy',
-    phrase: 'comedy',
-    slot: 'format',
-    row: 'category',
     kinds: [...FICTION, 'factual'],
-    facets: [
-      { key: 'comedy-sitcom', title: 'Sitcoms', kinds: FICTION, prototypes: [
-        'Sitcom about a family whose antics lead to hilarious misunderstandings.',
-        'Comedy series about friends sharing an apartment and their dating mishaps.',
-        'Workplace comedy about awkward coworkers in the office.',
-      ] },
-      { key: 'comedy-panel', title: 'Comedy panel shows', kinds: FACTUAL, prototypes: [
-        'Comedians compete on a comedy panel show with jokes and banter.',
-        'The host chats with celebrity guests on a late night talk show.',
-        'A satirical comedy show takes aim at the week in politics and advertising.',
-      ] },
-      { key: 'comedy-stand-up', title: 'Stand-up', kinds: FACTUAL, prototypes: [
-        'Stand-up comedy special from a comedy festival.',
-        'Comedians perform their best stand-up routines to a live audience.',
-        'A gala of the funniest comics on stage.',
-      ] },
-    ],
-  },
-  {
+    facets: [ruleFacet('comedy-sitcom', 'Sitcoms'), ruleFacet('comedy-panel', 'Comedy panel shows'), ruleFacet('comedy-stand-up', 'Stand-up')],
+  }),
+  format({
     key: 'drama',
     title: 'Drama',
-    phrase: 'drama',
-    slot: 'format',
-    row: 'category',
     kinds: FICTION,
-    facets: [
-      { key: 'drama-family', title: 'Family drama', prototypes: [
-        'Family secrets threaten to tear the family apart in this drama.',
-        'Soap opera: she confronts him about the affair while the town gossips.',
-        'A drama about relationships, love, betrayal and grief.',
-      ] },
-      { key: 'drama-period', title: 'Period drama', prototypes: [
-        'Period drama: aristocrats and servants at a grand estate in the 1900s.',
-        'A historical costume drama set in the nineteenth century.',
-        'Romance and scandal in the royal court in the eighteenth century.',
-      ] },
-      { key: 'drama-fantasy', title: 'Sci-fi and fantasy', prototypes: [
-        'A science fiction drama: a starship crew explores strange new worlds.',
-        'An epic fantasy of kingdoms, dragons, magic and war.',
-        'A supernatural thriller about a town where strange things happen.',
-      ] },
-      { key: 'drama-workplace', title: 'Medical and legal drama', prototypes: [
-        'Doctors juggle patients and their own relationships in a hospital drama.',
-        'Lawyers fight a high-stakes case in court in this legal drama.',
-        'Firefighters and paramedics face danger on the job and trouble at home in this drama.',
-      ] },
-    ],
-  },
-  {
+    facets: [ruleFacet('drama-family', 'Family drama'), ruleFacet('drama-period', 'Period drama'), ruleFacet('drama-fantasy', 'Sci-fi and fantasy'), ruleFacet('drama-workplace', 'Medical and legal drama')],
+  }),
+  format({
     key: 'crime-drama',
     title: 'Crime drama',
-    phrase: 'crime drama',
-    slot: 'format',
-    row: 'category',
     kinds: FICTION,
-    facets: [
-      { key: 'crime-drama-procedural', title: 'Police procedurals', prototypes: [
-        'Detectives investigate a murder and question suspects in this crime drama.',
-        'Fictional police procedural: the team hunts a killer as the case takes a twist.',
-        'Forensic investigators use evidence to solve a crime in this police series.',
-      ] },
-      { key: 'crime-drama-mystery', title: 'Mysteries', prototypes: [
-        'A detective inspector solves a mystery in a quiet village.',
-        'An amateur sleuth investigates a murder at a country house.',
-        'A whodunit: one of the guests is a killer.',
-      ] },
-      { key: 'crime-drama-thriller', title: 'Thrillers', prototypes: [
-        'A tense thriller about a spy hunting a traitor inside the agency.',
-        'A gangster crime family fights for control of the city.',
-        'A conspiracy thriller: a journalist uncovers a dangerous secret.',
-      ] },
-    ],
-  },
-  {
+    facets: [ruleFacet('crime-drama-procedural', 'Police procedurals'), ruleFacet('crime-drama-mystery', 'Mysteries'), ruleFacet('crime-drama-thriller', 'Thrillers')],
+  }),
+  format({
+    key: 'documentaries',
+    title: 'Documentaries',
+    phrase: 'documentary',
+    kinds: FACTUAL,
+    facets: [ruleFacet('documentaries', 'Documentaries')],
+  }),
+  format({
+    key: 'talk-shows',
+    title: 'Talk shows',
+    phrase: 'talk show',
+    kinds: FACTUAL,
+    facets: [ruleFacet('talk-shows', 'Talk shows')],
+  }),
+  format({
+    key: KIDS,
+    title: 'Kids',
+    row: 'none',
+    kinds: ['kids'],
+    facets: [ruleFacet('kids-shows', 'Kids')],
+  }),
+  format({
+    key: NEWS,
+    title: 'News',
+    row: 'none',
+    kinds: FACTUAL,
+    facets: [ruleFacet('news-bulletins', 'News')],
+  }),
+  topic({
     key: 'cooking',
     title: 'Cooking',
-    phrase: 'cooking',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'cooking-competition', title: 'Cooking competitions', prototypes: [
         'Amateur cooks race the clock to cook a dish, and the judges taste the food.',
@@ -231,14 +167,10 @@ const CATALOGUE = [
         'A food lover explores street food, markets and family recipes.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'home',
     title: 'Home and property',
-    phrase: 'home and property',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'home-renovation', title: 'Renovation', prototypes: [
         'Couples renovate rooms of their house, battling budgets and deadlines with builders and tradespeople.',
@@ -251,20 +183,22 @@ const CATALOGUE = [
         'Buyers bid at a property auction while sellers hope for a record price.',
         'Couples decide whether to love it or list it, choosing between houses on the market.',
       ] },
-      { key: 'home-garden', title: 'Gardening', prototypes: [
+    ],
+  }),
+  topic({
+    key: 'gardening',
+    title: 'Gardening',
+    facets: [
+      { key: 'gardening', title: 'Gardening', prototypes: [
         'Gardening experts show how to plant, prune and design a backyard garden.',
         'A garden makeover with new lawns, flower beds and outdoor living.',
         'Tips for growing vegetables, fruit trees and herbs at home.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'politics',
     title: 'Politics and current affairs',
-    phrase: 'politics and current affairs',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'politics-elections', title: 'Politics', prototypes: [
         'Politicians debate policy in parliament as the government faces pressure ahead of the election.',
@@ -277,14 +211,10 @@ const CATALOGUE = [
         'A panel of journalists discusses the big stories of the week.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'true-crime',
     title: 'True crime',
-    phrase: 'true crime',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'true-crime-cases', title: 'True crime', prototypes: [
         'The true story of a brutal murder and the detectives who tracked down the killer.',
@@ -292,34 +222,65 @@ const CATALOGUE = [
         'A convicted killer, a notorious serial murderer and the trial that shocked the nation.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'police-rescue',
     title: 'Police and rescue',
-    phrase: 'police and rescue',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'police-patrol', title: 'Police', prototypes: [
         'Police officers respond to calls, make arrests and chase offenders on the streets.',
         'Highway patrol officers pull over speeding drivers and attend crashes.',
         'Customs and border officers search luggage and question travellers at the airport.',
       ] },
-      { key: 'police-rescue-crews', title: 'Emergency and rescue', prototypes: [
-        'Paramedics, firefighters and rescue crews race to save lives in emergencies.',
+      { key: 'police-rescue-crews', title: 'Fire and rescue', prototypes: [
+        'Firefighters and rescue crews race to save people trapped by fire and floods.',
         'Lifeguards rescue swimmers caught in rips at a busy beach.',
-        'Rescue helicopter crews fly injured people to hospital.',
+        'Search and rescue crews look for lost hikers in the mountains.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
+    key: 'medical',
+    title: 'Medical',
+    facets: [
+      { key: 'medical', title: 'Medical', prototypes: [
+        'Doctors and nurses treat patients in the hospital emergency department.',
+        'Surgeons perform life-saving surgery while patients and families wait.',
+        'Paramedics treat trauma patients and rush them to hospital.',
+      ] },
+    ],
+  }),
+  topic({
+    key: 'health-and-lifestyle',
+    title: 'Health and lifestyle',
+    facets: [
+      { key: 'health-and-lifestyle', title: 'Health and lifestyle', prototypes: [
+        'Health experts explain diet, sleep, weight loss and how to live longer.',
+        'A personal trainer leads a workout to get fit and strong.',
+        'A wellbeing program with tips on mental health, relationships and self-care.',
+      ] },
+    ],
+  }),
+  topic({
+    key: 'science-and-technology',
+    title: 'Science and technology',
+    facets: [
+      { key: 'science-space', title: 'Space and science', prototypes: [
+        'Scientists explore space, planets, black holes and the universe.',
+        'Experiments explain physics, chemistry, the human brain and the climate.',
+        'Scientists study volcanoes, earthquakes and the forces that shape the planet.',
+      ] },
+      { key: 'science-technology', title: 'Technology', prototypes: [
+        'The science behind technology, inventions and discoveries.',
+        'Experts test new gadgets, computers, robots and artificial intelligence.',
+        'Inventors build machines and test ideas with experiments.',
+      ] },
+    ],
+  }),
+  topic({
     key: 'nature',
     title: 'Nature and animals',
     phrase: 'nature and animal',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'nature-wildlife', title: 'Wildlife', prototypes: [
         'Wild animals hunt and survive in the savannah, oceans and rainforests.',
@@ -332,14 +293,10 @@ const CATALOGUE = [
         'Animal rescue officers save neglected animals and find them new homes.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'travel',
     title: 'Travel',
-    phrase: 'travel',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'travel-destinations', title: 'Holidays and destinations', prototypes: [
         'The host travels through Italy, exploring towns, markets, local food and culture.',
@@ -352,20 +309,11 @@ const CATALOGUE = [
         'An adventurer travels on foot and by boat through wild places.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'history',
     title: 'History',
-    phrase: 'history',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
-      { key: 'history-war', title: 'War history', prototypes: [
-        'The history of the Second World War, its battles, generals and soldiers.',
-        'Veterans remember the battles of the First World War.',
-        'Military historians tell the story of a famous battle.',
-      ] },
       { key: 'history-ancient', title: 'Ancient history', prototypes: [
         'Historians explore ancient civilisations, pyramids, castles and lost cities.',
         'Archaeologists dig up the secrets of an ancient empire.',
@@ -377,59 +325,35 @@ const CATALOGUE = [
         'The untold story behind a famous historical event.',
       ] },
     ],
-  },
-  {
-    key: 'science',
-    title: 'Science and health',
-    phrase: 'science and health',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
+  }),
+  topic({
+    key: 'military-and-war',
+    title: 'Military and war',
     facets: [
-      { key: 'science-space', title: 'Space and science', prototypes: [
-        'Scientists explore space, planets, black holes and the universe.',
-        'The science and engineering behind technology, inventions and discoveries.',
-        'Experiments explain physics, chemistry, the human brain and the climate.',
-      ] },
-      { key: 'science-medical', title: 'Hospitals and health', prototypes: [
-        'Doctors and nurses treat patients in the hospital emergency department.',
-        'Surgeons perform life-saving surgery while patients and families wait.',
-        'Health experts explain illness, diet, weight loss and how to live longer.',
+      { key: 'military-and-war', title: 'Military and war', prototypes: [
+        'The history of the Second World War, its battles, generals and soldiers.',
+        'Veterans remember the battles of the First World War.',
+        'Soldiers, sailors and pilots train for combat on warships, tanks and fighter jets.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: LOCAL_LIFE,
     title: 'Local life',
-    phrase: 'local life',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'local-life-stories', title: 'Local stories', prototypes: [
-        'Inspiring stories of everyday people in towns and suburbs{in}.',
-        'A documentary about ordinary families and their lives{in}.',
-        'Local heroes, small businesses and community life{in}.',
+        'Everyday people tell their own stories of family, work and community{in}.',
+        'A documentary about ordinary families and how they live{in}.',
       ] },
       { key: 'local-life-rural', title: 'Rural life', prototypes: [
         'Farmers work the land, harvest crops and muster cattle on their farm{in}.',
-        'Life in country towns and regional communities{in}.',
-        'Agriculture and rural news for farmers and primary producers{in}.',
-      ] },
-      { key: 'local-life-first-peoples', title: 'First peoples', prototypes: [
-        'Indigenous people share their stories, languages and culture{in}.',
-        'First peoples, their history, land and traditions{in}.',
-        'Indigenous artists, elders and communities{in}.',
+        'Life in country towns and remote communities{in}.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: 'music-arts',
     title: 'Music and arts',
-    phrase: 'music and arts',
-    slot: 'topic',
-    row: 'category',
-    kinds: FACTUAL,
     facets: [
       { key: 'music-live', title: 'Music', prototypes: [
         'Live concert performance by singers and bands.',
@@ -442,204 +366,86 @@ const CATALOGUE = [
         'Ballet, opera and theatre performances on stage.',
       ] },
     ],
-  },
-  {
+  }),
+  topic({
+    key: 'entertainment-news',
+    title: 'Entertainment news',
+    facets: [
+      { key: 'entertainment-news', title: 'Entertainment news', prototypes: [
+        'Celebrity news and gossip from Hollywood, with red carpet interviews.',
+        'The latest entertainment headlines about film stars, music and television.',
+        'Interviews with the stars of new films and television shows.',
+      ] },
+    ],
+  }),
+  topic({
+    key: 'mystery-and-paranormal',
+    title: 'Mystery and paranormal',
+    facets: [
+      { key: 'mystery-and-paranormal', title: 'Mystery and paranormal', prototypes: [
+        'Investigators search a haunted house for ghosts and paranormal activity.',
+        'Unexplained mysteries, UFO sightings and strange phenomena.',
+        'A psychic medium connects people with loved ones who have died.',
+      ] },
+    ],
+  }),
+  topic({
+    key: 'engineering-and-machines',
+    title: 'Engineering and machines',
+    facets: [
+      { key: 'engineering-and-machines', title: 'Engineering and machines', prototypes: [
+        'Engineers build giant bridges, skyscrapers, tunnels and dams.',
+        'The biggest ships, planes, trains and machines in the world, and how they work.',
+        'Why great structures failed: an investigation into engineering disasters.',
+      ] },
+    ],
+  }),
+  topic({
+    key: 'business-and-money',
+    title: 'Business and money',
+    facets: [
+      { key: 'business-and-money', title: 'Business and money', prototypes: [
+        'Entrepreneurs pitch their business ideas to investors for money.',
+        'Small business owners share how they built their companies.',
+        'Advice on saving, investing, the share market and personal finance.',
+      ] },
+    ],
+  }),
+  topic({
     key: LIFESTYLE,
     title: 'Lifestyle',
-    phrase: 'lifestyle',
-    slot: 'topic',
     row: 'facet',
-    kinds: FACTUAL,
     facets: [
       { key: 'motoring', title: 'Motoring', prototypes: [
         'The hosts review new cars and test drive them on the road.',
         'Mechanics restore classic cars in the workshop.',
-        'Truck drivers haul loads across dangerous roads.',
+        'Car enthusiasts buy, fix up and sell used cars.',
       ] },
-      { key: 'fishing', title: 'Fishing', kinds: [...FACTUAL, 'sport'], prototypes: [
-        'Anglers go fishing for trout, snapper and marlin.',
-        'Fishing show with tips on catching fish from boats and beaches.',
-        'A fishing adventure in remote rivers, lakes and seas.',
-      ] },
+      { key: 'fishing', title: 'Fishing', kinds: [...FACTUAL, 'sport'], prototypes: [] },
       { key: 'antiques', title: 'Antiques', prototypes: [
         'Antique dealers hunt for collectables and haggle over prices.',
         'Pawn shop experts value rare items and make deals.',
         'Experts appraise family heirlooms and treasures.',
       ] },
-      { key: 'fitness', title: 'Fitness', prototypes: [
-        'A personal trainer leads a workout to get fit and strong.',
-        'Yoga, pilates and exercise routines to do at home.',
-        'Contestants lose weight with diet and exercise in a fitness challenge.',
-      ] },
     ],
-  },
-  {
+  }),
+  topic({
     key: SPORT,
     title: 'Sport',
-    phrase: 'sport',
-    slot: 'topic',
     row: 'sport',
     kinds: ['sport'],
-    facets: [
-      { key: 'afl', prototypes: [
-        'AFL match: Australian rules football live.',
-        'AFL footy talk with players, coaches and clubs.',
-        'AFLW women\'s Australian rules football match.',
-      ] },
-      { key: 'rugby-league', prototypes: [
-        'NRL rugby league match live.',
-        'State of Origin rugby league.',
-        'Rugby league World Cup match.',
-      ] },
-      { key: 'rugby-union', prototypes: [
-        'Rugby union test match between two national teams.',
-        'Super Rugby match live.',
-        'Six Nations rugby union.',
-      ] },
-      { key: 'cricket', prototypes: [
-        'Live cricket: a Test match between two nations.',
-        'One day international and T20 cricket.',
-        'Twenty20 cricket league match.',
-      ] },
-      { key: 'soccer', prototypes: [
-        'Live football: a league soccer match.',
-        'English Premier League soccer.',
-        'National soccer teams play in a World Cup qualifier.',
-      ] },
-      { key: 'american-football', prototypes: [
-        'NFL American football game live.',
-        'College football game.',
-        'The Super Bowl.',
-      ] },
-      { key: 'tennis', prototypes: [
-        'Live tennis from a grand slam tournament.',
-        'Wimbledon tennis championship.',
-        'ATP and WTA tennis match.',
-      ] },
-      { key: 'motorsport', prototypes: [
-        'Live touring car race.',
-        'Formula 1 grand prix race.',
-        'MotoGP motorcycle race.',
-      ] },
-      { key: 'horse-racing', prototypes: [
-        'Live horse racing from the racecourse.',
-        'Thoroughbred racing: the big cup race.',
-        'Harness racing: trotters and pacers race at the track.',
-      ] },
-      { key: 'greyhound-racing', prototypes: [
-        'Live greyhound racing from the track.',
-        'Greyhound racing: the dogs chase the lure.',
-        'A big night of greyhound racing.',
-      ] },
-      { key: 'rodeo', prototypes: [
-        'Professional bull riding: cowboys ride bucking bulls.',
-        'Rodeo: bull riding, bronc riding and barrel racing.',
-        'Campdraft: riders work cattle on horseback.',
-      ] },
-      { key: 'golf', prototypes: [
-        'Live golf from the PGA tour.',
-        'Golf tournament final round.',
-        'A major golf championship.',
-      ] },
-      { key: 'netball', prototypes: [
-        'Live netball league match.',
-        'Netball World Cup.',
-        'Super Netball match.',
-      ] },
-      { key: 'basketball', prototypes: [
-        'NBA basketball game live.',
-        'National basketball league game.',
-        'Basketball playoffs.',
-      ] },
-      { key: 'baseball', prototypes: [
-        'MLB baseball game live.',
-        'Baseball World Series.',
-        'Baseball game: pitchers and home runs.',
-      ] },
-      { key: 'ice-hockey', prototypes: [
-        'NHL ice hockey game live.',
-        'Ice hockey playoffs.',
-        'Hockey night: ice hockey game.',
-      ] },
-      { key: 'cycling', prototypes: [
-        'Tour de France cycling stage.',
-        'Road cycling race through the mountains.',
-        'Track cycling championship.',
-      ] },
-      { key: 'combat-sports', prototypes: [
-        'UFC mixed martial arts fight night.',
-        'World title boxing bout.',
-        'Kickboxing and bare knuckle fighting.',
-      ] },
-      { key: 'surfing', prototypes: [
-        'WSL championship tour surfing event.',
-        'Surfers ride big waves in a surfing contest.',
-        'Surf league competition at the beach.',
-      ] },
-      { key: 'swimming', prototypes: [
-        'Swimming championships: freestyle and relay finals.',
-        'Swim GP racing in the pool.',
-        'Diving championships from the pool.',
-      ] },
-      { key: 'other-sport', prototypes: [
-        'Live sport: athletics, swimming and gymnastics.',
-        'Sports news and highlights from the weekend.',
-        'Olympic Games and Commonwealth Games events.',
-      ] },
-    ],
-  },
-  {
-    key: NEWS,
-    title: 'News',
-    phrase: 'news',
-    slot: 'topic',
-    row: 'none',
-    kinds: FACTUAL,
-    facets: [
-      { key: 'news-bulletins', title: 'News', prototypes: [
-        'The latest news headlines from home and around the world, with sport and weather.',
-        'Breaking news, national and international stories.',
-        'Morning news program with headlines, finance and weather updates.',
-      ] },
-    ],
-  },
-  {
-    key: KIDS,
-    title: 'Kids',
-    phrase: 'kids',
-    slot: 'topic',
-    row: 'none',
-    kinds: ['kids'],
-    facets: [
-      { key: 'kids-shows', title: 'Kids', prototypes: [
-        'Animated cartoon for preschoolers about friends who learn and play together.',
-        'Children\'s series where kids go on fun adventures.',
-        'Cartoon adventures with talking animals for children.',
-      ] },
-    ],
-  },
-  {
+    facets: Object.keys(SPORT_LABELS).map((code) => ({ key: code, prototypes: [] })),
+  }),
+  topic({
     key: 'shopping',
     title: 'Shopping',
-    phrase: 'shopping',
-    slot: 'topic',
     row: 'none',
-    kinds: FACTUAL,
-    facets: [
-      { key: 'shopping-offers', title: 'Shopping', prototypes: [
-        'Shopping channel presents products for sale with special offers; call now to order.',
-        'Infomercial: buy this product today at a low price.',
-        'Hosts present beauty, fashion and kitchen products to buy.',
-      ] },
-    ],
-  },
-  {
+    facets: [ruleFacet('shopping-offers', 'Shopping')],
+  }),
+  topic({
     key: 'religion',
     title: 'Religion',
-    phrase: 'religion',
-    slot: 'topic',
     row: 'none',
-    kinds: FACTUAL,
     facets: [
       { key: 'religion-faith', title: 'Religion', prototypes: [
         'Church service with hymns, prayer and a sermon.',
@@ -647,5 +453,5 @@ const CATALOGUE = [
         'Religious program about God, belief and worship.',
       ] },
     ],
-  },
+  }),
 ]
