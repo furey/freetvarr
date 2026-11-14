@@ -25,7 +25,7 @@ export const showKeyFrom = (raw) => {
 export const withKindOverrides = ({ records, overrides }) => {
   const merged = new Map(records)
   for (const [key, kindOverride] of overrides) {
-    merged.set(key, { categories: [], genres: [], source: null, ...merged.get(key), kindOverride })
+    merged.set(key, { genreTags: [], genres: [], source: null, ...merged.get(key), kindOverride })
   }
   return merged
 }

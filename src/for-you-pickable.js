@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, categoriesOfEtsi, isFilmAiring, keywordCategoriesOf } from './genre-enrichment.js'
+import { GENRE_TAG_LABELS, genreTagsOfEtsi, isFilmAiring, keywordGenreTagsOf } from './genre-enrichment.js'
 import { isInfomercial } from './for-you.js'
 import { showKeyOf } from './web/show-key.js'
 
@@ -11,8 +11,8 @@ export const pickableShowsOf = ({ programmes = [], genresByKey = new Map(), pinn
     if (!(Number(programme.end) > nowMs) || Number(programme.start) > nowMs + WEEK_MS) continue
     if (isInfomercial(programme) || isFilmAiring({ programme, record: genresByKey.get(showKeyOf(programme.title)) })) continue
     const key = showKeyOf(programme.title)
-    const categories = [...new Set([...(genresByKey.get(key)?.categories || []), ...categoriesOfEtsi(programme.genre), ...keywordCategoriesOf(programme.title)])]
-    if (categories.some((category) => SKIPPED.has(category))) continue
+    const genreTags = [...new Set([...(genresByKey.get(key)?.genreTags || []), ...genreTagsOfEtsi(programme.genre), ...keywordGenreTagsOf(programme.title)])]
+    if (genreTags.some((category) => SKIPPED.has(category))) continue
     const hour = hourOf(Number(programme.start))
     const weight = (hour >= 18 && hour < 22 ? 2 : 0.3) + (pinned.has(String(programme.channel_id)) ? 1 : 0)
     const known = byKey.get(key)
@@ -22,7 +22,7 @@ export const pickableShowsOf = ({ programmes = [], genresByKey = new Map(), pinn
       if (!known.programme.image && programme.image) known.programme = programme
       continue
     }
-    byKey.set(key, { key, programme, categories, weight, airings: 1 })
+    byKey.set(key, { key, programme, genreTags, weight, airings: 1 })
   }
   return [...byKey.values()]
     .filter((entry) => entry.programme.image)
@@ -33,7 +33,7 @@ export const pickableShowsOf = ({ programmes = [], genresByKey = new Map(), pinn
       seriesKey: entry.key,
       title: entry.programme.title,
       image: `/api/epg/image/${encodeURIComponent(entry.programme.program_id)}`,
-      genres: entry.categories.filter((category) => category !== 'movie').map((category) => CATEGORY_LABELS[category] || category),
+      genres: entry.genreTags.filter((category) => category !== 'movie').map((category) => GENRE_TAG_LABELS[category] || category),
     }))
 }
 

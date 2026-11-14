@@ -17,12 +17,12 @@ const FISHING = { key: 'fishing', title: 'Fishing', phrase: 'fishing' }
 const LEAGUE = { key: 'rugby-league', title: 'Rugby league', phrase: 'Rugby league', sport: true }
 const TASTE = {
   hiddenShows: [],
-  hiddenThemes: [],
+  hiddenCategories: [],
   showAffinity: { ifish: 0.6 },
-  themeShares: {},
+  categoryShares: {},
   titles: {
-    ifish: { kind: 'sport', sportCode: 'rugby-league', theme: LEAGUE },
-    'the-catch': { kind: 'sport', sportCode: null, theme: FISHING },
+    ifish: { kind: 'sport', sportCode: 'rugby-league', category: LEAGUE },
+    'the-catch': { kind: 'sport', sportCode: null, category: FISHING },
   },
 }
 const entryOf = ({ id, title }) => ({
@@ -31,7 +31,7 @@ const entryOf = ({ id, title }) => ({
 })
 
 test('taste store: keeps the last taste when no new result is ready', async () => {
-  const store = createTasteStore({ readHidden: async () => ({ shows: [], themes: [] }) })
+  const store = createTasteStore({ readHidden: async () => ({ shows: [], categories: [] }) })
   store.note({ taste: TASTE })
   store.note(null)
   store.note({ sections: [] })
@@ -39,21 +39,21 @@ test('taste store: keeps the last taste when no new result is ready', async () =
 })
 
 test('taste store: a hide applies at once, even while the For you result is stale', async () => {
-  const hidden = { shows: [], themes: [] }
+  const hidden = { shows: [], categories: [] }
   const store = createTasteStore({ readHidden: async () => hidden })
   store.note({ taste: TASTE })
   const entries = [entryOf({ id: 1, title: 'iFish' }), entryOf({ id: 2, title: 'NRL Live' })]
-  const titles = { ...TASTE.titles, 'nrl-live': { kind: 'sport', sportCode: 'rugby-league', theme: LEAGUE } }
+  const titles = { ...TASTE.titles, 'nrl-live': { kind: 'sport', sportCode: 'rugby-league', category: LEAGUE } }
   const pick = async () => onNowPickOf({ entries, taste: { ...(await store.current()), titles }, nowMs: NOW })?.now.title ?? null
   assert.equal(await pick(), 'iFish')
   hidden.shows = ['ifish']
   assert.equal(await pick(), 'NRL Live')
-  hidden.themes = ['rugby-league']
+  hidden.categories = ['rugby-league']
   assert.equal(await pick(), null)
 })
 
 test('taste store: falls back to the saved result, then to a taste with no titles', async () => {
-  const fromPeek = createTasteStore({ readHidden: async () => ({ shows: ['x'], themes: [] }), peek: () => ({ taste: TASTE }) })
+  const fromPeek = createTasteStore({ readHidden: async () => ({ shows: ['x'], categories: [] }), peek: () => ({ taste: TASTE }) })
   assert.deepEqual((await fromPeek.current()).hiddenShows, ['x'])
   assert.deepEqual((await fromPeek.current()).titles, TASTE.titles)
   const empty = createTasteStore({ readHidden: async () => { throw new Error('db busy') } })
@@ -64,17 +64,17 @@ test('taste store: falls back to the saved result, then to a taste with no title
 })
 
 test('withHiddenNow: the current hidden keys win, so an unhide applies before the next For you result', () => {
-  const saved = { ...TASTE, hiddenShows: ['ifish', 'a'], hiddenThemes: ['fishing'] }
-  const merged = withHiddenNow({ taste: saved, hidden: { shows: ['a', 'b', 'b'], themes: ['cooking'] } })
+  const saved = { ...TASTE, hiddenShows: ['ifish', 'a'], hiddenCategories: ['fishing'] }
+  const merged = withHiddenNow({ taste: saved, hidden: { shows: ['a', 'b', 'b'], categories: ['cooking'] } })
   assert.deepEqual(merged.hiddenShows, ['a', 'b'])
-  assert.deepEqual(merged.hiddenThemes, ['cooking'])
+  assert.deepEqual(merged.hiddenCategories, ['cooking'])
 })
 
 test('withHiddenNow: keeps the saved hidden keys when the current ones cannot be read', () => {
-  const saved = { ...TASTE, hiddenShows: ['ifish'], hiddenThemes: ['fishing'] }
+  const saved = { ...TASTE, hiddenShows: ['ifish'], hiddenCategories: ['fishing'] }
   const merged = withHiddenNow({ taste: saved, hidden: null })
   assert.deepEqual(merged.hiddenShows, ['ifish'])
-  assert.deepEqual(merged.hiddenThemes, ['fishing'])
+  assert.deepEqual(merged.hiddenCategories, ['fishing'])
 })
 
 test('Fewer like this undo has its own event kind, logged even with history paused', () => {

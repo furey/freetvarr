@@ -6,13 +6,13 @@ import path from 'node:path'
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-genres-${process.pid}.db`)
 
 const {
-  categoriesOfEtsi,
-  categoriesOfFilmGenres,
-  categoriesOfTvmaze,
+  genreTagsOfEtsi,
+  genreTagsOfFilmGenres,
+  genreTagsOfTvmaze,
   createGenreEnrichment,
   filmRowsOf,
   isMovieLike,
-  keywordCategoriesOf,
+  keywordGenreTagsOf,
   lookupOrderOf,
   pickFilm,
   pickTvmazeShow,
@@ -21,36 +21,36 @@ const {
 
 const show = (name, extra = {}) => ({ show: { id: name.length, name, genres: [], type: 'Scripted', ...extra } })
 
-test('maps TVmaze genres and types to categories', () => {
-  assert.deepEqual(categoriesOfTvmaze({ genres: ['Food'], type: 'Reality' }), ['reality', 'food'])
-  assert.deepEqual(categoriesOfTvmaze({ genres: ['DIY'], type: 'Reality' }), ['reality', 'home'])
-  assert.deepEqual(categoriesOfTvmaze({ genres: ['Crime', 'Drama'], type: 'Scripted' }), ['drama', 'crime'])
-  assert.deepEqual(categoriesOfTvmaze({ genres: ['History'], type: 'Documentary' }), ['documentary'])
-  assert.deepEqual(categoriesOfTvmaze({ genres: ['Children', 'Comedy'], type: 'Animation' }), ['comedy', 'kids'])
-  assert.deepEqual(categoriesOfTvmaze({ genres: [], type: 'Game Show' }), ['quiz'])
-  assert.deepEqual(categoriesOfTvmaze({ genres: ['Science-Fiction'], type: 'Scripted' }), ['sci-fi'])
+test('maps TVmaze genres and types to genreTags', () => {
+  assert.deepEqual(genreTagsOfTvmaze({ genres: ['Food'], type: 'Reality' }), ['reality', 'food'])
+  assert.deepEqual(genreTagsOfTvmaze({ genres: ['DIY'], type: 'Reality' }), ['reality', 'home'])
+  assert.deepEqual(genreTagsOfTvmaze({ genres: ['Crime', 'Drama'], type: 'Scripted' }), ['drama', 'crime'])
+  assert.deepEqual(genreTagsOfTvmaze({ genres: ['History'], type: 'Documentary' }), ['documentary'])
+  assert.deepEqual(genreTagsOfTvmaze({ genres: ['Children', 'Comedy'], type: 'Animation' }), ['comedy', 'kids'])
+  assert.deepEqual(genreTagsOfTvmaze({ genres: [], type: 'Game Show' }), ['quiz'])
+  assert.deepEqual(genreTagsOfTvmaze({ genres: ['Science-Fiction'], type: 'Scripted' }), ['sci-fi'])
 })
 
 test('maps Wikidata film genres to movie subgenres', () => {
-  assert.deepEqual(categoriesOfFilmGenres(['action film', 'science fiction film']), ['movie', 'movie-action', 'movie-sci-fi'])
-  assert.deepEqual(categoriesOfFilmGenres(['romantic comedy']), ['movie', 'movie-comedy', 'movie-romance'])
-  assert.deepEqual(categoriesOfFilmGenres([]), ['movie'])
+  assert.deepEqual(genreTagsOfFilmGenres(['action film', 'science fiction film']), ['movie', 'movie-action', 'movie-sci-fi'])
+  assert.deepEqual(genreTagsOfFilmGenres(['romantic comedy']), ['movie', 'movie-comedy', 'movie-romance'])
+  assert.deepEqual(genreTagsOfFilmGenres([]), ['movie'])
 })
 
 test('maps ETSI content bytes', () => {
-  assert.deepEqual(categoriesOfEtsi(0x14), ['comedy', 'movie', 'movie-comedy'])
-  assert.deepEqual(categoriesOfEtsi(0x23), ['news'])
-  assert.deepEqual(categoriesOfEtsi(0x43), ['sport'])
-  assert.deepEqual(categoriesOfEtsi(0xa5), ['food'])
-  assert.deepEqual(categoriesOfEtsi(null), [])
+  assert.deepEqual(genreTagsOfEtsi(0x14), ['comedy', 'movie', 'movie-comedy'])
+  assert.deepEqual(genreTagsOfEtsi(0x23), ['news'])
+  assert.deepEqual(genreTagsOfEtsi(0x43), ['sport'])
+  assert.deepEqual(genreTagsOfEtsi(0xa5), ['food'])
+  assert.deepEqual(genreTagsOfEtsi(null), [])
 })
 
 test('falls back to keywords for news and sport titles', () => {
-  assert.deepEqual(keywordCategoriesOf('Nine News Sydney'), ['news'])
-  assert.deepEqual(keywordCategoriesOf('Seven News At 4'), ['news'])
-  assert.deepEqual(keywordCategoriesOf('AFL Grand Final'), ['sport'])
-  assert.deepEqual(keywordCategoriesOf('Cricket: Australia v India'), ['sport'])
-  assert.deepEqual(keywordCategoriesOf('The Block'), [])
+  assert.deepEqual(keywordGenreTagsOf('Nine News Sydney'), ['news'])
+  assert.deepEqual(keywordGenreTagsOf('Seven News At 4'), ['news'])
+  assert.deepEqual(keywordGenreTagsOf('AFL Grand Final'), ['sport'])
+  assert.deepEqual(keywordGenreTagsOf('Cricket: Australia v India'), ['sport'])
+  assert.deepEqual(keywordGenreTagsOf('The Block'), [])
 })
 
 test('accepts only exact normalised title matches and prefers Australian shows', () => {
@@ -119,7 +119,7 @@ test('enrichment caches hits for 30 days and misses for 7', async () => {
   const result = await enrichment.run({ titles: [{ title: 'The Block' }, { title: 'Unknown Thing' }] })
   assert.deepEqual(result, { looked: 2, found: 1 })
   const day = 24 * 60 * 60 * 1000
-  assert.deepEqual(writes.map((row) => [row.key, row.categories, row.expiresAt / day]), [
+  assert.deepEqual(writes.map((row) => [row.key, row.genreTags, row.expiresAt / day]), [
     ['the-block', ['reality', 'home'], 30],
     ['unknown-thing', [], 7],
   ])
@@ -138,8 +138,8 @@ test('films are never TVmaze series, short ETSI drama, or weekly strips', async 
   assert.equal(isFilmAiring({ programme: long, airingsInWeek: 5 }), false)
   assert.equal(isFilmAiring({ programme: { ...long, genre: 0x10 }, airingsInWeek: 5 }), true)
   assert.equal(isFilmAiring({ programme: { start: 0, end: hour / 2, genre: 0x14 } }), false)
-  assert.equal(isFilmAiring({ programme: long, record: { categories: ['comedy'], source: 'tvmaze:1' } }), false)
-  assert.equal(isFilmAiring({ programme: { start: 0, end: hour }, record: { categories: ['movie'], source: 'wikidata:Q1' } }), true)
+  assert.equal(isFilmAiring({ programme: long, record: { genreTags: ['comedy'], source: 'tvmaze:1' } }), false)
+  assert.equal(isFilmAiring({ programme: { start: 0, end: hour }, record: { genreTags: ['movie'], source: 'wikidata:Q1' } }), true)
 })
 
 test('long news and sport one-offs are never films unless a film record says so', async () => {
@@ -153,7 +153,7 @@ test('long news and sport one-offs are never films unless a film record says so'
   assert.equal(isFilmAiring({ programme: keywordOnly }), false)
   assert.equal(isMovieLike(keywordOnly), false)
   assert.equal(isFilmAiring({ programme: electionNight }), false)
-  assert.equal(isFilmAiring({ programme: soccer, record: { categories: ['movie', 'movie-drama'], source: 'wikidata:Q1' } }), true)
+  assert.equal(isFilmAiring({ programme: soccer, record: { genreTags: ['movie', 'movie-drama'], source: 'wikidata:Q1' } }), true)
 })
 
 test('a title seen as a recording and as a film airing is looked up as a film', () => {

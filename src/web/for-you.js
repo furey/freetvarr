@@ -65,10 +65,10 @@ export const isMovie = (item) => kindOf(item) === 'movie'
 
 export const identityOf = (item) => item.seriesKey || showKeyOf(item.title)
 
-export const themeHiddenKeyOf = (themeKey) => `theme:${themeKey}`
+export const categoryHiddenKeyOf = (categoryKey) => `category:${categoryKey}`
 
 export const isHiddenSuggestion = ({ item, hiddenKeys }) => hiddenKeys.has(identityOf(item))
-  || Boolean(item.theme?.key && hiddenKeys.has(themeHiddenKeyOf(item.theme.key)))
+  || Boolean(item.category?.key && hiddenKeys.has(categoryHiddenKeyOf(item.category.key)))
 
 export const scheduleKeyOf = ({ channelId, startMs }) => `${channelId}@${Math.round(startMs / 60_000)}`
 
@@ -87,7 +87,7 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
   return orderedSections(payload?.sections)
     .map((section) => {
       const seen = section.key === READY_SECTION ? seenRecordings : seenAirings
-      const perAiring = Boolean(section.theme?.sport || section.theme?.seasonal)
+      const perAiring = Boolean(section.category?.sport || section.category?.seasonal)
       const items = (section.items ?? []).filter((item) => {
         const identity = perAiring ? `airing:${item.id}` : identityOf(item)
         if (isHiddenSuggestion({ item, hiddenKeys }) || seen.has(identity)) return false
@@ -99,7 +99,7 @@ export const sectionsOf = ({ payload, scheduledKeys = new Set(), hiddenKeys = ne
         title: section.title || SECTION_TITLES[section.key] || 'For you',
         sortedByAirTime: section.key === 'coming-up',
         credit: creditOf(section.credit),
-        theme: themeOf(section.theme),
+        category: categoryOf(section.category),
         rows: rowsOf(scheduledLast({ items, scheduledKeys })),
       }
     })
@@ -202,7 +202,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   ].filter(Boolean)
   const more = [
     { key: 'not-interested', label: dislikeLabelsOf({ kind: programmeKindOfItem(item) }).show, icon: 'hide' },
-    item.theme?.key && { key: 'fewer-theme', label: dislikeLabelsOf({ theme: item.theme }).theme, icon: 'hide' },
+    item.category?.key && { key: 'hide-category', label: dislikeLabelsOf({ category: item.category }).category, icon: 'hide' },
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)
@@ -379,26 +379,26 @@ export const doneLabelOf = (count) => (count ? `Done · ${count} picked` : 'Done
 
 export const programmeKindOfItem = (item) => item?.programmeKind ?? (item?.kind === 'movie' ? 'movie' : null)
 
-export const dislikeLabelsOf = ({ kind = null, theme = null }) => ({
+export const dislikeLabelsOf = ({ kind = null, category = null }) => ({
   show: `Hide this ${programmeNounOf(kind)}`,
-  theme: theme ? `Hide ${themeShowsOf(theme)}` : null,
+  category: category ? `Hide ${categoryShowsOf(category)}` : null,
 })
 
-export const themeShowsOf = (theme) => {
-  const key = theme?.key ?? theme?.themeKey
+export const categoryShowsOf = (category) => {
+  const key = category?.key ?? category?.categoryKey
   if (key === 'sport') return 'sport shows'
-  const name = String(theme?.title || '').replace(/ shows$/i, '')
+  const name = String(category?.title || '').replace(/ shows$/i, '')
   if (/^life in /i.test(name)) return `shows about ${sentenceCaseOf(name)}`
-  return `${theme?.seasonal ? name : sentenceCaseOf(name)} shows`
+  return `${category?.seasonal ? name : sentenceCaseOf(name)} shows`
 }
 
-export const hiddenThemeTitleOf = (theme) => capitalisedOf(themeShowsOf(theme))
+export const hiddenCategoryTitleOf = (category) => capitalisedOf(categoryShowsOf(category))
 
 export const programmeHiddenToastOf = (kind) => `This ${programmeNounOf(kind)} is hidden for 90 days`
 
-export const themeHiddenToastOf = (theme) => (theme.seasonal
-  ? `${hiddenThemeTitleOf(theme)} are hidden until next ${theme.title}`
-  : `${hiddenThemeTitleOf(theme)} are hidden for 90 days`)
+export const categoryHiddenToastOf = (category) => (category.seasonal
+  ? `${hiddenCategoryTitleOf(category)} are hidden until next ${category.title}`
+  : `${hiddenCategoryTitleOf(category)} are hidden for 90 days`)
 
 const programmeNounOf = (kind) => (kind === 'movie' ? 'film' : 'show')
 
@@ -408,25 +408,25 @@ const sentenceCaseOf = (name) => (PROPER_LEADS.test(name) || !/^[A-Z][a-z]/.test
 
 const PROPER_LEADS = /^(Australian|American|British|English|Irish|Scottish|Welsh|New Zealand)\b/
 
-export const themeGroupsOf = (themes = []) => [
-  { label: 'Themes', themes: themes.filter((theme) => !theme.sport && !theme.seasonal) },
-  { label: 'Sport', themes: themes.filter((theme) => theme.sport) },
-  { label: 'Seasonal', themes: themes.filter((theme) => theme.seasonal) },
-].filter((group) => group.themes.length)
+export const categoryGroupsOf = (categories = []) => [
+  { label: 'Categories', categories: categories.filter((category) => !category.sport && !category.seasonal) },
+  { label: 'Sport', categories: categories.filter((category) => category.sport) },
+  { label: 'Seasonal', categories: categories.filter((category) => category.seasonal) },
+].filter((group) => group.categories.length)
 
-export const themesOnCountOf = (themes = []) => `${themes.filter((theme) => theme.on).length} of ${themes.length}`
+export const categoriesOnCountOf = (categories = []) => `${categories.filter((category) => category.on).length} of ${categories.length}`
 
-export const themeBoostedToastOf = (theme) => `More ${theme.title} suggestions from now on`
+export const categoryBoostedToastOf = (category) => `More ${category.title} suggestions from now on`
 
-export const rowMenuOf = (theme) => [
-  !theme.seasonal && { key: 'boost-theme', label: `More ${theme.title}`, icon: 'more' },
-  { key: 'mute-theme', label: dislikeLabelsOf({ theme }).theme, icon: 'hide' },
+export const rowMenuOf = (category) => [
+  !category.seasonal && { key: 'boost-category', label: `More ${category.title}`, icon: 'more' },
+  { key: 'hide-category', label: dislikeLabelsOf({ category }).category, icon: 'hide' },
 ].filter(Boolean)
 
-export const themeFeedbackOf = ({ kind, theme, source }) => ({
+export const categoryFeedbackOf = ({ kind, category, source }) => ({
   kind,
-  series_key: `theme-${theme.key}`,
-  title: theme.title,
+  series_key: `category-${category.key}`,
+  title: category.title,
   source,
 })
 
@@ -500,27 +500,27 @@ const orderedSections = (sections = []) => [...sections].sort((a, b) => rankOf(a
 
 const rankOf = (key) => {
   if (isSeasonalSection(key)) return SECTION_ORDER.indexOf(SEASONAL_AFTER) + 0.5
-  if (isThemeSection(key)) return SECTION_ORDER.indexOf(THEMES_AFTER) + 0.5
+  if (isCategorySection(key)) return SECTION_ORDER.indexOf(CATEGORIES_AFTER) + 0.5
   const index = SECTION_ORDER.indexOf(key)
   return index < 0 ? SECTION_ORDER.length : index
 }
 
-const themeOf = (theme) => (theme?.key
+const categoryOf = (category) => (category?.key
   ? {
-    key: theme.key,
-    title: theme.title,
-    phrase: theme.phrase,
-    ...(theme.sport && { sport: true }),
-    ...(theme.seasonal && { seasonal: true }),
-    ...(theme.commemoration && { commemoration: true }),
+    key: category.key,
+    title: category.title,
+    phrase: category.phrase,
+    ...(category.sport && { sport: true }),
+    ...(category.seasonal && { seasonal: true }),
+    ...(category.commemoration && { commemoration: true }),
   }
   : null)
 
-const isThemeSection = (key) => String(key).startsWith('theme-') || key === 'sport'
+const isCategorySection = (key) => String(key).startsWith('category-') || key === 'sport'
 
 const isSeasonalSection = (key) => String(key).startsWith('seasonal-')
 
-const THEMES_AFTER = 'might-like'
+const CATEGORIES_AFTER = 'might-like'
 const SEASONAL_AFTER = 'coming-up'
 
 const scheduledLast = ({ items, scheduledKeys }) => [

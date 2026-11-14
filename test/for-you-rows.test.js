@@ -194,11 +194,11 @@ test('tonight: 3 am local on the nights daylight saving starts and ends', () => 
 
 test('top rated series: TVmaze score 7 or more and weight 50 or more, scripted only, best first', () => {
   const genresByKey = new Map([
-    ['the-newsreader', { categories: ['drama'], genres: [], source: 'tvmaze:101' }],
-    ['bluey', { categories: ['kids'], genres: [], source: 'tvmaze:102' }],
-    ['married-at-first-sight', { categories: ['reality'], genres: [], source: 'tvmaze:103' }],
-    ['niche-drama', { categories: ['drama'], genres: [], source: 'tvmaze:104' }],
-    ['so-so-drama', { categories: ['drama'], genres: [], source: 'tvmaze:105' }],
+    ['the-newsreader', { genreTags: ['drama'], genres: [], source: 'tvmaze:101' }],
+    ['bluey', { genreTags: ['kids'], genres: [], source: 'tvmaze:102' }],
+    ['married-at-first-sight', { genreTags: ['reality'], genres: [], source: 'tvmaze:103' }],
+    ['niche-drama', { genreTags: ['drama'], genres: [], source: 'tvmaze:104' }],
+    ['so-so-drama', { genreTags: ['drama'], genres: [], source: 'tvmaze:105' }],
   ])
   const seriesRatings = new Map([
     ['the-newsreader', { score: 8.1, weight: 92, type: 'Scripted' }],
@@ -218,8 +218,8 @@ test('top rated series: TVmaze score 7 or more and weight 50 or more, scripted o
 
 test('top rated series: a guide slot that does not fit the TVmaze runtime is a different show', () => {
   const genresByKey = new Map([
-    ['the-pacific', { categories: ['drama'], genres: [], source: 'tvmaze:201' }],
-    ['mr-bean', { categories: ['comedy'], genres: [], source: 'tvmaze:202' }],
+    ['the-pacific', { genreTags: ['drama'], genres: [], source: 'tvmaze:201' }],
+    ['mr-bean', { genreTags: ['comedy'], genres: [], source: 'tvmaze:202' }],
   ])
   const seriesRatings = new Map([
     ['the-pacific', { score: 8.3, weight: 95, type: 'Scripted', runtime: 60 }],
@@ -234,7 +234,7 @@ test('top rated series: a guide slot that does not fit the TVmaze runtime is a d
 })
 
 test('top rated series works with no ratings saved and in cold start', () => {
-  const genresByKey = new Map([['the-newsreader', { categories: ['drama'], genres: [], source: 'tvmaze:101' }]])
+  const genresByKey = new Map([['the-newsreader', { genreTags: ['drama'], genres: [], source: 'tvmaze:101' }]])
   const empty = run({ programmes: [airing('The Newsreader')], genresByKey })
   assert.equal(sectionOf(empty, 'top-rated-series'), undefined)
   const rated = run({ programmes: [airing('The Newsreader')], genresByKey, seriesRatings: new Map([['the-newsreader', { score: 8.1, weight: 92, type: 'Scripted' }]]) })
@@ -257,7 +257,7 @@ test('series rating helpers read saved TVmaze rows by title key and the source i
 })
 
 test('row order puts ready and started shows first, and each show appears once', () => {
-  const genresByKey = new Map([['rosehaven', { categories: ['comedy'], genres: [], source: 'tvmaze:7' }]])
+  const genresByKey = new Map([['rosehaven', { genreTags: ['comedy'], genres: [], source: 'tvmaze:7' }]])
   const seriesRatings = new Map([['rosehaven', { score: 8, weight: 80, type: 'Scripted' }]])
   const programmes = [
     airing('Rosehaven'),

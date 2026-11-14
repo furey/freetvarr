@@ -1,16 +1,16 @@
-export const THEME_CATALOGUE_VERSION = 2
+export const CATEGORY_CATALOGUE_VERSION = 2
 
-export const themeCatalogueOf = ({ country = '' } = {}) => {
+export const categoryCatalogueOf = ({ country = '' } = {}) => {
   const place = countryNameOf(country)
   const fill = (text) => text.replaceAll('{in}', place ? ` in ${place}` : '')
-  return CATEGORIES.map((category) => ({
+  return CATALOGUE.map((category) => ({
     ...category,
     title: category.key === LOCAL_LIFE ? localLifeTitleOf(place) : category.title,
     phrase: category.key === LOCAL_LIFE ? localLifePhraseOf(place) : category.phrase,
-    subthemes: category.subthemes.map((subtheme) => ({
-      ...subtheme,
-      title: category.key === SPORT ? sportLabelOf({ code: subtheme.key, country }) : subtheme.title,
-      prototypes: subtheme.prototypes.map(fill),
+    facets: category.facets.map((facet) => ({
+      ...facet,
+      title: category.key === SPORT ? sportLabelOf({ code: facet.key, country }) : facet.title,
+      prototypes: facet.prototypes.map(fill),
     })),
   }))
 }
@@ -34,7 +34,7 @@ export const sportLabelOf = ({ code, country = '' }) => {
   return labels[country] ?? labels.default
 }
 
-export const prototypeTextsOf = (catalogue) => catalogue.flatMap((category) => category.subthemes.flatMap((subtheme) => subtheme.prototypes))
+export const prototypeTextsOf = (catalogue) => catalogue.flatMap((category) => category.facets.flatMap((facet) => facet.prototypes))
 
 export const LOCAL_LIFE = 'local-life'
 export const SPORT = 'sport'
@@ -81,7 +81,7 @@ const SPORT_LABELS = {
 const FACTUAL = ['factual', 'unknown']
 const FICTION = ['fiction', 'unknown']
 
-const CATEGORIES = [
+const CATALOGUE = [
   {
     key: 'reality',
     title: 'Reality',
@@ -89,7 +89,7 @@ const CATEGORIES = [
     slot: 'format',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'reality-dating', title: 'Dating', prototypes: [
         'Singles go on blind dates hoping to find love.',
         'Strangers marry at first sight and test their relationships.',
@@ -114,7 +114,7 @@ const CATEGORIES = [
     slot: 'format',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'quiz-trivia', title: 'Quiz shows', prototypes: [
         'Contestants answer trivia questions to win cash in a quiz show.',
         'Contestants try to beat the chaser in a general knowledge quiz.',
@@ -134,7 +134,7 @@ const CATEGORIES = [
     slot: 'format',
     row: 'category',
     kinds: [...FICTION, 'factual'],
-    subthemes: [
+    facets: [
       { key: 'comedy-sitcom', title: 'Sitcoms', kinds: FICTION, prototypes: [
         'Sitcom about a family whose antics lead to hilarious misunderstandings.',
         'Comedy series about friends sharing an apartment and their dating mishaps.',
@@ -159,7 +159,7 @@ const CATEGORIES = [
     slot: 'format',
     row: 'category',
     kinds: FICTION,
-    subthemes: [
+    facets: [
       { key: 'drama-family', title: 'Family drama', prototypes: [
         'Family secrets threaten to tear the family apart in this drama.',
         'Soap opera: she confronts him about the affair while the town gossips.',
@@ -189,7 +189,7 @@ const CATEGORIES = [
     slot: 'format',
     row: 'category',
     kinds: FICTION,
-    subthemes: [
+    facets: [
       { key: 'crime-drama-procedural', title: 'Police procedurals', prototypes: [
         'Detectives investigate a murder and question suspects in this crime drama.',
         'Fictional police procedural: the team hunts a killer as the case takes a twist.',
@@ -214,7 +214,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'cooking-competition', title: 'Cooking competitions', prototypes: [
         'Amateur cooks race the clock to cook a dish, and the judges taste the food.',
         'Chefs compete in a cooking challenge, plating up their best dishes for the judges.',
@@ -239,7 +239,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'home-renovation', title: 'Renovation', prototypes: [
         'Couples renovate rooms of their house, battling budgets and deadlines with builders and tradespeople.',
         'A rundown home gets a makeover with new kitchen, bathroom and interior design.',
@@ -265,7 +265,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'politics-elections', title: 'Politics', prototypes: [
         'Politicians debate policy in parliament as the government faces pressure ahead of the election.',
         'An investigation into the election campaign, voters, the prime minister and the opposition leader.',
@@ -285,7 +285,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'true-crime-cases', title: 'True crime', prototypes: [
         'The true story of a brutal murder and the detectives who tracked down the killer.',
         'Real-life crime investigation into a cold case, with interviews with police, witnesses and the families of victims.',
@@ -300,7 +300,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'police-patrol', title: 'Police', prototypes: [
         'Police officers respond to calls, make arrests and chase offenders on the streets.',
         'Highway patrol officers pull over speeding drivers and attend crashes.',
@@ -320,7 +320,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'nature-wildlife', title: 'Wildlife', prototypes: [
         'Wild animals hunt and survive in the savannah, oceans and rainforests.',
         'A nature documentary about predators, birds, insects and marine life.',
@@ -340,7 +340,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'travel-destinations', title: 'Holidays and destinations', prototypes: [
         'The host travels through Italy, exploring towns, markets, local food and culture.',
         'A journey to holiday destinations, beaches, cities and hotels around the world.',
@@ -360,7 +360,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'history-war', title: 'War history', prototypes: [
         'The history of the Second World War, its battles, generals and soldiers.',
         'Veterans remember the battles of the First World War.',
@@ -385,7 +385,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'science-space', title: 'Space and science', prototypes: [
         'Scientists explore space, planets, black holes and the universe.',
         'The science and engineering behind technology, inventions and discoveries.',
@@ -405,7 +405,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'local-life-stories', title: 'Local stories', prototypes: [
         'Inspiring stories of everyday people in towns and suburbs{in}.',
         'A documentary about ordinary families and their lives{in}.',
@@ -430,7 +430,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'category',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'music-live', title: 'Music', prototypes: [
         'Live concert performance by singers and bands.',
         'Music documentary about a legendary rock band and their hits.',
@@ -448,9 +448,9 @@ const CATEGORIES = [
     title: 'Lifestyle',
     phrase: 'lifestyle',
     slot: 'topic',
-    row: 'subtheme',
+    row: 'facet',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'motoring', title: 'Motoring', prototypes: [
         'The hosts review new cars and test drive them on the road.',
         'Mechanics restore classic cars in the workshop.',
@@ -480,7 +480,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'sport',
     kinds: ['sport'],
-    subthemes: [
+    facets: [
       { key: 'afl', prototypes: [
         'AFL match: Australian rules football live.',
         'AFL footy talk with players, coaches and clubs.',
@@ -595,7 +595,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'none',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'news-bulletins', title: 'News', prototypes: [
         'The latest news headlines from home and around the world, with sport and weather.',
         'Breaking news, national and international stories.',
@@ -610,7 +610,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'none',
     kinds: ['kids'],
-    subthemes: [
+    facets: [
       { key: 'kids-shows', title: 'Kids', prototypes: [
         'Animated cartoon for preschoolers about friends who learn and play together.',
         'Children\'s series where kids go on fun adventures.',
@@ -625,7 +625,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'none',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'shopping-offers', title: 'Shopping', prototypes: [
         'Shopping channel presents products for sale with special offers; call now to order.',
         'Infomercial: buy this product today at a low price.',
@@ -640,7 +640,7 @@ const CATEGORIES = [
     slot: 'topic',
     row: 'none',
     kinds: FACTUAL,
-    subthemes: [
+    facets: [
       { key: 'religion-faith', title: 'Religion', prototypes: [
         'Church service with hymns, prayer and a sermon.',
         'Faith and spiritual teaching from the Bible.',

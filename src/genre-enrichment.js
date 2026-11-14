@@ -9,13 +9,13 @@ import { showKeyOf } from './web/show-key.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
 
-export const CATEGORIES = [
+export const GENRE_TAGS = [
   'drama', 'comedy', 'reality', 'lifestyle', 'food', 'home', 'travel', 'documentary', 'news', 'sport',
   'kids', 'quiz', 'crime', 'sci-fi', 'movie', 'movie-action', 'movie-comedy', 'movie-drama', 'movie-thriller',
   'movie-horror', 'movie-sci-fi', 'movie-romance', 'movie-family', 'movie-documentary',
 ]
 
-export const CATEGORY_LABELS = {
+export const GENRE_TAG_LABELS = {
   drama: 'Drama',
   comedy: 'Comedy',
   reality: 'Reality',
@@ -44,32 +44,32 @@ export const CATEGORY_LABELS = {
 
 export const genreLookupEnabledFrom = (stored) => stored !== 'false'
 
-export const categoriesOfTvmaze = ({ genres = [], type = null }) => {
+export const genreTagsOfTvmaze = ({ genres = [], type = null }) => {
   const found = new Set()
   for (const genre of genres) for (const category of TVMAZE_GENRES[genre] || []) found.add(category)
   for (const category of TVMAZE_TYPES[type] || []) found.add(category)
   if (type === 'Documentary') found.delete('drama')
   if (found.has('kids')) found.delete('drama')
-  return CATEGORIES.filter((category) => found.has(category))
+  return GENRE_TAGS.filter((category) => found.has(category))
 }
 
-export const categoriesOfFilmGenres = (labels = []) => {
+export const genreTagsOfFilmGenres = (labels = []) => {
   const found = new Set(['movie'])
   for (const label of labels) {
     const text = String(label).toLowerCase()
     for (const [pattern, category] of FILM_GENRE_PATTERNS) if (pattern.test(text)) found.add(category)
   }
-  return CATEGORIES.filter((category) => found.has(category))
+  return GENRE_TAGS.filter((category) => found.has(category))
 }
 
-export const categoriesOfEtsi = (genre) => {
+export const genreTagsOfEtsi = (genre) => {
   const code = Number(genre)
   if (!Number.isInteger(code) || code <= 0) return []
   if (ETSI_CODES[code]) return ETSI_CODES[code]
   return ETSI_GROUPS[code >> 4] || []
 }
 
-export const keywordCategoriesOf = (title) => {
+export const keywordGenreTagsOf = (title) => {
   const text = String(title || '')
   if (NEWS_TITLE.test(text)) return ['news']
   if (SPORT_TITLE.test(text)) return ['sport']
@@ -79,7 +79,7 @@ export const keywordCategoriesOf = (title) => {
 export const isMovieLike = (programme) => {
   const lengthMs = Number(programme?.end) - Number(programme?.start)
   if (!(lengthMs >= FILM_MIN_MS) || isNewsOrSport(programme)) return false
-  if (categoriesOfEtsi(programme?.genre).includes('movie')) return true
+  if (genreTagsOfEtsi(programme?.genre).includes('movie')) return true
   return programme?.series_no == null && programme?.episode_no == null && !programme?.episode_title
 }
 
@@ -87,9 +87,9 @@ export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) =>
   if (record?.kindOverride === MOVIE) return true
   if ([NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND].includes(record?.kindOverride)) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
-  if (record?.categories?.includes('movie')) return true
+  if (record?.genreTags?.includes('movie')) return true
   if (!isMovieLike(programme)) return false
-  return categoriesOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
+  return genreTagsOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
 }
 
 export const movieChoiceOf = ({ programme, film }) => {
@@ -104,7 +104,7 @@ const hasEpisodeDetails = (programme) => programme?.series_no != null
 
 const isLong = (programme) => Number(programme?.end) - Number(programme?.start) >= FILM_MIN_MS
 
-const isNewsOrSport = (programme) => [...categoriesOfEtsi(programme?.genre), ...keywordCategoriesOf(programme?.title)]
+const isNewsOrSport = (programme) => [...genreTagsOfEtsi(programme?.genre), ...keywordGenreTagsOf(programme?.title)]
   .some((category) => NEWS_OR_SPORT.has(category))
 
 export const tvmazeFactsOf = (record) => {
@@ -134,7 +134,7 @@ export const pickFilm = ({ rows = [], title, year = null }) => {
   const dated = year ? matches.filter((row) => Math.abs(Number(row.year) - year) <= 1) : matches
   if (dated.length === 1) return dated[0]
   if (!dated.length) return null
-  const signatures = new Set(dated.map((row) => categoriesOfFilmGenres(row.genres).join('|')))
+  const signatures = new Set(dated.map((row) => genreTagsOfFilmGenres(row.genres).join('|')))
   return signatures.size === 1 ? dated[0] : null
 }
 
@@ -161,7 +161,7 @@ export const lookupOrderOf = ({ titles = [], cachedKeys = new Set(), budget = DE
     if (!item.title || cachedKeys.has(key)) continue
     merged.set(key, merged.has(key) ? mergedLookupOf(merged.get(key), item) : { ...item, key })
   }
-  const pending = [...merged.values()].filter((item) => !keywordCategoriesOf(item.title).length || item.priority)
+  const pending = [...merged.values()].filter((item) => !keywordGenreTagsOf(item.title).length || item.priority)
   return pending.sort((a, b) => (b.priority || 0) - (a.priority || 0)).slice(0, budget)
 }
 
@@ -202,7 +202,7 @@ export const createGenreEnrichment = ({
     await sleep(gapMs)
     const film = pickFilm({ rows: filmRowsOf(await queryWikidata(filmQueryOf(ids))), title, year })
     if (film) notify(() => onFilm({ title, id: film.id }))
-    return film ? { genres: film.genres, categories: categoriesOfFilmGenres(film.genres), source: `wikidata:${film.id}` } : null
+    return film ? { genres: film.genres, genreTags: genreTagsOfFilmGenres(film.genres), source: `wikidata:${film.id}` } : null
   }
 
   const enrich = async ({ titles = [], budget = DEFAULT_BUDGET } = {}) => {
@@ -222,7 +222,7 @@ export const createGenreEnrichment = ({
       await cache.write({
         key: item.key,
         genres: record?.genres || [],
-        categories: record?.categories || [],
+        genreTags: record?.genreTags || [],
         source: record?.source || null,
         expiresAt: now() + (record ? HIT_TTL_MS : MISS_TTL_MS),
       }).catch(() => {})
@@ -250,7 +250,7 @@ export const loadTitleGenres = async () => {
     loadKindOverrides().catch(() => new Map()),
   ])
   const records = new Map(rows.map((row) => [row.title_key, {
-    categories: parseList(row.categories_json),
+    genreTags: parseList(row.categories_json),
     genres: parseList(row.genres_json),
     source: row.source || null,
   }]))
@@ -264,7 +264,7 @@ const tvmazeRecordOf = (show) => ({
     ...(show.premiered ? [`premiered:${show.premiered}`] : []),
     ...(show.status ? [`status:${show.status}`] : []),
   ],
-  categories: categoriesOfTvmaze({ genres: show.genres || [], type: show.type || null }),
+  genreTags: genreTagsOfTvmaze({ genres: show.genres || [], type: show.type || null }),
   source: `tvmaze:${show.id}`,
 })
 
@@ -312,11 +312,11 @@ const wikidataQuery = async (query) => {
 
 const databaseCache = {
   freshKeys: async (nowMs) => new Set((await db('title_genres').where('expires_at', '>', nowMs).select('title_key')).map((row) => row.title_key)),
-  write: ({ key, genres, categories, source, expiresAt }) => db('title_genres')
+  write: ({ key, genres, genreTags, source, expiresAt }) => db('title_genres')
     .insert({
       title_key: key,
       genres_json: JSON.stringify(genres),
-      categories_json: JSON.stringify(categories),
+      categories_json: JSON.stringify(genreTags),
       source,
       expires_at: expiresAt,
     })

@@ -24,7 +24,7 @@ import { showTitleKey } from './show-artwork.js'
 import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom, tvmazeIdOf } from './top-rated.js'
 import { createSeriesRatings, loadSeriesRatings, seriesRatingStamp, warmSeriesRatingsIfEmpty } from './series-ratings.js'
 import { hiddenShowsOf, profileOf } from './for-you-profile.js'
-import { SPORT_ROW_KEY, SPORT_ROW_TITLE, THEME_KINDS, createThemeIndex, hiddenThemesOf, themeChoicesOf, themeMuteKeyOf, themeSettingsOf } from './for-you-themes.js'
+import { SPORT_ROW_KEY, SPORT_ROW_TITLE, CATEGORY_KINDS, createCategoryIndex, hiddenCategoriesOf, categoryChoicesOf, categoryMuteKeyOf, categorySettingsOf } from './for-you-categories.js'
 import { hiddenOccasionsOf, isSeasonalKey, occasionOf, seasonalSettingsOf } from './for-you-occasions.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -59,18 +59,18 @@ export const createTasteStore = ({ readHidden, peek = () => null }) => {
 }
 
 export const withHiddenNow = ({ taste, hidden }) => ({
-  ...(taste ?? { titles: null, showAffinity: {}, themeShares: {} }),
+  ...(taste ?? { titles: null, showAffinity: {}, categoryShares: {} }),
   hiddenShows: hidden ? [...new Set(hidden.shows)] : taste?.hiddenShows ?? [],
-  hiddenThemes: hidden ? [...new Set(hidden.themes)] : taste?.hiddenThemes ?? [],
+  hiddenCategories: hidden ? [...new Set(hidden.categories)] : taste?.hiddenCategories ?? [],
 })
 
 export const getCurrentTaste = () => tasteStore.current()
 
 export const hiddenKeysOf = async ({ nowMs = Date.now() } = {}) => {
-  const [hidden, off] = await Promise.all([getHiddenShows({ nowMs }), themesOffSetting()])
+  const [hidden, off] = await Promise.all([getHiddenShows({ nowMs }), categoriesOffSetting()])
   return {
-    shows: hidden.filter((entry) => !entry.theme).map((entry) => entry.seriesKey),
-    themes: [...hidden.filter((entry) => entry.theme).map((entry) => entry.themeKey), ...off],
+    shows: hidden.filter((entry) => !entry.category).map((entry) => entry.seriesKey),
+    categories: [...hidden.filter((entry) => entry.category).map((entry) => entry.categoryKey), ...off],
   }
 }
 
@@ -182,7 +182,7 @@ export const resultFingerprintOf = (result) => {
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, categories, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone(), themesOff = [] }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, guideGenres, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone(), categoriesOff = [] }) => {
   const autorecs = (state?.seriesTags || []).map(({ seriesLinkId, channelId, enabled, match }) => ({ seriesLinkId, channelId, enabled, match }))
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
@@ -207,7 +207,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       lastEventId: Number(events?.lastId) || 0,
       events: Number(events?.count) || 0,
       recordings: recordingStampOf(recordings),
-      categories: Number(categories?.count) || 0,
+      guideGenres: Number(guideGenres?.count) || 0,
       vectors: `${embedderId}|${vectors}`,
       pinned: pinned.join(','),
       tier,
@@ -215,7 +215,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       seriesRatings: `${Number(seriesRatings?.count) || 0}:${Number(seriesRatings?.latest) || 0}`,
       otherLanguageFilms,
       timeZone,
-      themesOff: [...themesOff].sort().join(','),
+      categoriesOff: [...categoriesOff].sort().join(','),
       scoring: SCORING_VERSION,
     },
   }
@@ -253,49 +253,49 @@ export const forgetForYouCache = () => forYouCache.forget()
 
 export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
-  const [events, themeEvents] = await Promise.all([
+  const [events, categoryEvents] = await Promise.all([
     db('user_events').whereIn('kind', HIDING_KINDS).orderBy('ts'),
-    db('user_events').whereIn('kind', [...THEME_KINDS]).orderBy('ts'),
+    db('user_events').whereIn('kind', [...CATEGORY_KINDS]).orderBy('ts'),
   ])
-  const { mutes } = themeChoicesOf(themeEvents)
-  const themes = hiddenThemesOf({ index: currentThemeIndex(), mutes, nowMs })
+  const { mutes } = categoryChoicesOf(categoryEvents)
+  const categories = hiddenCategoriesOf({ index: currentCategoryIndex(), mutes, nowMs })
   const occasions = hiddenOccasionsOf({ ...installPlace(), mutes, nowMs })
-  return [...themes, ...occasions, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
+  return [...categories, ...occasions, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
 }
 
-export const getThemeSettings = async ({ nowMs = Date.now() } = {}) => {
+export const getCategorySettings = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
-  const [events, off] = await Promise.all([db('user_events').whereIn('kind', [...THEME_KINDS]).orderBy('ts'), themesOffSetting()])
-  const { mutes } = themeChoicesOf(events)
+  const [events, off] = await Promise.all([db('user_events').whereIn('kind', [...CATEGORY_KINDS]).orderBy('ts'), categoriesOffSetting()])
+  const { mutes } = categoryChoicesOf(events)
   return [
-    ...themeSettingsOf({ index: currentThemeIndex(), mutes, off: new Set(off), nowMs }),
+    ...categorySettingsOf({ index: currentCategoryIndex(), mutes, off: new Set(off), nowMs }),
     ...seasonalSettingsOf({ ...installPlace(), mutes, off: new Set(off), nowMs }),
   ]
 }
 
-export const setThemeOn = async ({ key, on, nowMs = Date.now() }) => {
-  const index = currentThemeIndex()
-  if (!isThemeKey({ index, key, sportRow: false })) return { error: 'That theme is not in the catalogue' }
-  const off = new Set(await themesOffSetting())
+export const setCategoryOn = async ({ key, on, nowMs = Date.now() }) => {
+  const index = currentCategoryIndex()
+  if (!isCategoryKey({ index, key, sportRow: false })) return { error: 'That category is not in the catalogue' }
+  const off = new Set(await categoriesOffSetting())
   if (on) off.delete(key)
   else off.add(key)
-  await setSetting(SETTINGS.themesOff, JSON.stringify([...off].sort()))
+  await setSetting(SETTINGS.categoriesOff, JSON.stringify([...off].sort()))
   const sport = index.groups.get(key)?.row === 'sport'
   if (on) await insertUnmutes({ index, keys: sport ? [key, SPORT_ROW_KEY] : [key], nowMs, source: 'settings' })
   forgetForYouCache()
-  return { themes: await getThemeSettings({ nowMs }) }
+  return { categories: await getCategorySettings({ nowMs }) }
 }
 
-const themesOffSetting = async () => {
+const categoriesOffSetting = async () => {
   try {
-    const keys = JSON.parse((await getSetting(SETTINGS.themesOff)) || '[]')
+    const keys = JSON.parse((await getSetting(SETTINGS.categoriesOff)) || '[]')
     return Array.isArray(keys) ? keys.map(String) : []
   } catch {
     return []
   }
 }
 
-const currentThemeIndex = () => createThemeIndex({ country: countryForTimeZone(currentTimeZone()) })
+const currentCategoryIndex = () => createCategoryIndex({ country: countryForTimeZone(currentTimeZone()) })
 
 const installPlace = () => ({ country: countryForTimeZone(currentTimeZone()), timeZone: currentTimeZone() })
 
@@ -313,21 +313,21 @@ export const unhideShow = async ({ seriesKey, nowMs = Date.now() }) => {
   return { ok: true, wasHidden: Boolean(latest) }
 }
 
-export const unmuteTheme = async ({ key, nowMs = Date.now() }) => {
-  const index = currentThemeIndex()
-  if (!isThemeKey({ index, key })) return { error: 'That theme is not in the catalogue' }
+export const unmuteCategory = async ({ key, nowMs = Date.now() }) => {
+  const index = currentCategoryIndex()
+  if (!isCategoryKey({ index, key })) return { error: 'That category is not in the catalogue' }
   await flushUserEvents().catch(() => {})
   await insertUnmutes({ index, keys: [key], nowMs, source: 'for-you' })
   forgetForYouCache()
   return { ok: true }
 }
 
-const isThemeKey = ({ index, key, sportRow = true }) => index.groups.has(key)
+const isCategoryKey = ({ index, key, sportRow = true }) => index.groups.has(key)
   || (sportRow && key === SPORT_ROW_KEY)
   || (isSeasonalKey(key) && Boolean(occasionOf({ key, country: index.country })))
 
 const insertUnmutes = ({ index, keys, nowMs, source }) => db('user_events').insert(keys.map((key) => eventRowOf({
-  event: { kind: 'theme_unmuted', series_key: themeMuteKeyOf(key), title: index.groups.get(key)?.title ?? occasionOf({ key, country: index.country })?.title ?? SPORT_ROW_TITLE, source, ts: nowMs },
+  event: { kind: 'category_unmuted', series_key: categoryMuteKeyOf(key), title: index.groups.get(key)?.title ?? occasionOf({ key, country: index.country })?.title ?? SPORT_ROW_TITLE, source, ts: nowMs },
   nowMs,
 })))
 
@@ -419,7 +419,7 @@ const upkeepNow = async ({ nowMs }) => {
 }
 
 const loadSnapshot = async () => {
-  const [guide, state, watchlist, events, recordings, categories, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, themesOff] = await Promise.all([
+  const [guide, state, watchlist, events, recordings, guideGenres, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, categoriesOff] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
     db('watchlist').select('title', 'mode'),
@@ -433,7 +433,7 @@ const loadSnapshot = async () => {
     seriesRatingStamp(),
     currentOtherLanguageFilms(),
     getChannelPrefs().catch(() => null),
-    themesOffSetting(),
+    categoriesOffSetting(),
   ])
   const vectors = vectorsVersion()
   return {
@@ -443,15 +443,15 @@ const loadSnapshot = async () => {
     tier: tier.tier,
     vectors,
     otherLanguageFilms,
-    themesOff,
-    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, categories, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, themesOff }),
+    categoriesOff,
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, guideGenres, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, categoriesOff }),
   }
 }
 
 const computeForYou = async ({ snapshot, nowMs }) => {
   const job = currentJob()
   job?.step('Read history and recordings')
-  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings, seriesRatings, guideCategories] = await Promise.all([
+  const [events, recordings, genresByKey, history, vectorsByHash, filmRatings, seriesRatings, guideGenres] = await Promise.all([
     db('user_events').orderBy('id'),
     db('recordings').select(...RECORDING_COLUMNS),
     loadTitleGenres(),
@@ -459,7 +459,7 @@ const computeForYou = async ({ snapshot, nowMs }) => {
     snapshot.embedder ? loadVectors(snapshot.embedder.id) : null,
     filmRatingRows().select('lookup_key', 'found_json').catch(() => []),
     loadSeriesRatings(),
-    guideCategoriesOf({ nowMs }),
+    guideGenresOf({ nowMs }),
   ])
   const guide = {
     programmes: Object.values(snapshot.guide.programsByChannel || {}).flat(),
@@ -488,8 +488,8 @@ const computeForYou = async ({ snapshot, nowMs }) => {
       }),
       otherLanguageFilms: snapshot.otherLanguageFilms,
       seriesRatings,
-      guideCategories,
-      themesOff: snapshot.themesOff ?? [],
+      guideGenres,
+      categoriesOff: snapshot.categoriesOff ?? [],
     },
   }
   job?.step('Score programmes').fact('Programmes', guide.programmes.length).fact('Events', events.length)
@@ -622,7 +622,7 @@ export const withClassifications = async ({ result, programmes, channels = [], s
 
 export const currentOtherLanguageFilms = async () => otherLanguageChoiceFrom(await getSetting(SETTINGS.otherLanguageFilms).catch(() => null))
 
-export const guideCategoriesOf = async ({ nowMs, database = db }) => {
+export const guideGenresOf = async ({ nowMs, database = db }) => {
   const rows = await database('programme_categories')
     .where('start_ms', '>', nowMs - GUIDE_CATEGORY_LOOKBACK_MS)
     .distinct('title_key', 'category')

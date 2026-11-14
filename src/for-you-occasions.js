@@ -124,7 +124,7 @@ export const hiddenOccasionsOf = ({ country = '', mutes = new Map(), nowMs, time
     const key = seasonalKeyOf(occasion.key)
     const hiddenAt = mutes.get(key)
     const until = muteEndDayOf({ occasion, country, mutedAt: hiddenAt, timeZone })
-    return { seriesKey: `theme:${key}`, themeKey: key, title: occasion.title, theme: true, seasonal: true, hiddenAt, until: until * DAY_MS }
+    return { seriesKey: `category:${key}`, categoryKey: key, title: occasion.title, category: true, seasonal: true, hiddenAt, until: until * DAY_MS }
   })
 
 const isDescription = (text) => text.length > DESCRIPTION_LENGTH || /[a-z]{2}[.!?]\s+[A-Z]/.test(text)
