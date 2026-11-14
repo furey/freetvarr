@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-import { createCategoryIndex, mostSpecificCategoryOf, tagsForTitles, titleFactsOf } from '../src/for-you-categories.js'
+import { createCategoryIndex, formatOfTags, mostSpecificCategoryOf, tagsForTitles, titleFactsOf } from '../src/for-you-categories.js'
 import { hasStrongDocumentaryEvidence } from '../src/for-you-label-rules.js'
 import { genreTagsLookupOf } from '../src/for-you.js'
 import { genreTagsOfTvmaze } from '../src/genre-enrichment.js'
@@ -83,12 +83,16 @@ const accuracyOf = (tagged) => {
   return { right: right.length, total: scored.length, share: shareOf(right.length, scored.length) }
 }
 
+const SPORT_CODES = new Set([...createCategoryIndex({ country: fixture.country }).groups.values()].filter((info) => info.row === 'sport').map((info) => info.group))
+
+const truthFormatsOf = (entry) => [...(entry.truth ?? []).filter((key) => FORMATS.has(key)), ...((entry.truth ?? []).some((key) => SPORT_CODES.has(key)) ? ['sport-format'] : [])]
+
 const formatAccuracyOf = (tagged) => {
   const pairs = fixture.titles
-    .filter((entry) => !entry.film && entry.truth?.some((key) => FORMATS.has(key)))
-    .map((entry) => ({ entry, format: tagged.tags.get(entry.key)?.entries.find((tag) => tag.slot === 'format')?.group }))
+    .filter((entry) => !entry.film && truthFormatsOf(entry).length)
+    .map((entry) => ({ entry, format: formatOfTags(tagged.tags.get(entry.key)) }))
     .filter(({ format }) => format)
-  const right = pairs.filter(({ entry, format }) => entry.truth.includes(format))
+  const right = pairs.filter(({ entry, format }) => truthFormatsOf(entry).includes(format))
   return { right: right.length, total: pairs.length, share: shareOf(right.length, pairs.length) }
 }
 
@@ -141,5 +145,15 @@ test('audit: Life in Australia is at most 5% of tagged titles', (t) => {
     const local = labelled.filter((tags) => tags.entries.some((entry) => entry.group === 'local-life'))
     t.diagnostic(`${name}: ${local.length} of ${labelled.length} (${shareOf(local.length, labelled.length)}%)`)
     assert.ok(local.length / labelled.length <= 0.05, name)
+  }
+})
+
+test('audit: every title with a sport code has the format Sport, and the format Sport is never a row entry', () => {
+  for (const tagged of [listOn, listOff]) {
+    for (const tags of tagged.tags.values()) {
+      if (!tags) continue
+      assert.equal(formatOfTags(tags) === 'sport-format', Boolean(tags.sportCode))
+      assert.ok(!tags.entries.some((entry) => entry.group === 'sport-format'))
+    }
   }
 })

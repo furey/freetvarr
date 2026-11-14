@@ -196,3 +196,51 @@ test('a movie kind saved under the raw title key still hides the automatic categ
   const read = await call('GET', '/api/for-you/categories/show/reef-life-special?title=Reef%20Life%20-%20Special')
   assert.deepEqual([read.body.showKey, read.body.format, read.body.topics], ['reef-life', null, []])
 })
+
+test('sport: GET shows the format Sport and the code, and lists the sports A to Z with the catch-all last', async () => {
+  tastes.set('rugby-league-world-cup-2026', { kind: 'sport', sportCode: 'rugby-league', categories: [{ key: 'rugby-league', sport: true }] })
+  const read = await call('GET', '/api/for-you/categories/show/rugby-league-world-cup-2026?title=Rugby%20League%20World%20Cup%202026')
+  assert.deepEqual([read.body.format, read.body.sport, read.body.topics], ['sport-format', 'rugby-league', []])
+  const sports = read.body.choices.sports
+  assert.equal(sports.at(-1).key, 'other-sport')
+  assert.equal(sports.at(-1).title, 'Other sport')
+  assert.equal(sports.find((choice) => choice.key === 'soccer').title, 'Football (soccer)')
+  const titles = sports.slice(0, -1).map((choice) => choice.title)
+  assert.deepEqual(titles, [...titles].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })))
+  assert.deepEqual(read.body.choices.formats.filter((choice) => choice.group === 'Other').map((choice) => choice.key), ['news', 'kids', 'sport-format'])
+  tastes.delete('rugby-league-world-cup-2026')
+  const automatic = showCategoriesOf({ showKey: 'nrl-live', title: 'NRL Live', index, record: { genreTags: ['sport'], genres: ['type:Sports'], source: 'tvmaze:9' } })
+  assert.deepEqual([automatic.format, automatic.sport, automatic.topics], ['sport-format', 'rugby-league', []])
+})
+
+test('sport: PUT validates the code, stores it apart from topics, and a later format replaces it', async () => {
+  assert.deepEqual(categoryOverrideFrom({ body: { format: 'sport-format', sport: 'cricket' }, index }), { override: { format: 'sport-format', topics: [], sport: 'cricket' } })
+  assert.match(categoryOverrideFrom({ body: { format: 'sport-format', sport: 'quidditch' }, index }).error, /sport code/)
+  assert.match(categoryOverrideFrom({ body: { format: 'sport-format' }, index }).error, /sport code/)
+  assert.match(categoryOverrideFrom({ body: { format: 'sport-format', sport: 'cricket', topics: ['history'] }, index }).error, /together/)
+  assert.match(categoryOverrideFrom({ body: { format: 'drama', sport: 'cricket' }, index }).error, /format sport-format/)
+  assert.match(categoryOverrideFrom({ body: { format: 'sport-format', sport: 'cooking' }, index }).error, /sport code/)
+  const saved = await call('PUT', '/api/for-you/categories/show/league-night', { title: 'League Night', format: 'sport-format', sport: 'rugby-league' })
+  assert.equal(saved.status, 200)
+  assert.deepEqual([saved.body.format, saved.body.sport, saved.body.custom], ['sport-format', 'rugby-league', true])
+  const row = await db('programme_category_overrides').where({ show_key: 'league-night' }).first()
+  assert.deepEqual([row.format, JSON.parse(row.topics_json)], ['sport-format', { sport: 'rugby-league' }])
+  assert.deepEqual((await loadCategoryOverrides()).get('league-night'), { format: 'sport-format', topics: [], sport: 'rugby-league' })
+  assert.equal((await call('PUT', '/api/for-you/categories/show/league-night', { format: 'sport-format', sport: 'cricket', topics: ['history'] })).status, 400)
+  const changed = await call('PUT', '/api/for-you/categories/show/league-night', { title: 'League Night', format: 'talk-shows', topics: [] })
+  assert.deepEqual([changed.body.format, changed.body.sport], ['talk-shows', null])
+  await call('DELETE', '/api/for-you/categories/show/league-night?title=League%20Night')
+})
+
+test('sport sheet helpers: Save sends the code without topics, and needs one', async () => {
+  const { overrideRequestOf } = await import('../src/web/category-override.js')
+  assert.deepEqual(overrideRequestOf({ title: 'Cup', format: 'sport-format', topics: ['history'], sport: 'cricket' }), { title: 'Cup', format: 'sport-format', sport: 'cricket' })
+  assert.deepEqual(overrideRequestOf({ title: 'Cup', format: 'drama', topics: [], sport: 'cricket' }), { title: 'Cup', format: 'drama', topics: [] })
+  assert.equal(canSaveCategoriesOf({ format: 'sport-format', sport: '' }), false)
+  assert.equal(canSaveCategoriesOf({ format: 'sport-format', sport: 'cricket' }), true)
+})
+
+test('sport: a sport title with no code opens with Sport but no sport chosen', () => {
+  const unnamed = showCategoriesOf({ showKey: 'saturday-sport', title: 'Saturday Sport', index, tasteTitle: { kind: 'sport', categories: [{ key: 'other-sport', sport: true }] } })
+  assert.deepEqual([unnamed.format, unnamed.sport], ['sport-format', null])
+})

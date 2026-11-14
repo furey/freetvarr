@@ -36,7 +36,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 12
+export const SCORING_VERSION = 13
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -342,7 +342,7 @@ export const unmuteCategory = async ({ key, nowMs = Date.now() }) => {
   return { ok: true }
 }
 
-const isCategoryKey = ({ index, key, sportRow = true }) => index.groups.has(key)
+const isCategoryKey = ({ index, key, sportRow = true }) => (index.groups.has(key) && (sportRow || index.groups.get(key).row !== 'none'))
   || (sportRow && key === SPORT_ROW_KEY)
   || (isSeasonalKey(key) && Boolean(occasionOf({ key, country: index.country })))
 

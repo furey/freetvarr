@@ -172,6 +172,17 @@ test('a hidden category lists under hidden shows and in Categories, and its own 
   assert.equal((await call('GET', '/api/for-you/categories')).body.categories.find((category) => category.key === 'cooking').on, true)
 })
 
+test('a hidden News or Kids category can be shown again, but cannot be switched off in Settings', async () => {
+  await db('user_events').delete()
+  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'category_muted', series_key: 'category-news', title: 'News' })
+  assert.deepEqual((await call('GET', '/api/for-you/hidden')).body.map((show) => show.categoryKey), ['news'])
+  assert.equal((await call('DELETE', '/api/for-you/categories/news/mute')).status, 200)
+  assert.equal((await call('DELETE', '/api/for-you/categories/kids/mute')).status, 200)
+  assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
+  assert.notEqual((await call('PUT', '/api/for-you/categories/news', { on: false })).status, 200)
+  assert.notEqual((await call('PUT', '/api/for-you/categories/sport-format', { on: false })).status, 200)
+})
+
 test('a hidden Sport this week row shows every sport off, and turning one on unmutes the row', async () => {
   await db('user_events').delete()
   await db('user_events').insert({ ts: Date.now() - 1000, kind: 'category_muted', series_key: 'category-sport', title: 'Sport' })
