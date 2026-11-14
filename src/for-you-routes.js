@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { currentOtherLanguageFilms, forgetForYouCache, warmForYou, getCurrentTaste, getForYou, getHiddenShows, getPickable, getCategorySettings, isForYouEnabled, setCategoryOn, startForYou, titlesForKeys, unhideShow, unmuteCategory } from './for-you-service.js'
+import { categoryKnownKeys, currentOtherLanguageFilms, forgetForYouCache, warmForYou, getCurrentTaste, getForYou, getHiddenShows, getPickable, getCategorySettings, isForYouEnabled, setCategoryOn, startForYou, titlesForKeys, unhideShow, unmuteCategory } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { mountCategoryOverrideRoutes } from './for-you-category-overrides.js'
 import { currentTimeZone } from './time-zone.js'
@@ -91,7 +91,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     },
     country: () => countryForTimeZone(currentTimeZone()),
     tasteTitleOf: async (showKey) => (await getCurrentTaste())?.titles?.[showKey] ?? null,
-    knownKeysOf: async () => new Set(Object.keys((await getCurrentTaste())?.titles ?? {})),
+    knownKeysOf: () => categoryKnownKeys(),
   })
 
   app.get('/api/for-you/categories', async (req, res) => {

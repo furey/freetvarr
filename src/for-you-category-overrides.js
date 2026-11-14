@@ -3,6 +3,7 @@ import { countryNameOf } from './for-you-category-catalogue.js'
 import { MAX_TOPICS, createCategoryIndex, recordFactsOf, tagTitle } from './for-you-categories.js'
 import { knownShowOf } from './for-you-known-shows.js'
 import { createKeyResolver } from './for-you-profile.js'
+import { showKeyOf } from './web/show-key.js'
 import { MOVIE, showKeyFrom } from './programme-kind.js'
 
 export const loadCategoryOverrides = async () => new Map(
@@ -58,12 +59,13 @@ export const resolvedShowKeyOf = ({ showKey, title = '', knownKeys = new Set() }
 
 export const mountCategoryOverrideRoutes = ({ app, csrf, limiter = passThrough, onChange = () => {}, country = () => '', tasteTitleOf = async () => null, knownKeysOf = async () => new Set() }) => {
   const payloadOf = async ({ showKey, title }) => {
+    const kindKeys = [...new Set([showKey, title ? showKeyOf(title) : showKey])]
     const index = createCategoryIndex({ country: country() })
     const [row, record, tasteTitle, kind] = await Promise.all([
       db(TABLE).where({ show_key: showKey }).first(),
       db('title_genres').where({ title_key: showKey }).first().catch(() => null),
       tasteTitleOf(showKey).catch(() => null),
-      db('programme_kind_overrides').where({ show_key: showKey }).first().catch(() => null),
+      db('programme_kind_overrides').whereIn('show_key', kindKeys).first().catch(() => null),
     ])
     return showCategoriesOf({ showKey, title, index, override: row ? overrideOfRow(row) : null, tasteTitle, record: record ? recordOfRow(record) : null, kindOverride: kind?.kind ?? null })
   }

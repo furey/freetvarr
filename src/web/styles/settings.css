@@ -1736,7 +1736,6 @@ a.settings-row-link:hover {
 
 .categories-sheet-formats .ui-segment {
   flex: 1 1 auto;
-  text-wrap: balance;
 }
 
 .categories-sheet-footer {

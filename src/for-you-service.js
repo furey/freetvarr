@@ -252,6 +252,24 @@ export const titlesForKeys = async (keys) => {
 
 export const forgetForYouCache = () => forYouCache.forget()
 
+export const categoryKnownKeys = async ({ nowMs = Date.now() } = {}) => {
+  const [guide, history, events] = await Promise.all([
+    getGuideSnapshot().catch(() => null),
+    endedHistory.read({ nowMs }).catch(() => []),
+    db('user_events').whereNotNull('series_key').distinct('series_key').catch(() => []),
+  ])
+  return knownKeysOf({
+    programmes: Object.values(guide?.programsByChannel || {}).flat(),
+    history: history.map((json) => JSON.parse(json)),
+    seriesKeys: events.map((row) => row.series_key),
+  })
+}
+
+export const knownKeysOf = ({ programmes = [], history = [], seriesKeys = [] }) => new Set([
+  ...[...programmes, ...history].map((programme) => showKeyOf(programme.title)),
+  ...seriesKeys.filter(Boolean),
+])
+
 export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
   const [events, categoryEvents] = await Promise.all([

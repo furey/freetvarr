@@ -12,11 +12,13 @@ const { db } = await import('../src/db.js')
 const { categoryOverrideFrom, loadCategoryOverrides, mountCategoryOverrideRoutes, resolvedShowKeyOf, showCategoriesOf, withCategoryOverrides } = await import('../src/for-you-category-overrides.js')
 const { createCategoryIndex } = await import('../src/for-you-categories.js')
 const { loadTitleGenres } = await import('../src/genre-enrichment.js')
+const { knownKeysOf } = await import('../src/for-you-service.js')
 const { canSaveCategoriesOf, categoriesPathOf, originLineOf, toggledTopicsOf } = await import('../src/web/category-override.js')
 
 const index = createCategoryIndex({ country: 'au' })
 const changes = []
 const tastes = new Map()
+const guide = []
 let appServer
 let baseUrl
 
@@ -46,7 +48,7 @@ before(async () => {
     onChange: () => changes.push(Date.now()),
     country: () => 'au',
     tasteTitleOf: async (showKey) => tastes.get(showKey) ?? null,
-    knownKeysOf: async () => new Set(['gardening-australia']),
+    knownKeysOf: async () => knownKeysOf({ programmes: guide, seriesKeys: ['gardening-australia'] }),
   })
   appServer = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => appServer.once('listening', resolve))
@@ -175,4 +177,22 @@ test('a show listed as a movie shows no automatic categories', async () => {
   const read = await call('GET', '/api/for-you/categories/show/bay-life?title=Bay%20Life')
   assert.deepEqual([read.body.format, read.body.topics], [null, []])
   await db('programme_kind_overrides').where({ show_key: 'bay-life' }).delete()
+})
+
+test('first start with no taste: a show with no categories and a prefixed title saves under the key the guide gives', async () => {
+  assert.deepEqual([...knownKeysOf({ programmes: [{ title: 'Garden Talk' }], history: [{ title: 'Old Show - Final' }], seriesKeys: ['picked', null] })], ['garden-talk', 'old-show-final', 'picked'])
+  guide.push({ title: 'Garden Talk' })
+  assert.equal(tastes.get('garden-talk'), undefined)
+  const saved = await call('PUT', '/api/for-you/categories/show/garden-talk-special', { title: 'Garden Talk - Special', format: null, topics: ['gardening'] })
+  assert.equal(saved.body.showKey, 'garden-talk')
+  assert.ok(await db('programme_category_overrides').where({ show_key: 'garden-talk' }).first())
+  const read = await call('GET', '/api/for-you/categories/show/garden-talk-special?title=Garden%20Talk%20-%20Special')
+  assert.deepEqual([read.body.showKey, read.body.custom, read.body.topics], ['garden-talk', true, ['gardening']])
+})
+
+test('a movie kind saved under the raw title key still hides the automatic categories', async () => {
+  guide.push({ title: 'Reef Life' })
+  await db('programme_kind_overrides').insert({ show_key: 'reef-life-special', kind: 'movie', updated_at: Date.now() })
+  const read = await call('GET', '/api/for-you/categories/show/reef-life-special?title=Reef%20Life%20-%20Special')
+  assert.deepEqual([read.body.showKey, read.body.format, read.body.topics], ['reef-life', null, []])
 })
