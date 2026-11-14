@@ -110,6 +110,12 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.26.0
+
+[Release notes for `2.26.0`](https://github.com/furey/freetvarr/releases/tag/2.26.0)
+
+- **Recording pictures**: pictures that recordings saved before `2.26.0` stay as they are, with no database change. A new recording saves the picture of its own airing: in Australia and New Zealand the Freeview episode picture comes first, then the recording's own guide picture. A recording whose airing has no guide or Freeview picture no longer saves show art. It still shows the show's picture, but it is not in the Home hero's recording pictures. Sync no longer waits for recording pictures: they are saved in the background after the imports.
+
 ### 2.25.0
 
 [Release notes for `2.25.0`](https://github.com/furey/freetvarr/releases/tag/2.25.0)

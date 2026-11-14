@@ -4,7 +4,6 @@ import fs from 'fs/promises'
 import { db, getSetting, setSetting } from './db.js'
 import { notifyPlexSectionRefresh } from './plex.js'
 import {
-  fetchProgrammeImageOrThrow,
   listAutorecs,
   listFinished,
   listRemovedIds,
@@ -16,8 +15,15 @@ import {
 import { processRecordingAds, pruneCutOriginals, shouldQueueAutoDelete } from './commercials.js'
 import { makeImportProgress } from './progress.js'
 import { sweepLibraryStates } from './library-files.js'
-import { findArtwork, pruneRecordingArtwork, removeArtwork, saveArtwork } from './artwork.js'
-import { STAND_IN_VERDICT, screenPictureBytes } from './picture-gate.js'
+import { findArtwork, pruneRecordingArtwork, removeArtwork } from './artwork.js'
+import {
+  RECORDING_PICTURE_MISSED,
+  RECORDING_PICTURE_RETRY,
+  RECORDING_PICTURE_DEFERRED,
+  RECORDING_PICTURE_SAVED,
+  createRecordingPictureRun,
+  saveRecordingPicture,
+} from './epg.js'
 import { pruneSyncHistory } from './sync-history.js'
 import { looksLikeFilm } from './film-rule.js'
 import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
@@ -412,7 +418,6 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     }
     conn = await resolveConnection()
     finished = await timeStep('list', () => listFinished(conn))
-    await captureUpcomingArtwork(conn).catch((err) => console.warn(`[sync] artwork capture: ${err.message}`))
   } catch (err) {
     summary.errors.push(err.message)
     await finishSync(syncId, 'error', summary)
@@ -431,7 +436,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     if (showId != null && show?.id !== showId) continue
     const item = { ...toItem({ entry, tvhRecordingsPath, recordingsRoot }), classification: classificationOf(entry) }
     try {
-      const existing = await saveRecordingDetails({ item, show, conn })
+      const existing = await saveRecordingDetails({ item, show })
       const decision = libraryDecision({ existing, libraryChoice: entry.libraryChoice, show, importUnmatched })
       if (decision.action === 'hold') {
         await holdRecording({ item, existing, reason: decision.reason })
@@ -481,6 +486,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
     }
   }
   summary.steps.imports = Date.now() - importsStartedAt
+  startRecordingPictures(conn)
 
   const retries = showId == null ? await pendingRemovals({ finished, shows, queued: deletables }) : []
   deletables.push(...retries)
@@ -568,6 +574,7 @@ const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   channelName: entry.channelName,
   description: entry.description,
   image: entry.image,
+  programId: entry.programId ?? null,
   genres: entry.genres || [],
   year: entry.year ?? null,
   tvhFilename: entry.filename || null,
@@ -578,7 +585,7 @@ const toItem = ({ entry, tvhRecordingsPath, recordingsRoot }) => ({
   ext: entry.filename ? path.extname(entry.filename).slice(1) || 'ts' : 'ts',
 })
 
-const saveRecordingDetails = async ({ item, show = null, conn }) => {
+const saveRecordingDetails = async ({ item, show = null }) => {
   const details = {
     title: item.title,
     episode_title: item.episode_title || null,
@@ -599,40 +606,105 @@ const saveRecordingDetails = async ({ item, show = null, conn }) => {
     .onConflict('recording_id')
     .merge({ ...details, classification: db.raw('coalesce(recordings.classification, excluded.classification)') })
   const row = await db('recordings').where({ recording_id: item.id }).first()
-  if (!row.image_checked_at) await saveRecordingImage({ item, conn })
+  if (!row.image_checked_at) queuedRecordingPictures.set(item.id, item)
   return row
 }
 
-export const captureRecordingArtwork = async ({ recordingId, source, conn }) => {
-  if (!source || failedArtworkSources.has(source)) return null
-  if (await findArtwork({ kind: 'recording', id: recordingId })) return null
-  const image = await fetchProgrammeImageOrThrow({ source, conn })
-  if (!image || await isStandInPicture({ source, image })) {
-    failedArtworkSources.add(source)
-    return null
-  }
-  return saveArtwork({ kind: 'recording', id: recordingId, image })
+export const recordingPicturesIdle = () => recordingPictures ?? Promise.resolve()
+
+const startRecordingPictures = (conn) => {
+  recordingPictures ??= captureRecordingPictures(conn)
+    .catch((err) => console.warn(`[sync] recording pictures: ${err.message}`))
+    .finally(() => { recordingPictures = null })
+  return recordingPictures
 }
 
-const isStandInPicture = async ({ source, image }) =>
-  (await screenPictureBytes({ source, bytes: image.body }).catch(() => null))?.verdict === STAND_IN_VERDICT
+const captureRecordingPictures = async (conn) => {
+  const run = createRecordingPictureRun()
+  await runRecordingPictureQueue({
+    queue: queuedRecordingPictures,
+    delayed: delayedRecordingPictures,
+    saveItem: (item) => saveRecordingImage({ item, run }),
+    captureUpcoming: () => captureUpcomingArtwork({ conn, run }),
+  })
+}
 
-const captureUpcomingArtwork = async (conn) => {
-  const upcoming = (await listUpcoming(conn)).filter((e) => e.enabled && e.image)
-  for (const entry of upcoming) {
-    await captureRecordingArtwork({ recordingId: entry.uuid, source: entry.image, conn }).catch(() => null)
+export const runRecordingPictureQueue = async ({ queue, delayed, saveItem, captureUpcoming, warn = console.warn }) => {
+  await drainRecordingPictures({ queue, delayed, saveItem, warn })
+  await captureUpcoming().catch((err) => warn(`[sync] upcoming recording pictures: ${err.message}`))
+  await drainRecordingPictures({ queue, delayed, saveItem, warn })
+}
+
+const drainRecordingPictures = async ({ queue, delayed, saveItem, warn }) => {
+  while (queue.size) {
+    const item = delayedLastOf({ items: [...queue.values()], idOf: (queued) => queued.id, delayed })[0]
+    queue.delete(item.id)
+    await saveItem(item).catch((err) => warn(`[sync] recording picture ${item.id}: ${err.message}`))
   }
 }
 
-export const forgetFailedArtworkSources = (sources) => sources.forEach((source) => {
-  failedArtworkSources.delete(source)
-  artworkAttempts.delete(source)
+export const delayedLastOf = ({ items, idOf, delayed }) => [
+  ...items.filter((item) => !delayed.has(idOf(item))),
+  ...items.filter((item) => delayed.has(idOf(item))),
+]
+
+const captureRecordingArtwork = async ({ recordingId, airing, attempts }) => {
+  if (await findArtwork({ kind: 'recording', id: recordingId })) return settleOutcome({ recordingId, outcome: RECORDING_PICTURE_SAVED })
+  const attempt = (attempts.get(recordingId) ?? 0) + 1
+  const lastAttempt = attempt >= ARTWORK_ATTEMPTS
+  const outcome = await saveRecordingPicture({ recordingId, ...airing, lastAttempt })
+    .catch(() => (lastAttempt ? RECORDING_PICTURE_MISSED : RECORDING_PICTURE_RETRY))
+  const counted = countedOutcomeOf({ recordingId, outcome, lastAttempt })
+  if (counted === RECORDING_PICTURE_RETRY) attempts.set(recordingId, attempt)
+  else if (counted !== RECORDING_PICTURE_DEFERRED) attempts.delete(recordingId)
+  return settleOutcome({ recordingId, outcome: counted })
+}
+
+const countedOutcomeOf = ({ recordingId, outcome, lastAttempt }) => {
+  if (outcome !== RECORDING_PICTURE_DEFERRED) {
+    deferredOnce.delete(recordingId)
+    return outcome
+  }
+  if (!deferredOnce.has(recordingId)) {
+    deferredOnce.add(recordingId)
+    return outcome
+  }
+  deferredOnce.delete(recordingId)
+  return lastAttempt ? RECORDING_PICTURE_MISSED : RECORDING_PICTURE_RETRY
+}
+
+const settleOutcome = ({ recordingId, outcome }) => {
+  if (isSettledOutcome(outcome)) delayedRecordingPictures.delete(recordingId)
+  else delayedRecordingPictures.add(recordingId)
+  return outcome
+}
+
+const isSettledOutcome = (outcome) => outcome === RECORDING_PICTURE_SAVED || outcome === RECORDING_PICTURE_MISSED
+
+const airingOfEntry = ({ entry, run }) => ({ eventId: entry.programId, title: entry.name, source: entry.image, run })
+
+const airingOfItem = ({ item, run }) => ({ eventId: item.programId, title: item.title, source: item.image, run })
+
+const captureUpcomingArtwork = async ({ conn, run }) => {
+  const upcoming = (await listUpcoming(conn)).filter((entry) => entry.enabled && !settledUpcomingArtwork.has(entry.uuid))
+  for (const entry of delayedLastOf({ items: upcoming, idOf: (candidate) => candidate.uuid, delayed: delayedRecordingPictures })) {
+    const outcome = await captureRecordingArtwork({ recordingId: entry.uuid, airing: airingOfEntry({ entry, run }), attempts: upcomingArtworkAttempts })
+      .catch((err) => console.warn(`[sync] upcoming recording picture ${entry.uuid}: ${err.message}`))
+    if (isSettledOutcome(outcome)) settledUpcomingArtwork.add(entry.uuid)
+  }
+}
+
+export const forgetFailedArtwork = (recordingIds) => recordingIds.forEach((recordingId) => {
+  settledUpcomingArtwork.delete(recordingId)
+  upcomingArtworkAttempts.delete(recordingId)
+  finishedArtworkAttempts.delete(recordingId)
+  delayedRecordingPictures.delete(recordingId)
+  deferredOnce.delete(recordingId)
 })
 
-const saveRecordingImage = async ({ item, conn }) => {
-  const retryLater = await captureRecordingArtwork({ recordingId: item.id, source: item.image, conn })
-    .then(() => noteArtworkFetched(item.image), () => noteArtworkAttempt(item.image))
-  if (retryLater) return
+const saveRecordingImage = async ({ item, run }) => {
+  const outcome = await captureRecordingArtwork({ recordingId: item.id, airing: airingOfItem({ item, run }), attempts: finishedArtworkAttempts })
+  if (!isSettledOutcome(outcome)) return
   const imagePath = (await findArtwork({ kind: 'recording', id: item.id }))
     ? `recordings/${item.id}`
     : null
@@ -640,22 +712,6 @@ const saveRecordingImage = async ({ item, conn }) => {
     image_path: imagePath,
     image_checked_at: db.fn.now(),
   })
-}
-
-const noteArtworkFetched = (source) => {
-  artworkAttempts.delete(source)
-  return false
-}
-
-const noteArtworkAttempt = (source) => {
-  const attempts = (artworkAttempts.get(source) ?? 0) + 1
-  if (attempts < ARTWORK_ATTEMPTS) {
-    artworkAttempts.set(source, attempts)
-    return true
-  }
-  artworkAttempts.delete(source)
-  failedArtworkSources.add(source)
-  return false
 }
 
 const holdRecording = async ({ item, existing, reason }) => {
@@ -1111,7 +1167,12 @@ const ROOT_NAMES = { tv: 'TV', oneOff: 'one-off', film: 'movies' }
 const ARTWORK_ATTEMPTS = 3
 
 let inFlight = null
-const failedArtworkSources = new Set()
-const artworkAttempts = new Map()
+const settledUpcomingArtwork = new Set()
+const queuedRecordingPictures = new Map()
+const delayedRecordingPictures = new Set()
+const deferredOnce = new Set()
+let recordingPictures = null
+const upcomingArtworkAttempts = new Map()
+const finishedArtworkAttempts = new Map()
 const classificationStore = createClassificationStore()
 const ID_HINT = /\s*\{(?:tvdb|tmdb|imdb)-[^}]*\}/gi

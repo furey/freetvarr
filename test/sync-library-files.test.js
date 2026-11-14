@@ -8,7 +8,7 @@ import path from 'node:path'
 const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-sync-files-')))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
-const { startSync, getActiveSyncId } = await import('../src/sync.js')
+const { startSync, getActiveSyncId, recordingPicturesIdle, runRecordingPictureQueue } = await import('../src/sync.js')
 const { db } = await import('../src/db.js')
 
 const RECORDINGS_ROOT = path.join(tmpDir, 'recordings')
@@ -17,7 +17,7 @@ const ONEOFF_ROOT = path.join(tmpDir, 'one-offs')
 const PLANNED = path.join(MEDIA_ROOT, 'Gardening Australia', 'Season 03', 'Gardening Australia - S03E04 - Ep.ts')
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex')
 
-const tvh = { finished: [], posts: [], imageRequests: 0, imageFails: 0 }
+const tvh = { finished: [], posts: [], imageRequests: 0, imageFails: 0, hanging: [] }
 
 const entry = (uuid, overrides = {}) => ({
   uuid,
@@ -42,7 +42,15 @@ before(async () => {
   server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x')
     if (req.method === 'POST') tvh.posts.push(url.pathname)
-    if (url.pathname === '/imagecache/7') {
+    if (url.pathname === '/imagecache/hang') {
+      tvh.hanging.push(res)
+      return
+    }
+    if (url.pathname === '/imagecache/814112_default_program_image.png') {
+      res.writeHead(200, { 'Content-Type': 'image/png' })
+      return res.end(PNG)
+    }
+    if (url.pathname.startsWith('/imagecache/')) {
       tvh.imageRequests += 1
       if (tvh.imageRequests <= tvh.imageFails) return req.socket.destroy()
       res.writeHead(200, { 'Content-Type': 'image/png' })
@@ -71,7 +79,7 @@ after(async () => {
 })
 
 beforeEach(async () => {
-  Object.assign(tvh, { finished: [], posts: [], imageRequests: 0, imageFails: 0 })
+  Object.assign(tvh, { finished: [], posts: [], imageRequests: 0, imageFails: 0, hanging: [] })
   await db('recordings').delete()
   await db('shows').delete()
   await db('settings').where({ key: 'import_unmatched' }).delete()
@@ -82,10 +90,16 @@ beforeEach(async () => {
 
 const identityFor = async () => ({ state: 'none', identity: null, candidates: [] })
 
-const runSync = async () => {
+const runImports = async () => {
   const { syncId } = await startSync({ trigger: 'manual', identityFor })
   while (getActiveSyncId() === syncId) await new Promise((resolve) => setTimeout(resolve, 10))
   return JSON.parse((await db('syncs').where({ id: syncId }).first()).summary_json)
+}
+
+const runSync = async () => {
+  const summary = await runImports()
+  await recordingPicturesIdle()
+  return summary
 }
 
 const record = async (uuid, overrides) => {
@@ -193,6 +207,7 @@ test('sync: a recording picture that failed to download is tried again next sync
   await record('pic-1', { disp_title: 'Peppa Pig', image: 'imagecache/7' })
   await runSync()
   assert.equal((await rowOf('pic-1')).image_checked_at, null)
+  tvh.finished[0].image = 'imagecache/8'
   await runSync()
   const row = await rowOf('pic-1')
   assert.equal(tvh.imageRequests, 2)
@@ -203,8 +218,73 @@ test('sync: a recording picture that failed to download is tried again next sync
 test('sync: a picture that keeps failing stops being tried after a few syncs', async () => {
   await db('settings').insert({ key: 'import_unmatched', value: 'false' })
   tvh.imageFails = 100
-  await record('pic-2', { disp_title: 'Peppa Pig', image: 'imagecache/7' })
-  for (let n = 0; n < 5; n += 1) await runSync()
+  await record('pic-2', { disp_title: 'Peppa Pig', image: 'imagecache/9-0' })
+  for (let n = 1; n < 3; n += 1) {
+    await runSync()
+    tvh.finished[0].image = `imagecache/9-${n}`
+  }
+  assert.equal((await rowOf('pic-2')).image_checked_at, null)
+  for (let n = 3; n < 6; n += 1) {
+    await runSync()
+    tvh.finished[0].image = `imagecache/9-${n}`
+  }
   assert.equal(tvh.imageRequests, 3)
-  assert.notEqual((await rowOf('pic-2')).image_checked_at, null)
+  const row = await rowOf('pic-2')
+  assert.notEqual(row.image_checked_at, null)
+  assert.equal(row.image_path, null)
+})
+
+test('sync: a try that only met the recent-failure wait is not counted', async () => {
+  await db('settings').insert({ key: 'import_unmatched', value: 'false' })
+  tvh.imageFails = 100
+  await record('pic-3', { disp_title: 'Peppa Pig', image: 'imagecache/recent' })
+  for (let n = 0; n < 4; n += 1) await runSync()
+  assert.equal(tvh.imageRequests, 1)
+  assert.equal((await rowOf('pic-3')).image_checked_at, null)
+  await runSync()
+  assert.equal(tvh.imageRequests, 1)
+  assert.notEqual((await rowOf('pic-3')).image_checked_at, null)
+})
+
+test('runRecordingPictureQueue: delayed rows go last, one failing row does not end the pass, and rows queued meanwhile are saved', async () => {
+  const queue = new Map(['late', 'a', 'broken', 'b'].map((id) => [id, { id }]))
+  const saved = []
+  const warnings = []
+  await runRecordingPictureQueue({
+    queue,
+    delayed: new Set(['late']),
+    saveItem: async (item) => {
+      if (item.id === 'broken') throw new Error('database is locked')
+      saved.push(item.id)
+    },
+    captureUpcoming: async () => { queue.set('queued-during-upcoming', { id: 'queued-during-upcoming' }) },
+    warn: (line) => warnings.push(line),
+  })
+  assert.deepEqual(saved, ['a', 'b', 'late', 'queued-during-upcoming'])
+  assert.equal(queue.size, 0)
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0], /broken: database is locked/)
+})
+
+test('sync: a hanging picture host does not delay imports', async () => {
+  await db('settings').insert({ key: 'import_unmatched', value: 'false' })
+  await record('pic-4', { disp_title: 'Peppa Pig', image: 'imagecache/hang' })
+  const startedAt = Date.now()
+  await runImports()
+  assert.ok(Date.now() - startedAt < 2000, `imports took ${Date.now() - startedAt} ms`)
+  const row = await rowOf('pic-4')
+  assert.equal(row.status, 'not_imported')
+  assert.equal(row.image_checked_at, null)
+  while (!tvh.hanging.length) await new Promise((resolve) => setTimeout(resolve, 10))
+  tvh.hanging.forEach((res) => res.destroy())
+  await recordingPicturesIdle()
+})
+
+test('sync: a stand-in recording picture is never saved', async () => {
+  await db('settings').insert({ key: 'import_unmatched', value: 'false' })
+  await record('d86a4bc0f607885abd1c30ae34174c68', { disp_title: 'Big Brother', image: 'imagecache/814112_default_program_image.png' })
+  await runSync()
+  const row = await rowOf('d86a4bc0f607885abd1c30ae34174c68')
+  assert.notEqual(row.image_checked_at, null)
+  assert.equal(row.image_path, null)
 })

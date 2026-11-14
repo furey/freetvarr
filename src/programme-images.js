@@ -53,7 +53,7 @@ export const createProgrammeImages = ({
     const cached = recall(source)
     if (cached) return cached
     if (isNoted({ list: misses, source })) return null
-    if (isNoted({ list: failures, source })) throw new Error('image source failed recently')
+    if (isNoted({ list: failures, source })) throw recentFailureError()
     if (inflight.has(source)) return inflight.get(source)
     const pending = Promise.resolve()
       .then(() => fetchImage(source))
@@ -76,6 +76,12 @@ export const createProgrammeImages = ({
 
   return { imageFor, imageOrErrorFor, stats }
 }
+
+export const RECENT_FAILURE_CODE = 'recent-failure'
+
+export const isRecentFailure = (error) => error?.code === RECENT_FAILURE_CODE
+
+const recentFailureError = () => Object.assign(new Error('image source failed recently'), { code: RECENT_FAILURE_CODE })
 
 const DEFAULT_MAX_ENTRIES = 64
 const DEFAULT_MAX_BYTES = 32 * 1024 * 1024

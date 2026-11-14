@@ -37,6 +37,7 @@ const eventsGrid = () => {
       event(104, null, 3),
       event(105, `${base}/img/missing.jpg`, 4, 'Shared Show'),
       event(106, `${base}/img/block.jpg`, 5, 'Shared Show'),
+      event(107, `${base}/img/814112_default_program_image.png`, 6, 'Big Brother'),
     ],
   }
 }
@@ -46,6 +47,7 @@ const routes = {
   '/api/epggrab/channel/grid': () => ({ json: { entries: [] } }),
   '/api/epg/events/grid': () => ({ json: eventsGrid() }),
   '/img/block.jpg': () => ({ contentType: 'image/jpeg', body: JPEG }),
+  '/img/814112_default_program_image.png': () => ({ contentType: 'image/jpeg', body: JPEG }),
   '/img/page': () => ({ contentType: 'text/html', body: '<html>not an image</html>' }),
   '/img/json': () => ({ contentType: 'application/json', body: '{"image":false}' }),
 }
@@ -92,7 +94,7 @@ test('getGuideDay: the browser payload carries has_image, never the image URL', 
   const day = await epg.getGuideDay({ day: 0 })
   const programs = day.programs[CHANNEL]
   assert.deepEqual(programs.map((p) => [p.program_id, p.has_image]), [
-    [101, true], [102, true], [103, true], [104, false], [105, true], [106, true],
+    [101, true], [102, true], [103, true], [104, false], [105, true], [106, true], [107, true],
   ])
   assert.ok(!JSON.stringify(day).includes('/img/'))
   assert.ok(programs.every((p) => !('image' in p)))
@@ -105,27 +107,132 @@ test('searchGuide: results carry has_image without the image URL', async () => {
   assert.ok(!('image' in results[0]))
 })
 
-test('getProgrammeImage: serves the image of a known event', async () => {
-  const image = await epg.getProgrammeImage({ eventId: '101' })
+test('recordingPictureFor: a recording saves the picture of its airing', async () => {
+  const { image, settled } = await epg.recordingPictureFor({ eventId: '101' })
   assert.equal(image.contentType, 'image/jpeg')
   assert.deepEqual(image.body, JPEG)
+  assert.equal(settled, true)
 })
 
-test('getProgrammeImage: unknown and imageless events resolve to nothing (the route answers 404)', async () => {
-  assert.equal(await epg.getProgrammeImage({ eventId: '999' }), null)
-  assert.equal(await epg.getProgrammeImage({ eventId: '104' }), null)
+test('recordingPictureFor: unknown and imageless airings save no picture, and are not asked again', async () => {
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '999' }), { image: null, settled: false, deferred: false })
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '104' }), { image: null, settled: true, deferred: false })
 })
 
-test('getProgrammeImage: rejects an upstream answer that is not an image', async () => {
-  assert.equal(await epg.getProgrammeImage({ eventId: '102' }), null)
-  assert.equal(await epg.getProgrammeImage({ eventId: '103' }), null)
+test('recordingPictureFor: an upstream answer that is not an image is no picture', async () => {
+  assert.equal((await epg.recordingPictureFor({ eventId: '102' })).image, null)
+  assert.equal((await epg.recordingPictureFor({ eventId: '103' })).image, null)
 })
 
-test('getProgrammeImage: a dead image link falls back to another airing of the same title', async () => {
-  const image = await epg.getProgrammeImage({ eventId: '105' })
-  assert.deepEqual(image.body, JPEG)
+test('recordingPictureFor: a dead image link saves no picture of another airing; the guide cell still shows one live', async () => {
+  const { image } = await epg.recordingPictureFor({ eventId: '105' })
+  assert.equal(image, null)
   const thumbnail = await epg.getProgrammeThumbnail({ eventId: '105', width: 192 })
   assert.equal(thumbnail.contentType, 'image/webp')
+})
+
+test('recordingPictureFor: a stand-in picture is never saved for a recording', async () => {
+  assert.deepEqual(await epg.recordingPictureFor({ eventId: '107' }), { image: null, settled: true, deferred: false })
+  assert.deepEqual(await epg.recordingPictureFor({ title: 'Big Brother', source: `${base}/img/814112_default_program_image.png` }), { image: null, settled: true, deferred: false })
+})
+
+test('recordingPictureFor: a TVHeadend entry gone from the guide uses its own image and title', async () => {
+  const { image, settled } = await epg.recordingPictureFor({ eventId: '5555', title: 'Old Show', source: `${base}/img/block.jpg` })
+  assert.deepEqual(image.body, JPEG)
+  assert.equal(settled, true)
+})
+
+test('saveRecordingPicture: saves a settled picture, asks again for an unsettled one, and saves it on the last attempt', async () => {
+  const saved = []
+  const save = async ({ id }) => saved.push(id)
+  const picture = { body: JPEG, contentType: 'image/jpeg' }
+  const outcomeOf = (found, lastAttempt = false) => epg.saveRecordingPicture({ recordingId: `r${saved.length}`, lastAttempt, findPicture: async () => found, save })
+  assert.equal(await outcomeOf({ image: picture, settled: true }), 'saved')
+  assert.equal(await outcomeOf({ image: picture, settled: false }), 'retry')
+  assert.equal(await outcomeOf({ image: picture, settled: false }, true), 'saved')
+  assert.equal(await outcomeOf({ image: null, settled: true }), 'missed')
+  assert.equal(await outcomeOf({ image: null, settled: false }), 'retry')
+  assert.equal(await outcomeOf({ image: null, settled: false }, true), 'missed')
+  assert.equal(await epg.saveRecordingPicture({ recordingId: 'boom', findPicture: async () => { throw new Error('down') }, save }), 'retry')
+  assert.equal(await outcomeOf({ image: null, settled: false, deferred: true }), 'deferred')
+  assert.equal(await outcomeOf({ image: null, settled: false, deferred: true }, true), 'deferred')
+  assert.deepEqual(saved, ['r0', 'r1'])
+})
+
+test('createRecordingPictureRun: a host that times out is skipped for the rest of the run, without counting as a try', async () => {
+  const loads = []
+  const run = epg.createRecordingPictureRun({
+    loadTimeoutMs: 20,
+    load: (origin) => {
+      loads.push(origin)
+      return origin.includes('slow.example') ? new Promise(() => {}) : Promise.resolve({ body: JPEG })
+    },
+  })
+  await assert.rejects(run.load('https://slow.example/a.jpg'), /did not answer/)
+  const startedAt = Date.now()
+  await assert.rejects(run.load('https://slow.example/b.jpg'), (error) => error.code === 'skipped-host')
+  assert.ok(Date.now() - startedAt < 15)
+  assert.deepEqual((await run.load('https://fast.example/c.jpg')).body, JPEG)
+  assert.deepEqual(loads, ['https://slow.example/a.jpg', 'https://fast.example/c.jpg'])
+  const skipped = await epg.recordingPictureFor({ eventId: '101', run: epg.createRecordingPictureRun({ load: async () => { throw Object.assign(new Error('recent'), { code: 'recent-failure' }) } }) })
+  assert.deepEqual(skipped, { image: null, settled: false, deferred: true })
+})
+
+const slowHostSaver = async ({ ownLoads = false } = {}) => {
+  const imagecacheLoads = []
+  const run = epg.createRecordingPictureRun({
+    loadTimeoutMs: 30,
+    load: (origin) => {
+      if (!origin.startsWith('imagecache/')) return Promise.resolve({ body: JPEG, contentType: 'image/jpeg' })
+      imagecacheLoads.push(origin)
+      return ownLoads ? Promise.resolve({ body: Buffer.from(origin), contentType: 'image/jpeg' }) : new Promise(() => {})
+    },
+  })
+  const { createArtResolver } = await import('../src/art-resolver.js')
+  const resolver = createArtResolver({
+    stages: {
+      'freeview-episode': async ({ title }) => ({ sources: title.endsWith('matched') ? [`guide-picture:episode-${title}`] : [] }),
+      own: async ({ ownSource }) => ({ sources: [ownSource] }),
+      'freeview-show': async ({ title }) => ({ sources: [`guide-picture:show-${title}`] }),
+    },
+    store: { read: async () => null, write: async () => {}, markDue: async () => [], stamped: async () => [] },
+    followUpDelaysMs: [],
+  })
+  const saved = new Map()
+  const saveOf = ({ n, title = `Show ${n}`, lastAttempt = false }) => epg.saveRecordingPicture({
+    recordingId: `slow-${n}`,
+    title,
+    source: `imagecache/${n}`,
+    lastAttempt,
+    run,
+    resolver,
+    save: async ({ id, image }) => saved.set(id, image.body.toString()),
+  })
+  return { saveOf, saved, imagecacheLoads }
+}
+
+test('saveRecordingPicture: a slow TVHeadend image host saves no lower picture, holds no queue, and lets Freeview episode matches save at once', async () => {
+  const { saveOf, saved, imagecacheLoads } = await slowHostSaver()
+  const startedAt = Date.now()
+  const outcomes = []
+  for (let n = 0; n < 20; n += 1) outcomes.push(await saveOf({ n, title: n % 5 === 4 ? `Show ${n} matched` : `Show ${n}` }))
+  assert.ok(Date.now() - startedAt < 1000, `${Date.now() - startedAt} ms`)
+  assert.equal(outcomes[0], 'retry')
+  assert.deepEqual(outcomes.filter((outcome, n) => n % 5 === 4), Array(4).fill('saved'))
+  assert.deepEqual(outcomes.filter((outcome, n) => n > 0 && n % 5 !== 4), Array(15).fill('deferred'))
+  assert.deepEqual([...saved.keys()], ['slow-4', 'slow-9', 'slow-14', 'slow-19'])
+  assert.ok([...saved.values()].every((body) => body === JPEG.toString()))
+  assert.deepEqual(imagecacheLoads, ['imagecache/0'])
+})
+
+test('saveRecordingPicture: the own image saves when its host answers in a later run; the last try saves the Freeview show copy', async () => {
+  const later = await slowHostSaver({ ownLoads: true })
+  assert.equal(await later.saveOf({ n: 1 }), 'saved')
+  assert.equal(later.saved.get('slow-1'), 'imagecache/1')
+  const lastTry = await slowHostSaver()
+  assert.equal(await lastTry.saveOf({ n: 2 }), 'retry')
+  assert.equal(await lastTry.saveOf({ n: 2, lastAttempt: true }), 'saved')
+  assert.equal(lastTry.saved.get('slow-2'), JPEG.toString())
 })
 
 test('getProgrammeThumbnail: unknown and imageless events give nothing; a known image comes back as a WebP thumbnail', async () => {

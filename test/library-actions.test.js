@@ -87,10 +87,10 @@ test('refreshShowArtwork clears recording artwork and show cache', async () => {
     removeImage: async (args) => removed.push(args.id),
     resetRows: async (ids) => reset.push(...ids),
     forgetShow: (title) => forgotten.push(title),
-    forgetFailedSources: (sources) => retried.push(...sources),
+    forgetFailedArtwork: (recordingIds) => retried.push(...recordingIds),
   })
   assert.deepEqual(result, { cleared: 3 })
-  assert.deepEqual(retried, ['imagecache/1'])
+  assert.deepEqual(retried, ['a', 'b'])
   assert.deepEqual(removed, ['a', 'b'])
   assert.deepEqual(reset, ['a', 'b'])
   assert.deepEqual(forgotten, ['Show'])

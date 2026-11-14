@@ -19,7 +19,7 @@ import {
   guideSourcesOf,
   pictureChangeOf,
   programmeWarmOriginsOf,
-  recordingPictureOrderOf,
+  RECORDING_SAVE_CHAIN,
   pictureStampOf,
 } from '../src/art-resolver.js'
 import { imageRouteOf, serveImageRoute } from '../src/image-routes.js'
@@ -786,15 +786,70 @@ test('Freeview airing pictures: the episode picture comes before the show pictur
   assert.deepEqual(freeviewAiringOriginsOf({}), [])
 })
 
-test('recordingPictureOrderOf: the Freeview episode picture, the airing picture, Freeview show art, the Freeview title copy, other airings', () => {
-  assert.deepEqual(recordingPictureOrderOf({
-    freeviewEpisode: ['https://fv/e.jpg'],
-    own: 'https://guide/own.jpg',
-    freeviewShow: ['https://fv/s.jpg'],
-    freeviewTitle: 'guide-picture:t',
-    sameTitle: ['https://guide/other.jpg'],
-  }), ['https://fv/e.jpg', 'https://guide/own.jpg', 'https://fv/s.jpg', 'guide-picture:t', 'https://guide/other.jpg'])
-  assert.deepEqual(recordingPictureOrderOf({ own: 'https://guide/own.jpg', sameTitle: ['https://guide/other.jpg'] }), ['https://guide/own.jpg', 'https://guide/other.jpg'])
+test('RECORDING_SAVE_CHAIN: the Freeview episode picture, the airing picture, Freeview show art, the Freeview title copy, the title copy; never other airings or the title chain', () => {
+  assert.deepEqual(RECORDING_SAVE_CHAIN, ['freeview-episode', 'own', 'freeview-show', 'freeview-title', 'saved', 'none'])
+})
+
+const titleSteps = Object.fromEntries(['choice', 'plex', 'recording', 'guide', 'online', 'frame', 'episode', 'same-title'].map((stage) => [stage, async () => ({ sources: [`${stage}:x`] })]))
+
+const saveResolverWith = ({ stages, pictures }) => resolverWith({
+  stages: { ...titleSteps, ...stages },
+  loadImage: async (origin) => pictures[origin] ?? null,
+})
+
+test('resolveRecordingPicture: an entry with no Freeview match saves its own image, not the Freeview title copy; a match saves the episode picture', async () => {
+  const pictures = {
+    'https://fv/episode.jpg': { body: Buffer.from('e') },
+    'https://fv/show.jpg': { body: Buffer.from('s') },
+    'guide-picture:title-copy': { body: Buffer.from('t') },
+    'imagecache/7': { body: Buffer.from('own') },
+  }
+  const own = async ({ ownSource }) => ({ sources: [ownSource] })
+  const titleCopy = async () => ({ sources: ['guide-picture:title-copy'] })
+  const unmatched = saveResolverWith({ stages: { own, 'freeview-title': titleCopy, saved: titleCopy, 'freeview-episode': async () => ({ sources: [] }), 'freeview-show': async () => ({ sources: [] }) }, pictures })
+  const fromEntry = await unmatched.resolver.resolveRecordingPicture({ title: 'Fargo', eventId: 'e1', ownSource: 'imagecache/7' })
+  assert.deepEqual([fromEntry.stage, fromEntry.origin], ['own', 'imagecache/7'])
+  const matched = saveResolverWith({ stages: { own, 'freeview-title': titleCopy, 'freeview-episode': async () => ({ sources: ['https://fv/episode.jpg'] }), 'freeview-show': async () => ({ sources: ['https://fv/show.jpg'] }) }, pictures })
+  const episode = await matched.resolver.resolveRecordingPicture({ title: 'Fargo', eventId: 'e1', ownSource: 'imagecache/7' })
+  assert.deepEqual([episode.stage, episode.origin], ['freeview-episode', 'https://fv/episode.jpg'])
+  const showOnly = saveResolverWith({ stages: { own: async () => ({ sources: [] }), 'freeview-title': titleCopy, 'freeview-show': async () => ({ sources: ['https://fv/show.jpg'] }) }, pictures })
+  const show = await showOnly.resolver.resolveRecordingPicture({ title: 'Fargo', eventId: 'e1' })
+  assert.deepEqual([show.stage, show.origin], ['freeview-show', 'https://fv/show.jpg'])
+})
+
+test('resolveRecordingPicture: through the gate, never an owner choice, Plex, online art, a frame, or another airing', async () => {
+  const pictures = {
+    'https://guide/own.jpg': { body: Buffer.from('own') },
+    'https://guide/card.jpg': { body: Buffer.from('card'), verdict: 'weak' },
+  }
+  const standInFirst = saveResolverWith({ stages: { 'freeview-episode': async () => ({ sources: ['https://fv/814112_default_program_image.png'] }), own: async ({ ownSource }) => ({ sources: [ownSource] }) }, pictures })
+  const skipped = await standInFirst.resolver.resolveRecordingPicture({ title: 'Big Brother', eventId: 'e2', ownSource: 'https://guide/own.jpg' })
+  assert.deepEqual([skipped.stage, skipped.origin], ['own', 'https://guide/own.jpg'])
+  const cardFirst = saveResolverWith({ stages: { own: async () => ({ sources: ['https://guide/card.jpg'] }), saved: async () => ({ sources: ['https://guide/own.jpg'] }) }, pictures })
+  const real = await cardFirst.resolver.resolveRecordingPicture({ title: 'Giddy Up', eventId: 'e3' })
+  assert.deepEqual([real.stage, real.origin], ['saved', 'https://guide/own.jpg'])
+  const cardOnly = saveResolverWith({ stages: { own: async () => ({ sources: ['https://guide/card.jpg'] }) }, pictures })
+  const card = await cardOnly.resolver.resolveRecordingPicture({ title: 'Giddy Up', eventId: 'e4' })
+  assert.deepEqual([card.stage, card.origin, card.pending], ['weak', 'https://guide/card.jpg', false])
+  assert.ok(cardOnly.calls.every((stage) => !(stage in titleSteps)), cardOnly.calls.join())
+  const nothing = await saveResolverWith({ stages: {}, pictures }).resolver.resolveRecordingPicture({ title: 'Lingo', eventId: 'e5' })
+  assert.deepEqual([nothing.stage, nothing.origin, nothing.pending], ['none', null, false])
+})
+
+test('resolveRecordingPicture: a picture that fails to load answers pending, and a later one is provisional', async () => {
+  const stages = { own: async () => ({ sources: ['https://guide/slow.jpg'] }), saved: async () => ({ sources: ['guide-picture:other'] }) }
+  const failing = (fallback) => async (origin) => {
+    if (origin === 'https://guide/slow.jpg') throw new Error('timeout')
+    return fallback
+  }
+  const { resolver } = resolverWith({ stages, loadImage: failing(null) })
+  assert.equal((await resolver.resolveRecordingPicture({ title: 'Lingo', eventId: 'e6' })).pending, true)
+  const later = resolverWith({ stages, loadImage: failing({ body: Buffer.from('other') }) })
+  const provisional = await later.resolver.resolveRecordingPicture({ title: 'Lingo', eventId: 'e7' })
+  assert.deepEqual([provisional.origin, provisional.provisional], ['guide-picture:other', true])
+  const viaRun = resolverWith({ stages, loadImage: async () => { throw new Error('the resolver loader is not used') } })
+  const loaded = await viaRun.resolver.resolveRecordingPicture({ title: 'Lingo', eventId: 'e8', load: failing({ body: Buffer.from('other') }) })
+  assert.equal(loaded.origin, 'guide-picture:other')
 })
 
 test('programmeWarmOriginsOf: every origin the chain can serve with Freeview, the old set without it', () => {
