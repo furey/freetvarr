@@ -54,7 +54,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
 
   const ordered = [...events].sort((a, b) => Number(a.ts) - Number(b.ts))
   for (const event of ordered) {
-    if (THEME_KINDS.has(event.kind)) continue
+    if (CATEGORY_KINDS.has(event.kind)) continue
     const title = event.title || null
     const key = title ? keyOf(title) : event.series_key
     if (!key) continue
@@ -297,7 +297,7 @@ const parseMeta = (value) => {
 }
 
 const REQUEST_WEIGHTS = { episode: 0.6, series: 1.2, record: 0.8, notify: 0.5 }
-const THEME_KINDS = new Set(['theme_muted', 'theme_unmuted', 'theme_boosted', 'theme_unboosted'])
+const CATEGORY_KINDS = new Set(['category_muted', 'category_unmuted', 'category_boosted', 'category_unboosted'])
 const INTEREST_KINDS = new Set(['suggestion_accepted', 'programme_opened'])
 const INTEREST_WEIGHT = 0.1
 const INTEREST_MAX = 0.3

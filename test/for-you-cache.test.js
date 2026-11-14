@@ -43,7 +43,7 @@ const partsWith = (over = {}) => ({
   watchlist: [{ title: 'Muster Dogs', mode: 'record' }],
   events: { count: 4, lastId: 40 },
   recordings: { count: 2, watched: 1, position: 300 },
-  categories: { count: 9 },
+  guideGenres: { count: 9 },
   embedderId: 'minilm',
   vectors: 3,
   pinned: ['seven'],

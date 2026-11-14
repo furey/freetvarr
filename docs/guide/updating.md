@@ -110,6 +110,16 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.28.0
+
+[Release notes for `2.28.0`](https://github.com/furey/freetvarr/releases/tag/2.28.0)
+
+- **Database**: the first start adds one database change (database change `0052`). `0052` deletes the category hides (seasonal hides too), **More** choices, and category switches from before `2.28.0`, and adds an empty table for category changes in a later release. Shows you hid stay hidden. A version that is older than `0052` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+- **Categories**: "theme" is now "category" everywhere. Category hides, seasonal hides, and switches from before `2.28.0` are cleared; hide them again in For you or turn them off again in Settings → WATCHING → **For you** → **Categories**. The categories also change: **Documentaries**, **Talk shows**, **Gardening**, **Medical**, **Entertainment news**, **Mystery and paranormal**, **Engineering and machines**, **Business and money**, and **Military and war** are new; **Science and health** is now **Science and technology**, and **Fitness** is now part of **Health and lifestyle**. See [Category rows](/guide/for-you#category-rows).
+- **For you**: the first start works out the suggestions again from new, once, so For you takes longer than usual to show after that start. Genre lookups refresh in the background over a few days, so rows and labels can change during that time.
+- **Settings**: **Hidden shows** is now **Hidden shows and categories**, and **Themes** is now **Categories**, grouped into **Formats**, **Topics**, **Sport**, and **Seasonal**.
+- **API**: scripts that call `/api/for-you/themes` must call `/api/for-you/categories`.
+
 ### 2.26.0
 
 [Release notes for `2.26.0`](https://github.com/furey/freetvarr/releases/tag/2.26.0)

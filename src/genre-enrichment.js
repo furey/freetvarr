@@ -6,16 +6,18 @@ import { showTitleKey } from './show-artwork.js'
 import { FILM_MIN_MS } from './film-rule.js'
 import { MOVIE, NOT_MOVIE, ONE_OFF_KIND, SHOW_KIND, loadKindOverrides, withKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
+import { isLiveEventTitle } from './for-you-label-rules.js'
+import { hasEpisodeDetails } from './episode-details.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
 
-export const CATEGORIES = [
+export const GENRE_TAGS = [
   'drama', 'comedy', 'reality', 'lifestyle', 'food', 'home', 'travel', 'documentary', 'news', 'sport',
   'kids', 'quiz', 'crime', 'sci-fi', 'movie', 'movie-action', 'movie-comedy', 'movie-drama', 'movie-thriller',
   'movie-horror', 'movie-sci-fi', 'movie-romance', 'movie-family', 'movie-documentary',
 ]
 
-export const CATEGORY_LABELS = {
+export const GENRE_TAG_LABELS = {
   drama: 'Drama',
   comedy: 'Comedy',
   reality: 'Reality',
@@ -44,32 +46,33 @@ export const CATEGORY_LABELS = {
 
 export const genreLookupEnabledFrom = (stored) => stored !== 'false'
 
-export const categoriesOfTvmaze = ({ genres = [], type = null }) => {
+export const genreTagsOfTvmaze = ({ genres = [], type = null }) => {
   const found = new Set()
   for (const genre of genres) for (const category of TVMAZE_GENRES[genre] || []) found.add(category)
   for (const category of TVMAZE_TYPES[type] || []) found.add(category)
   if (type === 'Documentary') found.delete('drama')
   if (found.has('kids')) found.delete('drama')
-  return CATEGORIES.filter((category) => found.has(category))
+  return GENRE_TAGS.filter((category) => found.has(category))
 }
 
-export const categoriesOfFilmGenres = (labels = []) => {
+export const genreTagsOfFilmGenres = (labels = []) => {
   const found = new Set(['movie'])
   for (const label of labels) {
     const text = String(label).toLowerCase()
     for (const [pattern, category] of FILM_GENRE_PATTERNS) if (pattern.test(text)) found.add(category)
   }
-  return CATEGORIES.filter((category) => found.has(category))
+  return GENRE_TAGS.filter((category) => found.has(category))
 }
 
-export const categoriesOfEtsi = (genre) => {
+export const genreTagsOfEtsi = (genre, country = '') => {
   const code = Number(genre)
   if (!Number.isInteger(code) || code <= 0) return []
   if (ETSI_CODES[code]) return ETSI_CODES[code]
+  if (country === 'au' && AU_ONLY_GROUPS[code >> 4]) return AU_ONLY_GROUPS[code >> 4]
   return ETSI_GROUPS[code >> 4] || []
 }
 
-export const keywordCategoriesOf = (title) => {
+export const keywordGenreTagsOf = (title) => {
   const text = String(title || '')
   if (NEWS_TITLE.test(text)) return ['news']
   if (SPORT_TITLE.test(text)) return ['sport']
@@ -79,7 +82,7 @@ export const keywordCategoriesOf = (title) => {
 export const isMovieLike = (programme) => {
   const lengthMs = Number(programme?.end) - Number(programme?.start)
   if (!(lengthMs >= FILM_MIN_MS) || isNewsOrSport(programme)) return false
-  if (categoriesOfEtsi(programme?.genre).includes('movie')) return true
+  if (genreTagsOfEtsi(programme?.genre).includes('movie')) return true
   return programme?.series_no == null && programme?.episode_no == null && !programme?.episode_title
 }
 
@@ -87,24 +90,25 @@ export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) =>
   if (record?.kindOverride === MOVIE) return true
   if ([NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND].includes(record?.kindOverride)) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
-  if (record?.categories?.includes('movie')) return true
+  if (record?.genreTags?.includes('movie')) return !hasEpisodeDetails(programme)
+  if (isLiveEventTitle(programme?.title)) return false
   if (!isMovieLike(programme)) return false
-  return categoriesOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
+  return genreTagsOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
 }
 
 export const movieChoiceOf = ({ programme, film }) => {
-  if (hasEpisodeDetails(programme)) return null
+  if (hasEpisodeFields(programme)) return null
   if (film) return NOT_MOVIE
   return isLong(programme) && !isNewsOrSport(programme) ? MOVIE : null
 }
 
-const hasEpisodeDetails = (programme) => programme?.series_no != null
+const hasEpisodeFields = (programme) => programme?.series_no != null
   || programme?.episode_no != null
   || Boolean(programme?.episode_title)
 
 const isLong = (programme) => Number(programme?.end) - Number(programme?.start) >= FILM_MIN_MS
 
-const isNewsOrSport = (programme) => [...categoriesOfEtsi(programme?.genre), ...keywordCategoriesOf(programme?.title)]
+const isNewsOrSport = (programme) => [...genreTagsOfEtsi(programme?.genre), ...keywordGenreTagsOf(programme?.title)]
   .some((category) => NEWS_OR_SPORT.has(category))
 
 export const tvmazeFactsOf = (record) => {
@@ -121,11 +125,49 @@ export const yearOf = ({ title, synopsis }) => {
   return match ? Number(match[1]) : null
 }
 
-export const pickTvmazeShow = ({ results = [], title, country = 'AU' }) => {
+export const pickTvmazeShow = ({ results = [], title, country = '' }) => {
   const key = showTitleKey(title)
   if (!key) return null
   const matches = results.map((result) => result?.show).filter((show) => show && showTitleKey(show.name) === key)
-  return matches.find((show) => countryOf(show) === country) || matches[0] || null
+  return matches.find((show) => countryOf(show) === String(country).toUpperCase()) || matches[0] || null
+}
+
+export const tvQueryOf = (ids) => `SELECT ?item ?label (GROUP_CONCAT(DISTINCT ?genreLabel; separator="|") AS ?genres) (GROUP_CONCAT(DISTINCT ?code; separator="|") AS ?countries) WHERE {
+  VALUES ?item { ${ids.map((id) => `wd:${id}`).join(' ')} }
+  VALUES ?kind { wd:Q5398426 wd:Q15416 wd:Q1259759 wd:Q526877 }
+  ?item wdt:P31 ?kind .
+  ?item rdfs:label ?label FILTER(LANG(?label) = "en")
+  OPTIONAL { ?item wdt:P136 ?genre . ?genre rdfs:label ?genreLabel FILTER(LANG(?genreLabel) = "en") }
+  OPTIONAL { ?item wdt:P495 ?origin . ?origin wdt:P297 ?code }
+} GROUP BY ?item ?label`
+
+export const tvRowsOf = (sparql) => (sparql?.results?.bindings || []).map((binding) => ({
+  id: String(binding.item?.value || '').split('/').at(-1),
+  label: binding.label?.value || '',
+  genres: String(binding.genres?.value || '').split('|').filter(Boolean),
+  countries: String(binding.countries?.value || '').split('|').filter(Boolean),
+}))
+
+export const pickTvItem = ({ rows = [], title, country = '' }) => {
+  const key = showTitleKey(title)
+  const matches = rows.filter((row) => showTitleKey(row.label) === key)
+  return matches.find((row) => row.countries.includes(String(country).toUpperCase())) || matches[0] || null
+}
+
+export const isCurrentLookup = (genres = []) => genres.includes(LOOKUP_TOKEN) || genres.includes(PARTIAL_TOKEN)
+
+export const showRecordOf = ({ show = null, item = null }) => {
+  const tvmaze = show ? tvmazeRecordOf(show) : { genres: [], genreTags: [], source: null }
+  const origin = (show && countryOf(show)) || item?.countries?.[0] || null
+  return {
+    genres: [
+      ...tvmaze.genres,
+      ...(item?.genres ?? []).map((genre) => `wd:${genre}`),
+      ...(origin ? [`country:${origin}`] : []),
+    ],
+    genreTags: tvmaze.genreTags,
+    source: tvmaze.source ?? (item ? `wikidata:${item.id}` : null),
+  }
 }
 
 export const pickFilm = ({ rows = [], title, year = null }) => {
@@ -134,7 +176,7 @@ export const pickFilm = ({ rows = [], title, year = null }) => {
   const dated = year ? matches.filter((row) => Math.abs(Number(row.year) - year) <= 1) : matches
   if (dated.length === 1) return dated[0]
   if (!dated.length) return null
-  const signatures = new Set(dated.map((row) => categoriesOfFilmGenres(row.genres).join('|')))
+  const signatures = new Set(dated.map((row) => genreTagsOfFilmGenres(row.genres).join('|')))
   return signatures.size === 1 ? dated[0] : null
 }
 
@@ -161,13 +203,14 @@ export const lookupOrderOf = ({ titles = [], cachedKeys = new Set(), budget = DE
     if (!item.title || cachedKeys.has(key)) continue
     merged.set(key, merged.has(key) ? mergedLookupOf(merged.get(key), item) : { ...item, key })
   }
-  const pending = [...merged.values()].filter((item) => !keywordCategoriesOf(item.title).length || item.priority)
+  const pending = [...merged.values()].filter((item) => !keywordGenreTagsOf(item.title).length || item.priority)
   return pending.sort((a, b) => (b.priority || 0) - (a.priority || 0)).slice(0, budget)
 }
 
 const mergedLookupOf = (kept, item) => ({
   ...kept,
   movie: Boolean(kept.movie || item.movie),
+  episodes: Boolean(kept.episodes || item.episodes),
   year: kept.year ?? item.year ?? null,
   priority: Math.max(kept.priority || 0, item.priority || 0),
 })
@@ -184,15 +227,27 @@ export const createGenreEnrichment = ({
   sleep = wait,
   onTvmazeShow = () => {},
   onFilm = () => {},
+  country = () => '',
 } = {}) => {
   let running = null
 
-  const lookUp = async ({ title, movie, year }) => {
-    if (movie) return lookUpFilm({ title, year })
+  const lookUp = async ({ title, movie, episodes, year }, { useWikidata }) => {
+    if (movie && !episodes) return { record: await lookUpFilm({ title, year }) }
     await sleep(gapMs)
-    const show = pickTvmazeShow({ results: await searchTvmaze(title), title })
+    const show = pickTvmazeShow({ results: await searchTvmaze(title), title, country: country() })
     if (show) notify(() => onTvmazeShow({ title, show }))
-    return show ? tvmazeRecordOf(show) : null
+    const item = useWikidata ? await lookUpTvItem({ title }).catch(() => FAILED) : SKIPPED
+    const wikidataFailed = item === FAILED
+    if (item === FAILED || item === SKIPPED) return { record: show ? { ...showRecordOf({ show }), partial: true } : UNANSWERED, wikidataFailed }
+    return { record: show || item ? showRecordOf({ show, item }) : null, wikidataFailed }
+  }
+
+  const lookUpTvItem = async ({ title }) => {
+    await sleep(gapMs)
+    const ids = await searchWikidata(title)
+    if (!ids.length) return null
+    await sleep(gapMs)
+    return pickTvItem({ rows: tvRowsOf(await queryWikidata(tvQueryOf(ids))), title, country: country() })
   }
 
   const lookUpFilm = async ({ title, year }) => {
@@ -202,7 +257,7 @@ export const createGenreEnrichment = ({
     await sleep(gapMs)
     const film = pickFilm({ rows: filmRowsOf(await queryWikidata(filmQueryOf(ids))), title, year })
     if (film) notify(() => onFilm({ title, id: film.id }))
-    return film ? { genres: film.genres, categories: categoriesOfFilmGenres(film.genres), source: `wikidata:${film.id}` } : null
+    return film ? { genres: film.genres, genreTags: genreTagsOfFilmGenres(film.genres), source: `wikidata:${film.id}` } : null
   }
 
   const enrich = async ({ titles = [], budget = DEFAULT_BUDGET } = {}) => {
@@ -212,19 +267,21 @@ export const createGenreEnrichment = ({
     let found = 0
     let looked = 0
     let failuresInRow = 0
+    let wikidataFailuresInRow = 0
     for (const item of pending) {
       if (failuresInRow >= MAX_FAILURES_IN_ROW) break
       looked += 1
-      const record = await lookUp(item).catch(() => FAILED)
+      const { record, wikidataFailed = false } = await lookUp(item, { useWikidata: wikidataFailuresInRow < MAX_FAILURES_IN_ROW }).catch(() => ({ record: FAILED }))
       failuresInRow = record === FAILED ? failuresInRow + 1 : 0
-      if (record === FAILED) continue
+      if (wikidataFailuresInRow < MAX_FAILURES_IN_ROW) wikidataFailuresInRow = wikidataFailed ? wikidataFailuresInRow + 1 : 0
+      if (record === FAILED || record === UNANSWERED) continue
       if (record) found += 1
       await cache.write({
         key: item.key,
-        genres: record?.genres || [],
-        categories: record?.categories || [],
+        genres: [...(record?.genres || []), record?.partial ? PARTIAL_TOKEN : LOOKUP_TOKEN],
+        genreTags: record?.genreTags || [],
         source: record?.source || null,
-        expiresAt: now() + (record ? HIT_TTL_MS : MISS_TTL_MS),
+        expiresAt: now() + (record && !record.partial ? HIT_TTL_MS : MISS_TTL_MS),
       }).catch(() => {})
     }
     return { looked, found }
@@ -240,8 +297,12 @@ export const createGenreEnrichment = ({
 
 export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) => {
   if (!show || !title) return
+  const key = showKeyOf(title)
+  const kept = await db('title_genres').where({ title_key: key }).first('genres_json').catch(() => null)
   const record = tvmazeRecordOf(show)
-  await databaseCache.write({ key: showKeyOf(title), ...record, expiresAt: nowMs + HIT_TTL_MS }).catch(() => {})
+  const genres = [...record.genres, ...parseList(kept?.genres_json).filter((genre) => KEPT_TOKEN.test(genre))]
+  const isPartial = genres.includes('lookup:partial')
+  await databaseCache.write({ key, ...record, genres, expiresAt: nowMs + (isPartial ? MISS_TTL_MS : HIT_TTL_MS) }).catch(() => {})
 }
 
 export const loadTitleGenres = async () => {
@@ -250,7 +311,7 @@ export const loadTitleGenres = async () => {
     loadKindOverrides().catch(() => new Map()),
   ])
   const records = new Map(rows.map((row) => [row.title_key, {
-    categories: parseList(row.categories_json),
+    genreTags: parseList(row.categories_json),
     genres: parseList(row.genres_json),
     source: row.source || null,
   }]))
@@ -264,7 +325,7 @@ const tvmazeRecordOf = (show) => ({
     ...(show.premiered ? [`premiered:${show.premiered}`] : []),
     ...(show.status ? [`status:${show.status}`] : []),
   ],
-  categories: categoriesOfTvmaze({ genres: show.genres || [], type: show.type || null }),
+  genreTags: genreTagsOfTvmaze({ genres: show.genres || [], type: show.type || null }),
   source: `tvmaze:${show.id}`,
 })
 
@@ -311,12 +372,14 @@ const wikidataQuery = async (query) => {
 }
 
 const databaseCache = {
-  freshKeys: async (nowMs) => new Set((await db('title_genres').where('expires_at', '>', nowMs).select('title_key')).map((row) => row.title_key)),
-  write: ({ key, genres, categories, source, expiresAt }) => db('title_genres')
+  freshKeys: async (nowMs) => new Set((await db('title_genres').where('expires_at', '>', nowMs).select('title_key', 'genres_json'))
+    .filter((row) => isCurrentLookup(parseList(row.genres_json)))
+    .map((row) => row.title_key)),
+  write: ({ key, genres, genreTags, source, expiresAt }) => db('title_genres')
     .insert({
       title_key: key,
       genres_json: JSON.stringify(genres),
-      categories_json: JSON.stringify(categories),
+      categories_json: JSON.stringify(genreTags),
       source,
       expires_at: expiresAt,
     })
@@ -403,6 +466,12 @@ const ETSI_CODES = {
   0xa7: ['home'],
 }
 
+const AU_ONLY_GROUPS = {
+  0xc: ['comedy'],
+  0xd: ['drama'],
+  0xe: ['documentary'],
+}
+
 const ETSI_GROUPS = {
   0x1: ['drama', 'movie'],
   0x2: ['news'],
@@ -421,6 +490,11 @@ const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|ru
 
 const NEWS_OR_SPORT = new Set(['news', 'sport'])
 const FAILED = Symbol('failed')
+const LOOKUP_TOKEN = 'lookup:2'
+const PARTIAL_TOKEN = 'lookup:partial'
+const KEPT_TOKEN = /^(wd|country|lookup):/
+const SKIPPED = Symbol('skipped')
+const UNANSWERED = Symbol('unanswered')
 const MAX_FAILURES_IN_ROW = 5
 const MAX_FILM_AIRINGS = 4
 const DEFAULT_BUDGET = 1500

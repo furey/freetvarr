@@ -15,25 +15,25 @@ import {
   sheetRequestOf,
   programmeHiddenToastOf,
   programmeKindOfItem,
-  themeHiddenToastOf,
+  categoryHiddenToastOf,
   identityOf,
   liveChannelOfItem,
   shownBatchesOf,
   tapActionOf,
-  themeBoostedToastOf,
-  themeFeedbackOf,
-  themeHiddenKeyOf,
+  categoryBoostedToastOf,
+  categoryFeedbackOf,
+  categoryHiddenKeyOf,
   thumbToggleOf,
 } from '/for-you.js'
 
 export const forYouHidden = ref(new Set())
 
-export const forYouMutedThemes = ref(new Set())
+export const forYouMutedCategories = ref(new Set())
 
 export const forYouHiddenKeys = computed(() => new Set([
   ...forYouHidden.value,
   ...kindPendingKeys.value,
-  ...[...forYouMutedThemes.value].map(themeHiddenKeyOf),
+  ...[...forYouMutedCategories.value].map(categoryHiddenKeyOf),
 ]))
 
 const READY_KEY = 'freetvarr.forYouRail'
@@ -132,11 +132,11 @@ export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }
 
 export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
 
-export const unmuteTheme = (themeKey) => api('DELETE', `/api/for-you/themes/${encodeURIComponent(themeKey)}/mute`)
+export const unmuteCategory = (categoryKey) => api('DELETE', `/api/for-you/categories/${encodeURIComponent(categoryKey)}/mute`)
 
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)
-  const rowTheme = ref(null)
+  const rowCategory = ref(null)
   const why = reactive({ item: null, data: null, loading: false, failed: false })
   const thumbs = ref({})
 
@@ -172,7 +172,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     'thumb-up': (item) => toggleThumb(item, 'up'),
     'thumb-down': (item) => toggleThumb(item, 'down'),
     'not-interested': (item) => hide(item),
-    'fewer-theme': (item) => muteTheme(item.theme),
+    'hide-category': (item) => muteCategory(item.category),
     'movie-kind': (item) => changeMovieKind(item),
     why: (item) => openWhy(item),
   }
@@ -223,43 +223,43 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     onChanged()
   }
 
-  const openRowMenu = (theme) => { rowTheme.value = theme }
+  const openRowMenu = (category) => { rowCategory.value = category }
 
-  const closeRowMenu = () => { rowTheme.value = null }
+  const closeRowMenu = () => { rowCategory.value = null }
 
   const ROW_ACTIONS = {
-    'boost-theme': (theme) => boostTheme(theme),
-    'mute-theme': (theme) => muteTheme(theme),
+    'boost-category': (category) => boostCategory(category),
+    'hide-category': (category) => muteCategory(category),
   }
 
   const chooseRow = (key) => {
-    const theme = rowTheme.value
+    const category = rowCategory.value
     closeRowMenu()
-    if (theme) ROW_ACTIONS[key]?.(theme)
+    if (category) ROW_ACTIONS[key]?.(category)
   }
 
-  const boostTheme = async (theme) => {
-    await sendFeedback(themeFeedbackOf({ kind: 'theme_boosted', theme, source }))
-    toast({ text: themeBoostedToastOf(theme), action: { label: 'Undo', run: () => undoBoostTheme(theme) } })
+  const boostCategory = async (category) => {
+    await sendFeedback(categoryFeedbackOf({ kind: 'category_boosted', category, source }))
+    toast({ text: categoryBoostedToastOf(category), action: { label: 'Undo', run: () => undoBoostCategory(category) } })
     onChanged()
   }
 
-  const undoBoostTheme = async (theme) => {
-    await sendFeedback(themeFeedbackOf({ kind: 'theme_unboosted', theme, source }))
+  const undoBoostCategory = async (category) => {
+    await sendFeedback(categoryFeedbackOf({ kind: 'category_unboosted', category, source }))
     onChanged()
   }
 
-  const muteTheme = (theme) => {
-    if (!theme?.key) return
+  const muteCategory = (category) => {
+    if (!category?.key) return
     closeWhy()
-    forYouMutedThemes.value = new Set([...forYouMutedThemes.value, theme.key])
-    sendFeedback(themeFeedbackOf({ kind: 'theme_muted', theme, source }))
-    toast({ text: themeHiddenToastOf(theme), action: { label: 'Undo', run: () => undoMuteTheme(theme) } })
+    forYouMutedCategories.value = new Set([...forYouMutedCategories.value, category.key])
+    sendFeedback(categoryFeedbackOf({ kind: 'category_muted', category, source }))
+    toast({ text: categoryHiddenToastOf(category), action: { label: 'Undo', run: () => undoMuteCategory(category) } })
   }
 
-  const undoMuteTheme = async (theme) => {
-    forYouMutedThemes.value = new Set([...forYouMutedThemes.value].filter((key) => key !== theme.key))
-    await sendFeedback(themeFeedbackOf({ kind: 'theme_unmuted', theme, source }))
+  const undoMuteCategory = async (category) => {
+    forYouMutedCategories.value = new Set([...forYouMutedCategories.value].filter((key) => key !== category.key))
+    await sendFeedback(categoryFeedbackOf({ kind: 'category_unmuted', category, source }))
     onChanged()
   }
 
@@ -301,7 +301,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     why.item = null
   }
 
-  return { menuItem, rowTheme, why, openItem, openMenu, closeMenu, openRowMenu, closeRowMenu, chooseRow, choose, thumbOf, closeWhy, undoHide, isScheduled }
+  return { menuItem, rowCategory, why, openItem, openMenu, closeMenu, openRowMenu, closeRowMenu, chooseRow, choose, thumbOf, closeWhy, undoHide, isScheduled }
 }
 
 const playReady = async (item) => {

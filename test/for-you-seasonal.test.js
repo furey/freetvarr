@@ -29,7 +29,7 @@ const {
   windowsOf,
 } = await import('../src/for-you-occasions.js')
 const { MATARIKI_OBSERVANCE_DAYS, buildOccasionDates, diwaliOf } = await import('../scripts/build-occasion-dates.mjs')
-const { rowMenuOf, sectionsOf, themeGroupsOf, themeHiddenToastOf } = await import('../src/web/for-you.js')
+const { rowMenuOf, sectionsOf, categoryGroupsOf, categoryHiddenToastOf } = await import('../src/web/for-you.js')
 const table = JSON.parse(await fs.readFile(new URL('../src/data/occasion-dates.json', import.meta.url), 'utf8'))
 
 const HOUR = 60 * 60 * 1000
@@ -243,9 +243,9 @@ test('row: Christmas shows below the top rows with at most 2 airings a title, as
   const keys = result.sections.map((section) => section.key)
   const row = result.sections.find((section) => section.key === 'seasonal-christmas')
   assert.equal(row.title, 'Christmas')
-  assert.deepEqual(row.theme, { key: 'seasonal-christmas', title: 'Christmas', phrase: 'Christmas', seasonal: true })
+  assert.deepEqual(row.category, { key: 'seasonal-christmas', title: 'Christmas', phrase: 'Christmas', seasonal: true })
   assert.ok(keys.indexOf('seasonal-christmas') > keys.indexOf('coming-up'))
-  assert.ok(keys.filter((key) => key.startsWith('theme-')).every((key) => keys.indexOf(key) > keys.indexOf('seasonal-christmas')))
+  assert.ok(keys.filter((key) => key.startsWith('category-')).every((key) => keys.indexOf(key) > keys.indexOf('seasonal-christmas')))
   assert.equal(row.items.filter((item) => item.title === 'Carols In The Domain').length, 2)
   assert.ok(row.items.every((item) => item.channelName !== 'TVSN'))
   assert.ok(!row.items.some((item) => item.title === 'Two And A Half Men'))
@@ -296,7 +296,7 @@ test('row: a commemoration row is plain and leaves kids programmes out', () => {
   ]
   const row = seasonalOf(run({ programmes, nowMs }))
   assert.equal(row.title, 'Remembrance Day')
-  assert.deepEqual(row.theme, { key: 'seasonal-remembrance-day', title: 'Remembrance Day', phrase: 'Remembrance Day', seasonal: true, commemoration: true })
+  assert.deepEqual(row.category, { key: 'seasonal-remembrance-day', title: 'Remembrance Day', phrase: 'Remembrance Day', seasonal: true, commemoration: true })
   assert.ok(!row.items.some((item) => item.title.startsWith('Peppa')))
 })
 
@@ -313,10 +313,10 @@ test('row: overlapping windows take the nearest date, then fall back to the next
 
 test('row: shows for a new household, and Hide or Settings off removes it until the next window', () => {
   assert.equal(seasonalOf(run({ programmes: christmasGuide(), events: [] }))?.title, 'Christmas')
-  const muteAt = (ts) => [{ id: 900, kind: 'theme_muted', series_key: 'theme-seasonal-christmas', title: 'Christmas', ts }]
+  const muteAt = (ts) => [{ id: 900, kind: 'category_muted', series_key: 'category-seasonal-christmas', title: 'Christmas', ts }]
   assert.equal(seasonalOf(run({ programmes: christmasGuide(), extraEvents: muteAt(NOW - HOUR) })), undefined)
   assert.equal(seasonalOf(run({ programmes: christmasGuide(), extraEvents: muteAt(Date.UTC(2025, 11, 20)) }))?.title, 'Christmas')
-  assert.equal(seasonalOf(run({ programmes: christmasGuide(), themesOff: ['seasonal-christmas'] })), undefined)
+  assert.equal(seasonalOf(run({ programmes: christmasGuide(), categoriesOff: ['seasonal-christmas'] })), undefined)
 })
 
 test('mute: a hidden occasion stays hidden until its next window opens', () => {
@@ -328,7 +328,7 @@ test('mute: a hidden occasion stays hidden until its next window opens', () => {
   assert.equal(isOccasionMuted({ occasion: christmas, country: 'au', mutedAt, nowMs: Date.UTC(2027, 11, 2), timeZone: SYDNEY }), false)
   const mutes = new Map([['seasonal-christmas', mutedAt]])
   const [hidden] = hiddenOccasionsOf({ country: 'au', mutes, nowMs: Date.UTC(2026, 11, 24), timeZone: SYDNEY })
-  assert.deepEqual({ ...hidden, until: isoOf(hidden.until / DAY) }, { seriesKey: 'theme:seasonal-christmas', themeKey: 'seasonal-christmas', title: 'Christmas', theme: true, seasonal: true, hiddenAt: mutedAt, until: '2027-12-01' })
+  assert.deepEqual({ ...hidden, until: isoOf(hidden.until / DAY) }, { seriesKey: 'category:seasonal-christmas', categoryKey: 'seasonal-christmas', title: 'Christmas', category: true, seasonal: true, hiddenAt: mutedAt, until: '2027-12-01' })
   assert.deepEqual(hiddenOccasionsOf({ country: 'au', mutes, nowMs: Date.UTC(2027, 11, 2), timeZone: SYDNEY }), [])
   const diwali = occasionOf({ key: 'diwali' })
   const lastTableMute = Date.UTC(2040, 10, 3)
@@ -342,40 +342,40 @@ test('mute: a hidden occasion stays hidden until its next window opens', () => {
 })
 
 test('web: a seasonal row offers only Hide, keeps two airings of a title, and sits after Coming up', () => {
-  const theme = { key: 'seasonal-christmas', title: 'Christmas', phrase: 'Christmas', seasonal: true }
-  assert.deepEqual(rowMenuOf(theme), [{ key: 'mute-theme', label: 'Hide Christmas shows', icon: 'hide' }])
-  assert.equal(themeHiddenToastOf(theme), 'Christmas shows are hidden until next Christmas')
-  assert.equal(themeHiddenToastOf({ key: 'cooking', title: 'Cooking' }), 'Cooking shows are hidden for 90 days')
+  const category = { key: 'seasonal-christmas', title: 'Christmas', phrase: 'Christmas', seasonal: true }
+  assert.deepEqual(rowMenuOf(category), [{ key: 'hide-category', label: 'Hide Christmas shows', icon: 'hide' }])
+  assert.equal(categoryHiddenToastOf(category), 'Christmas shows are hidden until next Christmas')
+  assert.equal(categoryHiddenToastOf({ key: 'cooking', title: 'Cooking' }), 'Cooking shows are hidden for 90 days')
   const item = (id, title) => ({ id, title, seriesKey: title.toLowerCase().replace(/\s+/g, '-'), channelId: 'seven', start: NOW + HOUR, stop: NOW + 2 * HOUR })
   const payload = { sections: [
     { key: 'might-like', title: 'You might like', items: [item('1', 'Other')] },
-    { key: 'seasonal-christmas', title: 'Christmas', theme, items: [{ ...item('2', 'Carols'), theme }, { ...item('3', 'Carols'), theme }] },
+    { key: 'seasonal-christmas', title: 'Christmas', category, items: [{ ...item('2', 'Carols'), category }, { ...item('3', 'Carols'), category }] },
     { key: 'coming-up', title: 'Coming up', items: [item('4', 'Mine')] },
   ] }
   const sections = sectionsOf({ payload })
   assert.deepEqual(sections.map((section) => section.key), ['coming-up', 'seasonal-christmas', 'might-like'])
   assert.deepEqual(sections[1].rows.flatMap((row) => row.items.map((entry) => entry.id)), ['2', '3'])
-  assert.equal(sections[1].theme.seasonal, true)
-  const groups = themeGroupsOf([{ key: 'cooking', title: 'Cooking', on: true }, { key: 'afl', title: 'Australian rules', on: true, sport: true }, { key: 'seasonal-christmas', title: 'Christmas', on: true, seasonal: true }])
-  assert.deepEqual(groups.map((group) => [group.label, group.themes.map((entry) => entry.key)]), [['Themes', ['cooking']], ['Sport', ['afl']], ['Seasonal', ['seasonal-christmas']]])
+  assert.equal(sections[1].category.seasonal, true)
+  const groups = categoryGroupsOf([{ key: 'cooking', title: 'Cooking', on: true }, { key: 'afl', title: 'Australian rules', on: true, sport: true }, { key: 'seasonal-christmas', title: 'Christmas', on: true, seasonal: true }])
+  assert.deepEqual(groups.map((group) => [group.label, group.categories.map((entry) => entry.key)]), [['Topics', ['cooking']], ['Sport', ['afl']], ['Seasonal', ['seasonal-christmas']]])
 })
 
-test('settings: Themes lists a Seasonal switch per install-country occasion, and Hide lists under hidden shows', async () => {
+test('settings: Categories lists a Seasonal switch per install-country occasion, and Hide lists under hidden shows', async () => {
   await db('user_events').delete()
-  const themes = (await call('GET', '/api/for-you/themes')).body.themes.filter((theme) => theme.seasonal)
-  assert.deepEqual(themes.map((theme) => theme.title), ['Lunar New Year', 'Eid al-Fitr', 'Easter', 'Anzac Day', "Mother's Day", "Father's Day", 'NAIDOC Week', 'Halloween', 'Diwali', 'Remembrance Day', 'Hanukkah', 'Christmas', "New Year's Eve"])
-  assert.ok(themes.every((theme) => theme.on))
-  const off = (await call('PUT', '/api/for-you/themes/seasonal-halloween', { on: false })).body.themes
-  assert.equal(off.find((theme) => theme.key === 'seasonal-halloween').on, false)
-  assert.equal((await call('PUT', '/api/for-you/themes/seasonal-halloween', { on: true })).body.themes.find((theme) => theme.key === 'seasonal-halloween').on, true)
-  assert.equal((await call('PUT', '/api/for-you/themes/seasonal-thanksgiving', { on: false })).status, 404)
-  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'theme_muted', series_key: 'theme-seasonal-christmas', title: 'Christmas' })
+  const categories = (await call('GET', '/api/for-you/categories')).body.categories.filter((category) => category.seasonal)
+  assert.deepEqual(categories.map((category) => category.title), ['Lunar New Year', 'Eid al-Fitr', 'Easter', 'Anzac Day', "Mother's Day", "Father's Day", 'NAIDOC Week', 'Halloween', 'Diwali', 'Remembrance Day', 'Hanukkah', 'Christmas', "New Year's Eve"])
+  assert.ok(categories.every((category) => category.on))
+  const off = (await call('PUT', '/api/for-you/categories/seasonal-halloween', { on: false })).body.categories
+  assert.equal(off.find((category) => category.key === 'seasonal-halloween').on, false)
+  assert.equal((await call('PUT', '/api/for-you/categories/seasonal-halloween', { on: true })).body.categories.find((category) => category.key === 'seasonal-halloween').on, true)
+  assert.equal((await call('PUT', '/api/for-you/categories/seasonal-thanksgiving', { on: false })).status, 404)
+  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'category_muted', series_key: 'category-seasonal-christmas', title: 'Christmas' })
   const hidden = (await call('GET', '/api/for-you/hidden')).body
-  assert.deepEqual(hidden.map((show) => [show.seriesKey, show.themeKey, show.title]), [['theme:seasonal-christmas', 'seasonal-christmas', 'Christmas']])
-  assert.equal((await call('GET', '/api/for-you/themes')).body.themes.find((theme) => theme.key === 'seasonal-christmas').on, false)
-  assert.equal((await call('DELETE', '/api/for-you/themes/seasonal-christmas/mute')).status, 200)
+  assert.deepEqual(hidden.map((show) => [show.seriesKey, show.categoryKey, show.title]), [['category:seasonal-christmas', 'seasonal-christmas', 'Christmas']])
+  assert.equal((await call('GET', '/api/for-you/categories')).body.categories.find((category) => category.key === 'seasonal-christmas').on, false)
+  assert.equal((await call('DELETE', '/api/for-you/categories/seasonal-christmas/mute')).status, 200)
   assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
-  assert.equal((await call('DELETE', '/api/for-you/themes/seasonal-thanksgiving/mute')).status, 404)
+  assert.equal((await call('DELETE', '/api/for-you/categories/seasonal-thanksgiving/mute')).status, 404)
 })
 
 const NOW = Date.UTC(2026, 11, 14, 22)
@@ -444,14 +444,14 @@ const EVENTS = ['Garden Patch', 'Quiz Night', 'Home Fix', 'Kitchen Nights', 'Lat
   { id: i * 2 + 2, kind: 'watch_start', title, channel_id: 'seven', programme_start: NOW - (i + 1) * DAY, ts: NOW - (i + 1) * DAY },
 ])
 
-const run = ({ programmes, nowMs = NOW, events = EVENTS, extraEvents = [], themesOff = [], timeZone = SYDNEY }) => buildForYou({
+const run = ({ programmes, nowMs = NOW, events = EVENTS, extraEvents = [], categoriesOff = [], timeZone = SYDNEY }) => buildForYou({
   nowMs,
   programmes,
   events: [...events, ...extraEvents],
   channels: CHANNELS,
   timeZone,
   limit: 20,
-  themesOff,
+  categoriesOff,
 })
 
-const seasonalOf = (result) => result.sections.find((section) => section.theme?.seasonal)
+const seasonalOf = (result) => result.sections.find((section) => section.category?.seasonal)

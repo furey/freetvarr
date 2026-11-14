@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { currentOtherLanguageFilms, forgetForYouCache, getCurrentTaste, getForYou, getHiddenShows, getPickable, getThemeSettings, isForYouEnabled, setThemeOn, startForYou, titlesForKeys, unhideShow, unmuteTheme } from './for-you-service.js'
+import { currentOtherLanguageFilms, forgetForYouCache, getCurrentTaste, getForYou, getHiddenShows, getPickable, getCategorySettings, isForYouEnabled, setCategoryOn, startForYou, titlesForKeys, unhideShow, unmuteCategory } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { showKeyOf } from './web/show-key.js'
@@ -38,7 +38,7 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
 
   app.get('/api/for-you/taste', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    if (!(await isForYouEnabled())) return res.json({ enabled: false, theme: null })
+    if (!(await isForYouEnabled())) return res.json({ enabled: false, category: null })
     try {
       res.json({ enabled: true, ...titleTasteFrom({ taste: await getCurrentTaste(), title: req.query.title }) })
     } catch (err) {
@@ -78,24 +78,24 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     res.json(await unhideShow({ seriesKey }))
   })
 
-  app.get('/api/for-you/themes', async (req, res) => {
+  app.get('/api/for-you/categories', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    res.json({ themes: await getThemeSettings() })
+    res.json({ categories: await getCategorySettings() })
   })
 
-  app.put('/api/for-you/themes/:key', limiter, csrf, async (req, res) => {
+  app.put('/api/for-you/categories/:key', limiter, csrf, async (req, res) => {
     const key = String(req.params.key || '')
-    if (!THEME_KEY.test(key)) return res.status(400).json({ error: 'key must be a theme key' })
+    if (!CATEGORY_KEY.test(key)) return res.status(400).json({ error: 'key must be a category key' })
     if (typeof req.body?.on !== 'boolean') return res.status(400).json({ error: 'on must be true or false' })
-    const result = await setThemeOn({ key, on: req.body.on })
+    const result = await setCategoryOn({ key, on: req.body.on })
     if (result.error) return res.status(404).json({ error: result.error })
     res.json(result)
   })
 
-  app.delete('/api/for-you/themes/:key/mute', limiter, csrf, async (req, res) => {
+  app.delete('/api/for-you/categories/:key/mute', limiter, csrf, async (req, res) => {
     const key = String(req.params.key || '')
-    if (!THEME_KEY.test(key)) return res.status(400).json({ error: 'key must be a theme key' })
-    const result = await unmuteTheme({ key })
+    if (!CATEGORY_KEY.test(key)) return res.status(400).json({ error: 'key must be a category key' })
+    const result = await unmuteCategory({ key })
     if (result.error) return res.status(404).json({ error: result.error })
     res.json(result)
   })
@@ -135,13 +135,14 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
 
 export const titleTasteFrom = ({ taste, title }) => {
   const key = showKeyOf(String(title || ''))
-  const theme = taste?.titles?.[key]?.theme ?? null
-  const hiddenThemes = taste?.hiddenThemes ?? []
+  const known = taste?.titles?.[key]
+  const hiddenCategories = taste?.hiddenCategories ?? []
+  const isHidden = (category) => hiddenCategories.includes(category.key) || Boolean(category.sport && hiddenCategories.includes('sport'))
   return {
     seriesKey: key,
     hidden: Boolean(taste?.hiddenShows?.includes(key)),
-    theme,
-    themeHidden: Boolean(theme && (hiddenThemes.includes(theme.key) || (theme.sport && hiddenThemes.includes('sport')))),
+    category: known?.hideCategory ?? null,
+    categoryHidden: (known?.categories ?? []).some(isHidden),
   }
 }
 
@@ -198,7 +199,7 @@ export const settingsChangesFrom = (body = {}) => {
   return { changes }
 }
 
-const publicItemOf = ({ categories, seasonNumber, episodeNumber, ...item }) => item
+const publicItemOf = ({ genreTags, seasonNumber, episodeNumber, ...item }) => item
 
 const settingsPayload = async () => {
   const [enabled, genreLookup, tier, probe, embeddings, historyEnabled, ollamaUrl, ollamaModel, otherLanguageFilms, animateIcon] = await Promise.all([
@@ -267,5 +268,5 @@ const DEFAULT_LIMIT = 12
 const MAX_LIMIT = 20
 const MAX_PICKS = 30
 const SERIES_KEY = /^[a-z0-9-]{1,200}$/
-const THEME_KEY = /^[a-z0-9-]{1,60}$/
+const CATEGORY_KEY = /^[a-z0-9-]{1,60}$/
 const ATTRIBUTION = FALLBACK_ATTRIBUTION

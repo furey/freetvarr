@@ -4,16 +4,16 @@ import {
   OTHER_LANGUAGE_OPTIONS,
   TIER_OVERRIDES,
   hiddenShowsOf,
-  hiddenThemeTitleOf,
+  hiddenCategoryTitleOf,
   historyClearCopyOf,
-  themeGroupsOf,
-  themesOnCountOf,
+  categoryGroupsOf,
+  categoriesOnCountOf,
   tierReasonOf,
   tierSummaryOf,
 } from '/for-you.js'
 import { api } from '/shared/api.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
-import { forYouHidden, forYouMutedThemes, forYouShown, keepForYouAnimate, unhideShow, unmuteTheme } from '/shared/for-you-session.js'
+import { forYouHidden, forYouMutedCategories, forYouShown, keepForYouAnimate, unhideShow, unmuteCategory } from '/shared/for-you-session.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -44,18 +44,18 @@ export const SuggestionsSettingsView = {
           </div>
           <button type="button" class="ui-group-row suggestions-row-button" data-setting="hidden-shows" @click="hiddenOpen = true">
             <span class="settings-toggle-text">
-              <span class="settings-row-title">Hidden shows</span>
-              <span class="settings-row-meta">Shows and themes you hid from Home and For you</span>
+              <span class="settings-row-title">Hidden shows and categories</span>
+              <span class="settings-row-meta">Shows and categories you hid from Home and For you</span>
             </span>
             <span class="suggestions-count ui-tabular"><span v-if="!hiddenLoaded" class="ui-skeleton is-text" style="--skeleton-w: 1.2em"></span><template v-else>{{ hidden.length }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
           </button>
-          <button type="button" class="ui-group-row suggestions-row-button" data-setting="themes" @click="themesOpen = true">
+          <button type="button" class="ui-group-row suggestions-row-button" data-setting="categories" @click="categoriesOpen = true">
             <span class="settings-toggle-text">
-              <span class="settings-row-title">Themes</span>
+              <span class="settings-row-title">Categories</span>
               <span class="settings-row-meta">Rows such as Cooking or Cricket. Turn one off to never see it.</span>
             </span>
-            <span class="suggestions-count ui-tabular"><span v-if="!themesLoaded" class="ui-skeleton is-text" style="--skeleton-w: 2.4em"></span><template v-else>{{ themesOnCount }}</template></span>
+            <span class="suggestions-count ui-tabular"><span v-if="!categoriesLoaded" class="ui-skeleton is-text" style="--skeleton-w: 2.4em"></span><template v-else>{{ categoriesOnCount }}</template></span>
             <chevron-glyph class="suggestions-chevron" />
           </button>
           <div class="settings-row" data-setting="animate-icon">
@@ -114,11 +114,11 @@ export const SuggestionsSettingsView = {
         <p class="suggestions-footnote">Your viewing history stays on this box. It is never sent anywhere. {{ lookupText }} The Genres switch is in <a href="#/settings/film-tv-info">Film and TV info</a>. No tracking, no analytics, and Freetvarr is <a :href="repoHref" target="_blank" rel="noopener noreferrer">open source</a>.</p>
       </div>
 
-      <ui-sheet :open="hiddenOpen" title="Hidden shows" subtitle="Home and For you leave these out. Show one again to get suggestions for it." @close="hiddenOpen = false">
+      <ui-sheet :open="hiddenOpen" title="Hidden shows and categories" subtitle="Home and For you leave these out. Show one again to get suggestions for it." @close="hiddenOpen = false">
         <div v-if="hidden.length" class="ui-group">
           <div v-for="show in hidden" :key="show.seriesKey" class="ui-group-row suggestions-hidden-row">
             <span class="suggestions-hidden-text">
-              <span class="suggestions-hidden-title">{{ show.theme ? hiddenThemeTitleOf(show) : show.title || show.seriesKey }}</span>
+              <span class="suggestions-hidden-title">{{ show.category ? hiddenCategoryTitleOf(show) : show.title || show.seriesKey }}</span>
             </span>
             <button type="button" class="ui-button ui-button-secondary is-small" :disabled="unhiding === show.seriesKey"
               @click="showAgain(show)">Show again</button>
@@ -127,14 +127,14 @@ export const SuggestionsSettingsView = {
         <p v-else class="settings-row-meta">No hidden shows. Choose Hide this show on Home or For you to hide a show.</p>
       </ui-sheet>
 
-      <ui-sheet :open="themesOpen" title="Themes" subtitle="For you shows a theme row when you record and watch a lot of that kind of programme, and a seasonal row in the days around an occasion." @close="themesOpen = false">
-        <div v-for="group in themeGroups" :key="group.label" class="settings-group suggestions-themes">
+      <ui-sheet :open="categoriesOpen" title="Categories" subtitle="For you shows a category row when you record and watch a lot of that kind of programme, and a seasonal row in the days around an occasion." @close="categoriesOpen = false">
+        <div v-for="group in categoryGroups" :key="group.label" class="settings-group suggestions-categories">
           <h3 class="ui-group-label">{{ group.label }}</h3>
           <div class="ui-group">
-            <div v-for="theme in group.themes" :key="theme.key" class="settings-row" :data-theme="theme.key">
-              <toggle-switch :model-value="theme.on" class="settings-toggle" :pending="savingTheme === theme.key"
-                @update:model-value="setTheme(theme, $event)">
-                <span class="settings-toggle-text"><span class="settings-row-title">{{ theme.title }}</span></span>
+            <div v-for="category in group.categories" :key="category.key" class="settings-row" :data-category="category.key">
+              <toggle-switch :model-value="category.on" class="settings-toggle" :pending="savingCategory === category.key"
+                @update:model-value="setCategory(category, $event)">
+                <span class="settings-toggle-text"><span class="settings-row-title">{{ category.title }}</span></span>
               </toggle-switch>
             </div>
           </div>
@@ -154,10 +154,10 @@ export const SuggestionsSettingsView = {
     const countLoaded = ref(false)
     const probing = ref(false)
     const hiddenOpen = ref(false)
-    const themes = ref([])
-    const themesLoaded = ref(false)
-    const themesOpen = ref(false)
-    const savingTheme = ref('')
+    const categories = ref([])
+    const categoriesLoaded = ref(false)
+    const categoriesOpen = ref(false)
+    const savingCategory = ref('')
     const unhiding = ref('')
     const error = ref('')
     const { confirming, confirmBusy, askConfirm, closeConfirm, runConfirmed } = useConfirm()
@@ -167,8 +167,8 @@ export const SuggestionsSettingsView = {
     const tierOverride = computed(() => settings.value.tierOverride || 'auto')
     const otherLanguageFilms = computed(() => settings.value.otherLanguageFilms || 'few')
     const clearCopy = computed(() => historyClearCopyOf(eventCount.value))
-    const themeGroups = computed(() => themeGroupsOf(themes.value))
-    const themesOnCount = computed(() => themesOnCountOf(themes.value))
+    const categoryGroups = computed(() => categoryGroupsOf(categories.value))
+    const categoriesOnCount = computed(() => categoriesOnCountOf(categories.value))
     const lookupText = computed(() => privacyLookupTextOf({ genreLookup: settings.value.genreLookup !== false }))
 
     const loadHidden = async () => {
@@ -176,25 +176,25 @@ export const SuggestionsSettingsView = {
       hiddenLoaded.value = true
     }
 
-    const loadThemes = async () => {
-      themes.value = (await api('GET', '/api/for-you/themes').catch(() => ({ themes: [] }))).themes ?? []
-      themesLoaded.value = true
+    const loadCategories = async () => {
+      categories.value = (await api('GET', '/api/for-you/categories').catch(() => ({ categories: [] }))).categories ?? []
+      categoriesLoaded.value = true
     }
 
-    const setTheme = async (theme, on) => {
-      const previous = themes.value
-      themes.value = themes.value.map((entry) => (entry.key === theme.key ? { ...entry, on } : entry))
-      savingTheme.value = theme.key
+    const setCategory = async (category, on) => {
+      const previous = categories.value
+      categories.value = categories.value.map((entry) => (entry.key === category.key ? { ...entry, on } : entry))
+      savingCategory.value = category.key
       error.value = ''
       try {
-        themes.value = (await api('PUT', `/api/for-you/themes/${encodeURIComponent(theme.key)}`, { on })).themes
-        if (on) forYouMutedThemes.value = new Set([...forYouMutedThemes.value].filter((key) => key !== theme.key))
+        categories.value = (await api('PUT', `/api/for-you/categories/${encodeURIComponent(category.key)}`, { on })).categories
+        if (on) forYouMutedCategories.value = new Set([...forYouMutedCategories.value].filter((key) => key !== category.key))
         await loadHidden()
       } catch (err) {
-        themes.value = previous
-        error.value = `Could not save ${theme.title}: ${err.message}`
+        categories.value = previous
+        error.value = `Could not save ${category.title}: ${err.message}`
       } finally {
-        savingTheme.value = ''
+        savingCategory.value = ''
       }
     }
 
@@ -216,7 +216,7 @@ export const SuggestionsSettingsView = {
       }
     }
 
-    const load = () => Promise.all([loadSettings(), loadHidden(), loadCount(), loadThemes()])
+    const load = () => Promise.all([loadSettings(), loadHidden(), loadCount(), loadCategories()])
 
     const save = async (patch) => {
       const previous = settings.value
@@ -250,12 +250,12 @@ export const SuggestionsSettingsView = {
     const showAgain = async (show) => {
       unhiding.value = show.seriesKey
       try {
-        if (show.themeKey) await unmuteTheme(show.themeKey)
+        if (show.categoryKey) await unmuteCategory(show.categoryKey)
         else await unhideShow(show.seriesKey)
         hidden.value = hidden.value.filter((entry) => entry.seriesKey !== show.seriesKey)
-        if (show.themeKey) {
-          forYouMutedThemes.value = new Set([...forYouMutedThemes.value].filter((key) => key !== show.themeKey))
-          await loadThemes()
+        if (show.categoryKey) {
+          forYouMutedCategories.value = new Set([...forYouMutedCategories.value].filter((key) => key !== show.categoryKey))
+          await loadCategories()
         } else {
           forYouHidden.value = new Set([...forYouHidden.value].filter((key) => key !== show.seriesKey))
         }
@@ -287,7 +287,7 @@ export const SuggestionsSettingsView = {
     onMounted(load)
 
     return {
-      hiddenThemeTitleOf, themes, themesLoaded, themesOpen, themeGroups, themesOnCount, savingTheme, setTheme,
+      hiddenCategoryTitleOf, categories, categoriesLoaded, categoriesOpen, categoryGroups, categoriesOnCount, savingCategory, setCategory,
       settings, hidden, loaded, hiddenLoaded, countLoaded, probing, hiddenOpen, unhiding, error, tierSummary, tierReason, tierOverride, clearCopy, lookupText, repoHref: REPO_HREF,
       otherLanguageFilms, languageOptions: OTHER_LANGUAGE_OPTIONS, tierOptions: TIER_OVERRIDES, save, checkAgain, showAgain, askClear, confirming, confirmBusy, closeConfirm, runConfirmed,
     }

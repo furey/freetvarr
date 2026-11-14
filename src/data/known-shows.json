@@ -1,0 +1,2969 @@
+{
+ "version": 1,
+ "built": "2026-11-14",
+ "shows": {
+  "1-euro-house": {
+   "topics": [
+    "home",
+    "travel"
+   ]
+  },
+  "100-wolf-legend-of-the-moonstone": {
+   "format": "kids",
+   "origin": "au"
+  },
+  "2-6-seconds-death-in-the-outback": {
+   "topics": [
+    "true-crime",
+    "politics"
+   ]
+  },
+  "24-hours-in-emergency": {
+   "format": "documentaries",
+   "topics": [
+    "medical"
+   ],
+   "origin": "gb"
+  },
+  "24-hours-in-police-custody": {
+   "topics": [
+    "true-crime",
+    "police-rescue"
+   ]
+  },
+  "60-minutes": {
+   "topics": [
+    "politics"
+   ],
+   "origin": "au"
+  },
+  "7-30": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "8-out-of-10-cats-does-countdown": {
+   "format": "quiz"
+  },
+  "a-bite-to-eat-with-alice": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "a-current-affair": {
+   "topics": [
+    "politics"
+   ],
+   "origin": "au"
+  },
+  "a-golf-club-somewhere": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "a-moveable-feast": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "a-plan-to-kill": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "a-remarkable-place-to-die": {
+   "format": "crime-drama",
+   "origin": "au"
+  },
+  "a-royal-guide-to-scotland": {
+   "topics": [
+    "history",
+    "travel"
+   ]
+  },
+  "a-touch-of-frost": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "accident-suicide-or-murder": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "adam-hills-the-last-leg": {
+   "format": "comedy",
+   "origin": "gb"
+  },
+  "adventure-time": {
+   "format": "kids",
+   "origin": "us"
+  },
+  "adventures-in-rainbow-country": {
+   "format": "kids",
+   "origin": "ca"
+  },
+  "afternoon-briefing": {
+   "format": "news",
+   "topics": [
+    "politics"
+   ]
+  },
+  "ages-of-ice": {
+   "topics": [
+    "nature",
+    "science-and-technology"
+   ]
+  },
+  "al-mcglashan-s-fish-n-with-mates": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "amazing-facts-with-doug-batchelor": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "amazing-water-homes": {
+   "topics": [
+    "home"
+   ]
+  },
+  "american-crime-story": {
+   "format": "drama",
+   "topics": [
+    "true-crime"
+   ],
+   "origin": "us"
+  },
+  "american-dad": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "american-pickers": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "american-restoration": {
+   "format": "reality",
+   "topics": [
+    "antiques"
+   ],
+   "origin": "us"
+  },
+  "amplify": {
+   "topics": [
+    "music-arts",
+    "local-life"
+   ]
+  },
+  "an-unexpected-killer": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "ancient-superstructures": {
+   "topics": [
+    "history"
+   ]
+  },
+  "animal-tales": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "appalachian-outlaws": {
+   "format": "reality"
+  },
+  "around-the-44": {
+   "topics": [
+    "local-life"
+   ]
+  },
+  "art-from-the-heart": {
+   "topics": [
+    "local-life",
+    "music-arts"
+   ],
+   "origin": "au"
+  },
+  "as-time-goes-by": {
+   "format": "comedy",
+   "origin": "gb"
+  },
+  "assassins-with-aslan-pahari": {
+   "topics": [
+    "history",
+    "true-crime"
+   ]
+  },
+  "auction-squad": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "aussie-adventure-bike-show": {
+   "topics": [
+    "motoring",
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "aussie-bush-tales": {
+   "format": "kids"
+  },
+  "aussie-gold-hunters": {
+   "format": "reality"
+  },
+  "austin": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "australia-by-design-architecture": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "australia-s-best-drives": {
+   "topics": [
+    "travel",
+    "motoring"
+   ],
+   "origin": "au"
+  },
+  "australia-s-big-backyards": {
+   "topics": [
+    "gardening"
+   ],
+   "origin": "au"
+  },
+  "australia-s-most-dangerous-prisoners": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "australian-music-vault": {
+   "topics": [
+    "music-arts"
+   ],
+   "origin": "au"
+  },
+  "australian-story": {
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "australian-true-crime-with-meshel-laurie": {
+   "topics": [
+    "true-crime"
+   ],
+   "origin": "au"
+  },
+  "authentic": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "babylon-berlin": {
+   "format": "crime-drama",
+   "origin": "de"
+  },
+  "back-roads": {
+   "topics": [
+    "local-life",
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "badjelly": {
+   "format": "kids",
+   "origin": "au"
+  },
+  "bamay": {
+   "topics": [
+    "local-life",
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "barbie-it-takes-two": {
+   "format": "kids"
+  },
+  "bargain-block": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "bargain-hunt": {
+   "topics": [
+    "antiques",
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "bargain-mansions": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "barney-s-world": {
+   "format": "kids"
+  },
+  "barnwood-builders": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "baywatch": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "be-cool-scooby-doo": {
+   "format": "kids"
+  },
+  "beachfront-bargain-hunt-renovation": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "beat-the-chasers-uk": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "becker": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "bel-air": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "below-deck": {
+   "format": "reality"
+  },
+  "below-deck-sailing-yacht": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "better-homes-and-gardens": {
+   "topics": [
+    "home",
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "betting-on-paradise": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ]
+  },
+  "beverly-hills-real-housewives-of": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "beyblade-burst-quad-drive": {
+   "format": "kids"
+  },
+  "beyblade-x": {
+   "format": "kids"
+  },
+  "beyond-chelsea": {
+   "format": "reality"
+  },
+  "beyond-paradise": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "beyond-today": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "big-backyard-quiz": {
+   "format": "quiz",
+   "origin": "au"
+  },
+  "big-brother": {
+   "format": "reality"
+  },
+  "big-fat-quiz-best-bits": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "big-rig-bounty-hunters": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ],
+   "origin": "us"
+  },
+  "big-rigs-of-oz": {
+   "topics": [
+    "motoring",
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "bill-bailey-s-korea": {
+   "format": "comedy",
+   "topics": [
+    "travel"
+   ]
+  },
+  "bill-reid-remembers": {
+   "format": "documentaries",
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "blokesworld": {
+   "topics": [
+    "motoring",
+    "local-life"
+   ]
+  },
+  "bloom": {
+   "format": "documentaries",
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "bondi-rescue": {
+   "format": "reality",
+   "topics": [
+    "local-life"
+   ]
+  },
+  "bondi-vet": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "border-security-australia-s-front-line": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "border-security-canada-s-front-line": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "botched": {
+   "format": "reality",
+   "topics": [
+    "medical"
+   ]
+  },
+  "botched-homes": {
+   "topics": [
+    "home"
+   ]
+  },
+  "breeders": {
+   "format": "comedy",
+   "origin": "gb"
+  },
+  "bridge-of-lies": {
+   "format": "quiz"
+  },
+  "bridging-the-justice-divide": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "btn": {
+   "format": "kids"
+  },
+  "btn-newsbreak": {
+   "format": "kids"
+  },
+  "bubble-s-hotel": {
+   "format": "kids"
+  },
+  "budget-battlers": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "building-britain-s-superhomes": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "building-the-dream": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "built-to-survive": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "bull": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "buried-in-the-backyard": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "bushwhacked": {
+   "topics": [
+    "nature"
+   ],
+   "origin": "au"
+  },
+  "byzantium-secrets-of-an-empire": {
+   "topics": [
+    "history"
+   ]
+  },
+  "call-the-midwife": {
+   "format": "drama",
+   "origin": "gb"
+  },
+  "casketeers-life-death-across-the-globe": {
+   "format": "documentaries",
+   "topics": [
+    "medical"
+   ]
+  },
+  "caught-on-dashcam": {
+   "format": "reality",
+   "topics": [
+    "motoring"
+   ]
+  },
+  "celebrity-bridge-of-lies": {
+   "format": "quiz"
+  },
+  "celebrity-escape": {
+   "format": "reality"
+  },
+  "chateau-diy": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "cheshire-real-housewives-of": {
+   "format": "reality"
+  },
+  "chicago-fire": {
+   "format": "drama",
+   "topics": [
+    "police-rescue"
+   ],
+   "origin": "us"
+  },
+  "chicago-med": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "christina-on-the-coast": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "christmas-house-wars": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ]
+  },
+  "christopher-reeve-the-eternal-superman": {
+   "format": "documentaries"
+  },
+  "chums": {
+   "format": "kids"
+  },
+  "clarice": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "clarkson-s-farm": {
+   "format": "reality"
+  },
+  "cold-case": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "cold-summer": {
+   "format": "crime-drama",
+   "origin": "it"
+  },
+  "compass": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "compass-points-from-pbs-news": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "connection-to-country": {
+   "topics": [
+    "history"
+   ]
+  },
+  "cool-cars-with-dermott-and-elise": {
+   "topics": [
+    "motoring"
+   ],
+   "origin": "au"
+  },
+  "counting-cars": {
+   "format": "reality",
+   "topics": [
+    "motoring"
+   ]
+  },
+  "creative-types-with-virginia-trioli": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "creek-to-coast": {
+   "topics": [
+    "local-life",
+    "fishing"
+   ]
+  },
+  "creflo-dollar-ministries": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "crime-investigation-australia": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "croc-country": {
+   "format": "reality",
+   "topics": [
+    "nature",
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "cross-court": {
+   "format": "talk-shows"
+  },
+  "culture-by-design": {
+   "topics": [
+    "music-arts",
+    "home"
+   ]
+  },
+  "dancing-at-the-royal-palaces": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "darby-and-joan": {
+   "format": "crime-drama",
+   "origin": "au"
+  },
+  "darkness-those-who-kill": {
+   "format": "crime-drama",
+   "origin": "dk"
+  },
+  "david-attenborough-s-conquest-of-the-skies": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "days-of-our-lives": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "deadly-dinosaurs-with-steve-backshall": {
+   "format": "kids"
+  },
+  "deal-or-no-deal": {
+   "format": "quiz"
+  },
+  "death-in-paradise": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "deep-end-the-scott-miller-story": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "destination-flavour-china-bitesize": {
+   "topics": [
+    "cooking",
+    "travel"
+   ]
+  },
+  "destination-flavour-down-under-bitesize": {
+   "topics": [
+    "cooking",
+    "travel"
+   ]
+  },
+  "destination-flavour-singapore-bitesize": {
+   "topics": [
+    "cooking",
+    "travel"
+   ]
+  },
+  "destination-wa": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "destination-x": {
+   "format": "reality",
+   "topics": [
+    "travel"
+   ]
+  },
+  "destiny-in-alice": {
+   "format": "comedy"
+  },
+  "dipper-s-rigs": {
+   "topics": [
+    "motoring"
+   ],
+   "origin": "au"
+  },
+  "dirty-john": {
+   "format": "crime-drama",
+   "topics": [
+    "true-crime"
+   ],
+   "origin": "us"
+  },
+  "do-not-watch-this-show": {
+   "format": "kids"
+  },
+  "doc-martin": {
+   "format": "drama",
+   "origin": "gb"
+  },
+  "dr-ann-s-secret-lives": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "dr-karl-s-how-things-work": {
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "dr-pimple-popper": {
+   "format": "reality",
+   "topics": [
+    "medical"
+   ]
+  },
+  "drive-tv": {
+   "topics": [
+    "motoring"
+   ],
+   "origin": "au"
+  },
+  "dustfall": {
+   "format": "crime-drama",
+   "origin": "au"
+  },
+  "edgar-wallace-mysteries": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "elder-in-residence-oration": {
+   "topics": [
+    "local-life"
+   ]
+  },
+  "elementary": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "engineering-disasters": {
+   "format": "documentaries",
+   "topics": [
+    "engineering-and-machines"
+   ]
+  },
+  "engineering-tomorrow": {
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "entertainment-tonight": {
+   "topics": [
+    "entertainment-news"
+   ],
+   "origin": "us"
+  },
+  "er": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "escape-fishing-with-et": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "escape-to-the-chateau": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "escape-to-the-country": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "escaping-polygamy": {
+   "format": "reality"
+  },
+  "euromaxx": {
+   "topics": [
+    "music-arts",
+    "travel"
+   ]
+  },
+  "everwood": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "everyday-gourmet-with-justine-schofield": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "evil": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "explore-tv": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "f-ck-berlin": {
+   "format": "reality"
+  },
+  "faithless": {
+   "format": "drama",
+   "origin": "se"
+  },
+  "family-guy": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "family-rules": {
+   "format": "reality"
+  },
+  "farm-to-fork": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "fatal-family-feuds": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "father-brown": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "fbi": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "fbi-international": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "fbi-most-wanted": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "find-my-country-house-australia": {
+   "topics": [
+    "home"
+   ]
+  },
+  "first-nations-bedtime-stories": {
+   "format": "kids"
+  },
+  "fishing-australia": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "fixer-to-fabulous": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "fleishman-is-in-trouble": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "focus-on-europe": {
+   "format": "news",
+   "topics": [
+    "politics"
+   ]
+  },
+  "food-trail-south-africa": {
+   "topics": [
+    "cooking",
+    "travel"
+   ]
+  },
+  "for-the-love-of-pets": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "forensics-murder-scene": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "forged-in-fire": {
+   "format": "reality"
+  },
+  "four-corners": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "foyle-s-war": {
+   "topics": [
+    "history",
+    "military-and-war"
+   ],
+   "origin": "gb"
+  },
+  "frankie-drake-mysteries": {
+   "format": "crime-drama",
+   "origin": "ca"
+  },
+  "frasier": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "fresh-fairytales": {
+   "format": "kids"
+  },
+  "fresh-off-the-boat": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "fresh-tv": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "friends": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "gangnam-project": {
+   "format": "drama"
+  },
+  "gardening-australia": {
+   "topics": [
+    "home",
+    "nature"
+   ],
+   "origin": "au"
+  },
+  "gardening-australia-junior": {
+   "format": "kids",
+   "topics": [
+    "gardening"
+   ]
+  },
+  "gen-well": {
+   "topics": [
+    "health-and-lifestyle"
+   ]
+  },
+  "george-clarke-s-amazing-spaces": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "george-clarke-s-building-home": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "getaway": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "gg-spawn-squad": {
+   "format": "kids",
+   "origin": "au"
+  },
+  "ghosts": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "gideon-s-way": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "glastonbury-festival-2024": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "glenn-mick-s-celebrity-intervention": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "global-shop": {
+   "topics": [
+    "shopping"
+   ]
+  },
+  "global-us": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "going-places-with-ernie-dingo": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "good-bones": {
+   "topics": [
+    "home"
+   ]
+  },
+  "good-chef-bad-chef": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "gordon-ramsay-s-food-stars": {
+   "format": "reality",
+   "topics": [
+    "cooking"
+   ]
+  },
+  "grand-designs-new-zealand": {
+   "topics": [
+    "home"
+   ],
+   "origin": "nz"
+  },
+  "grantchester": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "great-british-train-journeys-from-above": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "gb"
+  },
+  "greatest-escapes-of-ww2": {
+   "topics": [
+    "history"
+   ]
+  },
+  "gruen": {
+   "format": "comedy",
+   "topics": [
+    "entertainment-news"
+   ],
+   "origin": "au"
+  },
+  "guy-montgomery-s-guy-mont-spelling-bee": {
+   "format": "quiz",
+   "origin": "nz"
+  },
+  "guy-montgomery-s-guy-mont-spelling-bee-nz": {
+   "format": "quiz",
+   "origin": "nz"
+  },
+  "hard-quiz": {
+   "format": "quiz",
+   "origin": "au"
+  },
+  "harry-s-practice": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "healthy-wealthy-wise": {
+   "topics": [
+    "health-and-lifestyle",
+    "local-life"
+   ]
+  },
+  "heartbeat": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "heavy-tow-truckers-down-under": {
+   "format": "reality",
+   "topics": [
+    "motoring"
+   ]
+  },
+  "hellcats": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "hello-sa": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "helping-hands": {
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "helsinki-syndrome": {
+   "format": "crime-drama",
+   "origin": "fi"
+  },
+  "hidden-volcano-eruption-from-the-abyss": {
+   "format": "documentaries",
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "highway-patrol": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "history-s-deadliest-with-ving-rhames": {
+   "topics": [
+    "history"
+   ]
+  },
+  "holiday-homes-in-the-sun": {
+   "topics": [
+    "home",
+    "travel"
+   ]
+  },
+  "hollywood-medium-with-tyler-henry": {
+   "topics": [
+    "mystery-and-paranormal"
+   ],
+   "origin": "us"
+  },
+  "home-and-away": {
+   "format": "drama",
+   "origin": "au"
+  },
+  "home-town": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "hook-line-and-sinker": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "horizons-from-pbs-news": {
+   "format": "news",
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "horrible-histories": {
+   "format": "kids",
+   "origin": "gb"
+  },
+  "horrible-science": {
+   "format": "kids"
+  },
+  "hotel-portofino": {
+   "format": "drama",
+   "topics": [
+    "history"
+   ],
+   "origin": "gb"
+  },
+  "hotel-transylvania-the-series": {
+   "format": "kids"
+  },
+  "hour-of-power": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "house-calls-to-the-rescue": {
+   "format": "reality",
+   "topics": [
+    "medical",
+    "police-rescue"
+   ]
+  },
+  "house-hunters": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "house-hunters-international": {
+   "topics": [
+    "home",
+    "travel"
+   ]
+  },
+  "house-of-games": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "house-of-wellness": {
+   "topics": [
+    "health-and-lifestyle"
+   ],
+   "origin": "au"
+  },
+  "i-escaped-to-the-country": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "i-ll-be-frank": {
+   "format": "documentaries",
+   "topics": [
+    "history"
+   ]
+  },
+  "i-love-vip-pets": {
+   "format": "kids"
+  },
+  "i-was-actually-there": {
+   "topics": [
+    "history",
+    "politics"
+   ],
+   "origin": "au"
+  },
+  "icons-of-auto": {
+   "topics": [
+    "motoring"
+   ]
+  },
+  "icons-unearthed-quentin-tarantino": {
+   "format": "documentaries",
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "icons-unearthed-the-lord-of-the-rings": {
+   "topics": [
+    "music-arts",
+    "history"
+   ]
+  },
+  "if-you-are-the-one": {
+   "format": "reality",
+   "origin": "cn"
+  },
+  "if-you-re-listening": {
+   "topics": [
+    "politics",
+    "science-and-technology"
+   ]
+  },
+  "ifish": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "in-touch-with-dr-charles-stanley": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "insiders": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "insight": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "inspector-morse": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "intrepid-adventures": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "it-s-academic": {
+   "format": "quiz"
+  },
+  "it-s-always-sunny-in-philadelphia": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "jag": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "james-may-s-shed-load-of-ideas": {
+   "format": "comedy"
+  },
+  "jamestown": {
+   "format": "drama",
+   "topics": [
+    "history"
+   ],
+   "origin": "gb"
+  },
+  "jamie-durie-s-future-house": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "jane-the-virgin": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "jeopardy": {
+   "format": "quiz",
+   "origin": "us"
+  },
+  "jfk-one-day-in-america": {
+   "topics": [
+    "history",
+    "true-crime"
+   ]
+  },
+  "joanna-lumley-s-danube-europe-s-mightiest-river": {
+   "topics": [
+    "travel",
+    "history"
+   ]
+  },
+  "joe-lycett-s-united-states-of-birmingham": {
+   "format": "comedy",
+   "topics": [
+    "travel"
+   ],
+   "origin": "us"
+  },
+  "joseph-prince-new-creation-church": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "judge-jerry": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "julia-bradbury-s-irish-journey": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "ie"
+  },
+  "karla-grant-presents": {
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "kath-kim": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "kevin-mccloud-s-classic-car-road-trips": {
+   "topics": [
+    "travel",
+    "motoring"
+   ]
+  },
+  "kids-behind-bars-life-or-parole": {
+   "format": "documentaries",
+   "topics": [
+    "true-crime"
+   ],
+   "origin": "us"
+  },
+  "kim-jong-un-the-secret-world-of-north-korea": {
+   "topics": [
+    "politics",
+    "history"
+   ],
+   "origin": "kr"
+  },
+  "kitchen-cabinet": {
+   "topics": [
+    "politics",
+    "cooking"
+   ]
+  },
+  "kriol-kitchen": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "landline": {
+   "topics": [
+    "politics"
+   ],
+   "origin": "au"
+  },
+  "law-order-special-victims-unit": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "leading-the-way": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "lego-city-adventures": {
+   "format": "kids"
+  },
+  "lego-dreamzzz": {
+   "format": "kids"
+  },
+  "lego-friends-girls-on-a-mission": {
+   "format": "kids"
+  },
+  "let-s-eat-with-george": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "letters-and-numbers": {
+   "format": "quiz"
+  },
+  "lingo": {
+   "format": "quiz"
+  },
+  "little-j-and-big-cuz": {
+   "format": "kids"
+  },
+  "little-lunch": {
+   "format": "kids"
+  },
+  "living-black": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "long-lost-family": {
+   "format": "reality",
+   "topics": [
+    "local-life"
+   ]
+  },
+  "love-island-australia": {
+   "format": "reality"
+  },
+  "love-it-or-list-it-brilliant-builds": {
+   "topics": [
+    "home"
+   ]
+  },
+  "love-thy-nader": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "malory-towers": {
+   "format": "kids"
+  },
+  "mark-berg-s-fishing-addiction": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "mark-of-a-murderer": {
+   "topics": [
+    "true-crime"
+   ],
+   "origin": "au"
+  },
+  "marlin-kings-chasing-giants": {
+   "format": "reality",
+   "topics": [
+    "fishing"
+   ]
+  },
+  "married-to-real-estate": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "mass-for-you-at-home": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "masterchef-australia": {
+   "format": "reality",
+   "topics": [
+    "cooking"
+   ]
+  },
+  "mastermind-australia": {
+   "format": "quiz"
+  },
+  "masters-of-flip": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "mechamato": {
+   "format": "kids"
+  },
+  "media-watch": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "medical-emergency": {
+   "topics": [
+    "medical"
+   ]
+  },
+  "mexico-life": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "mh370-the-lost-flight": {
+   "topics": [
+    "history",
+    "true-crime"
+   ]
+  },
+  "mia-codie": {
+   "format": "kids"
+  },
+  "midsomer-murders": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "mighty-ships": {
+   "topics": [
+    "engineering-and-machines",
+    "travel"
+   ]
+  },
+  "million-dollar-listing-la": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "million-dollar-listing-new-york": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "million-dollar-minute": {
+   "format": "quiz"
+  },
+  "millionaire-hot-seat": {
+   "format": "quiz"
+  },
+  "miraculous-tales-of-ladybug-and-cat-noir": {
+   "format": "kids"
+  },
+  "moominvalley": {
+   "format": "kids"
+  },
+  "mso-andrea-lam-plays-tchaikovsky": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "murdoch-mysteries": {
+   "format": "crime-drama",
+   "origin": "ca"
+  },
+  "my-adventures-with-superman": {
+   "format": "kids"
+  },
+  "my-favourite-martian": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "my-greek-odyssey": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "my-kitchen-rules": {
+   "format": "reality",
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "my-lottery-dream-home": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "my-place": {
+   "format": "kids"
+  },
+  "mysteries-from-above": {
+   "topics": [
+    "travel",
+    "science-and-technology"
+   ]
+  },
+  "mythbusters": {
+   "topics": [
+    "science-and-technology",
+    "engineering-and-machines"
+   ]
+  },
+  "national-press-club-address": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "navigating-the-world": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "ncis": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "ncis-hawai-i": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "ncis-sydney": {
+   "format": "crime-drama",
+   "origin": "au"
+  },
+  "new-neighbourhoods": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "new-tricks": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "next-stop": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "ngarrindjeri-yuin-country": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "nigella-s-christmas-kitchen": {
+   "topics": [
+    "cooking"
+   ]
+  },
+  "nitv-on-the-road-yabun": {
+   "topics": [
+    "music-arts",
+    "travel"
+   ]
+  },
+  "no-demo-reno": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "north-shore": {
+   "format": "crime-drama",
+   "origin": "au"
+  },
+  "not-going-out": {
+   "format": "comedy",
+   "origin": "gb"
+  },
+  "oc-real-housewives-of": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "off-the-grid-with-colin-and-manu": {
+   "topics": [
+    "cooking",
+    "travel"
+   ],
+   "origin": "nz"
+  },
+  "old-people-s-home-for-4-year-olds": {
+   "format": "reality",
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "open-homes-australia": {
+   "topics": [
+    "home"
+   ]
+  },
+  "operation-ouch-do-try-this-at-home": {
+   "format": "kids"
+  },
+  "ottoman-empire-by-train": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "outback-opal-hunters": {
+   "format": "reality"
+  },
+  "outback-truckers": {
+   "format": "reality",
+   "topics": [
+    "motoring"
+   ],
+   "origin": "au"
+  },
+  "pandore": {
+   "format": "drama",
+   "origin": "fr"
+  },
+  "paramedics": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "parliament-question-time": {
+   "topics": [
+    "politics"
+   ],
+   "origin": "au"
+  },
+  "paul-o-grady-for-the-love-of-dogs": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "pbs-washington-week-with-the-atlantic": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "penn-teller-fool-us": {
+   "format": "reality"
+  },
+  "phil-spencer-secret-agent": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "piri-s-tiki-tour": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "nz"
+  },
+  "planet-america": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "planet-america-fireside-chat": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "planet-earth-iii": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "pointless": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "pok-mon-journeys": {
+   "format": "kids",
+   "origin": "jp"
+  },
+  "pokemon-journeys-the-series": {
+   "format": "kids"
+  },
+  "pokemon-ruby-and-sapphire": {
+   "format": "kids"
+  },
+  "postcards": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "prison-songs": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "pure-genius": {
+   "format": "drama",
+   "topics": [
+    "medical"
+   ],
+   "origin": "us"
+  },
+  "qi": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "queen-of-oz": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "queen-of-versailles-reigns-again": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "quick-little-builds": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "rabbit-fall": {
+   "format": "drama",
+   "origin": "au"
+  },
+  "rage-ausmusic-month-special": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "rage-charts": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "rage-guest-programmer": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "rage-new-music": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "rage-postcards-of-australia-special": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "rage-vault-aria-awards-1996": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "railroad-australia": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "ramsay-s-kitchen-nightmares-usa": {
+   "format": "reality",
+   "topics": [
+    "cooking"
+   ]
+  },
+  "ramy": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "rbt": {
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "ready-vet-go": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "recipe-of-the-year": {
+   "format": "reality",
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "red-s-fishing-adventures": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "reel-action": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "renovation-aloha": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "renters": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ],
+   "origin": "nz"
+  },
+  "rescuing-the-nile-s-sunken-temple": {
+   "topics": [
+    "history"
+   ]
+  },
+  "restored": {
+   "topics": [
+    "home"
+   ]
+  },
+  "return-to-paradise": {
+   "format": "crime-drama",
+   "origin": "au"
+  },
+  "richard-e-grant-s-very-modern-odyssey": {
+   "topics": [
+    "travel",
+    "history"
+   ]
+  },
+  "rides-down-under-workshop-wars": {
+   "format": "reality",
+   "topics": [
+    "motoring"
+   ]
+  },
+  "ridiculousness": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "riviera": {
+   "format": "drama",
+   "origin": "gb"
+  },
+  "rizzoli-isles": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "road-open": {
+   "topics": [
+    "local-life"
+   ]
+  },
+  "royals-and-their-gardens": {
+   "topics": [
+    "history",
+    "home"
+   ]
+  },
+  "saint-pierre": {
+   "format": "crime-drama",
+   "origin": "ca"
+  },
+  "sam-pang-tonight": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "saving-yellowstone": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "scar-tissue": {
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "science-max-experiments-at-large": {
+   "format": "kids",
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "scotland-s-scenic-railways": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "scottish-vets-down-under": {
+   "topics": [
+    "nature"
+   ],
+   "origin": "gb"
+  },
+  "scrabble": {
+   "format": "quiz"
+  },
+  "secret-sardinia-mysteries-of-the-nuraghi": {
+   "topics": [
+    "history"
+   ]
+  },
+  "secrets-of-miss-america": {
+   "format": "documentaries",
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "see-no-evil": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "seinfeld": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "selling-houses-australia": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "separated-at-birth": {
+   "format": "comedy"
+  },
+  "seven-7-seven": {
+   "format": "documentaries",
+   "origin": "au"
+  },
+  "sex-a-bonkers-history": {
+   "format": "comedy",
+   "topics": [
+    "history"
+   ]
+  },
+  "sex-unlimited": {
+   "format": "documentaries",
+   "topics": [
+    "health-and-lifestyle"
+   ]
+  },
+  "shakespeare-hathaway": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "shaolin-soccer": {
+   "format": "comedy"
+  },
+  "shark": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "shark-tank": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "shark-tank-australia": {
+   "format": "reality"
+  },
+  "shetland": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "skippy": {
+   "format": "kids"
+  },
+  "small-business-secrets": {
+   "topics": [
+    "business-and-money"
+   ]
+  },
+  "smashhdown-search-for-the-g-o-a-t": {
+   "format": "kids",
+   "origin": "au"
+  },
+  "snackmasters": {
+   "format": "reality",
+   "topics": [
+    "cooking"
+   ],
+   "origin": "gb"
+  },
+  "snapped": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "snow": {
+   "format": "crime-drama"
+  },
+  "so-help-me-todd": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "songs-of-praise": {
+   "topics": [
+    "religion",
+    "music-arts"
+   ]
+  },
+  "south-aussie-with-cosi": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "southern-charm": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "sovereignty-50-years-of-the-tent-embassy": {
+   "topics": [
+    "history"
+   ]
+  },
+  "spartakus-and-the-sun-beneath-the-sea": {
+   "format": "kids"
+  },
+  "speak-no-maori": {
+   "topics": [
+    "history"
+   ]
+  },
+  "spicks-and-specks": {
+   "format": "quiz",
+   "origin": "au"
+  },
+  "spooks": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "stacey-dooley-meet-the-shoplifters": {
+   "topics": [
+    "true-crime",
+    "local-life"
+   ]
+  },
+  "star-wars-young-jedi-adventures": {
+   "format": "kids"
+  },
+  "steady": {
+   "format": "documentaries"
+  },
+  "step-outside-with-paul-burt": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "stompem-ground-2022-karajarri-dancers": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "storage-wars": {
+   "format": "reality",
+   "topics": [
+    "antiques"
+   ],
+   "origin": "us"
+  },
+  "submarine-jim": {
+   "format": "kids"
+  },
+  "sullivan-s-crossing": {
+   "format": "drama",
+   "origin": "ca"
+  },
+  "summer-camp-island": {
+   "format": "kids"
+  },
+  "summer-house": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "summer-in-the-isles-of-scilly": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "sunrise": {
+   "format": "news",
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "super-happy-magic-forest": {
+   "format": "kids"
+  },
+  "susan-calman-s-grand-day-out": {
+   "format": "comedy",
+   "topics": [
+    "travel"
+   ]
+  },
+  "sydney-weekender": {
+   "topics": [
+    "travel",
+    "local-life"
+   ]
+  },
+  "take-5": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "taronga-who-s-who-in-the-zoo": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "tasman-trails": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "nz"
+  },
+  "te-ao-with-moana": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "teen-titans-go": {
+   "format": "kids"
+  },
+  "thalu": {
+   "format": "kids"
+  },
+  "the-1-club-uk": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "the-4wd-adventure-show": {
+   "topics": [
+    "motoring",
+    "travel"
+   ]
+  },
+  "the-77-percent": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "the-addams-family": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "the-amazing-race": {
+   "format": "reality"
+  },
+  "the-amazing-world-of-gumball": {
+   "format": "kids"
+  },
+  "the-american-buffalo": {
+   "topics": [
+    "nature",
+    "history"
+   ],
+   "origin": "us"
+  },
+  "the-avengers": {
+   "format": "drama",
+   "origin": "gb"
+  },
+  "the-baron": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "the-big-bang-theory": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "the-big-wet": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "the-block": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ]
+  },
+  "the-bold-and-the-beautiful": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "the-boy-the-queen": {
+   "format": "drama",
+   "origin": "au"
+  },
+  "the-boys-who-said-no": {
+   "topics": [
+    "history",
+    "politics"
+   ]
+  },
+  "the-breakfast-couch": {
+   "topics": [
+    "entertainment-news"
+   ]
+  },
+  "the-brilliant-world-of-tom-gates": {
+   "format": "kids"
+  },
+  "the-brokenwood-mysteries": {
+   "format": "crime-drama",
+   "origin": "nz"
+  },
+  "the-business": {
+   "topics": [
+    "business-and-money"
+   ]
+  },
+  "the-chase": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "the-chase-australia": {
+   "format": "quiz",
+   "origin": "au"
+  },
+  "the-cook-up-with-adam-liaw": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "the-corsican-line": {
+   "format": "crime-drama",
+   "origin": "fr"
+  },
+  "the-curse-of-oak-island": {
+   "format": "reality",
+   "topics": [
+    "history"
+   ],
+   "origin": "us"
+  },
+  "the-finish-line": {
+   "format": "quiz"
+  },
+  "the-fishing-show-by-afn": {
+   "topics": [
+    "fishing"
+   ],
+   "origin": "au"
+  },
+  "the-flight-attendant-murders": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "the-force-behind-the-line": {
+   "topics": [
+    "police-rescue",
+    "true-crime"
+   ],
+   "origin": "au"
+  },
+  "the-forsytes": {
+   "format": "drama"
+  },
+  "the-garden-gurus": {
+   "topics": [
+    "home"
+   ],
+   "origin": "au"
+  },
+  "the-girl-from-plainville": {
+   "format": "drama",
+   "topics": [
+    "true-crime"
+   ],
+   "origin": "us"
+  },
+  "the-good-ship-murder": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "the-graham-norton-show": {
+   "format": "comedy",
+   "origin": "gb"
+  },
+  "the-graveyard-of-truk-lagoon": {
+   "topics": [
+    "history"
+   ]
+  },
+  "the-great-australian-doorstep": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "the-great-outdoors": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "the-hunting-party": {
+   "format": "crime-drama",
+   "origin": "us"
+  },
+  "the-inbestigators": {
+   "format": "kids"
+  },
+  "the-incredible-journey": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "the-intolerant-cooks": {
+   "topics": [
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "the-key-of-david": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "the-living-room": {
+   "topics": [
+    "home",
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "the-magic-canoe": {
+   "format": "kids"
+  },
+  "the-mendez-murders-erik-tells-all": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "the-mightiest": {
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "the-morning-show": {
+   "format": "talk-shows",
+   "topics": [
+    "entertainment-news",
+    "health-and-lifestyle"
+   ],
+   "origin": "au"
+  },
+  "the-morning-show-weekend": {
+   "format": "talk-shows",
+   "topics": [
+    "entertainment-news",
+    "health-and-lifestyle"
+   ],
+   "origin": "au"
+  },
+  "the-movie-show": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "the-mysterious-cities-of-gold": {
+   "format": "kids"
+  },
+  "the-nanny": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "the-next-step-cheer": {
+   "format": "kids",
+   "origin": "ca"
+  },
+  "the-other-side": {
+   "topics": [
+    "mystery-and-paranormal"
+   ]
+  },
+  "the-path": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "the-playboy-bunny-murder": {
+   "topics": [
+    "true-crime"
+   ]
+  },
+  "the-point": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "the-powerpuff-girls": {
+   "format": "kids"
+  },
+  "the-real-housewives-of-london": {
+   "format": "reality"
+  },
+  "the-regions": {
+   "topics": [
+    "local-life",
+    "politics"
+   ]
+  },
+  "the-ring": {
+   "topics": [
+    "politics"
+   ]
+  },
+  "the-rings-of-power": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "the-sonny-disposition": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "the-summit": {
+   "format": "reality"
+  },
+  "the-supervet": {
+   "topics": [
+    "nature"
+   ],
+   "origin": "gb"
+  },
+  "the-surgery-ship": {
+   "topics": [
+    "medical"
+   ]
+  },
+  "the-swiping-game": {
+   "format": "reality"
+  },
+  "the-tonight-show-starring-jimmy-fallon": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "the-unbelievable-with-dan-aykroyd": {
+   "format": "documentaries",
+   "topics": [
+    "mystery-and-paranormal"
+   ]
+  },
+  "the-unxplained-with-william-shatner": {
+   "format": "documentaries",
+   "topics": [
+    "mystery-and-paranormal"
+   ]
+  },
+  "the-valley": {
+   "format": "reality",
+   "origin": "us"
+  },
+  "the-vanishing-triangle": {
+   "format": "crime-drama",
+   "origin": "ie"
+  },
+  "the-vicar-of-dibley": {
+   "format": "comedy",
+   "origin": "gb"
+  },
+  "the-whole-table": {
+   "topics": [
+    "local-life",
+    "politics"
+   ],
+   "origin": "au"
+  },
+  "the-yorkshire-auction-house": {
+   "format": "reality",
+   "topics": [
+    "antiques"
+   ],
+   "origin": "gb"
+  },
+  "the-yorkshire-vet": {
+   "topics": [
+    "nature"
+   ],
+   "origin": "gb"
+  },
+  "the-young-and-the-restless": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "those-who-stayed": {
+   "format": "drama"
+  },
+  "thunderbirds": {
+   "format": "kids"
+  },
+  "tipping-point": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "tipping-point-australia": {
+   "format": "quiz",
+   "origin": "au"
+  },
+  "today": {
+   "format": "news",
+   "topics": [
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "today-extra": {
+   "format": "talk-shows",
+   "topics": [
+    "entertainment-news"
+   ]
+  },
+  "today-extra-saturday": {
+   "format": "talk-shows",
+   "topics": [
+    "entertainment-news",
+    "local-life"
+   ]
+  },
+  "top-20-funniest": {
+   "format": "comedy"
+  },
+  "topknotz-wild-on-water": {
+   "topics": [
+    "travel",
+    "local-life"
+   ],
+   "origin": "au"
+  },
+  "total-dramarama": {
+   "format": "kids"
+  },
+  "transformers-earthspark": {
+   "format": "kids"
+  },
+  "transplant": {
+   "format": "drama",
+   "origin": "ca"
+  },
+  "travel-guides": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "travel-oz": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "triple-j-live-at-the-wireless": {
+   "topics": [
+    "music-arts"
+   ]
+  },
+  "tsunami-2004-the-day-the-wave-hit": {
+   "topics": [
+    "history"
+   ]
+  },
+  "turn-up-respect": {
+   "topics": [
+    "local-life"
+   ]
+  },
+  "turning-point-with-dr-david-jeremiah": {
+   "topics": [
+    "religion"
+   ]
+  },
+  "two-and-a-half-men": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "u-96-the-true-story-of-das-boot": {
+   "topics": [
+    "military-and-war",
+    "history"
+   ]
+  },
+  "ugliest-house-in-america": {
+   "format": "reality",
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "under-the-hammer": {
+   "topics": [
+    "home"
+   ],
+   "origin": "gb"
+  },
+  "undercover-boss": {
+   "format": "reality"
+  },
+  "unsellable-houses": {
+   "topics": [
+    "home"
+   ],
+   "origin": "ca"
+  },
+  "upper-middle-bogan": {
+   "format": "comedy",
+   "origin": "au"
+  },
+  "upstart-crow": {
+   "format": "comedy",
+   "topics": [
+    "history"
+   ],
+   "origin": "gb"
+  },
+  "vampire-academy": {
+   "format": "drama",
+   "origin": "us"
+  },
+  "vanitas": {
+   "topics": [
+    "history"
+   ],
+   "origin": "in"
+  },
+  "vera": {
+   "format": "crime-drama",
+   "origin": "gb"
+  },
+  "viking-quest-america": {
+   "topics": [
+    "history"
+   ]
+  },
+  "waabiny-time": {
+   "format": "kids"
+  },
+  "we-baby-bears": {
+   "format": "kids"
+  },
+  "we-bare-bears": {
+   "format": "kids"
+  },
+  "we-re-all-gonna-die-even-jay-baruchel": {
+   "format": "documentaries",
+   "topics": [
+    "science-and-technology"
+   ]
+  },
+  "weekend-sunrise": {
+   "format": "news",
+   "topics": [
+    "local-life"
+   ]
+  },
+  "weekend-today": {
+   "format": "talk-shows",
+   "topics": [
+    "local-life",
+    "entertainment-news"
+   ]
+  },
+  "weekender": {
+   "topics": [
+    "travel"
+   ],
+   "origin": "au"
+  },
+  "well-traveller": {
+   "topics": [
+    "travel"
+   ]
+  },
+  "west-coast-cops": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "what-it-feels-like-for-a-girl": {
+   "format": "drama",
+   "origin": "gb"
+  },
+  "what-s-up-down-under": {
+   "topics": [
+    "travel",
+    "health-and-lifestyle"
+   ],
+   "origin": "au"
+  },
+  "what-s-wrong-with-that-house": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "what-we-do-in-the-shadows": {
+   "format": "comedy",
+   "origin": "us"
+  },
+  "who-do-you-think-you-are": {
+   "format": "documentaries",
+   "topics": [
+    "history"
+   ]
+  },
+  "whose-line-is-it-anyway": {
+   "format": "comedy"
+  },
+  "wide-open-spaces": {
+   "topics": [
+    "local-life",
+    "cooking"
+   ],
+   "origin": "au"
+  },
+  "wild-isles": {
+   "topics": [
+    "nature"
+   ]
+  },
+  "wild-manes": {
+   "format": "kids"
+  },
+  "wildlife-rescue-new-zealand": {
+   "topics": [
+    "nature"
+   ],
+   "origin": "nz"
+  },
+  "windy-city-rehab": {
+   "topics": [
+    "home"
+   ],
+   "origin": "us"
+  },
+  "world-s-greatest-myths-and-mysteries": {
+   "topics": [
+    "history",
+    "travel"
+   ]
+  },
+  "world-s-greatest-transportation-marvels": {
+   "topics": [
+    "engineering-and-machines",
+    "history"
+   ]
+  },
+  "world-s-wildest-police-videos": {
+   "format": "reality",
+   "topics": [
+    "police-rescue"
+   ]
+  },
+  "would-i-lie-to-you": {
+   "format": "quiz",
+   "origin": "gb"
+  },
+  "yagan": {
+   "topics": [
+    "history"
+   ]
+  },
+  "your-4x4": {
+   "topics": [
+    "motoring",
+    "travel"
+   ]
+  }
+ }
+}

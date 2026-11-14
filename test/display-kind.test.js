@@ -37,7 +37,7 @@ test('displayKindOf: a long documentary special with no numbers counts as a movi
 test('displayKindOf: long news and sport stay one-off unless the enrichment calls them a film', () => {
   assert.equal(displayKindOf({ programme: grandFinal }), 'one-off')
   assert.equal(displayKindOf({ programme: electionNight }), 'one-off')
-  assert.equal(displayKindOf({ programme: grandFinal, record: { categories: ['movie'] } }), 'movie')
+  assert.equal(displayKindOf({ programme: grandFinal, record: { genreTags: ['movie'] } }), 'movie')
 })
 
 test('displayKindOf: 5 airings in the week make a series unless the guide lists a movie', () => {
@@ -48,7 +48,7 @@ test('displayKindOf: 5 airings in the week make a series unless the guide lists 
 })
 
 test('displayKindOf: TVmaze shows and episode details are series, short specials are one-offs', () => {
-  assert.equal(displayKindOf({ programme: downsizing, record: { source: 'tvmaze:1', categories: [] } }), 'series')
+  assert.equal(displayKindOf({ programme: downsizing, record: { source: 'tvmaze:1', genreTags: [] } }), 'series')
   assert.equal(displayKindOf({ programme: mediaWatch }), 'series')
   assert.equal(displayKindOf({ programme: murdoch }), 'series')
   assert.equal(displayKindOf({ programme: happysPlace }), 'one-off')
@@ -58,7 +58,7 @@ test('displayKindOf: TVmaze shows and episode details are series, short specials
 
 test('createDisplayKinds: counts airings by show title and reads cached enrichment records', () => {
   const programmes = [happysPlace, { ...happysPlace, title: "HAPPY'S PLACE" }, { ...happysPlace, title: 'Happy’s Place' }, carols, goodfellas]
-  const kindOf = createDisplayKinds({ programmes, recordsByKey: new Map([['carols-by-candlelight', { source: 'tvmaze:9', categories: [] }]]) })
+  const kindOf = createDisplayKinds({ programmes, recordsByKey: new Map([['carols-by-candlelight', { source: 'tvmaze:9', genreTags: [] }]]) })
   assert.deepEqual(withDisplayKinds({ programmes, kindOf }).map((p) => p.kind), ['series', 'series', 'series', 'series', 'movie'])
 })
 
@@ -80,14 +80,14 @@ test('displayKindOf: a kind override wins over the automatic rule', () => {
   assert.equal(displayKindOf({ programme: downsizing, record: { kindOverride: 'not-movie' } }), 'one-off')
   assert.equal(displayKindOf({ programme: downsizing, record: { kindOverride: 'not-movie' }, airingsInWeek: 3 }), 'series')
   assert.equal(displayKindOf({ programme: downsizing, record: { kindOverride: 'movie' }, airingsInWeek: 3 }), 'movie')
-  assert.equal(displayKindOf({ programme: masterCheng, record: { kindOverride: 'not-movie', categories: ['movie'] } }), 'one-off')
+  assert.equal(displayKindOf({ programme: masterCheng, record: { kindOverride: 'not-movie', genreTags: ['movie'] } }), 'one-off')
   assert.equal(displayKindOf({ programme: carols, record: { kindOverride: 'movie', source: 'tvmaze:1' } }), 'movie')
 })
 
 test('createDisplayKinds: reads kind overrides from the records by show key', () => {
   const kindOf = createDisplayKinds({
     programmes: [goodfellas, happysPlace],
-    recordsByKey: new Map([['goodfellas', { categories: [], kindOverride: 'not-movie' }]]),
+    recordsByKey: new Map([['goodfellas', { genreTags: [], kindOverride: 'not-movie' }]]),
   })
   assert.equal(kindOf(goodfellas), 'one-off')
 })
