@@ -461,7 +461,7 @@ export const HomeView = {
           'programme-info': () => openSlideProgramme(slide),
           'movie-kind': () => changeKindOf(slide.target.program),
           'not-interested': () => forYou.choose('not-interested', dislikeItemOfSlide(slide)),
-          'fewer-theme': () => forYou.choose('fewer-theme', dislikeItemOfSlide(slide)),
+          'hide-category': () => forYou.choose('hide-category', dislikeItemOfSlide(slide)),
         },
       }),
       recording: (slide) => {

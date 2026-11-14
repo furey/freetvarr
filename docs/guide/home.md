@@ -65,11 +65,11 @@ Each slide also has a **⋯** button. It opens the same actions as the matching 
 
 The **Live news** or **Live sport** slide shows one programme that is on now on a favourite channel. Freetvarr picks it with these rules:
 
-- It leaves out a show you hid, and a show in a kind of show you hid. See [Hidden shows](/guide/for-you#for-you-settings).
-- A programme counts as sport only when [For you](/guide/for-you#theme-rows) files it under a sport, such as **Rugby league** or **Cricket**. A fishing or motoring show that the guide lists as sport does not count.
-- A show you watch or record, or a kind of show you watch or record, comes before the others.
+- It leaves out a show you hid, and a show in a category you hid. See [Hidden shows and categories](/guide/for-you#for-you-settings).
+- A programme counts as sport only when [For you](/guide/for-you#category-rows) files it under a sport, such as **Rugby league** or **Cricket**. A fishing or motoring show that the guide lists as sport does not count.
+- A show you watch or record, or a show in a category you watch or record, comes before the others.
 
-The **⋯** menu of this slide also has **Hide this show** (**Hide this film** for a film) and **Hide** with the kind of show, such as **Hide fishing shows**. Either one takes the slide away at once, and a message with **Undo** says what is hidden for 90 days. The [Hidden shows](/guide/for-you#for-you-settings) list in the For you settings shows what you hid, with **Show again**.
+The **⋯** menu of this slide also has **Hide this show** (**Hide this film** for a film) and **Hide** with the category of the show, such as **Hide fishing shows**. Either one takes the slide away at once, and a message with **Undo** says what is hidden for 90 days. The [Hidden shows and categories](/guide/for-you#for-you-settings) list in the For you settings shows what you hid, with **Show again**.
 
 ## Rows
 

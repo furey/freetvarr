@@ -17,7 +17,7 @@ import {
   tierOverrideFrom,
 } from './for-you-capability.js'
 import { distinctTextsOf, vectorFromBuffer, vectorToBuffer } from './for-you-texts.js'
-import { prototypeTextsOf, themeCatalogueOf } from './for-you-theme-catalogue.js'
+import { prototypeTextsOf, categoryCatalogueOf } from './for-you-category-catalogue.js'
 import { occasionPrototypeTextsOf } from './for-you-occasions.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
@@ -32,7 +32,7 @@ export const SETTINGS = {
   upkeep: 'for_you_upkeep_last',
   otherLanguageFilms: 'for_you_other_language_films',
   animateIcon: 'for_you_animate_icon',
-  themesOff: 'for_you_themes_off',
+  categoriesOff: 'for_you_categories_off',
 }
 
 export const fetchOllamaTags = (url) => axios.get(`${url}/api/tags`, {
@@ -191,7 +191,7 @@ const embedNow = async ({ nowMs }) => {
     : { count: 0, ok: true }
   const run = { at: nowMs, model: embedder.id, wanted: texts.length, ...stats, wallMs: Date.now() - started }
   await setSetting(SETTINGS.embedRun, JSON.stringify(run))
-  await keepThemeVectors({ modelId: embedder.id, nowMs }).catch(() => {})
+  await keepCategoryVectors({ modelId: embedder.id, nowMs }).catch(() => {})
   await pruneVectors({ modelId: embedder.id, nowMs }).catch(() => {})
   vectorVersion += 1
   console.log(`[for-you] embedded ${run.count ?? 0} of ${texts.length} text(s) with ${embedder.id} in ${Math.round(run.wallMs / 1000)} s`)
@@ -203,7 +203,7 @@ const textsToEmbed = async ({ modelId, nowMs }) => {
     db('guide_programs').where('end', '>', nowMs - DAY_MS).select(GUIDE_TEXT_COLUMNS.map((column) => db.raw(column))),
     db('recordings').select('title', 'synopsis'),
   ])
-  const items = [...themeTextItems(), ...recordings, ...guideRows]
+  const items = [...categoryTextItems(), ...recordings, ...guideRows]
   const distinct = distinctTextsOf(items)
   const known = new Set()
   for (let i = 0; i < distinct.length; i += SQL_CHUNK) {
@@ -214,11 +214,11 @@ const textsToEmbed = async ({ modelId, nowMs }) => {
   return distinct.filter((item) => !known.has(item.hash))
 }
 
-export const themeTextItems = ({ country = countryForTimeZone(currentTimeZone()) } = {}) => [...prototypeTextsOf(themeCatalogueOf({ country })), ...occasionPrototypeTextsOf(country)]
+export const categoryTextItems = ({ country = countryForTimeZone(currentTimeZone()) } = {}) => [...prototypeTextsOf(categoryCatalogueOf({ country })), ...occasionPrototypeTextsOf(country)]
   .map((text) => ({ title: text }))
 
-const keepThemeVectors = async ({ modelId, nowMs }) => {
-  const hashes = distinctTextsOf(themeTextItems()).map((item) => item.hash)
+const keepCategoryVectors = async ({ modelId, nowMs }) => {
+  const hashes = distinctTextsOf(categoryTextItems()).map((item) => item.hash)
   for (let i = 0; i < hashes.length; i += SQL_CHUNK) {
     await db('text_embeddings').where({ model_id: modelId }).whereIn('text_hash', hashes.slice(i, i + SQL_CHUNK)).update({ created_at: nowMs })
   }

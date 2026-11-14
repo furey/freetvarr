@@ -66,7 +66,7 @@ export const currentCandidateTestOf = ({
     if (listed[type]) return listed[type].has((source.episode ?? source.movie)?.recordingId)
     if (type === 'upcoming') return scheduled.has(String(source.item?.programId)) && !active.has(String(source.item?.programId))
     if (type === 'for-you' || type === 'top-rated') return !isHiddenSuggestion({ item: source.item ?? {}, hiddenKeys })
-    if (type === 'on-now') return !isHiddenSuggestion({ item: { title: source.program?.title ?? '', theme: source.theme }, hiddenKeys })
+    if (type === 'on-now') return !isHiddenSuggestion({ item: { title: source.program?.title ?? '', category: source.category }, hiddenKeys })
     return true
   }
 }
@@ -287,7 +287,7 @@ const recordingNowSlideOf = ({ recording, channel, nowMs, timeZone, stampUrl }) 
 const onNowSlideOf = ({ entries, recording, taste, nowMs, timeZone, stampUrl }) => {
   const entry = onNowPickOf({ entries, recording, taste, nowMs })
   if (!entry) return null
-  return onNowEntrySlideOf({ channel: entry.channel, program: entry.now, theme: titleTasteOf({ taste, title: entry.now.title })?.theme ?? null, nowMs, timeZone, stampUrl })
+  return onNowEntrySlideOf({ channel: entry.channel, program: entry.now, category: titleTasteOf({ taste, title: entry.now.title })?.hideCategory ?? null, nowMs, timeZone, stampUrl })
 }
 
 export const onNowPickOf = ({ entries = [], recording = null, taste = null, nowMs }) => entries
@@ -308,28 +308,28 @@ const isWantedLive = ({ program, taste }) => {
   const key = showKeyOf(program.title)
   if (taste.hiddenShows?.includes(key)) return false
   const known = taste.titles?.[key]
-  if (known?.theme && isHiddenTheme({ theme: known.theme, taste })) return false
+  if ((known?.categories ?? []).some((category) => isHiddenCategory({ category, taste }))) return false
   if (liveGenreOf(program.genre) !== 'sport' || !taste.titles) return true
   return known?.kind === 'sport' && Boolean(known.sportCode)
 }
 
-const isHiddenTheme = ({ theme, taste }) => {
-  const hidden = taste.hiddenThemes ?? []
-  return hidden.includes(theme.key) || Boolean(theme.sport && hidden.includes('sport'))
+const isHiddenCategory = ({ category, taste }) => {
+  const hidden = taste.hiddenCategories ?? []
+  return hidden.includes(category.key) || Boolean(category.sport && hidden.includes('sport'))
 }
 
 const liveAffinityOf = ({ program, taste }) => {
   if (!taste) return 0
   const key = showKeyOf(program.title)
-  const theme = taste.titles?.[key]?.theme
+  const shares = (taste.titles?.[key]?.categories ?? []).map((category) => taste.categoryShares?.[category.key] ?? 0)
   const showScore = taste.showAffinity?.[key] > 0 ? 2 : 0
-  const themeScore = theme && taste.themeShares?.[theme.key] > 0 ? 1 : 0
-  return showScore + themeScore
+  const categoryScore = Math.max(0, ...shares) > 0 ? 1 : 0
+  return showScore + categoryScore
 }
 
 const titleTasteOf = ({ taste, title }) => taste?.titles?.[showKeyOf(title)] ?? null
 
-const onNowEntrySlideOf = ({ channel, program, theme = null, nowMs, timeZone, stampUrl }) => {
+const onNowEntrySlideOf = ({ channel, program, category = null, nowMs, timeZone, stampUrl }) => {
   const genre = liveGenreOf(program.genre)
   const left = minutesUntil({ ms: program.end, nowMs })
   return {
@@ -346,7 +346,7 @@ const onNowEntrySlideOf = ({ channel, program, theme = null, nowMs, timeZone, st
     secondary: { action: 'record', label: 'Record' },
     programId: program.program_id,
     target: { channel: liveChannelFrom(channel), program: { ...program, channelId: channel.id } },
-    source: { channel, program, theme },
+    source: { channel, program, category },
     endsAt: program.end,
   }
 }

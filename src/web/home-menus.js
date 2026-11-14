@@ -18,10 +18,10 @@ export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null,
 
 export const dislikeGroupOf = (dislike) => {
   if (!dislike?.title) return []
-  const labels = dislikeLabelsOf({ kind: programmeKindOfItem(dislike), theme: dislike.theme?.key ? dislike.theme : null })
+  const labels = dislikeLabelsOf({ kind: programmeKindOfItem(dislike), category: dislike.category?.key ? dislike.category : null })
   return [
     { key: 'not-interested', label: labels.show, icon: 'hide' },
-    labels.theme && { key: 'fewer-theme', label: labels.theme, icon: 'hide' },
+    labels.category && { key: 'hide-category', label: labels.category, icon: 'hide' },
   ]
 }
 
@@ -85,7 +85,7 @@ export const dislikeItemOfSlide = (slide) => (slide?.type === 'on-now' && slide.
       start: slide.source.program.start ?? null,
       channelId: slide.source.channel?.id ?? null,
       programmeKind: slide.source.program.kind ?? null,
-      theme: slide.source.theme ?? null,
+      category: slide.source.category ?? null,
     }
   : null)
 

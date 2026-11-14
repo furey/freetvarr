@@ -65,7 +65,7 @@ test('settings changes are validated', () => {
 })
 
 test('public results trim sections and internal fields', () => {
-  const item = { id: '1', title: 'A', categories: ['drama'], seasonNumber: 1, episodeNumber: 2 }
+  const item = { id: '1', title: 'A', genreTags: ['drama'], seasonNumber: 1, episodeNumber: 2 }
   const result = { tier: 'basic', coldStart: false, generatedAt: 1, sections: [{ key: 'might-like', title: 'You might like', items: [item, { ...item, id: '2' }] }], topPick: item }
   const shown = publicResultOf({ result, limit: 1 })
   assert.equal(shown.sections[0].items.length, 1)
@@ -150,35 +150,35 @@ test('Show again on a Not interested show keeps an earlier More like this', asyn
   assert.deepEqual((await db('user_events').where({ series_key: 'rake' }).orderBy('id')).map((row) => row.kind), ['thumb_up', 'not_interested', 'not_interested_undo'])
 })
 
-test('Show again works for a show whose key starts with theme-', async () => {
+test('Show again works for a show whose key starts with category-', async () => {
   await db('user_events').delete()
-  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'not_interested', series_key: 'theme-park-secrets', title: 'Theme Park Secrets' })
+  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'not_interested', series_key: 'category-park-secrets', title: 'Category Park Secrets' })
   const hidden = await call('GET', '/api/for-you/hidden')
-  assert.deepEqual(hidden.body.map((show) => [show.seriesKey, show.title, show.themeKey ?? null]), [['theme-park-secrets', 'Theme Park Secrets', null]])
-  const unhidden = await call('DELETE', '/api/for-you/hidden/theme-park-secrets')
+  assert.deepEqual(hidden.body.map((show) => [show.seriesKey, show.title, show.categoryKey ?? null]), [['category-park-secrets', 'Category Park Secrets', null]])
+  const unhidden = await call('DELETE', '/api/for-you/hidden/category-park-secrets')
   assert.equal(unhidden.body.wasHidden, true)
   assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
 })
 
-test('a hidden theme lists under hidden shows and in Themes, and its own route unmutes it', async () => {
+test('a hidden category lists under hidden shows and in Categories, and its own route unmutes it', async () => {
   await db('user_events').delete()
-  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'theme_muted', series_key: 'theme-cooking', title: 'Cooking' })
+  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'category_muted', series_key: 'category-cooking', title: 'Cooking' })
   const hidden = await call('GET', '/api/for-you/hidden')
-  assert.deepEqual(hidden.body.map((show) => [show.seriesKey, show.themeKey]), [['theme:cooking', 'cooking']])
-  assert.equal((await call('GET', '/api/for-you/themes')).body.themes.find((theme) => theme.key === 'cooking').on, false)
-  assert.equal((await call('DELETE', '/api/for-you/themes/not-a-theme/mute')).status, 404)
-  assert.equal((await call('DELETE', '/api/for-you/themes/cooking/mute')).status, 200)
+  assert.deepEqual(hidden.body.map((show) => [show.seriesKey, show.categoryKey]), [['category:cooking', 'cooking']])
+  assert.equal((await call('GET', '/api/for-you/categories')).body.categories.find((category) => category.key === 'cooking').on, false)
+  assert.equal((await call('DELETE', '/api/for-you/categories/not-a-category/mute')).status, 404)
+  assert.equal((await call('DELETE', '/api/for-you/categories/cooking/mute')).status, 200)
   assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
-  assert.equal((await call('GET', '/api/for-you/themes')).body.themes.find((theme) => theme.key === 'cooking').on, true)
+  assert.equal((await call('GET', '/api/for-you/categories')).body.categories.find((category) => category.key === 'cooking').on, true)
 })
 
 test('a hidden Sport this week row shows every sport off, and turning one on unmutes the row', async () => {
   await db('user_events').delete()
-  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'theme_muted', series_key: 'theme-sport', title: 'Sport' })
-  const themes = (await call('GET', '/api/for-you/themes')).body.themes
-  assert.ok(themes.filter((theme) => theme.sport).every((theme) => !theme.on))
-  assert.ok(themes.filter((theme) => !theme.sport).every((theme) => theme.on))
-  const after = (await call('PUT', '/api/for-you/themes/cricket', { on: true })).body.themes
-  assert.ok(after.filter((theme) => theme.sport).every((theme) => theme.on))
+  await db('user_events').insert({ ts: Date.now() - 1000, kind: 'category_muted', series_key: 'category-sport', title: 'Sport' })
+  const categories = (await call('GET', '/api/for-you/categories')).body.categories
+  assert.ok(categories.filter((category) => category.sport).every((category) => !category.on))
+  assert.ok(categories.filter((category) => !category.sport).every((category) => category.on))
+  const after = (await call('PUT', '/api/for-you/categories/cricket', { on: true })).body.categories
+  assert.ok(after.filter((category) => category.sport).every((category) => category.on))
   assert.deepEqual((await call('GET', '/api/for-you/hidden')).body, [])
 })

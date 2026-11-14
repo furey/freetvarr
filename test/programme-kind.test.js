@@ -79,17 +79,17 @@ test('kindOverrideFrom: accepts movie or not-movie', () => {
 
 test('withKindOverrides: adds the override to known records and creates bare ones', () => {
   const merged = withKindOverrides({
-    records: new Map([['heron', { categories: ['drama'], genres: [], source: 'wikidata:Q1' }]]),
+    records: new Map([['heron', { genreTags: ['drama'], genres: [], source: 'wikidata:Q1' }]]),
     overrides: new Map([['heron', 'movie'], ['alick-albert', 'not-movie']]),
   })
-  assert.deepEqual(merged.get('heron'), { categories: ['drama'], genres: [], source: 'wikidata:Q1', kindOverride: 'movie' })
-  assert.deepEqual(merged.get('alick-albert'), { categories: [], genres: [], source: null, kindOverride: 'not-movie' })
+  assert.deepEqual(merged.get('heron'), { genreTags: ['drama'], genres: [], source: 'wikidata:Q1', kindOverride: 'movie' })
+  assert.deepEqual(merged.get('alick-albert'), { genreTags: [], genres: [], source: null, kindOverride: 'not-movie' })
 })
 
 test('isFilmAiring: an override wins over records, genres, and airing counts', () => {
   const long = airing({ minutes: 100 })
   assert.equal(isFilmAiring({ programme: long, airingsInWeek: 5, record: { kindOverride: 'movie' } }), true)
-  assert.equal(isFilmAiring({ programme: long, record: { categories: ['movie'], kindOverride: 'not-movie' } }), false)
+  assert.equal(isFilmAiring({ programme: long, record: { genreTags: ['movie'], kindOverride: 'not-movie' } }), false)
   assert.equal(isFilmAiring({ programme: airing({ minutes: 100, genre: 0x10 }), record: { kindOverride: 'not-movie' } }), false)
 })
 

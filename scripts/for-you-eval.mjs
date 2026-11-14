@@ -52,7 +52,7 @@ const loadData = async (db) => {
     events,
     recordings,
     guide: guideRows.map((row) => JSON.parse(row.program_json)),
-    genresByKey: new Map(genreRows.map((row) => [row.title_key, { categories: JSON.parse(row.categories_json), genres: JSON.parse(row.genres_json), source: row.source }])),
+    genresByKey: new Map(genreRows.map((row) => [row.title_key, { genreTags: JSON.parse(row.categories_json), genres: JSON.parse(row.genres_json), source: row.source }])),
   }
 }
 

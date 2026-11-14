@@ -7,8 +7,8 @@ import { saveArtwork } from '../src/artwork.js'
 import { pickBigFive } from '../src/default-favourites.js'
 import { showKeyOf } from '../src/web/show-key.js'
 import { createSeriesRatings } from '../src/series-ratings.js'
-import { createThemeIndex, sportAiringKindOf, tagTitle } from '../src/for-you-themes.js'
-import { keywordCategoriesOf } from '../src/genre-enrichment.js'
+import { createCategoryIndex, sportAiringKindOf, tagTitle } from '../src/for-you-categories.js'
+import { keywordGenreTagsOf } from '../src/genre-enrichment.js'
 import { countryForTimeZone } from '../src/zone-countries.js'
 import { db as appDb } from '../src/db.js'
 
@@ -75,8 +75,8 @@ export const seedCaptureLibrary = async () => {
     await db.batchInsert('syncs', demoSyncs({ recordings, nowMs }), 50)
     const startedShows = pickStartedShows({ airings: showAirings, taken: [...shows.map((s) => s.title), ...ruleTitles], nowMs })
     await db.batchInsert('user_events', startedShowEvents({ shows: startedShows, nowMs }), 50)
-    const themeShows = pickThemeShows({ airings, taken: [...shows.map((s) => s.title), ...ruleTitles, ...startedShows.map((s) => s.title)] })
-    await db.batchInsert('user_events', themeShowEvents({ shows: themeShows, nowMs }), 50)
+    const categoryShows = pickCategoryShows({ airings, taken: [...shows.map((s) => s.title), ...ruleTitles, ...startedShows.map((s) => s.title)] })
+    await db.batchInsert('user_events', categoryShowEvents({ shows: categoryShows, nowMs }), 50)
     const scored = await seedSeriesScores({ airings, nowMs })
     await saveSettings(db, {
       plex_url: 'http://192.168.1.100:32400',
@@ -97,7 +97,7 @@ export const seedCaptureLibrary = async () => {
     console.log(`[seed] shows: ${shows.map((s) => s.title).join(' | ')}`)
     console.log(`[seed] films: ${films.map((f) => f.program.title).join(' | ')}`)
     console.log(`[seed] started shows: ${startedShows.map((s) => s.title).join(' | ')}`)
-    console.log(`[seed] theme shows: ${themeShows.map((s) => `${s.group}: ${s.title}`).join(' | ')}`)
+    console.log(`[seed] category shows: ${categoryShows.map((s) => `${s.group}: ${s.title}`).join(' | ')}`)
     console.log(`[seed] series scores: ${JSON.stringify(scored)}`)
   } finally {
     await db.destroy()
@@ -277,8 +277,8 @@ const startedShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array
   }
 }))
 
-const pickThemeShows = ({ airings, taken }) => {
-  const index = createThemeIndex({ country: countryForTimeZone(process.env.TZ || '') })
+const pickCategoryShows = ({ airings, taken }) => {
+  const index = createCategoryIndex({ country: countryForTimeZone(process.env.TZ || '') })
   const byTitle = new Map()
   for (const { channel, program } of airings) {
     if (taken.includes(program.title) || KIDS_CHANNEL.test(channel.name || '')) continue
@@ -287,17 +287,17 @@ const pickThemeShows = ({ airings, taken }) => {
   }
   const groupOf = (show) => tagTitle({
     index,
-    facts: { title: show.title, categories: keywordCategoriesOf(show.title), channelNames: [show.channel.name] },
+    facts: { title: show.title, genreTags: keywordGenreTagsOf(show.title), channelNames: [show.channel.name] },
   }).entries[0]?.group
   const isMatch = (show) => show.entries.some(({ program }) => sportAiringKindOf({ title: program.title, episodeTitle: program.episode_title, synopsis: program.synopsis }) === 'match')
-  return THEME_SEEDS.flatMap(({ group, count, matches = false, episodes = THEME_EPISODES }) => [...byTitle.values()]
+  return CATEGORY_SEEDS.flatMap(({ group, count, matches = false, episodes = CATEGORY_EPISODES }) => [...byTitle.values()]
     .filter((show) => groupOf(show) === group && (!matches || isMatch(show)))
     .sort((a, b) => a.entries.length - b.entries.length || a.title.localeCompare(b.title))
     .slice(0, count)
     .map((show) => ({ ...show, group, episodes })))
 }
 
-const themeShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array.from({ length: show.episodes }, (_, episode) => {
+const categoryShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array.from({ length: show.episodes }, (_, episode) => {
   const programmeStart = nowMs - (episode + 1) * WEEK_MS - (i % 5 + 2) * HOUR_MS
   const base = {
     series_key: showKeyOf(show.title),
@@ -320,13 +320,13 @@ const themeShowEvents = ({ shows, nowMs }) => shows.flatMap((show, i) => Array.f
   ]
 }).flat())
 
-const THEME_SEEDS = [
+const CATEGORY_SEEDS = [
   { group: 'cooking', count: 3 },
   { group: 'home', count: 3 },
   { group: 'police-rescue', count: 3 },
   { group: 'rugby-league', count: 1, matches: true, episodes: 10 },
 ]
-const THEME_EPISODES = 4
+const CATEGORY_EPISODES = 4
 const STARTED_SHOW_COUNT = 4
 const SERIES_SCORE_BUDGET = 60
 const KIDS_CHANNEL = /kids|family/i

@@ -266,7 +266,7 @@ test('the basic tier uses BM25 text similarity', () => {
 })
 
 test('premieres are new first episodes, never reruns', () => {
-  const fresh = (key) => [key, { categories: ['drama'], genres: ['premiered:2026-10-18', 'status:Running'], source: 'tvmaze:1' }]
+  const fresh = (key) => [key, { genreTags: ['drama'], genres: ['premiered:2026-10-18', 'status:Running'], source: 'tvmaze:1' }]
   const known = new Map([fresh('brand-new-drama'), fresh('summit'), fresh('friends'), fresh('brassic')])
   const premiereOf = (programme, { upcoming = [programme], history = [], records = known, channelNames = new Map() } = {}) =>
     premiereCheckOf({ upcoming, history, records, channelNames, nowMs: NOW })(programme)
@@ -285,9 +285,9 @@ test('premieres are new first episodes, never reruns', () => {
   const history = [airing('Summit', { start: NOW - DAY, series_no: 2, episode_no: 9 })]
   assert.equal(premiereOf(returning, { history }), true)
   assert.equal(premiereOf(returning, { history, channelNames: new Map([[SEVEN, '9Go!HD Sydney']]) }), false)
-  const ended = new Map([['brand-new-drama', { categories: ['drama'], genres: ['status:Ended'], source: 'tvmaze:1' }]])
+  const ended = new Map([['brand-new-drama', { genreTags: ['drama'], genres: ['status:Ended'], source: 'tvmaze:1' }]])
   assert.equal(premiereOf(pilot, { records: ended }), false)
-  const old = new Map([['brand-new-drama', { categories: ['drama'], genres: ['premiered:2019-01-01'], source: 'tvmaze:1' }]])
+  const old = new Map([['brand-new-drama', { genreTags: ['drama'], genres: ['premiered:2019-01-01'], source: 'tvmaze:1' }]])
   assert.equal(premiereOf(pilot, { records: old }), false)
   const result = run({ programmes: [pilot], events: baseEvents().concat(watched('Fifth', { episodes: 2 })), genresByKey: known })
   assert.equal(itemFor(result, 'Brand New Drama').reason, 'A premiere this week')
@@ -299,7 +299,7 @@ test('movies are films only, never series', () => {
   const film = airing('A Big Movie', { start: evening, end: evening + 2 * HOUR })
   const marathon = [0, 1, 2].map((day) => airing('Friends', { start: NOW + (day * 24 + 10) * HOUR, end: NOW + (day * 24 + 12) * HOUR }))
   const matched = airing('The Big Bang Theory', { end: NOW + 12 * HOUR })
-  const genresByKey = new Map([['the-big-bang-theory', { categories: ['comedy'], genres: ['type:Scripted'], source: 'tvmaze:66' }]])
+  const genresByKey = new Map([['the-big-bang-theory', { genreTags: ['comedy'], genres: ['type:Scripted'], source: 'tvmaze:66' }]])
   const result = run({ programmes: [film, ...marathon, matched], events, genresByKey })
   assert.equal(itemFor(result, 'A Big Movie').kind, 'movie')
   assert.notEqual(itemFor(result, 'Friends')?.kind, 'movie')
@@ -337,7 +337,7 @@ test('cold start offers premieres and movies only', () => {
     airing('A Big Movie', { end: NOW + 13 * HOUR, genre: 0x10 }),
     airing('Midweek Repeat', { series_no: 4, episode_no: 7 }),
   ]
-  const genresByKey = new Map([['brand-new-drama', { categories: ['drama'], genres: ['premiered:2026-10-19'], source: 'tvmaze:2' }]])
+  const genresByKey = new Map([['brand-new-drama', { genreTags: ['drama'], genres: ['premiered:2026-10-19'], source: 'tvmaze:2' }]])
   const result = run({ programmes, events: watched('Only Show', { episodes: 2 }), genresByKey })
   assert.equal(result.coldStart, true)
   assert.deepEqual(result.sections.map((section) => section.key), ['premieres', 'movies'])
@@ -646,13 +646,13 @@ test('fewer like this does not lower a show the household likes or thumbed up la
   assert.equal(scoreOf(likedAfter, 'Kitchen Battle'), scoreOf(likedBefore, 'Kitchen Battle'))
 })
 
-test('a new household still gets title themes, so a fishing show on a pinned channel is not live sport', async () => {
+test('a new household still gets title categories, so a fishing show on a pinned channel is not live sport', async () => {
   const { onNowPickOf } = await import('../src/web/home-hero.js')
   const fish = airing('iFish', { genre: 64, start: NOW - 10 * 60 * 1000 })
-  const result = run({ programmes: [fish], events: [], pinnedChannelIds: [SEVEN], guideCategories: new Map([['ifish', ['Sports']]]), themesOff: ['cooking'] })
+  const result = run({ programmes: [fish], events: [], pinnedChannelIds: [SEVEN], guideGenres: new Map([['ifish', ['Sports']]]), categoriesOff: ['cooking'] })
   assert.equal(result.coldStart, true)
-  assert.equal(result.taste.titles.ifish.theme.key, 'fishing')
-  assert.ok(result.taste.hiddenThemes.includes('cooking'))
+  assert.equal(result.taste.titles.ifish.hideCategory.key, 'fishing')
+  assert.ok(result.taste.hiddenCategories.includes('cooking'))
   const entries = [{ channel: { id: SEVEN, name: '7 Sydney', pinned: true }, now: fish }]
   assert.equal(onNowPickOf({ entries, taste: result.taste, nowMs: NOW }), null)
   assert.equal(onNowPickOf({ entries, taste: null, nowMs: NOW }).now.title, 'iFish')

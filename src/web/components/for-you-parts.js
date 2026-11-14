@@ -145,8 +145,8 @@ export const ForYouOverlays = {
       </div>
     </ui-sheet>
 
-    <ui-sheet :open="Boolean(rowTheme)" :title="rowTheme?.title || ''" subtitle="A row of programmes like the ones you watch and record" @close="ctl.closeRowMenu()">
-      <div v-if="rowTheme" class="library-menu for-you-menu">
+    <ui-sheet :open="Boolean(rowCategory)" :title="rowCategory?.title || ''" subtitle="A row of programmes like the ones you watch and record" @close="ctl.closeRowMenu()">
+      <div v-if="rowCategory" class="library-menu for-you-menu">
         <div class="ui-group library-menu-group">
           <button v-for="entry in rowMenu" :key="entry.key" type="button" class="ui-group-row library-menu-item"
             @click="ctl.chooseRow(entry.key)">
@@ -203,8 +203,8 @@ export const ForYouOverlays = {
     const nowMs = computed(() => now.value.getTime())
     const menuItem = computed(() => props.ctl.menuItem.value)
     const whyItem = computed(() => props.ctl.why.item)
-    const rowTheme = computed(() => props.ctl.rowTheme.value)
-    const rowMenu = computed(() => (rowTheme.value ? rowMenuOf(rowTheme.value) : []))
+    const rowCategory = computed(() => props.ctl.rowCategory.value)
+    const rowMenu = computed(() => (rowCategory.value ? rowMenuOf(rowCategory.value) : []))
     const menu = computed(() => (menuItem.value
       ? menuOf({ item: menuItem.value, scheduled: props.ctl.isScheduled(menuItem.value), nowMs: nowMs.value, timeZone: tz.value })
       : { actions: [], more: [] }))
@@ -220,7 +220,7 @@ export const ForYouOverlays = {
     const signals = computed(() => props.ctl.why.data?.signals ?? [])
     const failedArt = ref({})
     const markFailed = (src) => { failedArt.value = { ...failedArt.value, [src]: true } }
-    return { failedArt, markFailed, stampedShowImage, menuItem, whyItem, rowTheme, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whyHideLabel, whySubtitle, whyRows, signals }
+    return { failedArt, markFailed, stampedShowImage, menuItem, whyItem, rowCategory, rowMenu, menu, menuMeta, menuReason, thumb, whyThumb, whyHideLabel, whySubtitle, whyRows, signals }
   },
 }
 
