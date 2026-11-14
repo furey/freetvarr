@@ -191,6 +191,7 @@
 
 .hero-slide-eyebrow.has-accent {
   display: block;
+  line-height: 18px;
   text-wrap: pretty;
 }
 
