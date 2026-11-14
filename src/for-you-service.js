@@ -342,7 +342,7 @@ export const unmuteCategory = async ({ key, nowMs = Date.now() }) => {
   return { ok: true }
 }
 
-const isCategoryKey = ({ index, key, sportRow = true }) => index.groups.has(key)
+const isCategoryKey = ({ index, key, sportRow = true }) => (index.groups.has(key) && index.groups.get(key).row !== 'none')
   || (sportRow && key === SPORT_ROW_KEY)
   || (isSeasonalKey(key) && Boolean(occasionOf({ key, country: index.country })))
 

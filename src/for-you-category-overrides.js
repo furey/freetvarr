@@ -35,7 +35,7 @@ export const categoryOverrideFrom = ({ body, index }) => {
   if (format !== null && !formats.has(format)) return { error: 'format must be a format key or null' }
   const sport = body?.sport ?? null
   if (format === SPORT_FORMAT) return sportOverrideFrom({ body, sport, choices })
-  if (sport !== null) return { error: 'sport needs the format sport' }
+  if (sport !== null) return { error: `sport needs the format ${SPORT_FORMAT}` }
   const topics = body?.topics ?? []
   if (!Array.isArray(topics) || topics.some((topic) => !topicKeys.has(topic))) return { error: 'topics must list topic keys' }
   const unique = [...new Set(topics)]
@@ -149,7 +149,7 @@ const automaticLabelsOf = ({ showKey, title, index, record, kindOverride }) => {
 
 const labelsOfKeys = ({ keys, index }) => {
   const sport = keys.find((key) => index.groups.get(key)?.row === 'sport')
-  if (sport) return { format: SPORT_FORMAT, topics: [], sport }
+  if (sport) return { format: SPORT_FORMAT, topics: [], sport: sport === OTHER_SPORT ? null : sport }
   const choices = overrideChoicesOf(index)
   const topicKeys = new Set(choices.topics.map((choice) => choice.key))
   const formatKeys = new Set(choices.formats.map((choice) => choice.key))

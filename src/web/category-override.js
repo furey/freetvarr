@@ -24,7 +24,7 @@ export const originLineOf = (origin) => (origin?.name ? `Made in ${origin.name} 
 
 export const categoriesPathOf = (title) => `/api/for-you/categories/show/${encodeURIComponent(showKeyOf(title))}`
 
-export const SPORT_FORMAT = 'sport'
+export const SPORT_FORMAT = 'sport-format'
 
 export const overrideRequestOf = ({ title, format, topics, sport = null }) => (format === SPORT_FORMAT
   ? { title, format, sport }

@@ -85,7 +85,7 @@ const accuracyOf = (tagged) => {
 
 const SPORT_CODES = new Set([...createCategoryIndex({ country: fixture.country }).groups.values()].filter((info) => info.row === 'sport').map((info) => info.group))
 
-const truthFormatsOf = (entry) => [...(entry.truth ?? []).filter((key) => FORMATS.has(key)), ...((entry.truth ?? []).some((key) => SPORT_CODES.has(key)) ? ['sport'] : [])]
+const truthFormatsOf = (entry) => [...(entry.truth ?? []).filter((key) => FORMATS.has(key)), ...((entry.truth ?? []).some((key) => SPORT_CODES.has(key)) ? ['sport-format'] : [])]
 
 const formatAccuracyOf = (tagged) => {
   const pairs = fixture.titles
@@ -152,8 +152,8 @@ test('audit: every title with a sport code has the format Sport, and the format 
   for (const tagged of [listOn, listOff]) {
     for (const tags of tagged.tags.values()) {
       if (!tags) continue
-      assert.equal(formatOfTags(tags) === 'sport', Boolean(tags.sportCode))
-      assert.ok(!tags.entries.some((entry) => entry.group === 'sport'))
+      assert.equal(formatOfTags(tags) === 'sport-format', Boolean(tags.sportCode))
+      assert.ok(!tags.entries.some((entry) => entry.group === 'sport-format'))
     }
   }
 })

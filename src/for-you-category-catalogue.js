@@ -51,7 +51,7 @@ export const compareCategoryInfos = (a, b) => sectionRankOf(a) - sectionRankOf(b
 
 export const LOCAL_LIFE = 'local-life'
 export const SPORT = 'sport'
-export const SPORT_FORMAT = 'sport'
+export const SPORT_FORMAT = 'sport-format'
 export const OTHER_SPORT = 'other-sport'
 export const OTHER_SPORT_TITLE = 'Other sport'
 export const LIFESTYLE = 'lifestyle'
