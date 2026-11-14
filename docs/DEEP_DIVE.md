@@ -910,13 +910,14 @@ A hardlink fails across filesystems and across two bind mounts (`EXDEV`). The ex
 1. `recordingPictureFor` takes the event id (TVHeadend `broadcast`), the title, and the TVHeadend image of the entry. An event that is gone from the guide uses the TVHeadend image and title.
 1. It runs `RECORDING_SAVE_CHAIN` in the [picture resolver](#picture-resolver) (`resolveRecordingPicture`), with a `10 s` budget, through the [picture gate](#stand-in-pictures): the Freeview episode picture of the airing, the airing's own image (the TVHeadend image), the Freeview show picture, the Freeview title copy, then the title copy. Each Freeview picture is its saved copy, then its address. A saved copy holds no picture of another airing, owner choice, Plex picture, online picture, or frame; the episode chain serves those live.
 1. The bytes come from the gate, so a stand-in is never saved. A title card is saved only when no other picture loads.
-1. `saveRecordingPicture` answers `saved`, `missed` (the chain ended with no picture), `retry` (a step was pending or failed to load), or `deferred` (a load met the `60 s` wait after a failure of that address, or a host skipped in this run). On the last of `3` tries (`ARTWORK_ATTEMPTS`), a picture from an unsettled answer is saved, and no picture is `missed`. `deferred` is not a try.
+1. `saveRecordingPicture` answers `saved`, `missed` (the chain ended with no picture), `retry` (a step was pending or failed to load), or `deferred` (a load met the `60 s` wait after a failure of that address, or a host skipped in this run). A picture from a later step is saved when an earlier step timed out or used a skipped host. On the last of `3` tries (`ARTWORK_ATTEMPTS`), a picture from an unsettled answer is saved, and no picture is `missed`. A first `deferred` is not a try; a second `deferred` in a row for the same recording is.
 
 The record route saves only a settled picture. Sync never waits for a picture:
 
 1. `saveRecordingDetails` queues a row whose `image_checked_at` is empty.
 1. After the imports, `startRecordingPictures` starts one background run (`createRecordingPictureRun`), unless one already runs. The sync finishes without it.
-1. The run saves the queued rows, then each enabled upcoming entry (`captureUpcomingArtwork`). Each load has `4 s`; a host that runs past it is skipped for the rest of the run.
+1. The run saves the queued rows, then each enabled upcoming entry (`captureUpcomingArtwork`), then the rows queued in the meantime. Rows and entries that did not settle in an earlier run go last. An error on one row is logged, and the run goes on.
+1. Each load has `4 s`; a host that runs past it is skipped for the rest of the run. All relative TVHeadend image paths are one host.
 1. `saved` and `missed` set `image_checked_at`; `retry` and `deferred` leave it empty, so the next sync asks again. An upcoming entry that answers `saved` or `missed` is not asked again until a restart.
 
 The tries and the settled entries are kept in memory per recording id; **Refresh artwork** clears them for the show's recordings (`forgetFailedArtwork`). Clearing a row that TVHeadend still has from the log deletes its picture and sets `image_path` and `image_checked_at` to `null`, so the picture comes back with the row.

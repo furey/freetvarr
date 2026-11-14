@@ -817,11 +817,11 @@ export const getChannelThumbnail = async ({ channelId, width } = {}) => {
   })
 }
 
-export const recordingPictureFor = async ({ eventId = null, title = null, source = null, run = createRecordingPictureRun() } = {}) => {
+export const recordingPictureFor = async ({ eventId = null, title = null, source = null, run = createRecordingPictureRun(), resolver = artResolver } = {}) => {
   const programme = await programmeImageSources({ eventId, fallbackSource: source, fallbackTitle: title })
   if (!programme.title && !programme.own) return NO_RECORDING_PICTURE
-  const tracked = deferredLoadsOf(run.load)
-  const resolution = await artResolver.resolveRecordingPicture({
+  const tracked = trackedLoadsOf(run.load)
+  const resolution = await resolver.resolveRecordingPicture({
     title: programme.title,
     eventId,
     ownSource: programme.own,
@@ -830,9 +830,10 @@ export const recordingPictureFor = async ({ eventId = null, title = null, source
   })
   const settled = !resolution.pending && !resolution.provisional
   const deferred = !settled && tracked.deferred()
-  if (!resolution.origin) return { image: null, settled, deferred }
+  const slowHost = !settled && tracked.slowHost()
+  if (!resolution.origin) return { image: null, settled, deferred, slowHost }
   const image = await run.load(resolution.origin).catch(() => null)
-  return { image, settled: settled && Boolean(image), deferred }
+  return { image, settled: settled && Boolean(image), deferred, slowHost }
 }
 
 export const createRecordingPictureRun = ({ load = (origin) => pictureGate.load(origin), loadTimeoutMs = RECORDING_PICTURE_LOAD_MS } = {}) => {
@@ -843,14 +844,14 @@ export const createRecordingPictureRun = ({ load = (origin) => pictureGate.load(
     const image = await resolveWithin(load(origin), loadTimeoutMs)
     if (image !== TIMED_OUT) return image
     skippedHosts.add(host)
-    throw new Error(`${host} did not answer within ${loadTimeoutMs} ms`)
+    throw Object.assign(new Error(`${host} did not answer within ${loadTimeoutMs} ms`), { code: SLOW_HOST_CODE })
   }
   return { load: loadWithin, skippedHosts }
 }
 
 export const saveRecordingPicture = async ({ recordingId, lastAttempt = false, findPicture = recordingPictureFor, save = saveArtwork, ...airing }) => {
-  const { image, settled, deferred = false } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
-  if (image && (settled || lastAttempt)) {
+  const { image, settled, deferred = false, slowHost = false } = await Promise.resolve().then(() => findPicture(airing)).catch(() => NO_RECORDING_PICTURE)
+  if (image && (settled || slowHost || lastAttempt)) {
     await save({ kind: 'recording', id: recordingId, image })
     return RECORDING_PICTURE_SAVED
   }
@@ -862,16 +863,20 @@ export const RECORDING_PICTURE_SAVED = 'saved'
 export const RECORDING_PICTURE_MISSED = 'missed'
 export const RECORDING_PICTURE_RETRY = 'retry'
 export const RECORDING_PICTURE_DEFERRED = 'deferred'
-const NO_RECORDING_PICTURE = { image: null, settled: false, deferred: false }
+const NO_RECORDING_PICTURE = { image: null, settled: false, deferred: false, slowHost: false }
 
-const deferredLoadsOf = (load) => {
+const trackedLoadsOf = (load) => {
   let deferred = false
+  let slowHost = false
   const tracked = (origin) => load(origin).catch((error) => {
     if (isDeferredLoad(error)) deferred = true
+    if (isSlowHostLoad(error)) slowHost = true
     throw error
   })
-  return { load: tracked, deferred: () => deferred }
+  return { load: tracked, deferred: () => deferred, slowHost: () => slowHost }
 }
+
+const isSlowHostLoad = (error) => error?.code === SLOW_HOST_CODE || error?.code === SKIPPED_HOST_CODE
 
 const isDeferredLoad = (error) => isRecentFailure(error) || error?.code === SKIPPED_HOST_CODE
 
@@ -1821,6 +1826,7 @@ const SHOW_IMAGE_BUDGET_MS = 3000
 const RECORDING_SAVE_BUDGET_MS = 10_000
 const RECORDING_PICTURE_LOAD_MS = 4000
 const SKIPPED_HOST_CODE = 'skipped-host'
+const SLOW_HOST_CODE = 'slow-host'
 const PLEX_METADATA_PATH = '/library/metadata/'
 const PLEX_RESIZE_PX = 1920
 const TIMED_OUT = Symbol('timed out')

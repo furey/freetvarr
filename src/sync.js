@@ -621,22 +621,61 @@ const startRecordingPictures = (conn) => {
 
 const captureRecordingPictures = async (conn) => {
   const run = createRecordingPictureRun()
-  while (queuedRecordingPictures.size) {
-    const [item] = queuedRecordingPictures.values()
-    queuedRecordingPictures.delete(item.id)
-    await saveRecordingImage({ item, run })
-  }
-  await captureUpcomingArtwork({ conn, run })
+  await runRecordingPictureQueue({
+    queue: queuedRecordingPictures,
+    delayed: delayedRecordingPictures,
+    saveItem: (item) => saveRecordingImage({ item, run }),
+    captureUpcoming: () => captureUpcomingArtwork({ conn, run }),
+  })
 }
 
+export const runRecordingPictureQueue = async ({ queue, delayed, saveItem, captureUpcoming, warn = console.warn }) => {
+  await drainRecordingPictures({ queue, delayed, saveItem, warn })
+  await captureUpcoming().catch((err) => warn(`[sync] upcoming recording pictures: ${err.message}`))
+  await drainRecordingPictures({ queue, delayed, saveItem, warn })
+}
+
+const drainRecordingPictures = async ({ queue, delayed, saveItem, warn }) => {
+  while (queue.size) {
+    const item = delayedLastOf({ items: [...queue.values()], idOf: (queued) => queued.id, delayed })[0]
+    queue.delete(item.id)
+    await saveItem(item).catch((err) => warn(`[sync] recording picture ${item.id}: ${err.message}`))
+  }
+}
+
+export const delayedLastOf = ({ items, idOf, delayed }) => [
+  ...items.filter((item) => !delayed.has(idOf(item))),
+  ...items.filter((item) => delayed.has(idOf(item))),
+]
+
 const captureRecordingArtwork = async ({ recordingId, airing, attempts }) => {
-  if (await findArtwork({ kind: 'recording', id: recordingId })) return RECORDING_PICTURE_SAVED
+  if (await findArtwork({ kind: 'recording', id: recordingId })) return settleOutcome({ recordingId, outcome: RECORDING_PICTURE_SAVED })
   const attempt = (attempts.get(recordingId) ?? 0) + 1
   const lastAttempt = attempt >= ARTWORK_ATTEMPTS
   const outcome = await saveRecordingPicture({ recordingId, ...airing, lastAttempt })
     .catch(() => (lastAttempt ? RECORDING_PICTURE_MISSED : RECORDING_PICTURE_RETRY))
-  if (outcome === RECORDING_PICTURE_RETRY) attempts.set(recordingId, attempt)
-  else if (outcome !== RECORDING_PICTURE_DEFERRED) attempts.delete(recordingId)
+  const counted = countedOutcomeOf({ recordingId, outcome, lastAttempt })
+  if (counted === RECORDING_PICTURE_RETRY) attempts.set(recordingId, attempt)
+  else if (counted !== RECORDING_PICTURE_DEFERRED) attempts.delete(recordingId)
+  return settleOutcome({ recordingId, outcome: counted })
+}
+
+const countedOutcomeOf = ({ recordingId, outcome, lastAttempt }) => {
+  if (outcome !== RECORDING_PICTURE_DEFERRED) {
+    deferredOnce.delete(recordingId)
+    return outcome
+  }
+  if (!deferredOnce.has(recordingId)) {
+    deferredOnce.add(recordingId)
+    return outcome
+  }
+  deferredOnce.delete(recordingId)
+  return lastAttempt ? RECORDING_PICTURE_MISSED : RECORDING_PICTURE_RETRY
+}
+
+const settleOutcome = ({ recordingId, outcome }) => {
+  if (isSettledOutcome(outcome)) delayedRecordingPictures.delete(recordingId)
+  else delayedRecordingPictures.add(recordingId)
   return outcome
 }
 
@@ -648,8 +687,9 @@ const airingOfItem = ({ item, run }) => ({ eventId: item.programId, title: item.
 
 const captureUpcomingArtwork = async ({ conn, run }) => {
   const upcoming = (await listUpcoming(conn)).filter((entry) => entry.enabled && !settledUpcomingArtwork.has(entry.uuid))
-  for (const entry of upcoming) {
+  for (const entry of delayedLastOf({ items: upcoming, idOf: (candidate) => candidate.uuid, delayed: delayedRecordingPictures })) {
     const outcome = await captureRecordingArtwork({ recordingId: entry.uuid, airing: airingOfEntry({ entry, run }), attempts: upcomingArtworkAttempts })
+      .catch((err) => console.warn(`[sync] upcoming recording picture ${entry.uuid}: ${err.message}`))
     if (isSettledOutcome(outcome)) settledUpcomingArtwork.add(entry.uuid)
   }
 }
@@ -658,6 +698,8 @@ export const forgetFailedArtwork = (recordingIds) => recordingIds.forEach((recor
   settledUpcomingArtwork.delete(recordingId)
   upcomingArtworkAttempts.delete(recordingId)
   finishedArtworkAttempts.delete(recordingId)
+  delayedRecordingPictures.delete(recordingId)
+  deferredOnce.delete(recordingId)
 })
 
 const saveRecordingImage = async ({ item, run }) => {
@@ -1127,6 +1169,8 @@ const ARTWORK_ATTEMPTS = 3
 let inFlight = null
 const settledUpcomingArtwork = new Set()
 const queuedRecordingPictures = new Map()
+const delayedRecordingPictures = new Set()
+const deferredOnce = new Set()
 let recordingPictures = null
 const upcomingArtworkAttempts = new Map()
 const finishedArtworkAttempts = new Map()

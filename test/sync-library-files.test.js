@@ -8,7 +8,7 @@ import path from 'node:path'
 const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-sync-files-')))
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
-const { startSync, getActiveSyncId, recordingPicturesIdle } = await import('../src/sync.js')
+const { startSync, getActiveSyncId, recordingPicturesIdle, runRecordingPictureQueue } = await import('../src/sync.js')
 const { db } = await import('../src/db.js')
 
 const RECORDINGS_ROOT = path.join(tmpDir, 'recordings')
@@ -238,9 +238,32 @@ test('sync: a try that only met the recent-failure wait is not counted', async (
   await db('settings').insert({ key: 'import_unmatched', value: 'false' })
   tvh.imageFails = 100
   await record('pic-3', { disp_title: 'Peppa Pig', image: 'imagecache/recent' })
-  for (let n = 0; n < 5; n += 1) await runSync()
+  for (let n = 0; n < 4; n += 1) await runSync()
   assert.equal(tvh.imageRequests, 1)
   assert.equal((await rowOf('pic-3')).image_checked_at, null)
+  await runSync()
+  assert.equal(tvh.imageRequests, 1)
+  assert.notEqual((await rowOf('pic-3')).image_checked_at, null)
+})
+
+test('runRecordingPictureQueue: delayed rows go last, one failing row does not end the pass, and rows queued meanwhile are saved', async () => {
+  const queue = new Map(['late', 'a', 'broken', 'b'].map((id) => [id, { id }]))
+  const saved = []
+  const warnings = []
+  await runRecordingPictureQueue({
+    queue,
+    delayed: new Set(['late']),
+    saveItem: async (item) => {
+      if (item.id === 'broken') throw new Error('database is locked')
+      saved.push(item.id)
+    },
+    captureUpcoming: async () => { queue.set('queued-during-upcoming', { id: 'queued-during-upcoming' }) },
+    warn: (line) => warnings.push(line),
+  })
+  assert.deepEqual(saved, ['a', 'b', 'late', 'queued-during-upcoming'])
+  assert.equal(queue.size, 0)
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0], /broken: database is locked/)
 })
 
 test('sync: a hanging picture host does not delay imports', async () => {
