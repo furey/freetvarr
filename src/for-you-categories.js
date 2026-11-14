@@ -1,4 +1,4 @@
-import { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, categoryCatalogueOf } from './for-you-category-catalogue.js'
+import { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, categoryCatalogueOf, compareCategoryInfos, formatGroupTitleOf } from './for-you-category-catalogue.js'
 import { KNOWN_SHOWS, knownShowOf } from './for-you-known-shows.js'
 import { genreLabelsOf, hasStrongDocumentaryEvidence, isFishingTitle, isLiveEventTitle, realityFacetOf, ruleLabelsOf } from './for-you-label-rules.js'
 import { showKeyOf } from './web/show-key.js'
@@ -51,7 +51,7 @@ export const createCategoryIndex = ({ country = '', knownShows = KNOWN_SHOWS } =
       if (!groups.has(group)) groups.set(group, groupInfoOf({ category, facet, group }))
     }
   }
-  return { country, catalogue, facets, groups, knownShows }
+  return { country, catalogue, facets, groups: new Map([...groups].sort(([, a], [, b]) => compareCategoryInfos(a, b))), knownShows }
 }
 
 export const titleKindOf = ({ title = '', film = false, genreTags = [], tvmazeType = null, channelNames = [], guideGenres = [], genre = null, kidsSlotsOnly = null }) => {
@@ -235,6 +235,7 @@ export const categoryChoicesOf = (events = []) => {
 
 export const hiddenCategoriesOf = ({ index, mutes, nowMs }) => [...mutes]
   .filter(([group, ts]) => nowMs - ts < MUTE_DAYS * DAY_MS && (index.groups.has(group) || group === SPORT_ROW_KEY))
+  .sort(([a], [b]) => categoryRankIn({ index, group: a }) - categoryRankIn({ index, group: b }))
   .map(([group, ts]) => ({
     seriesKey: `category:${group}`,
     categoryKey: group,
@@ -250,7 +251,7 @@ export const categorySettingsOf = ({ index, mutes = new Map(), off = new Set(), 
     key: info.group,
     title: info.title,
     sport: info.row === 'sport',
-    ...(info.slot === 'format' && { format: true }),
+    ...(info.slot === 'format' && { format: true, formatGroup: formatGroupTitleOf(info.formatGroup) }),
     on: !off.has(info.group)
       && !muteOf({ mutes, group: info.group, nowMs }).hidden
       && !(info.row === 'sport' && muteOf({ mutes, group: SPORT_ROW_KEY, nowMs }).hidden),
@@ -381,12 +382,17 @@ const addText = (facts, item) => {
   if (text) facts.hashes.add(textHashOf(text))
 }
 
+const categoryRankIn = ({ index, group }) => {
+  const rank = [...index.groups.keys()].indexOf(group)
+  return rank === -1 ? index.groups.size : rank
+}
+
 const groupKeyOf = ({ category, facet }) => (category.row === 'facet' || category.row === 'sport' ? facet.key : category.key)
 
 const groupInfoOf = ({ category, facet, group }) => {
   if (category.row === 'facet') return { group, row: 'facet', slot: category.slot, title: facet.title, phrase: facet.title.toLowerCase(), category: category.key, onlyFacet: facet.key }
   if (category.row === 'sport') return { group, row: 'sport', slot: category.slot, title: facet.title, phrase: facet.title, code: facet.key, category: category.key, onlyFacet: facet.key }
-  return { group, row: category.row, slot: category.slot, title: category.title, phrase: category.phrase, category: category.key, onlyFacet: category.facets.length === 1 ? facet.key : null }
+  return { group, row: category.row, slot: category.slot, title: category.title, phrase: category.phrase, category: category.key, onlyFacet: category.facets.length === 1 ? facet.key : null, ...(category.group && { formatGroup: category.group }) }
 }
 
 const tagsOf = ({ kind, origin = null, sportCode = null, bulletin = false, entries = [] }) => ({ kind, sportCode, bulletin, origin, entries })

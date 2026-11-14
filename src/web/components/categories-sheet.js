@@ -1,15 +1,17 @@
-import { ref, computed, watch, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import {
   canSaveCategoriesOf,
   categoriesPathOf,
   categoriesResetTextOf,
   categoriesSavedTextOf,
+  formatGroupsOf,
   originLineOf,
   overrideRequestOf,
   sheetHintOf,
   toggledTopicsOf,
 } from '/category-override.js'
 import { holdAtLeast } from '/pending.js'
+import { nextSegmentIndex } from '/segment-keys.js'
 import { api } from '/shared/api.js'
 import { toast } from '/shared/toast.js'
 
@@ -34,9 +36,17 @@ export const CategoriesSheet = {
       </p>
       <div class="settings-group">
         <h3 id="categories-sheet-format" class="ui-group-label categories-sheet-label">Format</h3>
-        <ui-segmented class="categories-sheet-formats" aria-labelledby="categories-sheet-format"
-          :model-value="loaded ? format : null" :disabled="!loaded || Boolean(busy)" :options="formatOptions"
-          @update:model-value="format = $event" />
+        <div ref="formatGroupsEl" class="categories-sheet-formats" role="radiogroup" aria-labelledby="categories-sheet-format" @keydown="onFormatKey">
+          <div v-for="group in formatGroups" :key="group.label" class="categories-sheet-format-group">
+            <p class="settings-row-meta categories-sheet-sublabel">{{ group.label }}</p>
+            <div class="ui-chip-row">
+              <button v-for="choice in group.choices" :key="choice.key" type="button" role="radio"
+                :class="['ui-chip', { 'is-selected': loaded && format === choice.key }]" :aria-checked="String(loaded && format === choice.key)"
+                :tabindex="choice.key === focusKey ? 0 : -1" :disabled="!loaded || Boolean(busy)" :data-format="choice.key"
+                @click="format = choice.key">{{ choice.title }}</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="settings-group">
         <h3 class="ui-group-label categories-sheet-label">Topics <span class="categories-sheet-limit">Up to 2</span></h3>
@@ -85,7 +95,20 @@ export const CategoriesSheet = {
 
     const hint = computed(() => sheetHintOf({ custom: custom.value }))
     const originLine = computed(() => originLineOf(origin.value))
-    const formatOptions = computed(() => [{ value: '', label: 'None' }, ...choices.value.formats.map((choice) => ({ value: choice.key, label: choice.title }))])
+    const formatGroupsEl = ref(null)
+    const formatGroups = computed(() => formatGroupsOf(choices.value.formats))
+    const formatKeys = computed(() => formatGroups.value.flatMap((group) => group.choices.map((choice) => choice.key)))
+    const focusKey = computed(() => (formatKeys.value.includes(format.value) ? format.value : formatKeys.value[0]))
+
+    const onFormatKey = async (event) => {
+      const keys = formatKeys.value
+      const next = nextSegmentIndex({ key: event.key, from: keys.indexOf(event.target?.dataset?.format ?? focusKey.value), enabled: keys.map(() => true) })
+      if (next === -1) return
+      event.preventDefault()
+      format.value = keys[next]
+      await nextTick()
+      formatGroupsEl.value?.querySelector(`[data-format="${keys[next]}"]`)?.focus()
+    }
     const canSave = computed(() => canSaveCategoriesOf({ format: format.value, topics: topics.value }))
 
     const apply = (payload) => {
@@ -149,7 +172,7 @@ export const CategoriesSheet = {
       text: categoriesResetTextOf,
     })
 
-    return { categoriesTitle, loaded, busy, error, format, topics, custom, choices, formatOptions, hint, originLine, canSave, close, setTopic, save, reset }
+    return { categoriesTitle, loaded, busy, error, format, topics, custom, choices, formatGroupsEl, formatGroups, focusKey, onFormatKey, hint, originLine, canSave, close, setTopic, save, reset }
   },
 }
 

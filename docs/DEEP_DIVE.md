@@ -1888,11 +1888,12 @@ Category rows are For you sections named after a kind of programme, such as `Coo
 
 The catalogue (`CATEGORY_CATALOGUE_VERSION` `4`):
 
-- Formats: `reality`, `quiz`, `panel-shows`, `comedy`, `drama`, `soaps`, `crime-drama`, `sci-fi-fantasy`, `documentaries`, `talk-shows`, and `lifestyle`. `kids` and `news` are formats that are never rows. Format facets have no prototypes.
+- Formats, by `group` (`FORMAT_GROUPS`): `scripted` holds `comedy`, `drama`, `crime-drama`, `soaps`, and `sci-fi-fantasy`; `unscripted` holds `reality`, `quiz`, `documentaries`, `lifestyle`, `talk-shows`, and `panel-shows`; `other` holds `news` and `kids`. `kids` and `news` are formats that are never rows. Format facets have no prototypes.
 - Topics: `cooking`, `home`, `gardening`, `politics`, `true-crime`, `police-rescue`, `medical`, `health-and-lifestyle` (shown as `Health`), `dating`, `science-and-technology`, `nature`, `travel`, `history`, `military-and-war`, `local-life`, `music-arts`, `entertainment-news`, `mystery-and-paranormal`, `engineering-and-machines`, and `business-and-money`.
 - `Hobbies` (`hobbies`) holds `motoring`, `fishing`, and `antiques`. Each one is its own row, named after the facet.
 - `Sport` holds one facet per sport: `afl`, `rugby-league`, `rugby-union`, `soccer`, `american-football`, `cricket`, `tennis`, `motorsport`, `horse-racing` (with harness racing), `greyhound-racing`, `rodeo` (with bull riding and campdrafting), `golf`, `netball`, `basketball`, `baseball`, `ice-hockey`, `cycling`, `combat-sports`, `surfing`, `swimming` (with diving), and `other-sport`. `other-sport` is never a row. Sport facets have no prototypes.
 - `shopping` and `religion` take titles but are never rows.
+- `createCategoryIndex` sorts the groups with `compareCategoryInfos`: formats in catalogue order, then topics and sports by their shown label (`localeCompare`), with `other-sport` last. Settings, the **Change categories** sheet, and the hidden categories use this order. `occasionsInYearOrderOf` sorts the occasions by their date in the current year.
 
 The country comes from the time zone (`countryForTimeZone` in `src/zone-countries.js`):
 

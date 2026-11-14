@@ -10,6 +10,16 @@ export const toggledTopicsOf = ({ topics = [], key, on }) => {
   return [...others, key].slice(-MAX_OVERRIDE_TOPICS)
 }
 
+export const formatGroupsOf = (formats = []) => {
+  const groups = []
+  for (const choice of [...formats, { key: '', title: 'None', group: NONE_GROUP }]) {
+    const label = choice.group || NONE_GROUP
+    const group = groups.find((entry) => entry.label === label) ?? groups[groups.push({ label, choices: [] }) - 1]
+    group.choices.push(choice)
+  }
+  return groups
+}
+
 export const originLineOf = (origin) => (origin?.name ? `Made in ${origin.name} (${origin.source})` : 'Origin not known')
 
 export const categoriesPathOf = (title) => `/api/for-you/categories/show/${encodeURIComponent(showKeyOf(title))}`
@@ -25,3 +35,5 @@ export const categoriesResetTextOf = (title) => `${title} uses automatic categor
 export const sheetHintOf = ({ custom }) => (custom
   ? 'You chose these categories. For you uses them in place of the automatic ones.'
   : 'Freetvarr chose these categories. Change them to move the show to other rows in For you.')
+
+const NONE_GROUP = 'Other'

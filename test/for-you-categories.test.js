@@ -584,3 +584,34 @@ test('owner override: the record carries it into the title facts', () => {
   })
   assert.deepEqual(titles.get('bay-life').override, { format: 'soaps', topics: [] })
 })
+
+test('category order: formats by group, topics and sports by their shown label, the catch-all sport last, occasions by date', async () => {
+  const { formatGroupsOf } = await import('../src/web/category-override.js')
+  const { occasionsInYearOrderOf, occasionDaysOf } = await import('../src/for-you-occasions.js')
+  const groupsOf = (country) => [...createCategoryIndex({ country, knownShows: { shows: {} } }).groups.values()]
+  const isSorted = (titles) => titles.every((title, i) => i === 0 || titles[i - 1].localeCompare(title, 'en', { sensitivity: 'base' }) <= 0)
+  for (const country of ['au', 'us', 'gb']) {
+    const groups = groupsOf(country)
+    const formats = groups.filter((info) => info.slot === 'format')
+    assert.deepEqual(formats.map((info) => info.group), ['comedy', 'drama', 'crime-drama', 'soaps', 'sci-fi-fantasy', 'reality', 'quiz', 'documentaries', 'lifestyle', 'talk-shows', 'panel-shows', 'news', 'kids'])
+    assert.ok(formats.every((info) => ['scripted', 'unscripted', 'other'].includes(info.formatGroup)), 'every format has a group')
+    const topics = groups.filter((info) => info.slot === 'topic' && info.row !== 'sport')
+    assert.ok(isSorted(topics.map((info) => info.title)), `${country} topics`)
+    const sports = groups.filter((info) => info.row === 'sport')
+    assert.equal(sports.at(-1).group, 'other-sport')
+    assert.ok(isSorted(sports.slice(0, -1).map((info) => info.title)), `${country} sports`)
+    assert.ok(groups.findIndex((info) => info.slot === 'topic') > groups.findLastIndex((info) => info.slot === 'format'))
+    assert.ok(groups.findIndex((info) => info.row === 'sport') > groups.findLastIndex((info) => info.slot === 'topic' && info.row !== 'sport'))
+    const settings = categorySettingsOf({ index: createCategoryIndex({ country }), nowMs: NOW })
+    assert.deepEqual(categoryGroupsOf(settings)[0].subgroups.map((group) => group.label), ['Scripted', 'Unscripted'])
+    const days = occasionsInYearOrderOf({ country, year: 2026 }).map((occasion) => occasionDaysOf({ occasion, country, year: 2026 })[0])
+    assert.ok(days.every((day, i) => i === 0 || !Number.isFinite(day) || days[i - 1] <= day), `${country} occasions`)
+  }
+  const titles = { scripted: 'Scripted', unscripted: 'Unscripted', other: 'Other' }
+  const choices = groupsOf('au').filter((info) => info.slot === 'format').map((info) => ({ key: info.group, title: info.title, group: titles[info.formatGroup] }))
+  assert.deepEqual(formatGroupsOf(choices).map((group) => [group.label, group.choices.map((choice) => choice.title)]), [
+    ['Scripted', ['Comedy', 'Drama', 'Crime drama', 'Soap operas', 'Sci-fi and fantasy']],
+    ['Unscripted', ['Reality', 'Quiz and game shows', 'Documentaries', 'Lifestyle', 'Talk shows', 'Panel shows']],
+    ['Other', ['News', 'Kids', 'None']],
+  ])
+})

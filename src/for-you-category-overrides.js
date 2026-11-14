@@ -1,5 +1,5 @@
 import { db } from './db.js'
-import { countryNameOf } from './for-you-category-catalogue.js'
+import { countryNameOf, formatGroupTitleOf } from './for-you-category-catalogue.js'
 import { MAX_TOPICS, createCategoryIndex, recordFactsOf, tagTitle } from './for-you-categories.js'
 import { knownShowOf } from './for-you-known-shows.js'
 import { createKeyResolver } from './for-you-profile.js'
@@ -164,7 +164,7 @@ const originEntryOf = ({ code, source }) => {
   return name ? { code, name, source } : null
 }
 
-const choiceOf = (info) => ({ key: info.group, title: info.title })
+const choiceOf = (info) => ({ key: info.group, title: info.title, ...(info.formatGroup && { group: formatGroupTitleOf(info.formatGroup) }) })
 
 const overrideOfRow = (row) => ({ format: row.format || null, topics: topicsOf(row.topics_json) })
 

@@ -36,12 +36,36 @@ export const sportLabelOf = ({ code, country = '' }) => {
 
 export const prototypeTextsOf = (catalogue) => catalogue.flatMap((category) => category.facets.flatMap((facet) => facet.prototypes))
 
+export const FORMAT_GROUPS = [
+  { key: 'scripted', title: 'Scripted' },
+  { key: 'unscripted', title: 'Unscripted' },
+  { key: 'other', title: 'Other' },
+]
+
+export const formatGroupTitleOf = (key) => FORMAT_GROUPS.find((group) => group.key === key)?.title ?? ''
+
+export const compareCategoryInfos = (a, b) => sectionRankOf(a) - sectionRankOf(b)
+  || (a.slot === 'format' ? formatRankOf(a) - formatRankOf(b) : 0)
+  || (isCatchAll(a) ? 1 : 0) - (isCatchAll(b) ? 1 : 0)
+  || String(a.title).localeCompare(String(b.title), 'en', { sensitivity: 'base' })
+
 export const LOCAL_LIFE = 'local-life'
 export const SPORT = 'sport'
 export const LIFESTYLE = 'lifestyle'
 export const HOBBIES = 'hobbies'
 export const NEWS = 'news'
 export const KIDS = 'kids'
+
+const sectionRankOf = (info) => {
+  if (info.slot === 'format') return 0
+  return info.row === 'sport' ? 2 : 1
+}
+
+const formatRankOf = (info) => FORMAT_RANKS.get(info.group) ?? FORMAT_RANKS.size
+
+const isCatchAll = (info) => info.group === OTHER_SPORT_KEY || info.code === OTHER_SPORT_KEY
+
+const OTHER_SPORT_KEY = 'other-sport'
 
 const regionNames = () => {
   try {
@@ -82,7 +106,7 @@ const SPORT_LABELS = {
 const FACTUAL = ['factual', 'unknown']
 const FICTION = ['fiction', 'unknown']
 
-const format = ({ key, title, phrase = title.toLowerCase(), row = 'category', kinds, facets }) => ({ key, title, phrase, slot: 'format', row, kinds, facets })
+const format = ({ group, key, title, phrase = title.toLowerCase(), row = 'category', kinds, facets }) => ({ key, title, phrase, slot: 'format', group, row, kinds, facets })
 
 const topic = ({ key, title, phrase = title.toLowerCase(), row = 'category', kinds = FACTUAL, facets }) => ({ key, title, phrase, slot: 'topic', row, kinds, facets })
 
@@ -90,38 +114,28 @@ const ruleFacet = (key, title) => ({ key, title, prototypes: [] })
 
 const CATALOGUE = [
   format({
-    key: 'reality',
-    title: 'Reality',
-    kinds: FACTUAL,
-    facets: [ruleFacet('reality-dating', 'Dating'), ruleFacet('reality-competition', 'Reality competitions'), ruleFacet('reality-life', 'Reality life')],
-  }),
-  format({
-    key: 'quiz',
-    title: 'Quiz and game shows',
-    phrase: 'quiz and game show',
-    kinds: FACTUAL,
-    facets: [ruleFacet('quiz-trivia', 'Quiz shows'), ruleFacet('quiz-games', 'Game shows')],
-  }),
-  format({
-    key: 'panel-shows',
-    title: 'Panel shows',
-    phrase: 'panel',
-    kinds: FACTUAL,
-    facets: [ruleFacet('panel-shows', 'Panel shows')],
-  }),
-  format({
+    group: 'scripted',
     key: 'comedy',
     title: 'Comedy',
     kinds: [...FICTION, 'factual'],
     facets: [ruleFacet('comedy-sitcom', 'Sitcoms'), ruleFacet('comedy-stand-up', 'Stand-up')],
   }),
   format({
+    group: 'scripted',
     key: 'drama',
     title: 'Drama',
     kinds: FICTION,
     facets: [ruleFacet('drama-family', 'Family drama'), ruleFacet('drama-period', 'Period drama'), ruleFacet('drama-workplace', 'Medical and legal drama')],
   }),
   format({
+    group: 'scripted',
+    key: 'crime-drama',
+    title: 'Crime drama',
+    kinds: FICTION,
+    facets: [ruleFacet('crime-drama-procedural', 'Police procedurals'), ruleFacet('crime-drama-mystery', 'Mysteries'), ruleFacet('crime-drama-thriller', 'Thrillers')],
+  }),
+  format({
+    group: 'scripted',
     key: 'soaps',
     title: 'Soap operas',
     phrase: 'soap opera',
@@ -129,18 +143,29 @@ const CATALOGUE = [
     facets: [ruleFacet('soaps', 'Soap operas')],
   }),
   format({
-    key: 'crime-drama',
-    title: 'Crime drama',
-    kinds: FICTION,
-    facets: [ruleFacet('crime-drama-procedural', 'Police procedurals'), ruleFacet('crime-drama-mystery', 'Mysteries'), ruleFacet('crime-drama-thriller', 'Thrillers')],
-  }),
-  format({
+    group: 'scripted',
     key: 'sci-fi-fantasy',
     title: 'Sci-fi and fantasy',
     kinds: FICTION,
     facets: [ruleFacet('sci-fi-fantasy', 'Sci-fi and fantasy')],
   }),
   format({
+    group: 'unscripted',
+    key: 'reality',
+    title: 'Reality',
+    kinds: FACTUAL,
+    facets: [ruleFacet('reality-dating', 'Dating'), ruleFacet('reality-competition', 'Reality competitions'), ruleFacet('reality-life', 'Reality life')],
+  }),
+  format({
+    group: 'unscripted',
+    key: 'quiz',
+    title: 'Quiz and game shows',
+    phrase: 'quiz and game show',
+    kinds: FACTUAL,
+    facets: [ruleFacet('quiz-trivia', 'Quiz shows'), ruleFacet('quiz-games', 'Game shows')],
+  }),
+  format({
+    group: 'unscripted',
     key: 'documentaries',
     title: 'Documentaries',
     phrase: 'documentary',
@@ -148,6 +173,14 @@ const CATALOGUE = [
     facets: [ruleFacet('documentaries', 'Documentaries')],
   }),
   format({
+    group: 'unscripted',
+    key: LIFESTYLE,
+    title: 'Lifestyle',
+    kinds: FACTUAL,
+    facets: [ruleFacet('lifestyle-magazine', 'Lifestyle')],
+  }),
+  format({
+    group: 'unscripted',
     key: 'talk-shows',
     title: 'Talk shows',
     phrase: 'talk show',
@@ -155,24 +188,28 @@ const CATALOGUE = [
     facets: [ruleFacet('talk-shows', 'Talk shows')],
   }),
   format({
-    key: LIFESTYLE,
-    title: 'Lifestyle',
+    group: 'unscripted',
+    key: 'panel-shows',
+    title: 'Panel shows',
+    phrase: 'panel',
     kinds: FACTUAL,
-    facets: [ruleFacet('lifestyle-magazine', 'Lifestyle')],
+    facets: [ruleFacet('panel-shows', 'Panel shows')],
   }),
   format({
-    key: KIDS,
-    title: 'Kids',
-    row: 'none',
-    kinds: ['kids'],
-    facets: [ruleFacet('kids-shows', 'Kids')],
-  }),
-  format({
+    group: 'other',
     key: NEWS,
     title: 'News',
     row: 'none',
     kinds: FACTUAL,
     facets: [ruleFacet('news-bulletins', 'News')],
+  }),
+  format({
+    group: 'other',
+    key: KIDS,
+    title: 'Kids',
+    row: 'none',
+    kinds: ['kids'],
+    facets: [ruleFacet('kids-shows', 'Kids')],
   }),
   topic({
     key: 'cooking',
@@ -487,3 +524,5 @@ const CATALOGUE = [
     ],
   }),
 ]
+
+const FORMAT_RANKS = new Map(CATALOGUE.filter((category) => category.slot === 'format').map((category, rank) => [category.key, rank]))

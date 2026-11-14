@@ -279,7 +279,8 @@ export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   const { mutes } = categoryChoicesOf(categoryEvents)
   const categories = hiddenCategoriesOf({ index: currentCategoryIndex(), mutes, nowMs })
   const occasions = hiddenOccasionsOf({ ...installPlace(), mutes, nowMs })
-  return [...categories, ...occasions, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
+  const shows = hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs }).sort((a, b) => b.hiddenAt - a.hiddenAt)
+  return [...categories, ...occasions, ...shows]
 }
 
 export const getCategorySettings = async ({ nowMs = Date.now() } = {}) => {

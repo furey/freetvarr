@@ -363,7 +363,7 @@ test('web: a seasonal row offers only Hide, keeps two airings of a title, and si
 test('settings: Categories lists a Seasonal switch per install-country occasion, and Hide lists under hidden shows', async () => {
   await db('user_events').delete()
   const categories = (await call('GET', '/api/for-you/categories')).body.categories.filter((category) => category.seasonal)
-  assert.deepEqual(categories.map((category) => category.title), ['Lunar New Year', 'Eid al-Fitr', 'Easter', 'Anzac Day', "Mother's Day", "Father's Day", 'NAIDOC Week', 'Halloween', 'Diwali', 'Remembrance Day', 'Hanukkah', 'Christmas', "New Year's Eve"])
+  assert.deepEqual(categories.map((category) => category.title), ['Lunar New Year', 'Eid al-Fitr', 'Easter', 'Anzac Day', "Mother's Day", 'NAIDOC Week', "Father's Day", 'Halloween', 'Diwali', 'Remembrance Day', 'Hanukkah', 'Christmas', "New Year's Eve"])
   assert.ok(categories.every((category) => category.on))
   const off = (await call('PUT', '/api/for-you/categories/seasonal-halloween', { on: false })).body.categories
   assert.equal(off.find((category) => category.key === 'seasonal-halloween').on, false)

@@ -1730,12 +1730,18 @@ a.settings-row-link:hover {
 }
 
 .categories-sheet-formats {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 12px;
 }
 
-.categories-sheet-formats .ui-segment {
-  flex: 1 1 auto;
+.categories-sheet-sublabel,
+.suggestions-subgroup {
+  margin: 0 4px 6px;
+  text-wrap: balance;
+}
+
+.suggestions-categories .ui-group + .suggestions-subgroup {
+  margin-top: 12px;
 }
 
 .categories-sheet-footer {

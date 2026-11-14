@@ -130,14 +130,17 @@ export const SuggestionsSettingsView = {
       <ui-sheet :open="categoriesOpen" title="Categories" subtitle="For you shows a category row when you record and watch a lot of that kind of programme, and a seasonal row in the days around an occasion." @close="categoriesOpen = false">
         <div v-for="group in categoryGroups" :key="group.label" class="settings-group suggestions-categories">
           <h3 class="ui-group-label">{{ group.label }}</h3>
-          <div class="ui-group">
-            <div v-for="category in group.categories" :key="category.key" class="settings-row" :data-category="category.key">
-              <toggle-switch :model-value="category.on" class="settings-toggle" :pending="savingCategory === category.key"
-                @update:model-value="setCategory(category, $event)">
-                <span class="settings-toggle-text"><span class="settings-row-title">{{ category.title }}</span></span>
-              </toggle-switch>
+          <template v-for="part in group.subgroups?.length ? group.subgroups : [{ label: '', categories: group.categories }]" :key="part.label">
+            <p v-if="part.label" class="settings-row-meta suggestions-subgroup">{{ part.label }}</p>
+            <div class="ui-group">
+              <div v-for="category in part.categories" :key="category.key" class="settings-row" :data-category="category.key">
+                <toggle-switch :model-value="category.on" class="settings-toggle" :pending="savingCategory === category.key"
+                  @update:model-value="setCategory(category, $event)">
+                  <span class="settings-toggle-text"><span class="settings-row-title">{{ category.title }}</span></span>
+                </toggle-switch>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </ui-sheet>
 

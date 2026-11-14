@@ -111,14 +111,19 @@ export const occasionMatchOf = ({ occasion, programme, channelName = '', kind = 
 
 export const occasionPrototypeTextsOf = (country = '') => occasionsFor(country).flatMap((occasion) => occasion.prototypes)
 
-export const seasonalSettingsOf = ({ country = '', off = new Set(), mutes = new Map(), nowMs, timeZone }) => occasionsFor(country).map((occasion) => ({
+export const occasionsInYearOrderOf = ({ country = '', year }) => occasionsFor(country)
+  .map((occasion) => ({ occasion, dayOfYear: dayOfYearOf({ occasion, country, year }) }))
+  .sort((a, b) => a.dayOfYear - b.dayOfYear)
+  .map(({ occasion }) => occasion)
+
+export const seasonalSettingsOf = ({ country = '', off = new Set(), mutes = new Map(), nowMs, timeZone }) => occasionsInYearOrderOf({ country, year: yearOfMs(nowMs) }).map((occasion) => ({
   key: seasonalKeyOf(occasion.key),
   title: occasion.title,
   seasonal: true,
   on: !off.has(seasonalKeyOf(occasion.key)) && !isOccasionMuted({ occasion, country, mutedAt: mutes.get(seasonalKeyOf(occasion.key)), nowMs, timeZone }),
 }))
 
-export const hiddenOccasionsOf = ({ country = '', mutes = new Map(), nowMs, timeZone }) => occasionsFor(country)
+export const hiddenOccasionsOf = ({ country = '', mutes = new Map(), nowMs, timeZone }) => occasionsInYearOrderOf({ country, year: yearOfMs(nowMs) })
   .filter((occasion) => isOccasionMuted({ occasion, country, mutedAt: mutes.get(seasonalKeyOf(occasion.key)), nowMs, timeZone }))
   .map((occasion) => {
     const key = seasonalKeyOf(occasion.key)
@@ -126,6 +131,16 @@ export const hiddenOccasionsOf = ({ country = '', mutes = new Map(), nowMs, time
     const until = muteEndDayOf({ occasion, country, mutedAt: hiddenAt, timeZone })
     return { seriesKey: `category:${key}`, categoryKey: key, title: occasion.title, category: true, seasonal: true, hiddenAt, until: until * DAY_MS }
   })
+
+const dayOfYearOf = ({ occasion, country, year }) => {
+  for (const candidate of [year, year - 1, year + 1]) {
+    const day = occasionDaysOf({ occasion, country, year: candidate })[0]
+    if (Number.isFinite(day)) return day - dayNumberOf({ year: candidate, month: 1, day: 1 })
+  }
+  return Infinity
+}
+
+const yearOfMs = (ms) => new Date(Number.isFinite(Number(ms)) ? Number(ms) : Date.now()).getUTCFullYear()
 
 const isDescription = (text) => text.length > DESCRIPTION_LENGTH || /[a-z]{2}[.!?]\s+[A-Z]/.test(text)
 
