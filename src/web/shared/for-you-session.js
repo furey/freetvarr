@@ -6,6 +6,7 @@ import { now, tz } from '/shared/time.js'
 import { toast } from '/shared/toast.js'
 import { twinkleGateOf } from '/for-you-twinkle.js'
 import { changeProgrammeKind, kindPendingKeys, reloadOnProgrammeKindChange } from '/shared/programme-kind-session.js'
+import { openCategories, reloadOnCategoriesChange } from '/components/categories-sheet.js'
 import { showHrefOf, showKeyOf } from '/show-key.js'
 import { playRecording } from '/shared/playback-session.js'
 import { episodeById, recordingRowOf } from '/show-page.js'
@@ -141,6 +142,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
   const thumbs = ref({})
 
   reloadOnProgrammeKindChange(onChanged)
+  reloadOnCategoriesChange(onChanged)
 
   const nowMs = () => now.value.getTime()
 
@@ -173,6 +175,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     'thumb-down': (item) => toggleThumb(item, 'down'),
     'not-interested': (item) => hide(item),
     'hide-category': (item) => muteCategory(item.category),
+    'change-categories': (item) => openCategories(item.title),
     'movie-kind': (item) => changeMovieKind(item),
     why: (item) => openWhy(item),
   }

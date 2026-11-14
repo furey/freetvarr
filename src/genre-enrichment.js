@@ -7,6 +7,7 @@ import { FILM_MIN_MS } from './film-rule.js'
 import { MOVIE, NOT_MOVIE, ONE_OFF_KIND, SHOW_KIND, loadKindOverrides, withKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 import { isLiveEventTitle } from './for-you-label-rules.js'
+import { loadCategoryOverrides, withCategoryOverrides } from './for-you-category-overrides.js'
 import { hasEpisodeDetails } from './episode-details.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
@@ -306,16 +307,17 @@ export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) =>
 }
 
 export const loadTitleGenres = async () => {
-  const [rows, overrides] = await Promise.all([
+  const [rows, overrides, categoryOverrides] = await Promise.all([
     db('title_genres').select('title_key', 'categories_json', 'genres_json', 'source').catch(() => []),
     loadKindOverrides().catch(() => new Map()),
+    loadCategoryOverrides().catch(() => new Map()),
   ])
   const records = new Map(rows.map((row) => [row.title_key, {
     genreTags: parseList(row.categories_json),
     genres: parseList(row.genres_json),
     source: row.source || null,
   }]))
-  return withKindOverrides({ records, overrides })
+  return withCategoryOverrides({ records: withKindOverrides({ records, overrides }), overrides: categoryOverrides })
 }
 
 const tvmazeRecordOf = (show) => ({

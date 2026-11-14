@@ -201,7 +201,7 @@ test('menuOf: Watch live only while on, record actions until scheduled, and the 
   assert.deepEqual(later.actions.map((a) => a.key), ['record-episode', 'programme-info'])
   assert.equal(later.actions[0].detail, 'Wed 7:30pm')
   assert.deepEqual(menuOf({ item: item(), scheduled: true, nowMs, timeZone }).actions.map((a) => a.key), ['show', 'programme-info'])
-  assert.deepEqual(later.more.map((a) => a.label), ['Hide this show', 'Why this?'])
+  assert.deepEqual(later.more.map((a) => a.label), ['Hide this show', 'Change categories', 'Why this?'])
 })
 
 test('sheetRequestOf: opens the programme sheet on its guide day with the right strength', () => {
@@ -344,13 +344,13 @@ test('forYouReadyOf: ready once the suggestions leave cold start and For you is 
   assert.equal(forYouReadyOf({ settings: null, payload: null }), false)
 })
 
-test('menuOf: the movie row sits between Not interested and Why this, labelled by the choice', () => {
+test('menuOf: the movie row sits between Change categories and Why this, labelled by the choice', () => {
   const labelsOf = (movieChoice) => menuOf({ item: item({ movieChoice }), nowMs, timeZone }).more.map((a) => a.label)
-  assert.deepEqual(labelsOf('not-movie'), ['Hide this show', 'Not a movie', 'Why this?'])
-  assert.deepEqual(labelsOf('movie'), ['Hide this show', 'This is a movie', 'Why this?'])
-  assert.deepEqual(labelsOf(null), ['Hide this show', 'Why this?'])
-  assert.equal(menuOf({ item: item({ movieChoice: 'movie' }), nowMs, timeZone }).more[1].icon, 'movie')
-  assert.equal(menuOf({ item: item({ movieChoice: 'not-movie' }), nowMs, timeZone }).more[1].icon, 'not-movie')
+  assert.deepEqual(labelsOf('not-movie'), ['Hide this show', 'Change categories', 'Not a movie', 'Why this?'])
+  assert.deepEqual(labelsOf('movie'), ['Hide this show', 'Change categories', 'This is a movie', 'Why this?'])
+  assert.deepEqual(labelsOf(null), ['Hide this show', 'Change categories', 'Why this?'])
+  assert.equal(menuOf({ item: item({ movieChoice: 'movie' }), nowMs, timeZone }).more[2].icon, 'movie')
+  assert.equal(menuOf({ item: item({ movieChoice: 'not-movie' }), nowMs, timeZone }).more[2].icon, 'not-movie')
 })
 
 test('movieKindToastOf: says whether the show is now listed as a movie', () => {
@@ -389,7 +389,7 @@ test('ready to watch cards: episode and length, Play on tap, Play and Go to show
   assert.equal(tapActionOf({ item: readyItem() }), 'play-recording')
   const menu = menuOf({ item: readyItem(), nowMs, timeZone })
   assert.deepEqual(menu.actions.map((entry) => entry.key), ['play-recording', 'show'])
-  assert.deepEqual(menu.more.map((entry) => entry.key), ['not-interested', 'why'])
+  assert.deepEqual(menu.more.map((entry) => entry.key), ['not-interested', 'change-categories', 'why'])
 })
 
 test('new rows: page order, the TVmaze credit link, and recordings kept off the Home row and hero', () => {

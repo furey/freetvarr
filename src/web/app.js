@@ -91,6 +91,7 @@ import { ClassificationChip } from '/components/classification-chip.js'
 import { ToastRegion } from '/components/toast-region.js'
 import { UiSheet } from '/components/ui-sheet.js'
 import { WatchForSheet } from '/components/watch-for-sheet.js'
+import { CategoriesSheet } from '/components/categories-sheet.js'
 import { noteBuild, checkForNewBuild } from '/shared/api.js'
 import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.js'
 import { pollHealth } from '/shared/health.js'
@@ -201,6 +202,7 @@ const App = {
       <recording-player />
       <programme-sheet-host />
       <watch-for-sheet />
+      <categories-sheet />
       <toast-region />
     </div>
   `,
@@ -295,6 +297,7 @@ app.component('programme-sheet-host', ProgrammeSheetHost)
 app.component('programme-art-badges', ProgrammeArtBadges)
 app.component('programme-review-card', ProgrammeReviewCard)
 app.component('watch-for-sheet', WatchForSheet)
+app.component('categories-sheet', CategoriesSheet)
 app.component('padding-rows', PaddingRows)
 app.component('recording-player', RecordingPlayer)
 app.component('pause-icon', PauseIcon)

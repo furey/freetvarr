@@ -53,9 +53,11 @@ test('onNowPickOf: a show or category the household likes comes first', () => {
 
 test('onNowMenuOf: the dislike group names the show and its category', () => {
   const groups = onNowMenuOf({ channelName: 'Channel 1', dislike: { title: 'iFish', category: FISHING } })
-  assert.deepEqual(groups.at(-1).map((item) => item.label), ['Hide this show', 'Hide fishing shows'])
+  assert.deepEqual(groups.at(-1).map((item) => item.label), ['Hide this show', 'Hide fishing shows', 'Change categories'])
   const categoryless = onNowMenuOf({ channelName: 'Channel 1', dislike: { title: 'iFish', category: null } })
-  assert.deepEqual(categoryless.at(-1).map((item) => item.key), ['not-interested'])
+  assert.deepEqual(categoryless.at(-1).map((item) => item.key), ['not-interested', 'change-categories'])
+  const film = onNowMenuOf({ channelName: 'Channel 1', dislike: { title: 'Heat', programmeKind: 'movie', category: null } })
+  assert.deepEqual(film.at(-1).map((item) => item.key), ['not-interested'])
   assert.equal(onNowMenuOf({ channelName: 'Channel 1' }).length, 2)
 })
 

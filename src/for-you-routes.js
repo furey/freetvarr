@@ -5,8 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { getSetting, setSetting } from './db.js'
 import { TIER_OVERRIDES } from './for-you-capability.js'
 import { SETTINGS, animateIconFrom, currentTier, readEmbedRun, readProbe, runEmbeddings, runProbe, isEmbedding } from './for-you-engine.js'
-import { currentOtherLanguageFilms, forgetForYouCache, getCurrentTaste, getForYou, getHiddenShows, getPickable, getCategorySettings, isForYouEnabled, setCategoryOn, startForYou, titlesForKeys, unhideShow, unmuteCategory } from './for-you-service.js'
+import { categoryKnownKeys, currentOtherLanguageFilms, forgetForYouCache, warmForYou, getCurrentTaste, getForYou, getHiddenShows, getPickable, getCategorySettings, isForYouEnabled, setCategoryOn, startForYou, titlesForKeys, unhideShow, unmuteCategory } from './for-you-service.js'
 import { GENRE_LOOKUP_KEY, genreLookupEnabledFrom } from './genre-enrichment.js'
+import { mountCategoryOverrideRoutes } from './for-you-category-overrides.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
 import { FALLBACK_ATTRIBUTION } from './web/data-credits.js'
 import { showKeyOf } from './web/show-key.js'
 import { OTHER_LANGUAGE_CHOICES } from './top-rated.js'
@@ -76,6 +79,19 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
     const seriesKey = String(req.params.seriesKey || '')
     if (!SERIES_KEY.test(seriesKey)) return res.status(400).json({ error: 'seriesKey must be a show key' })
     res.json(await unhideShow({ seriesKey }))
+  })
+
+  mountCategoryOverrideRoutes({
+    app,
+    csrf,
+    limiter,
+    onChange: () => {
+      forgetForYouCache()
+      warmForYou().catch(() => {})
+    },
+    country: () => countryForTimeZone(currentTimeZone()),
+    tasteTitleOf: async (showKey) => (await getCurrentTaste())?.titles?.[showKey] ?? null,
+    knownKeysOf: () => categoryKnownKeys(),
   })
 
   app.get('/api/for-you/categories', async (req, res) => {

@@ -1,4 +1,4 @@
-import { KIDS, LIFESTYLE, NEWS, SPORT, categoryCatalogueOf } from './for-you-category-catalogue.js'
+import { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, categoryCatalogueOf, compareCategoryInfos, formatGroupTitleOf } from './for-you-category-catalogue.js'
 import { KNOWN_SHOWS, knownShowOf } from './for-you-known-shows.js'
 import { genreLabelsOf, hasStrongDocumentaryEvidence, isFishingTitle, isLiveEventTitle, realityFacetOf, ruleLabelsOf } from './for-you-label-rules.js'
 import { showKeyOf } from './web/show-key.js'
@@ -51,7 +51,7 @@ export const createCategoryIndex = ({ country = '', knownShows = KNOWN_SHOWS } =
       if (!groups.has(group)) groups.set(group, groupInfoOf({ category, facet, group }))
     }
   }
-  return { country, catalogue, facets, groups, knownShows }
+  return { country, catalogue, facets, groups: new Map([...groups].sort(([, a], [, b]) => compareCategoryInfos(a, b))), knownShows }
 }
 
 export const titleKindOf = ({ title = '', film = false, genreTags = [], tvmazeType = null, channelNames = [], guideGenres = [], genre = null, kidsSlotsOnly = null }) => {
@@ -104,6 +104,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
     country: index.country,
     list: index.knownShows,
   })
+  if (facts.override) return overrideTagsOf({ index, facts, kind, override: facts.override, origin: origin ?? known?.origin ?? null })
   if (kind === 'sport') return sportTagsOf({ index, facts, known, origin })
   if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: origin ?? known.origin ?? null, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
   if (kind === 'kids') return labelTagsOf({ index, kind, origin, format: 'kids' })
@@ -123,7 +124,7 @@ export const evidenceLabelsOf = ({ index, facts, kind }) => {
   const genre = genreLabelsOf({ kind, tvmazeType: facts.tvmazeType, tvmazeGenres: facts.tvmazeGenres || [], wikidataGenres: facts.wikidataGenres || [] })
   const rule = ruleLabelsOf({ kind, title: facts.title, genreTags: [...(facts.genreTags || [])], guideGenres: [...(facts.guideGenres || [])], genre: facts.genre, country: index.country })
   const documentary = kind !== 'fiction' && hasStrongDocumentaryEvidence({ wikidataGenres: facts.wikidataGenres || [], guideGenres: [...(facts.guideGenres || [])], genre: facts.genre, country: index.country })
-  const format = genre.format ?? rule.format ?? (documentary ? 'documentaries' : null)
+  const format = rule.titleFormat ?? genre.format ?? rule.format ?? (documentary ? 'documentaries' : null)
   return {
     format,
     formatFacet: format === 'reality' ? rule.formatFacet : null,
@@ -234,6 +235,7 @@ export const categoryChoicesOf = (events = []) => {
 
 export const hiddenCategoriesOf = ({ index, mutes, nowMs }) => [...mutes]
   .filter(([group, ts]) => nowMs - ts < MUTE_DAYS * DAY_MS && (index.groups.has(group) || group === SPORT_ROW_KEY))
+  .sort(([a], [b]) => categoryRankIn({ index, group: a }) - categoryRankIn({ index, group: b }))
   .map(([group, ts]) => ({
     seriesKey: `category:${group}`,
     categoryKey: group,
@@ -249,7 +251,7 @@ export const categorySettingsOf = ({ index, mutes = new Map(), off = new Set(), 
     key: info.group,
     title: info.title,
     sport: info.row === 'sport',
-    ...(info.slot === 'format' && { format: true }),
+    ...(info.slot === 'format' && { format: true, formatGroup: formatGroupTitleOf(info.formatGroup) }),
     on: !off.has(info.group)
       && !muteOf({ mutes, group: info.group, nowMs }).hidden
       && !(info.row === 'sport' && muteOf({ mutes, group: SPORT_ROW_KEY, nowMs }).hidden),
@@ -370,6 +372,7 @@ export const recordFactsOf = (record) => {
     tvmazeGenres: isTvmazeRecord(record) ? genres.filter((genre) => !genre.includes(':')) : [],
     wikidataGenres: genres.filter((genre) => genre.startsWith('wd:')).map((genre) => genre.slice(3)),
     origin: tokenOf('country:')?.toLowerCase() ?? null,
+    override: record?.categoryOverride ?? null,
   }
 }
 
@@ -379,21 +382,26 @@ const addText = (facts, item) => {
   if (text) facts.hashes.add(textHashOf(text))
 }
 
+const categoryRankIn = ({ index, group }) => {
+  const rank = [...index.groups.keys()].indexOf(group)
+  return rank === -1 ? index.groups.size : rank
+}
+
 const groupKeyOf = ({ category, facet }) => (category.row === 'facet' || category.row === 'sport' ? facet.key : category.key)
 
 const groupInfoOf = ({ category, facet, group }) => {
   if (category.row === 'facet') return { group, row: 'facet', slot: category.slot, title: facet.title, phrase: facet.title.toLowerCase(), category: category.key, onlyFacet: facet.key }
   if (category.row === 'sport') return { group, row: 'sport', slot: category.slot, title: facet.title, phrase: facet.title, code: facet.key, category: category.key, onlyFacet: facet.key }
-  return { group, row: category.row, slot: category.slot, title: category.title, phrase: category.phrase, category: category.key, onlyFacet: category.facets.length === 1 ? facet.key : null }
+  return { group, row: category.row, slot: category.slot, title: category.title, phrase: category.phrase, category: category.key, onlyFacet: category.facets.length === 1 ? facet.key : null, ...(category.group && { formatGroup: category.group }) }
 }
 
 const tagsOf = ({ kind, origin = null, sportCode = null, bulletin = false, entries = [] }) => ({ kind, sportCode, bulletin, origin, entries })
 
-const labelTagsOf = ({ index, kind, origin, format = null, formatFacet = null, topics = [] }) => {
-  const topicEntries = topics
+const labelTagsOf = ({ index, kind, origin, format = null, formatFacet = null, topics = [], pinned = [] }) => {
+  const topicEntries = [...pinned, ...topics]
     .map((topic) => (typeof topic === 'string' ? { group: topic } : topic))
     .filter((topic) => index.groups.has(topic.group))
-    .slice(0, MAX_TOPICS)
+    .slice(0, MAX_TOPICS + pinned.length)
   const formatShare = !format ? 0 : topicEntries.length ? FORMAT_WEIGHT : 1
   const topicTotal = topicEntries.reduce((sum, topic) => sum + (topic.weight ?? 1), 0) || 1
   const entries = [
@@ -430,6 +438,22 @@ const sportTagsOf = ({ index, facts, known, origin }) => {
   return labelTagsOf({ index, kind: 'sport', origin, topics: [OTHER_SPORT] })
 }
 
+const overrideTagsOf = ({ index, facts, kind, override, origin }) => {
+  const code = kind === 'sport' && !isFishingTitle(facts.title)
+    ? sportCodeOf({ title: facts.title, channelNames: [...(facts.channelNames || [])], guideGenres: [...(facts.guideGenres || [])], country: index.country })
+    : null
+  const tags = labelTagsOf({
+    index,
+    kind: kindOfKnown({ known: override, kind }),
+    origin,
+    format: override.format ?? null,
+    formatFacet: override.format === 'reality' ? realityFacetOf(facts.title) : null,
+    pinned: code ? [code] : [],
+    topics: override.topics ?? [],
+  })
+  return { ...tags, ...(code && { sportCode: code }), custom: true }
+}
+
 const embeddingTopicsOf = ({ index, kind, titleVector, prototypes }) => {
   const best = new Map()
   for (const [key, vectors] of prototypes) {
@@ -451,9 +475,9 @@ const rampOf = (score) => Math.max(0, Math.min(1, (score - CATEGORY_FLOOR) / (CA
 const isTvmazeRecord = (record) => String(record?.source || '').startsWith('tvmaze:')
 
 const OTHER_SPORT = 'other-sport'
-const FICTION_FORMATS = new Set(['comedy', 'drama', 'crime-drama'])
+const FICTION_FORMATS = new Set(['comedy', 'drama', 'crime-drama', 'soaps', 'sci-fi-fantasy'])
 const EMBEDDING_NEVER = new Set(['fishing', 'shopping'])
-const NO_EMBEDDING_TOPIC = new Set(['quiz', 'news', 'kids'])
+const NO_EMBEDDING_TOPIC = new Set(['quiz', 'panel-shows', 'news', 'kids'])
 
 const episodeIdOf = ({ season, episode, episodeTitle, at }) => {
   if (season != null && episode != null) return `s${season}e${episode}`
@@ -484,7 +508,7 @@ const memoFor = ({ vectorsByHash, index }) => {
 
 const signatureOf = (facts) => JSON.stringify([
   facts.key, facts.title, [...facts.hashes].sort(), [...facts.genreTags].sort(), facts.tvmazeType, facts.film, facts.genre, facts.kidsSlotsOnly,
-  facts.tvmazeGenres, facts.wikidataGenres, facts.origin,
+  facts.tvmazeGenres, facts.wikidataGenres, facts.origin, facts.override,
   [...facts.channelNames].sort(), [...facts.guideGenres].sort(),
 ])
 
@@ -564,4 +588,4 @@ const FICTION_GUIDE = new Set(['drama', 'comedy', 'movies', 'crime', 'action', '
 const MAX_TEXTS_PER_TITLE = 6
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export { KIDS, LIFESTYLE, NEWS, SPORT, isFishingTitle }
+export { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, isFishingTitle }

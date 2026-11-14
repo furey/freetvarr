@@ -5,6 +5,7 @@ import { showKeyOf } from './show-key.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { recordWordingOf } from './record-wording.js'
 import { movieKindRowOf } from './movie-choice.js'
+import { CHANGE_CATEGORIES } from './category-override.js'
 
 export const FOR_YOU_URL = '/api/for-you'
 
@@ -203,6 +204,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
   const more = [
     { key: 'not-interested', label: dislikeLabelsOf({ kind: programmeKindOfItem(item) }).show, icon: 'hide' },
     item.category?.key && { key: 'hide-category', label: dislikeLabelsOf({ category: item.category }).category, icon: 'hide' },
+    programmeKindOfItem(item) !== 'movie' && CHANGE_CATEGORIES,
     movieKindRowOf(item.movieChoice),
     { key: 'why', label: 'Why this?', icon: 'why' },
   ].filter(Boolean)
@@ -216,8 +218,9 @@ const readyMenuOf = (item) => ({
   ],
   more: [
     { key: 'not-interested', label: dislikeLabelsOf({ kind: programmeKindOfItem(item) }).show, icon: 'hide' },
+    programmeKindOfItem(item) !== 'movie' && CHANGE_CATEGORIES,
     { key: 'why', label: 'Why this?', icon: 'why' },
-  ],
+  ].filter(Boolean),
 })
 
 export const menuMetaOf = ({ item, nowMs, timeZone }) => cardMetaOf({ item, nowMs, timeZone, withLead: true })
@@ -389,8 +392,11 @@ export const categoryShowsOf = (category) => {
   if (key === 'sport') return 'sport shows'
   const name = String(category?.title || '').replace(/ shows$/i, '')
   if (/^life in /i.test(name)) return `shows about ${sentenceCaseOf(name)}`
+  if (NAMES_PROGRAMMES.test(name)) return sentenceCaseOf(name)
   return `${category?.seasonal ? name : sentenceCaseOf(name)} shows`
 }
+
+const NAMES_PROGRAMMES = /^(soap operas|documentaries)$/i
 
 export const hiddenCategoryTitleOf = (category) => capitalisedOf(categoryShowsOf(category))
 
@@ -409,11 +415,18 @@ const sentenceCaseOf = (name) => (PROPER_LEADS.test(name) || !/^[A-Z][a-z]/.test
 const PROPER_LEADS = /^(Australian|American|British|English|Irish|Scottish|Welsh|New Zealand)\b/
 
 export const categoryGroupsOf = (categories = []) => [
-  { label: 'Formats', categories: categories.filter((category) => category.format && !category.sport && !category.seasonal) },
+  formatGroupOf(categories.filter((category) => category.format && !category.sport && !category.seasonal)),
   { label: 'Topics', categories: categories.filter((category) => !category.format && !category.sport && !category.seasonal) },
   { label: 'Sport', categories: categories.filter((category) => category.sport) },
   { label: 'Seasonal', categories: categories.filter((category) => category.seasonal) },
 ].filter((group) => group.categories.length)
+
+const formatGroupOf = (formats) => ({
+  label: 'Formats',
+  categories: formats,
+  subgroups: [...new Set(formats.map((category) => category.formatGroup).filter(Boolean))]
+    .map((label) => ({ label, categories: formats.filter((category) => category.formatGroup === label) })),
+})
 
 export const categoriesOnCountOf = (categories = []) => `${categories.filter((category) => category.on).length} of ${categories.length}`
 
