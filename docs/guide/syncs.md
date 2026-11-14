@@ -82,7 +82,7 @@ When Freetvarr restarts in the middle of a sync, it marks that sync **stopped by
 
 - a scheduled sync is due within `2` minutes, so that sync runs instead;
 - scheduled syncs are off (a custom schedule that never runs);
-- the restart stopped a sync that Freetvarr itself started after an earlier restart. If Freetvarr restarts again and again, it leaves the next sync to the schedule.
+- the restart stopped a sync that Freetvarr itself started after the previous restart. If Freetvarr restarts again and again, it leaves the next sync to the schedule.
 
 ## Reading a sync
 
@@ -125,6 +125,6 @@ Two filters choose which syncs Activity lists:
 - **Show**: **Imports**, **Fails**, **Removals**, and **Empty**. Turn on as many as you like. **Empty** is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** (or **Show it**) on that line to turn **Empty** on.
 - **From**: **Any**, **Schedule** (syncs the sync schedule started), **Manual** (syncs you started), or **After a recording** (syncs that started when a recording finished).
 
-The browser remembers your choice. A running sync, and a sync that a restart stopped, always show. A sync that a restart stopped is not a fail, so **Fails**, Health, and the Settings health dot leave it out.
+The browser remembers your choice. A running sync, and a sync that a restart stopped, always show. A sync that a restart stopped is not a fail, so **Fails**, Health, and the Settings health dot leave it out. This includes syncs that earlier Freetvarr versions marked failed with `Freetvarr restarted before this sync finished.`
 
 After each sync, Freetvarr trims the history, drops recordings that TVHeadend removed more than 30 days ago and that are not in your library, and deletes expired `.orig` backups (the originals that [ad removal](/guide/ad-removal#backups-and-retention) keeps after a cut).

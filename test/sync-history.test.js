@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import knexFactory from 'knex'
 
-import { listSyncs, pruneSyncHistory, syncPageParams, SYNC_OUTCOMES, SYNC_PAGE_SIZE_MAX } from '../src/sync-history.js'
+import { LEGACY_RESTART_ERROR, listSyncs, pruneSyncHistory, syncPageParams, syncRowOf, SYNC_OUTCOMES, SYNC_PAGE_SIZE_MAX } from '../src/sync-history.js'
 
 const openDb = async () => {
   const db = knexFactory({
@@ -119,4 +119,19 @@ test('listSyncs: a sync stopped by a restart shows under every filter but never 
   assert.deepEqual(fails.syncs.map((s) => s.id), [2, 1])
   assert.equal((await db('syncs').whereRaw(SYNC_OUTCOMES.fails).count({ n: 'id' }).first()).n, 1)
   assert.equal(fails.emptyCount, 1)
+})
+
+test('listSyncs and syncRowOf: an older row failed with the restart message reads as stopped, not as a fail', async (t) => {
+  const db = await openDb()
+  t.after(() => db.destroy())
+  await seedRow(db, { minute: 1, status: 'error', summary: { trigger: 'cron', errors: ['TVHeadend did not answer'] } })
+  await seedRow(db, { minute: 2, status: 'error', summary: { trigger: 'cron', errors: [LEGACY_RESTART_ERROR] } })
+  await seedRow(db, { minute: 3, status: 'error', summary: { trigger: 'cron', errors: ['Freetvarr restarted before this sync finished'] } })
+  assert.equal((await db('syncs').whereRaw(SYNC_OUTCOMES.fails).count({ n: 'id' }).first()).n, 2)
+  const imports = await listSyncs({ db, outcomes: ['imports'] })
+  assert.deepEqual(imports.syncs.map((s) => s.id), [2])
+  const rows = (await listSyncs({ db })).syncs.map(syncRowOf)
+  assert.deepEqual(rows.map((s) => s.status), ['error', 'stopped', 'error'])
+  assert.deepEqual(rows[1].summary, { trigger: 'cron', errors: [] })
+  assert.equal(syncRowOf({ id: 9, status: 'ok', summary_json: 'not json' }).summary, null)
 })

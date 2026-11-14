@@ -57,6 +57,12 @@ test('runAgainAfterRestart: a stopped re-run is left to the schedule, so a crash
   assert.equal(restartSyncPlan({ stopped: mixed, scheduledSyncsOn: true, nextRunAt: null, nowMs: NOW_MS }), 'leave-to-schedule')
 })
 
+test('runAgainAfterRestart: only the latest stopped sync counts, so an older stopped restart sync does not block a re-run', async () => {
+  const { starts, plan } = await runWith({ stopped: [{ id: 5, trigger: RESTART_TRIGGER }, { id: 6, trigger: 'cron' }] })
+  assert.equal(plan, 'run-again')
+  assert.deepEqual(starts, [{ trigger: RESTART_TRIGGER }])
+})
+
 test('runAgainAfterRestart: no new sync when scheduled syncs are off', async () => {
   const { starts, plan } = await runWith({ stopped: [{ id: 4, trigger: 'cron' }], syncsOn: false })
   assert.equal(plan, 'syncs-off')

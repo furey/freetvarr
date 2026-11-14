@@ -4,7 +4,7 @@ export const SCHEDULE_GRACE_MS = 2 * 60_000
 
 export const restartSyncPlan = ({ stopped, scheduledSyncsOn, nextRunAt, nowMs }) => {
   if (!stopped.length) return 'none'
-  if (stopped.some(({ trigger }) => trigger === RESTART_TRIGGER)) return 'leave-to-schedule'
+  if (latestOf(stopped).trigger === RESTART_TRIGGER) return 'leave-to-schedule'
   if (!scheduledSyncsOn) return 'syncs-off'
   if (isDueSoon({ nextRunAt, nowMs })) return 'schedule-due'
   return 'run-again'
@@ -36,6 +36,8 @@ export const scheduleRestartSync = ({ delayMs = RESTART_SYNC_DELAY_MS, log = con
   timer.unref?.()
   return () => clearTimeout(timer)
 }
+
+const latestOf = (stopped) => stopped.reduce((latest, sync) => (sync.id > latest.id ? sync : latest))
 
 const isDueSoon = ({ nextRunAt, nowMs }) => {
   const dueMs = nextRunAt ? Date.parse(nextRunAt) : NaN

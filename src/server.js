@@ -266,7 +266,7 @@ import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-stre
 import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
-import { listSyncs, syncPageParams } from './sync-history.js'
+import { listSyncs, syncPageParams, syncRowOf } from './sync-history.js'
 import { TV_LOGIN_KEYS, createTvLoginRoute, deleteTvLoginRoute } from './tv-login.js'
 import { OPEN_ENTRY_BACKUP_KEY, resetFreetvarrData } from './reset.js'
 import { claimRun } from './setup-runs.js'
@@ -528,7 +528,7 @@ app.get('/api/sync-status', (req, res) => {
 app.get('/api/syncs', async (req, res) => {
   const { syncs, total, emptyCount } = await listSyncs({ db, ...syncPageParams(req.query) })
   res.json({
-    syncs: syncs.map(({ summary_json, ...r }) => ({ ...r, summary: safeJson(summary_json) })),
+    syncs: syncs.map(syncRowOf),
     total,
     emptyCount,
   })
@@ -2648,11 +2648,6 @@ app.use((err, req, res, next) => {
   const status = err.statusCode || err.status || 500
   res.status(status).json({ error: err.message || 'internal error' })
 })
-
-const safeJson = (s) => {
-  if (!s) return null
-  try { return JSON.parse(s) } catch { return null }
-}
 
 const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWRITABLE
   ? `Freetvarr cannot write to ${oneOffRoot}. Freetvarr runs as uid ${process.getuid?.() ?? 'unknown'}; set PUID and PGID in .env to the user and group that own the folder, then recreate the Freetvarr container.`

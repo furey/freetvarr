@@ -3,6 +3,26 @@ export const SYNC_PAGE_SIZE_MAX = 200
 export const SYNC_HISTORY_CAP = 500
 export const SYNC_EMPTY_HISTORY_CAP = 100
 
+export const LEGACY_RESTART_ERROR = 'Freetvarr restarted before this sync finished.'
+
+const LEGACY_STOPPED_CLAUSE = `(status = 'error'`
+  + ` AND EXISTS (SELECT 1 FROM json_each(summary_json, '$.errors') WHERE value = '${LEGACY_RESTART_ERROR}'))`
+
+export const syncRowOf = ({ summary_json, ...row }) => {
+  const summary = parseSummary(summary_json)
+  if (!isLegacyStopped({ status: row.status, summary })) return { ...row, summary }
+  const errors = summary.errors.filter((error) => error !== LEGACY_RESTART_ERROR)
+  return { ...row, status: 'stopped', summary: { ...summary, errors } }
+}
+
+const isLegacyStopped = ({ status, summary }) =>
+  status === 'error' && Array.isArray(summary?.errors) && summary.errors.includes(LEGACY_RESTART_ERROR)
+
+const parseSummary = (json) => {
+  if (!json) return null
+  try { return JSON.parse(json) } catch { return null }
+}
+
 const EMPTY_CLAUSE = `status = 'ok'`
   + ` AND coalesce(json_extract(summary_json, '$.imported'), 0) = 0`
   + ` AND coalesce(json_extract(summary_json, '$.failed'), 0) = 0`
@@ -10,7 +30,7 @@ const EMPTY_CLAUSE = `status = 'ok'`
 
 export const SYNC_OUTCOMES = {
   imports: `json_extract(summary_json, '$.imported') > 0`,
-  fails: `status IN ('error', 'partial')`,
+  fails: `(status IN ('error', 'partial') AND NOT ${LEGACY_STOPPED_CLAUSE})`,
   removals: `json_extract(summary_json, '$.delete.triggered') = 1`,
   empty: EMPTY_CLAUSE,
 }
@@ -39,7 +59,7 @@ export const listSyncs = async ({ db, outcomes = null, trigger = null, page = 1,
   }
   const filtered = () => {
     const q = byTrigger()
-    if (outcomes) q.whereRaw(`(status IN ('running', 'stopped') OR ${outcomes.map((o) => `(${SYNC_OUTCOMES[o]})`).join(' OR ')})`)
+    if (outcomes) q.whereRaw(`(status IN ('running', 'stopped') OR ${LEGACY_STOPPED_CLAUSE} OR ${outcomes.map((o) => `(${SYNC_OUTCOMES[o]})`).join(' OR ')})`)
     return q
   }
   const [{ count }, { emptyCount }, syncs] = await Promise.all([
