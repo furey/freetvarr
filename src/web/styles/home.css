@@ -189,6 +189,11 @@
   gap: 8px;
 }
 
+.hero-slide-eyebrow.has-accent {
+  display: block;
+  text-wrap: pretty;
+}
+
 .hero-slide-eyebrow.is-live {
   color: var(--color-live-text);
 }
@@ -374,6 +379,7 @@
 
 .hero-slide-eyebrow-accent {
   color: var(--color-primary);
+  white-space: nowrap;
 }
 
 .hero-slide-eyebrow-reason {
@@ -383,6 +389,10 @@
 .hero-slide-eyebrow-dot {
   margin: 0 -3px;
   color: var(--color-text-2);
+}
+
+.hero-slide-eyebrow.has-accent .hero-slide-eyebrow-dot {
+  margin: 0 5px;
 }
 
 .hero-slide-record-dot {
