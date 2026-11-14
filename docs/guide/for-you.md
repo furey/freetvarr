@@ -20,7 +20,7 @@ Suggestions show in three places:
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/for-you">
-  <img src="../img/screenshot-for-you.png" alt="The For you page, with the Cooking and Home and property theme rows between the suggestion headings" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you.png" alt="The For you page, with the Cooking and Home and property category rows between the suggestion headings" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -33,7 +33,7 @@ The page groups its suggestions under these headings, in this order, and leaves 
 - **New seasons and returning**.
 - **Movies worth recording tonight**: films that start between 5pm and 3am, ranked by how well they fit what you watch and, with a [TMDB key](/guide/tv-guide#tmdb-key), by their user score on [TMDB](https://www.themoviedb.org) (The Movie Database, an online film database).
 - **You might like**.
-- Up to three theme rows and one sport row, such as **Cooking**, **Home and property**, or **AFL**. See [Theme rows](#theme-rows).
+- Up to three category rows and one sport row, such as **Cooking**, **Home and property**, or **AFL**. See [Category rows](#category-rows).
 - **Top rated series this week**: drama, comedy, animation, and documentary series in the next 7 days with a user score of 7 or more out of 10 on [TVmaze](https://www.tvmaze.com), a free online database of TV shows. A show must be popular enough on TVmaze for the score to count, and Freetvarr must be sure it found the right show: when two shows share a title, such as the US and UK versions of *Ghosts*, it shows no score. It needs no key. With **Ratings** or **Genres** off, the row is left out. Each card shows its TVmaze score, and the **TVmaze** link beside the heading opens TVmaze.
 - **Top rated movies this week**: up to 10 films from the next 7 days with the best user scores on TMDB, weighted by the number of votes, so a film with a few high votes does not beat a film with thousands. It needs a [TMDB key](/guide/tv-guide#tmdb-key) and leaves out films you have watched or marked **Fewer like this**. Each card shows its TMDB score.
 - **Movies for you**.
@@ -56,7 +56,7 @@ Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 - **More like this**: tells Freetvarr that you like the show, so shows like it count for more.
 - **Fewer like this**: lowers the show and the shows like it, by kind of show and by how close their descriptions are. The show is not hidden. The effect is strongest at first and halves every 60 days. A message says `You'll see fewer shows like this`; press **Undo** on it, or press **Fewer like this** again on the same card, to take it back.
 - **Hide this show** (**Hide this film** for a film): hides it from For you and the Home highlights for 90 days.
-- **Hide** with the kind of show, such as **Hide cooking shows** or **Hide Christmas shows**: on cards with a theme only. It does the same as **Hide** in the row menu; see [Theme rows](#theme-rows) and [Seasonal rows](#seasonal-rows).
+- **Hide** with the kind of show, such as **Hide cooking shows** or **Hide Christmas shows**: on cards with a category only. It does the same as **Hide** in the row menu; see [Category rows](#category-rows) and [Seasonal rows](#seasonal-rows).
 - **Not a movie** or **This is a movie**: corrects how Freetvarr lists the programme. See [TV guide](/guide/tv-guide#recording-a-programme).
 - **Why this?**: lists the reasons for the suggestion, such as a genre you watched or a channel you often watch at that time.
 
@@ -71,37 +71,48 @@ The reason under a card names how you came to the show:
 
 Only time you spend watching counts: the Freetvarr page is on screen and the picture plays, with or without sound. A hidden tab or a paused picture does not count. In [Multiview](/guide/player#multiview) with more than one picture, a picture counts only when it has the sound or shows captions. Time on a live channel counts towards each programme by the minutes you watched of it. Opening a programme's details counts a little towards a show, but never gives a reason on its own.
 
-## Theme rows
+## Category rows
 
-A theme row collects programmes of one kind that you record and watch a lot, such as cooking shows or police shows. Freetvarr reads the title, description, and genres of each show and files it under a theme. A show can have one format, such as **Reality** or **Drama**, and one topic, such as **Cooking** or **Travel**. For example, a renovation competition is under **Reality** and **Home and property**.
+A category row collects programmes of one kind that you record and watch a lot, such as cooking shows or police shows. Each show gets one format, such as **Reality** or **Drama**, up to two topics, such as **Cooking** or **Travel**, and the country it comes from. For example, a renovation competition is under **Reality** and **Home and property**. The country is stored for later releases and makes no row yet.
 
-These are the themes:
+Freetvarr takes each label from the first source that has one, in this order:
 
-- Formats: **Reality**, **Quiz and game shows**, **Comedy**, **Drama**, and **Crime drama**.
-- Topics: **Cooking**, **Home and property**, **Politics and current affairs**, **True crime**, **Police and rescue**, **Nature and animals**, **Travel**, **History**, **Science and health**, **Music and arts**, and a row about life in your country, such as **Life in Australia** or **Life in the United Kingdom**. Freetvarr finds the country from the time zone in Settings → SYSTEM → **Schedule**.
-- **Motoring**, **Fishing**, **Antiques**, and **Fitness**.
-- Sport: one row per sport, named by the sport, not by a league: **Rugby league**, **Australian rules**, **Rugby union**, **Cricket**, **Basketball**, **Tennis**, **Golf**, **Motorsport**, **Horse racing** (with harness racing), **Greyhound racing**, **Rodeo** (with bull riding and campdrafting), **Combat sports** (with UFC and boxing), **Surfing**, **Swimming** (with diving), **Netball**, **Cycling**, **American football**, **Baseball**, and **Ice hockey**. Football is **Football (soccer)** in Australia, **Soccer** in the United States and Canada, and **Football** elsewhere. Leagues, competitions, and shows about a sport go in its row, so the NRL, the NRLW, and State of Origin are all **Rugby league**. A sport show goes in a sport row only when its title, its channel name, or its guide category names the sport. A sport show that names no sport, such as a general sports panel show, goes in no sport row. When you watch more than one sport a lot, they share one row, **Sport this week**.
+1. A list of known free-to-air shows that comes with Freetvarr. It names the categories of about 600 shows that air in Australia and New Zealand, and it applies in every country. It is rebuilt before each minor release.
+2. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key.
+3. Words in the title, the guide category, and the genre code the channel sends.
+4. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
 
-News, kids' programmes, shopping, and religious programmes never get a row.
+**Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough.
 
-A theme row shows when at least 4% of what you recorded and watched in the last few months is in that theme, from at least three shows (one is enough for a sport), and at least four other programmes in that theme air in the next 7 days. Recent viewing counts most. Recording an episode counts more than watching it. Watching counts more than opening its details. Each episode counts once, however many times it airs, and one show alone cannot make a theme (except a sport). News bulletins do not count towards the share.
+These are the categories:
 
-A theme row leaves out the shows you already record or watch, as these show under the headings above it. A show appears in one row only. A theme row is left out when most of its programmes are already under earlier headings. The sport row lists each match: live and upcoming matches first, then shows about the sport, such as magazine and panel shows, and replays, highlights, and classic matches last. It shows up to three airings of one title.
+- Formats: **Reality**, **Quiz and game shows**, **Comedy**, **Drama**, **Crime drama**, **Documentaries**, and **Talk shows**.
+- Topics: **Cooking**, **Home and property**, **Gardening**, **Politics and current affairs**, **True crime**, **Police and rescue**, **Medical**, **Health and lifestyle**, **Science and technology**, **Nature and animals**, **Travel**, **History**, **Military and war**, **Music and arts**, **Entertainment news**, **Mystery and paranormal**, **Engineering and machines**, **Business and money**, and a row about life in your country, such as **Life in Australia** or **Life in the United Kingdom**. **Life in Australia** is for shows about Australian life and people, not for every show made in Australia. Freetvarr finds the country from the time zone in Settings → SYSTEM → **Schedule**.
+- **Motoring**, **Fishing**, and **Antiques**.
+- Sport: one row per sport, named by the sport, not by a league: **Rugby league**, **Australian rules**, **Rugby union**, **Cricket**, **Basketball**, **Tennis**, **Golf**, **Motorsport**, **Horse racing** (with harness racing), **Greyhound racing**, **Rodeo** (with bull riding and campdrafting), **Combat sports** (with UFC and boxing), **Surfing**, **Swimming** (with diving), **Netball**, **Cycling**, **American football**, **Baseball**, and **Ice hockey**. Football is **Football (soccer)** in Australia, **Soccer** in the United States and Canada, and **Football** elsewhere. Leagues, competitions, and shows about a sport go in its row, so the NRL, the NRLW, and State of Origin are all **Rugby league**. A sport show goes in a sport row only when its title, its channel name, or its guide category names the sport. A sport show that names no sport, such as a general sports panel show, goes in no sport row.
 
-Press **⋯** beside the title of a theme row or the sport row for these choices:
+When you watch more than one sport a lot, they share one row, **Sport this week**. News, kids' programmes, shopping, and religious programmes never get a row. Award nights, song contests, and concerts are shows under **Music and arts**, not films.
 
-- **More** and the theme, such as **More Cooking**: makes the theme count half as much again towards its row. Press **Undo** on the message to take it back.
-- **Hide** with the kind of show, such as **Hide cooking shows**: hides the row and those shows for 90 days. The message says `Cooking shows are hidden for 90 days`. After that, the theme counts as before. Press **Undo** on the message to bring the row back, with any **More** you chose before. Pressing **More** later also brings the row back.
+A category row shows when at least 4% of what you recorded and watched in the last few months is in that category, from at least three shows (one is enough for a sport), and at least four other programmes in that category air in the next 7 days. Recent viewing counts most. Recording an episode counts more than watching it. Watching counts more than opening its details. Each episode counts once, however many times it airs, and one show alone cannot make a category (except a sport). News bulletins do not count towards the share.
+
+A category row leaves out the shows you already record or watch, as these show under the headings above it. A show appears in one row only. A category row is left out when most of its programmes are already under earlier headings. The sport row lists each match: live and upcoming matches first, then shows about the sport, such as magazine and panel shows, and replays, highlights, and classic matches last. It shows up to three airings of one title.
+
+Press **⋯** beside the title of a category row or the sport row for these choices:
+
+- **More** and the category, such as **More Cooking**: makes the category count half as much again towards its row. Press **Undo** on the message to take it back.
+- **Hide** with the kind of show, such as **Hide cooking shows**: hides the row and those shows for 90 days. The message says `Cooking shows are hidden for 90 days`. After that, the category counts as before. Press **Undo** on the message to bring the row back, with any **More** you chose before. Pressing **More** later also brings the row back.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/for-you">
-  <img src="../img/screenshot-for-you-row-menu.png" alt="The menu of the Cooking theme row, with More Cooking and Hide cooking shows" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you-row-menu.png" alt="The menu of the Cooking category row, with More Cooking and Hide cooking shows" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-To turn a theme off before it ever shows, or to turn a hidden theme back on, open **Themes** in the [For you settings](#for-you-settings).
+A **Hide** item on a card or in a menu names one category: the sport, else the main topic, else the format. A show is left out when any of its categories is hidden.
 
-At the Basic [suggestion level](#suggestion-level), Freetvarr files shows by their titles and genres only, so you can get fewer theme rows.
+To turn a category off before it ever shows, or to turn a hidden category back on, open **Categories** in the [For you settings](#for-you-settings).
+
+At the Basic [suggestion level](#suggestion-level), Freetvarr files shows by their titles and genres only, so you can get fewer category rows.
 
 ## Seasonal rows
 
@@ -146,7 +157,7 @@ The row needs at least four programmes from at least three shows, all on or befo
 
 Press **⋯** beside the title of a seasonal row for **Hide** with the occasion, such as **Hide Christmas shows**. The row then stays hidden until the next time the occasion comes round, and the message says `Christmas shows are hidden until next Christmas`. Press **Undo** on the message to bring the row back.
 
-To turn an occasion off, or to turn a hidden occasion back on, open **Themes** in the [For you settings](#for-you-settings) and use the **Seasonal** group.
+To turn an occasion off, or to turn a hidden occasion back on, open **Categories** in the [For you settings](#for-you-settings) and use the **Seasonal** group.
 
 ## Getting started
 
@@ -173,20 +184,20 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/for-you">
-  <img src="../img/screenshot-for-you-themes.png" alt="The Themes sheet in the For you settings, with a switch for each sport and, under Seasonal, for each occasion" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you-categories.png" alt="The Categories sheet in the For you settings, with a switch for each format, topic, and sport and, under Seasonal, for each occasion" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-| Setting                      | What it does                                                                                                                                                                                                                                                                                   |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Show For you**             | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                                                                                                                                                                    |
-| **Animate the For you icon** | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                                                                                                                                                                 |
-| **Films in other languages** | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English.                                                                                                                                         |
-| **Themes**                   | Lists every theme and sport, and in the **Seasonal** group the occasions of your country, each with a switch, on by default. Turn one off to stop its row; a theme's shows also stop counting towards the rows. A hidden theme or occasion shows as off; turn it on to bring the row back.     |
-| **Hidden shows**             | Lists the shows you hid, by title, and the kinds of show you hid, such as **Fishing shows**. Home and For you leave them out. Press **Show again** to get suggestions for them again. A show you marked **Fewer like this** before version `2.25.0` stays here until you press **Show again**. |
-| **SUGGESTION LEVEL**         | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                                                                                                                                                                     |
-| **Pause history**            | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Hide** still count.                                                                                                                                                               |
-| **Clear viewing history**    | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.                                                                                                                                                      |
+| Setting                         | What it does                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Show For you**                | Turns For you on or off on Home, in the highlights, and on the For you page. On by default.                                                                                                                                                                                                                                                             |
+| **Animate the For you icon**    | Plays a short sparkle animation on the For you icon in the menu once each time Freetvarr opens. On by default.                                                                                                                                                                                                                                          |
+| **Films in other languages**    | **All**, **A few** (the default: up to 2 in each row and 1 highlight), or **None** of the suggested films first made in a language other than English.                                                                                                                                                                                                  |
+| **Categories**                  | Lists every category in the groups **Formats**, **Topics**, **Sport**, and **Seasonal** (the occasions of your country), each with a switch, on by default. The count shows how many are on. Turn one off to stop its row; its shows also stop counting towards the rows. A hidden category or occasion shows as off; turn it on to bring the row back. |
+| **Hidden shows and categories** | Lists the shows you hid, by title, and the categories you hid, such as **Fishing shows**. Home and For you leave them out. Press **Show again** to get suggestions for them again. A show you marked **Fewer like this** before version `2.25.0` stays here until you press **Show again**.                                                             |
+| **SUGGESTION LEVEL**            | **Auto**, **Basic**, **Standard**, or **Plus**. See [Suggestion level](#suggestion-level).                                                                                                                                                                                                                                                              |
+| **Pause history**               | Stops Freetvarr noting what you watch, until you turn it off. **More like this**, **Fewer like this**, and **Hide** still count.                                                                                                                                                                                                                        |
+| **Clear viewing history**       | Deletes your viewing history, including **More like this**, **Fewer like this**, and your hidden shows. Suggestions start again from new.                                                                                                                                                                                                               |
 
 **Genres**, in Settings → WATCHING → **Film and TV info**, sends show titles to TVmaze and Wikidata to look up their genres, and, with **Ratings** on, asks TVmaze for the scores of the series it found. Nothing else is sent. It is on by default, and **Save settings** keeps a change. The same lookups also teach [search](/guide/home#search) other titles for your shows.
 
