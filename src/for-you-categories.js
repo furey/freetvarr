@@ -391,11 +391,11 @@ const groupInfoOf = ({ category, facet, group }) => {
 
 const tagsOf = ({ kind, origin = null, sportCode = null, bulletin = false, entries = [] }) => ({ kind, sportCode, bulletin, origin, entries })
 
-const labelTagsOf = ({ index, kind, origin, format = null, formatFacet = null, topics = [] }) => {
-  const topicEntries = topics
+const labelTagsOf = ({ index, kind, origin, format = null, formatFacet = null, topics = [], pinned = [] }) => {
+  const topicEntries = [...pinned, ...topics]
     .map((topic) => (typeof topic === 'string' ? { group: topic } : topic))
     .filter((topic) => index.groups.has(topic.group))
-    .slice(0, MAX_TOPICS)
+    .slice(0, MAX_TOPICS + pinned.length)
   const formatShare = !format ? 0 : topicEntries.length ? FORMAT_WEIGHT : 1
   const topicTotal = topicEntries.reduce((sum, topic) => sum + (topic.weight ?? 1), 0) || 1
   const entries = [
@@ -442,7 +442,8 @@ const overrideTagsOf = ({ index, facts, kind, override, origin }) => {
     origin,
     format: override.format ?? null,
     formatFacet: override.format === 'reality' ? realityFacetOf(facts.title) : null,
-    topics: [...(code ? [code] : []), ...(override.topics ?? [])],
+    pinned: code ? [code] : [],
+    topics: override.topics ?? [],
   })
   return { ...tags, ...(code && { sportCode: code }), custom: true }
 }

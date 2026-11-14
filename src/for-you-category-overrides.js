@@ -2,7 +2,8 @@ import { db } from './db.js'
 import { countryNameOf } from './for-you-category-catalogue.js'
 import { MAX_TOPICS, createCategoryIndex, recordFactsOf, tagTitle } from './for-you-categories.js'
 import { knownShowOf } from './for-you-known-shows.js'
-import { showKeyFrom } from './programme-kind.js'
+import { createKeyResolver } from './for-you-profile.js'
+import { MOVIE, showKeyFrom } from './programme-kind.js'
 
 export const loadCategoryOverrides = async () => new Map(
   (await db(TABLE).select('show_key', 'format', 'topics_json')).map((row) => [row.show_key, overrideOfRow(row)]),
@@ -38,8 +39,8 @@ export const categoryOverrideFrom = ({ body, index }) => {
   return { override: { format, topics: unique } }
 }
 
-export const showCategoriesOf = ({ showKey, title = '', index, override = null, tasteTitle = null, record = null }) => {
-  const labels = override ?? labelsOfTaste({ tasteTitle, index }) ?? automaticLabelsOf({ showKey, title, index, record })
+export const showCategoriesOf = ({ showKey, title = '', index, override = null, tasteTitle = null, record = null, kindOverride = null }) => {
+  const labels = override ?? labelsOfTaste({ tasteTitle, index }) ?? automaticLabelsOf({ showKey, title, index, record, kindOverride })
   return {
     showKey,
     custom: Boolean(override),
@@ -50,30 +51,44 @@ export const showCategoriesOf = ({ showKey, title = '', index, override = null, 
   }
 }
 
-export const mountCategoryOverrideRoutes = ({ app, csrf, limiter = passThrough, onChange = () => {}, country = () => '', tasteTitleOf = async () => null }) => {
+export const resolvedShowKeyOf = ({ showKey, title = '', knownKeys = new Set() }) => {
+  if (!title) return showKey
+  return showKeyFrom(createKeyResolver(new Set(knownKeys))(title)) ?? showKey
+}
+
+export const mountCategoryOverrideRoutes = ({ app, csrf, limiter = passThrough, onChange = () => {}, country = () => '', tasteTitleOf = async () => null, knownKeysOf = async () => new Set() }) => {
   const payloadOf = async ({ showKey, title }) => {
     const index = createCategoryIndex({ country: country() })
-    const [row, record, tasteTitle] = await Promise.all([
+    const [row, record, tasteTitle, kind] = await Promise.all([
       db(TABLE).where({ show_key: showKey }).first(),
       db('title_genres').where({ title_key: showKey }).first().catch(() => null),
       tasteTitleOf(showKey).catch(() => null),
+      db('programme_kind_overrides').where({ show_key: showKey }).first().catch(() => null),
     ])
-    return showCategoriesOf({ showKey, title, index, override: row ? overrideOfRow(row) : null, tasteTitle, record: record ? recordOfRow(record) : null })
+    return showCategoriesOf({ showKey, title, index, override: row ? overrideOfRow(row) : null, tasteTitle, record: record ? recordOfRow(record) : null, kindOverride: kind?.kind ?? null })
+  }
+
+  const keyFrom = async ({ raw, title }) => {
+    const showKey = showKeyFrom(raw)
+    if (!showKey) return null
+    return resolvedShowKeyOf({ showKey, title, knownKeys: await knownKeysOf().catch(() => new Set()) })
   }
 
   app.get(`${ROUTE}/:showKey`, async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    const showKey = showKeyFrom(req.params.showKey)
+    const title = titleOf(req.query.title)
+    const showKey = await keyFrom({ raw: req.params.showKey, title })
     if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     try {
-      res.json(await payloadOf({ showKey, title: titleOf(req.query.title) }))
+      res.json(await payloadOf({ showKey, title }))
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
   })
 
   app.put(`${ROUTE}/:showKey`, limiter, csrf, async (req, res) => {
-    const showKey = showKeyFrom(req.params.showKey)
+    const title = titleOf(req.body?.title)
+    const showKey = await keyFrom({ raw: req.params.showKey, title })
     if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     const { override, error } = categoryOverrideFrom({ body: req.body, index: createCategoryIndex({ country: country() }) })
     if (error) return res.status(400).json({ error })
@@ -83,19 +98,20 @@ export const mountCategoryOverrideRoutes = ({ app, csrf, limiter = passThrough, 
         .onConflict('show_key')
         .merge(['format', 'topics_json', 'updated_at'])
       onChange()
-      res.json(await payloadOf({ showKey, title: titleOf(req.body?.title) }))
+      res.json(await payloadOf({ showKey, title }))
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
   })
 
   app.delete(`${ROUTE}/:showKey`, limiter, csrf, async (req, res) => {
-    const showKey = showKeyFrom(req.params.showKey)
+    const title = titleOf(req.query.title)
+    const showKey = await keyFrom({ raw: req.params.showKey, title })
     if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     try {
       const removed = await db(TABLE).where({ show_key: showKey }).delete()
       if (removed) onChange()
-      res.json(await payloadOf({ showKey, title: titleOf(req.query.title) }))
+      res.json(await payloadOf({ showKey, title }))
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
@@ -108,7 +124,8 @@ const labelsOfTaste = ({ tasteTitle, index }) => {
   return labelsOfKeys({ keys, index })
 }
 
-const automaticLabelsOf = ({ showKey, title, index, record }) => {
+const automaticLabelsOf = ({ showKey, title, index, record, kindOverride }) => {
+  if (kindOverride === MOVIE) return { format: null, topics: [] }
   const facts = {
     key: showKey,
     title: title || showKey.replaceAll('-', ' '),

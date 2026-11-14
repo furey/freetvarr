@@ -1729,8 +1729,14 @@ a.settings-row-link:hover {
   text-transform: none;
 }
 
-.categories-sheet-select {
-  width: 100%;
+.categories-sheet-formats {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.categories-sheet-formats .ui-segment {
+  flex: 1 1 auto;
+  text-wrap: balance;
 }
 
 .categories-sheet-footer {

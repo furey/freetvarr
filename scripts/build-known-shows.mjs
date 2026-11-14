@@ -198,8 +198,6 @@ const RELABELLED = {
   'would-i-lie-to-you': PANEL,
   '8-out-of-10-cats-does-countdown': PANEL,
   'big-fat-quiz-best-bits': PANEL,
-  'guy-montgomery-s-guy-mont-spelling-bee': PANEL,
-  'guy-montgomery-s-guy-mont-spelling-bee-nz': PANEL,
   'spicks-and-specks': { ...PANEL, topics: ['music-arts'] },
   gruen: PANEL,
   'vampire-academy': SCI_FI,

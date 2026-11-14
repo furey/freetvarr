@@ -33,11 +33,10 @@ export const CategoriesSheet = {
         <span v-if="!loaded" class="ui-skeleton is-text" style="--skeleton-w: 18em"></span><template v-else>{{ hint }}</template>
       </p>
       <div class="settings-group">
-        <label class="ui-group-label categories-sheet-label" for="categories-sheet-format">Format</label>
-        <select id="categories-sheet-format" v-model="format" class="field-input categories-sheet-select" :disabled="!loaded || Boolean(busy)">
-          <option value="">None</option>
-          <option v-for="choice in choices.formats" :key="choice.key" :value="choice.key">{{ choice.title }}</option>
-        </select>
+        <h3 id="categories-sheet-format" class="ui-group-label categories-sheet-label">Format</h3>
+        <ui-segmented class="categories-sheet-formats" aria-labelledby="categories-sheet-format"
+          :model-value="loaded ? format : null" :disabled="!loaded || Boolean(busy)" :options="formatOptions"
+          @update:model-value="format = $event" />
       </div>
       <div class="settings-group">
         <h3 class="ui-group-label categories-sheet-label">Topics <span class="categories-sheet-limit">Up to 2</span></h3>
@@ -86,6 +85,7 @@ export const CategoriesSheet = {
 
     const hint = computed(() => sheetHintOf({ custom: custom.value }))
     const originLine = computed(() => originLineOf(origin.value))
+    const formatOptions = computed(() => [{ value: '', label: 'None' }, ...choices.value.formats.map((choice) => ({ value: choice.key, label: choice.title }))])
     const canSave = computed(() => canSaveCategoriesOf({ format: format.value, topics: topics.value }))
 
     const apply = (payload) => {
@@ -149,7 +149,7 @@ export const CategoriesSheet = {
       text: categoriesResetTextOf,
     })
 
-    return { categoriesTitle, loaded, busy, error, format, topics, custom, choices, hint, originLine, canSave, close, setTopic, save, reset }
+    return { categoriesTitle, loaded, busy, error, format, topics, custom, choices, formatOptions, hint, originLine, canSave, close, setTopic, save, reset }
   },
 }
 

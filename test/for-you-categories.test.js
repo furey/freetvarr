@@ -570,9 +570,9 @@ test('owner override: a fiction format makes the title fiction, and a sport titl
   const soap = tagTitle({ index, facts: facts({ title: 'Bay Life', tvmazeType: 'Reality', override: { format: 'soaps', topics: [] } }) })
   assert.equal(soap.kind, 'fiction')
   assert.deepEqual(soap.entries.map((entry) => [entry.group, entry.weight]), [['soaps', 1]])
-  const cricket = tagTitle({ index, facts: facts({ title: 'Cricket: Test Match Day 1', genreTags: ['sport'], override: { format: null, topics: ['history'] } }) })
+  const cricket = tagTitle({ index, facts: facts({ title: 'Cricket: Test Match Day 1', genreTags: ['sport'], override: { format: null, topics: ['history', 'travel'] } }) })
   assert.equal(cricket.sportCode, 'cricket')
-  assert.deepEqual(cricket.entries.map((entry) => entry.group), ['cricket', 'history'])
+  assert.deepEqual(cricket.entries.map((entry) => entry.group), ['cricket', 'history', 'travel'])
 })
 
 test('owner override: the record carries it into the title facts', () => {

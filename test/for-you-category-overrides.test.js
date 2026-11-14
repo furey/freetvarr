@@ -9,7 +9,7 @@ const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'freetvarr-category-overr
 process.env.DB_PATH = path.join(tmpDir, 'state.db')
 
 const { db } = await import('../src/db.js')
-const { categoryOverrideFrom, loadCategoryOverrides, mountCategoryOverrideRoutes, showCategoriesOf, withCategoryOverrides } = await import('../src/for-you-category-overrides.js')
+const { categoryOverrideFrom, loadCategoryOverrides, mountCategoryOverrideRoutes, resolvedShowKeyOf, showCategoriesOf, withCategoryOverrides } = await import('../src/for-you-category-overrides.js')
 const { createCategoryIndex } = await import('../src/for-you-categories.js')
 const { loadTitleGenres } = await import('../src/genre-enrichment.js')
 const { canSaveCategoriesOf, categoriesPathOf, originLineOf, toggledTopicsOf } = await import('../src/web/category-override.js')
@@ -46,6 +46,7 @@ before(async () => {
     onChange: () => changes.push(Date.now()),
     country: () => 'au',
     tasteTitleOf: async (showKey) => tastes.get(showKey) ?? null,
+    knownKeysOf: async () => new Set(['gardening-australia']),
   })
   appServer = app.listen(0, '127.0.0.1')
   await new Promise((resolve) => appServer.once('listening', resolve))
@@ -153,4 +154,25 @@ test('sheet helpers: a third topic switches off the oldest, and the origin line 
   assert.equal(categoriesPathOf('Home and Away'), '/api/for-you/categories/show/home-and-away')
   assert.equal(canSaveCategoriesOf({ format: '', topics: [] }), false)
   assert.equal(canSaveCategoriesOf({ format: 'soaps', topics: [] }), true)
+})
+
+test('a prefixed title saves under the key the tagger uses', async () => {
+  assert.equal(resolvedShowKeyOf({ showKey: 'gardening-australia-special', title: 'Gardening Australia - Special', knownKeys: ['gardening-australia'] }), 'gardening-australia')
+  assert.equal(resolvedShowKeyOf({ showKey: 'gardening-australia-special', title: 'Gardening Australia - Special' }), 'gardening-australia-special')
+  const saved = await call('PUT', '/api/for-you/categories/show/gardening-australia-special', { title: 'Gardening Australia - Special', format: 'lifestyle', topics: ['gardening'] })
+  assert.equal(saved.body.showKey, 'gardening-australia')
+  assert.ok(await db('programme_category_overrides').where({ show_key: 'gardening-australia' }).first())
+  assert.equal(await db('programme_category_overrides').where({ show_key: 'gardening-australia-special' }).first(), undefined)
+  const read = await call('GET', '/api/for-you/categories/show/gardening-australia-special?title=Gardening%20Australia%20-%20Special')
+  assert.deepEqual([read.body.custom, read.body.format], [true, 'lifestyle'])
+  await call('DELETE', '/api/for-you/categories/show/gardening-australia-special?title=Gardening%20Australia%20-%20Special')
+  assert.equal(await db('programme_category_overrides').where({ show_key: 'gardening-australia' }).first(), undefined)
+})
+
+test('a show listed as a movie shows no automatic categories', async () => {
+  await db('programme_kind_overrides').insert({ show_key: 'bay-life', kind: 'movie', updated_at: Date.now() })
+  tastes.delete('bay-life')
+  const read = await call('GET', '/api/for-you/categories/show/bay-life?title=Bay%20Life')
+  assert.deepEqual([read.body.format, read.body.topics], [null, []])
+  await db('programme_kind_overrides').where({ show_key: 'bay-life' }).delete()
 })
