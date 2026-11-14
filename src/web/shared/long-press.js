@@ -83,7 +83,7 @@ const CANCEL_EVENTS = ['touchstart', 'gesturestart', 'scroll']
 
 const isPageZoomed = () => (window.visualViewport?.scale ?? 1) > 1.01
 
-const SWALLOWED_EVENTS = ['click', 'touchend', 'selectstart', 'contextmenu']
+const SWALLOWED_EVENTS = ['click', 'touchend', 'selectstart', 'contextmenu', 'dragstart']
 
 const swallowEvent = (event) => {
   if (event.cancelable) event.preventDefault()
