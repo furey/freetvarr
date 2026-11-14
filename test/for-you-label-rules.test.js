@@ -81,3 +81,29 @@ test('live events are awards, contests, ceremonies and concerts', () => {
   assert.equal(isLiveEventTitle('Eurovision Song Contest Asia'), true)
   assert.equal(isLiveEventTitle('Interview with the Vampire'), false)
 })
+
+test('keyword rules: single generic words such as homes, building, art, tour and space give no topic', () => {
+  const topicsOf = (title) => ruleLabelsOf({ kind: 'factual', title }).titleTopics
+  for (const title of ['Homes Away', 'Building Bridges', 'The Art Of Winning', 'Grand Tour Stories', 'Space Cadets']) assert.deepEqual(topicsOf(title), [], title)
+  assert.deepEqual(topicsOf('Selling Houses Australia'), ['home'])
+})
+
+test('origin: the TVmaze or Wikidata country comes before the known-shows list', async () => {
+  const { createCategoryIndex, tagTitle } = await import('../src/for-you-categories.js')
+  const index = createCategoryIndex({ country: 'au', knownShows: { shows: { 'big-quiz': { format: 'quiz', origin: 'gb' } } } })
+  const facts = (extra) => ({ key: 'big-quiz', title: 'Big Quiz', hashes: new Set(), genreTags: [], channelNames: [], guideGenres: [], ...extra })
+  assert.equal(tagTitle({ index, facts: facts({ origin: 'au' }) }).origin, 'au')
+  assert.equal(tagTitle({ index, facts: facts({}) }).origin, 'gb')
+})
+
+test('known-shows build: an owner mark of only Other ships no entry, and the list origin needs the lookup text to name the country', async () => {
+  const { buildFromExport, originOf } = await import('../scripts/build-known-shows.mjs')
+  const entry = (extra) => ({ key: 'x', title: 'X', kind: 'factual', channels: [], guide: [], airings: [], filmGenres: [], lookup: { labels: ['Antiques'], confidence: 'high', text: '' }, ...extra })
+  const built = buildFromExport({ built: '2026-11-14', country: 'au', titles: [
+    entry({ key: 'pawn-shop', mark: { ok: false, note: '', right: 'Other' } }),
+    entry({ key: 'gruen', mark: { ok: false, note: '', right: 'Special interest + Comedy' } }),
+  ] })
+  assert.deepEqual(Object.keys(built.knownShows.shows), ['gruen'])
+  assert.equal(originOf(entry({ tvmaze: { country: 'US' }, lookup: { text: 'A quiz show.' } })), null)
+  assert.equal(originOf(entry({ lookup: { text: 'An Australian quiz show.' } })), 'au')
+})

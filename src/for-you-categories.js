@@ -105,7 +105,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
     list: index.knownShows,
   })
   if (kind === 'sport') return sportTagsOf({ index, facts, known, origin })
-  if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: known.origin ?? origin, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
+  if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: origin ?? known.origin ?? null, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
   if (kind === 'kids') return labelTagsOf({ index, kind, origin, format: 'kids' })
   const evidence = evidenceLabelsOf({ index, facts, kind })
   if (evidence.topics.length || NO_EMBEDDING_TOPIC.has(evidence.format) || !titleVector || !prototypes.size) return labelTagsOf({ index, kind, origin, ...evidence })
@@ -426,7 +426,7 @@ const sportTagsOf = ({ index, facts, known, origin }) => {
   if (isFishingTitle(facts.title)) return labelTagsOf({ index, kind: 'sport', origin, topics: ['fishing'] })
   const code = sportCodeOf({ title: facts.title, channelNames: [...(facts.channelNames || [])], guideGenres: [...(facts.guideGenres || [])], country: index.country })
   if (code) return { ...labelTagsOf({ index, kind: 'sport', origin, topics: [code] }), sportCode: code }
-  if (known) return labelTagsOf({ index, kind: 'sport', origin: known.origin ?? origin, format: known.format ?? null, topics: known.topics ?? [] })
+  if (known) return labelTagsOf({ index, kind: 'sport', origin: origin ?? known.origin ?? null, format: known.format ?? null, topics: known.topics ?? [] })
   return labelTagsOf({ index, kind: 'sport', origin, topics: [OTHER_SPORT] })
 }
 

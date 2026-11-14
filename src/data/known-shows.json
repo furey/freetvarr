@@ -43,8 +43,7 @@
    ]
   },
   "8-out-of-10-cats-does-countdown": {
-   "format": "quiz",
-   "origin": "gb"
+   "format": "quiz"
   },
   "a-bite-to-eat-with-alice": {
    "topics": [
@@ -127,8 +126,7 @@
   "amazing-facts-with-doug-batchelor": {
    "topics": [
     "religion"
-   ],
-   "origin": "us"
+   ]
   },
   "amazing-water-homes": {
    "topics": [
@@ -177,12 +175,6 @@
    "topics": [
     "nature"
    ]
-  },
-  "antiques-roadshow": {
-   "topics": [
-    "antiques"
-   ],
-   "origin": "us"
   },
   "appalachian-outlaws": {
    "format": "reality"
@@ -434,8 +426,7 @@
    "format": "documentaries",
    "topics": [
     "music-arts"
-   ],
-   "origin": "ca"
+   ]
   },
   "blokesworld": {
    "topics": [
@@ -471,8 +462,7 @@
    "format": "reality",
    "topics": [
     "police-rescue"
-   ],
-   "origin": "ca"
+   ]
   },
   "botched": {
    "format": "reality",
@@ -536,8 +526,7 @@
   "buried-in-the-backyard": {
    "topics": [
     "true-crime"
-   ],
-   "origin": "us"
+   ]
   },
   "bushwhacked": {
    "topics": [
@@ -554,12 +543,6 @@
    "format": "drama",
    "origin": "gb"
   },
-  "cards-and-collectables-australia": {
-   "format": "reality",
-   "topics": [
-    "antiques"
-   ]
-  },
   "casketeers-life-death-across-the-globe": {
    "format": "documentaries",
    "topics": [
@@ -570,15 +553,13 @@
    "format": "reality",
    "topics": [
     "motoring"
-   ],
-   "origin": "gb"
+   ]
   },
   "celebrity-bridge-of-lies": {
    "format": "quiz"
   },
   "celebrity-escape": {
-   "format": "reality",
-   "origin": "nz"
+   "format": "reality"
   },
   "chateau-diy": {
    "format": "reality",
@@ -642,8 +623,7 @@
   "compass-points-from-pbs-news": {
    "topics": [
     "politics"
-   ],
-   "origin": "us"
+   ]
   },
   "connection-to-country": {
    "topics": [
@@ -671,8 +651,7 @@
    "topics": [
     "local-life",
     "fishing"
-   ],
-   "origin": "au"
+   ]
   },
   "creflo-dollar-ministries": {
    "topics": [
@@ -727,8 +706,7 @@
    "format": "kids"
   },
   "deal-or-no-deal": {
-   "format": "quiz",
-   "origin": "au"
+   "format": "quiz"
   },
   "death-in-paradise": {
    "format": "crime-drama",
@@ -737,8 +715,7 @@
   "deep-end-the-scott-miller-story": {
    "topics": [
     "true-crime"
-   ],
-   "origin": "au"
+   ]
   },
   "destination-flavour-china-bitesize": {
    "topics": [
@@ -796,8 +773,7 @@
   "dr-ann-s-secret-lives": {
    "topics": [
     "nature"
-   ],
-   "origin": "au"
+   ]
   },
   "dr-karl-s-how-things-work": {
    "topics": [
@@ -837,8 +813,7 @@
    "format": "documentaries",
    "topics": [
     "engineering-and-machines"
-   ],
-   "origin": "us"
+   ]
   },
   "engineering-tomorrow": {
    "topics": [
@@ -900,8 +875,7 @@
   "explore-tv": {
    "topics": [
     "travel"
-   ],
-   "origin": "au"
+   ]
   },
   "f-ck-berlin": {
    "format": "reality"
@@ -926,8 +900,7 @@
   "fatal-family-feuds": {
    "topics": [
     "true-crime"
-   ],
-   "origin": "us"
+   ]
   },
   "father-brown": {
    "format": "crime-drama",
@@ -984,8 +957,7 @@
   "for-the-love-of-pets": {
    "topics": [
     "nature"
-   ],
-   "origin": "au"
+   ]
   },
   "forensics-murder-scene": {
    "topics": [
@@ -1123,8 +1095,7 @@
    "format": "reality",
    "topics": [
     "cooking"
-   ],
-   "origin": "au"
+   ]
   },
   "grand-designs-new-zealand": {
    "topics": [
@@ -1175,8 +1146,7 @@
    "topics": [
     "health-and-lifestyle",
     "local-life"
-   ],
-   "origin": "au"
+   ]
   },
   "heartbeat": {
    "format": "crime-drama",
@@ -1218,8 +1188,7 @@
    "format": "reality",
    "topics": [
     "police-rescue"
-   ],
-   "origin": "us"
+   ]
   },
   "history-s-deadliest-with-ving-rhames": {
    "topics": [
@@ -1265,8 +1234,7 @@
    "origin": "gb"
   },
   "horrible-science": {
-   "format": "kids",
-   "origin": "gb"
+   "format": "kids"
   },
   "hotel-portofino": {
    "format": "drama",
@@ -1300,8 +1268,7 @@
    "topics": [
     "home",
     "travel"
-   ],
-   "origin": "us"
+   ]
   },
   "house-of-games": {
    "format": "quiz",
@@ -1404,8 +1371,7 @@
    "origin": "us"
   },
   "james-may-s-shed-load-of-ideas": {
-   "format": "comedy",
-   "origin": "gb"
+   "format": "comedy"
   },
   "jamestown": {
    "format": "drama",
@@ -1476,8 +1442,7 @@
    "topics": [
     "travel",
     "motoring"
-   ],
-   "origin": "gb"
+   ]
   },
   "kids-behind-bars-life-or-parole": {
    "format": "documentaries",
@@ -1536,12 +1501,10 @@
    "origin": "au"
   },
   "letters-and-numbers": {
-   "format": "quiz",
-   "origin": "au"
+   "format": "quiz"
   },
   "lingo": {
-   "format": "quiz",
-   "origin": "gb"
+   "format": "quiz"
   },
   "little-j-and-big-cuz": {
    "format": "kids"
@@ -1566,8 +1529,7 @@
   "love-it-or-list-it-brilliant-builds": {
    "topics": [
     "home"
-   ],
-   "origin": "gb"
+   ]
   },
   "love-thy-nader": {
    "format": "reality",
@@ -1603,8 +1565,7 @@
   "mass-for-you-at-home": {
    "topics": [
     "religion"
-   ],
-   "origin": "au"
+   ]
   },
   "masterchef-australia": {
    "format": "reality",
@@ -1613,8 +1574,7 @@
    ]
   },
   "mastermind-australia": {
-   "format": "quiz",
-   "origin": "au"
+   "format": "quiz"
   },
   "masters-of-flip": {
    "topics": [
@@ -1623,8 +1583,7 @@
    "origin": "us"
   },
   "mechamato": {
-   "format": "kids",
-   "origin": "my"
+   "format": "kids"
   },
   "media-watch": {
    "topics": [
@@ -1727,8 +1686,7 @@
    "topics": [
     "travel",
     "science-and-technology"
-   ],
-   "origin": "us"
+   ]
   },
   "mythbusters": {
    "topics": [
@@ -1865,13 +1823,6 @@
     "nature"
    ]
   },
-  "pawn-stars": {
-   "format": "reality",
-   "topics": [
-    "antiques"
-   ],
-   "origin": "us"
-  },
   "pbs-washington-week-with-the-atlantic": {
    "topics": [
     "politics"
@@ -1930,8 +1881,7 @@
   "prison-songs": {
    "topics": [
     "music-arts"
-   ],
-   "origin": "au"
+   ]
   },
   "pure-genius": {
    "format": "drama",
@@ -2011,8 +1961,7 @@
   "rbt": {
    "topics": [
     "police-rescue"
-   ],
-   "origin": "au"
+   ]
   },
   "ready-vet-go": {
    "topics": [
@@ -2148,8 +2097,7 @@
    "format": "documentaries",
    "topics": [
     "true-crime"
-   ],
-   "origin": "us"
+   ]
   },
   "see-no-evil": {
    "topics": [
@@ -2167,8 +2115,7 @@
    "origin": "au"
   },
   "separated-at-birth": {
-   "format": "comedy",
-   "origin": "au"
+   "format": "comedy"
   },
   "seven-7-seven": {
    "format": "documentaries",
@@ -2178,8 +2125,7 @@
    "format": "comedy",
    "topics": [
     "history"
-   ],
-   "origin": "gb"
+   ]
   },
   "sex-unlimited": {
    "format": "documentaries",
@@ -2396,12 +2342,10 @@
    "origin": "us"
   },
   "the-amazing-race": {
-   "format": "reality",
-   "origin": "us"
+   "format": "reality"
   },
   "the-amazing-world-of-gumball": {
-   "format": "kids",
-   "origin": "us"
+   "format": "kids"
   },
   "the-american-buffalo": {
    "topics": [
@@ -2511,8 +2455,7 @@
    "origin": "au"
   },
   "the-forsytes": {
-   "format": "drama",
-   "origin": "gb"
+   "format": "drama"
   },
   "the-garden-gurus": {
    "topics": [
@@ -2593,8 +2536,7 @@
   "the-mightiest": {
    "topics": [
     "science-and-technology"
-   ],
-   "origin": "ca"
+   ]
   },
   "the-morning-show": {
    "format": "talk-shows",
@@ -2673,8 +2615,7 @@
    "origin": "au"
   },
   "the-summit": {
-   "format": "reality",
-   "origin": "us"
+   "format": "reality"
   },
   "the-supervet": {
    "topics": [
@@ -2799,8 +2740,7 @@
   "travel-guides": {
    "topics": [
     "travel"
-   ],
-   "origin": "au"
+   ]
   },
   "travel-oz": {
    "topics": [
@@ -2916,8 +2856,7 @@
    "topics": [
     "local-life",
     "entertainment-news"
-   ],
-   "origin": "au"
+   ]
   },
   "weekender": {
    "topics": [
@@ -2964,8 +2903,7 @@
    ]
   },
   "whose-line-is-it-anyway": {
-   "format": "comedy",
-   "origin": "us"
+   "format": "comedy"
   },
   "wide-open-spaces": {
    "topics": [
@@ -3010,8 +2948,7 @@
    "format": "reality",
    "topics": [
     "police-rescue"
-   ],
-   "origin": "us"
+   ]
   },
   "would-i-lie-to-you": {
    "format": "quiz",

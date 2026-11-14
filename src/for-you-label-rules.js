@@ -139,7 +139,7 @@ const WIKIDATA_TOPICS = [
 const FISHING = /\b((i|spear)?fish(ing|'n)?|angl(er|ers|ing)|tackle)\b/i
 
 const TOPIC_KEYWORDS = [
-  ['home', /\b(renovat\w*|reno|the block|house rules|grand designs|property|real estate|dream homes?|house hunt\w*|holiday homes|open homes|homes|houses|house wars|builds?|building|builders|flip(ping|s)?|chateau|listing|renters|superhomes|fixer|amazing spaces|architecture|country house|ugliest house|escape to the country|bargain (block|mansions))\b/i],
+  ['home', /\b(renovat\w*|reno|the block|house rules|grand designs|property|real estate|dream homes?|house hunt\w*|holiday homes|open homes|houses|house wars|builds|builders|flip(ping|s)?|chateau|listing|renters|superhomes|fixer|amazing spaces|architecture|country house|ugliest house|escape to the country|bargain (block|mansions))\b/i],
   ['cooking', /\b(kitchens?|cook\w*|chefs?|recipes?|bak(e|er|ers|ing)|masterchef|food|gourmet|flavour|feast|eat(ing)?|snack\w*|dinner)\b/i],
   ['gardening', /\bgarden(s|ing|ers)?\b/i],
   ['religion', /\b(church|ministr(y|ies)|mass|praise|gospel|bible|sermon|worship|prophecy|christian|catholic)\b/i],
@@ -148,10 +148,10 @@ const TOPIC_KEYWORDS = [
   ['nature', /\b(vets?|zoo|wildlife|animals?|pets?|safari|wild isles|planet earth|sharks?(?! tank)|crocs?|crocodiles?|dogs|attenborough|bushwhacked)\b/i],
   ['history', /\b(history|histories|historic|historical|ancient|empire|byzantium|vikings?|royals?|world war|ww(1|2|i|ii)|superstructures|temple|unearthed)\b/i],
   ['military-and-war', /\b(world war|ww(1|2|i|ii)|army|navy|military|soldiers|das boot|u-boat|warships?)\b/i],
-  ['travel', /\b(travel\w*|holidays?|journeys?|getaway|weekender|destinations?|explore|adventures|tour|trails?|odyssey|road trips?|railways?|by train|isles of|abroad|next stop|going places|on the road|great outdoors|best drives)\b/i],
-  ['science-and-technology', /\b(science|scientists?|how things work|mythbusters|technology|tech|space|universe|volcano\w*|experiments?|inventions?)\b/i],
+  ['travel', /\b(travel\w*|holidays?|journeys?|getaway|weekender|destinations?|explore|adventures|trails?|odyssey|road trips?|railways?|by train|isles of|abroad|next stop|going places|on the road|great outdoors|best drives)\b/i],
+  ['science-and-technology', /\b(science|scientists?|how things work|mythbusters|technology|tech|outer space|universe|volcano\w*|experiments?|inventions?)\b/i],
   ['engineering-and-machines', /\b(engineering|mighty ships|machines?|megastructures?|transportation marvels)\b/i],
-  ['music-arts', /\b(music|musical|concerts?|songs?|rage|orchestra|symphony|opera|ballet|dancing|dancers|art|arts|artists?|festival|glastonbury|awards|eurovision|song contest)\b/i],
+  ['music-arts', /\b(music|musical|concerts?|songs?|rage|orchestra|symphony|opera|ballet|dancing|dancers|arts|artists?|festival|glastonbury|awards|eurovision|song contest)\b/i],
   ['politics', /\b(politics|political|parliament|question time|press club|insiders|media watch|7\.30|four corners|60 minutes|current affairs?|election|senate|briefing|planet america|washington week|landline|insight)\b/i],
   ['true-crime', /\b(murders?|murderers?|killers?|kill|true crime|crime|criminals?|prisoners?|prison|behind bars|forensics?|assassins?|shoplifters|cold case)\b/i],
   ['mystery-and-paranormal', /\b(paranormal|ghosts?|haunted|haunting|unexplained|unxplained|unbelievable|medium|psychics?|ufos?)\b/i],

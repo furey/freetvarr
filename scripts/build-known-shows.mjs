@@ -6,6 +6,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 
 export const truthOf = (entry) => {
   const mark = entry.mark
+  if (isOnlyOther(mark)) return null
   if (mark?.ok) return labelKeysOf({ labels: [mark.theme], entry })
   if (mark && mark.note !== 'lookup') return labelKeysOf({ labels: mark.right.split(' + '), entry })
   if (mark || TRUSTED_CONFIDENCE.has(entry.lookup?.confidence)) return labelKeysOf({ labels: entry.lookup?.labels ?? [], entry })
@@ -21,10 +22,7 @@ export const knownShowEntryOf = ({ entry, truth }) => {
   return { ...(format && { format }), ...(topics.length && { topics }), ...(origin && { origin }) }
 }
 
-export const originOf = (entry) => originOfText(entry.lookup?.text)
-  ?? entry.tvmaze?.country?.toLowerCase()
-  ?? entry.wikidata?.countries?.[0]?.toLowerCase()
-  ?? null
+export const originOf = (entry) => originOfText(entry.lookup?.text) ?? null
 
 const originOfText = (text = '') => DEMONYMS
   .map(([pattern, code]) => ({ code, at: String(text || '').search(pattern) }))
@@ -59,6 +57,8 @@ export const buildFromExport = (exported) => {
     fixture: { built: exported.built, country: exported.country, titles: entries.map(fixtureEntryOf) },
   }
 }
+
+const isOnlyOther = (mark) => Boolean(mark && !mark.ok && mark.note !== 'lookup' && mark.right.split(' + ').every((label) => label === 'Other'))
 
 const labelKeysOf = ({ labels, entry }) => {
   const keys = keysOfLabels({ labels, entry })
