@@ -65,12 +65,16 @@ const SPORT_LABELS = {
   motorsport: { default: 'Motorsport' },
   'horse-racing': { default: 'Horse racing' },
   'greyhound-racing': { default: 'Greyhound racing' },
+  rodeo: { default: 'Rodeo' },
   golf: { default: 'Golf' },
   netball: { default: 'Netball' },
   basketball: { default: 'Basketball' },
   baseball: { default: 'Baseball' },
   'ice-hockey': { default: 'Ice hockey' },
   cycling: { default: 'Cycling' },
+  'combat-sports': { default: 'Combat sports' },
+  surfing: { default: 'Surfing' },
+  swimming: { default: 'Swimming' },
   'other-sport': { default: 'Sport' },
 }
 
@@ -527,6 +531,11 @@ const CATEGORIES = [
         'Greyhound racing: the dogs chase the lure.',
         'A big night of greyhound racing.',
       ] },
+      { key: 'rodeo', prototypes: [
+        'Professional bull riding: cowboys ride bucking bulls.',
+        'Rodeo: bull riding, bronc riding and barrel racing.',
+        'Campdraft: riders work cattle on horseback.',
+      ] },
       { key: 'golf', prototypes: [
         'Live golf from the PGA tour.',
         'Golf tournament final round.',
@@ -556,6 +565,21 @@ const CATEGORIES = [
         'Tour de France cycling stage.',
         'Road cycling race through the mountains.',
         'Track cycling championship.',
+      ] },
+      { key: 'combat-sports', prototypes: [
+        'UFC mixed martial arts fight night.',
+        'World title boxing bout.',
+        'Kickboxing and bare knuckle fighting.',
+      ] },
+      { key: 'surfing', prototypes: [
+        'WSL championship tour surfing event.',
+        'Surfers ride big waves in a surfing contest.',
+        'Surf league competition at the beach.',
+      ] },
+      { key: 'swimming', prototypes: [
+        'Swimming championships: freestyle and relay finals.',
+        'Swim GP racing in the pool.',
+        'Diving championships from the pool.',
       ] },
       { key: 'other-sport', prototypes: [
         'Live sport: athletics, swimming and gymnastics.',
