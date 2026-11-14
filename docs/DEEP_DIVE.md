@@ -241,6 +241,7 @@ Freetvarr stores state in SQLite through Knex and [better-sqlite3](https://githu
 | `external_ids`              | `0036`                           | TVDB, TMDB, and IMDb ids per `title_key`, `kind`, and `source`                                                                                                                                                                                                                                                                             | `src/external-ids-store.js`            |
 | `show_identity_picks`       | `0037`                           | The picked or declined identity per `title_key` and `network_family`                                                                                                                                                                                                                                                                       | `src/show-identity-store.js`           |
 | `art_resolutions`           | `0044`, `0045`                   | The resolved picture per title key, kind, and shape: `stage`, `origin`, `transform`, evidence `fingerprint`, `miss_step`, `next_check_at`, the picture `stamp`, and the client `show_key`. Marked due, never deleted, to ask again                                                                                                         | `src/art-resolver.js`                  |
+| `title_kinds`               | `0053`                           | One kind per `show_key` (`movie`, `series`, or `one-off`), the `source` that decided it (`override`, `library`, `guide`, or `hint`), the `evidence_json`, and `decided_at`. See [Title kinds](#title-kinds)                                                                                                                                | `src/title-kinds.js`                   |
 | `programme_picture_stamps`  | `0050`                           | One `stamp` per `show_key` for guide airing and recording picture URLs, and `changed_at`. See [Live picture updates](#live-picture-updates)                                                                                                                                                                                                | `src/programme-stamps.js`              |
 | `title_aliases`             | `0047`                           | Per guide source and source title: the title written instead (`kind` `alias`), or a source title that the other source never lists (`kind` `variant-candidate`); `first_seen_at`, `last_seen_at`                                                                                                                                           |                                        |
 | `guide_source_health`       | `0048`                           | One row per merged guide build, guide source, and channel (`channel` `''` for the whole source): `covered_hours`, `horizon_hours`, `described_share`, `agreement`, `fetch_attempts`, `fetch_failures`, `below`, `degraded`, `led`, `built_at` ([Source health](#source-health))                                                            | `src/guide-source-health.js`           |
@@ -627,14 +628,37 @@ The journal has the same shape as the switch journal, with the state before the 
 
 ### Series evidence
 
-`loadGuide` gives each event a `kind` through `displayKindOf` (`src/display-kind.js`), first match wins:
+`airingKindOf` (`src/display-kind.js`) gives each event an airing kind, first match wins:
 
-1. `movie` when `isFilmAiring` holds.
+1. `movie` when `airingLooksLikeFilm` holds.
 2. `one-off` for a sports airing whose stored `databaseIds` is `none`, or is unset and the title has a year.
 3. `series` when the title has a TVmaze record, or the event has a season, an episode, or an episode title.
 4. `series` when the title airs `3` or more times in the loaded week; otherwise `one-off`.
 
+`loadGuide` saves the airing kinds as evidence in [Title kinds](#title-kinds), then gives each event a `kind` through `displayKindOf`: the stored title kind, with the airing kind as the hint (`requestKindOf`). `isFilmAiring` in `src/genre-enrichment.js` reads the same row, so the guide, For you, and the pickable shows agree.
+
 `saveGuideEvidence` writes per-title facts to `series_evidence`. `facts_json` holds `recurs`, `realSeason`, `sports`, `awardShow`, and `minDatedEpisode`. `recurs` is true when at least `2` distinct episodes first air on `2` different local days. New facts merge with stored facts by logical OR. The sync and the library read the table through `loadSeriesEvidence` ([Library kinds](#library-kinds)).
+
+### Title kinds
+
+`title_kinds` keeps one kind per show key (`showKeyOf`). `decideTitleKind` in `src/title-kinds.js` reads the evidence in this order:
+
+1. The `programme_kind_overrides` row: `movie`, `show` (`series`), or `one-off`. `not-movie` blocks `movie` in every later step.
+2. One library kind: the Plex library items of the title (`kindsFor` in `src/library-titles.js`). Two kinds give no library answer. A library `movie` is skipped when the guide lists the title with episode details.
+3. The guide majority (`guideKindEvidenceOf`): `movie` when every airing is a film, else the commoner of `series` and `one-off`.
+4. A hint: `series` when a recording of the title has episode details.
+
+A guide category of sport or news blocks `movie` (`isSportOrNewsCategories`), unless a category is also `movie`, `movies`, or `film`. The categories come from `programme_categories` for the loaded week, matched by `classificationTitleKey`. A blocked film airing counts as a `one-off`.
+
+The table is written only when the evidence of a title changes (`mergeTitleKinds`):
+
+- `loadGuide` writes the guide evidence (`guideKindUpdatesOf`), with the override and the library kinds, before it sets the event kinds.
+- `refreshLibraryTitleKinds` in `src/epg.js` writes the library evidence (`libraryKindUpdatesOf`) after each sync and each Plex watch sync. A title that left the library gets an empty library list.
+- `PUT` and `DELETE /api/programme-kind/:showKey` rewrite the row of the title (`rewriteTitleKind`).
+
+Evidence that a writer does not give stays as stored, so a title that leaves the guide keeps its guide evidence. A new kind for a stored row marks the `art_resolutions` rows of the show key due with a new stamp (`markKindChangesDue`) and sends art events. Rows are never deleted.
+
+`requestKindOf` answers a request. An `override` row ignores the hint. Otherwise a hint counts when the library has that kind, or when the hint is `movie` and the guide listed a film airing of the title; a blocked `movie` never counts. So a film airing of a title that the library holds as a series (Fargo) keeps its film picture, and a sport game never shows as a film.
 
 ### Channel order
 
@@ -949,7 +973,7 @@ The tries and the settled entries are kept in memory per recording id; **Refresh
 1. A user choice in `programme_kind_overrides`: `show`, `one-off`, or `movie`. The choice `not-movie` only switches off rule 4.
 2. A user rule gives a show: a series recording for the title, or a folder with origin `user`.
 3. A title match (any matched folder) gives a show, or a one-off for a sport one-off (rule 5).
-4. A film by the guide's film rules (`looksLikeFilm`) gives a movie when a movies folder is set.
+4. A film by the guide's film rules (`looksLikeFilm`) gives a movie when a movies folder is set. At import, a [title kind](#title-kinds) whose guide category is sport or news switches this rule off.
 5. A sport one-off gives a one-off ([Sport and database ids](#sport-and-database-ids)).
 6. Recordings on two or more local days give a show.
 7. Series facts give a show: the title recurs, or it has a real season number (not a year).
@@ -1376,13 +1400,7 @@ The client adds the current stamp of the title as `c=` to every picture URL when
 
 `createArtResolver` in `src/art-resolver.js` picks one picture per title key, kind, and shape. `findShowThumbnail`, `findShowPoster`, and `findProgrammeThumbnail` in `src/epg.js` call `resolve`, then serve the result. So a list and a show page get the same picture for the same title and kind.
 
-The server sets the kind (`canonicalKindOf`). The `kind` in the URL is a hint only:
-
-1. Library kind: the Plex library items of the title (`kindsFor` in `src/library-titles.js`). With a hint, the hint when the library has that kind. Without a hint, the one library kind.
-2. The `programme_kind_overrides` row of the title (`movie`, `show`, `one-off`). `not-movie` removes `movie` from every step.
-3. The guide kind (`guideKindsOf`): `movie` when every airing is a film, else the commoner of `series` and `one-off`.
-4. The hint.
-5. The one library kind, else `series`.
+The server sets the kind (`canonicalKindFor` in `src/epg.js`). The `kind` in the URL is a hint only. With a [title kind](#title-kinds) row, `storedKindOf` gives the row's kind, or the hint when `requestKindOf` lets it count. With no row yet, `canonicalKindOf` decides from the library kinds, the override, and the guide kind (`guideKindsOf`) by the same rules, else `series`. `isGuessedFilmKind` reads the library kinds and the override from the row.
 
 Each kind runs its own chain of steps (`chainOf`). A guide airing runs `FREEVIEW_FIRST_GUIDE_CHAIN` when `findProgrammeThumbnail` passes `freeviewFirst` (the [Freeview step](#freeview-pictures) is on, so the install is in Australia), else `GUIDE_ONLY_CHAIN`. The steps are functions that `src/epg.js` passes in; each gives picture origins (`plex:<path>`, `recording:<id>`, `upload:<id>`, or a URL).
 
@@ -1399,7 +1417,7 @@ Each kind runs its own chain of steps (`chainOf`). A guide airing runs `FREEVIEW
 
 ```mermaid
 flowchart TD
-  request["resolve(title, kind hint, shape)"] --> kind["canonicalKindOf"]
+  request["resolve(title, kind hint, shape)"] --> kind["canonicalKindFor<br>title_kinds row"]
   kind --> choice{"Chosen picture?"}
   choice -- yes --> serveChoice["Serve the chosen picture"]
   choice -- no --> saved{"art_resolutions row with the same<br>fingerprint and next_check_at not due?"}
@@ -1437,13 +1455,15 @@ flowchart TD
 | Derived shape, title card, no picture | `6 h`, `24 h`, `3 d`, then `7 d` while the fingerprint is the same |
 | A changed fingerprint                 | At once                                                            |
 
+This is the only retry ladder. A due row runs its stages again with `retryMissesBefore` set to its `resolved_at` (`retryContextOf`). The online and frame steps then skip a saved miss that is older than that time: the Wikipedia and TMDB miss (`artwork_lookups`), the TVmaze miss (`show_artwork`), and the `.none` mark of a frame. A miss saved after that time, the `10` min failure skips, the host gaps and the [outbound](#outbound-http) circuit breaker, the Freeview backoff, and the Wikidata stop still apply. The warmer runs the due miss rows of titles in the next `7` days of the guide (tier `due-titles`).
+
 No code deletes a row to ask again. `markResolutionsDue` in `src/art-resolver.js` sets `next_check_at` and `miss_step` to `0` and gives the rows a new random stamp, so the URL changes at once, before the title resolves again. **Refresh artwork** (`forgetShowArtwork`), a [stand-in picture](#stand-in-pictures), a frame in an ad break, and a pruned frame use it. The daily prune deletes rows whose `resolved_at` is more than `90 d` past.
 
 ### Frame grabs
 
 `createFrameGrabs` in `src/frame-grabs.js` takes a frame from a recording file with ffmpeg and saves it as `artwork/frames/<id>.jpg` beside the database (`ARTWORK_PATH`). `<id>` is the first `24` hex characters of a SHA-256 hash of the file path; the origin is `frame:<id>`.
 
-1. `frameFor` answers with the saved frame. With no frame, it puts the file in a queue and answers pending. A file with a `<id>.none` mark, no ffmpeg (`ffmpeg -version` fails, as on an install outside Docker), or a file that the server cannot read answers with no frame.
+1. `frameFor` answers with the saved frame. With no frame, it puts the file in a queue and answers pending. A `<id>.none` mark older than `retryMissesBefore` (a due title row) is deleted, and the file is grabbed again. A file with a newer `<id>.none` mark, no ffmpeg (`ffmpeg -version` fails, as on an install outside Docker), or a file that the server cannot read answers with no frame.
 1. `adPlanOf` sets the ad plan of a recording from `ad_status`, `ad_breaks_json`, the `ad_removal` of its series folder, the `ad_removal_enabled` setting, and `imported_at`:
    - `clear`: `ad_status` is `cut`, `no_breaks`, or `detected` with no breaks.
    - `marked`: `ad_status` is `detected` with breaks.
@@ -1602,15 +1622,15 @@ A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE
 
 | Store                       | Table                                    | Hit    | Miss                                                               |
 | --------------------------- | ---------------------------------------- | ------ | ------------------------------------------------------------------ |
-| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `6 h`, `24 h`, `3 d`, then `7 d` while the evidence stays the same |
-| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d` with guide hints; `6 h` without                              |
+| Wikipedia and TMDB pictures | `artwork_lookups`                        | `30 d` | `7 d` while the evidence stays the same; a due title asks again    |
+| Plex and TVmaze pictures    | `show_artwork`                           | `30 d` | `7 d`; a due title asks again                                      |
 | **Change picture** pools    | `art_pools`                              | `7 d`  | `1 h`                                                              |
 | Ratings, credits            | `programme_ratings`, `programme_credits` | `30 d` | `7 d`; `6 h` for a film with no guide details (`no-guide-details`) |
 | TVmaze series scores        | `programme_ratings` (`tvmaze:series:`)   | `7 d`  | `7 d`                                                              |
 
 - Keys start with `wide-v1:` and hold the mode (`tmdb` with a key, `open` without), the kind, and the title key; stored external ids end the key.
 - An expired hit stays in use while a background lookup replaces it, until the data is `180 d` old. A refresh with no guide hints, no year, and no stored external ids that finds nothing counts as a failure, so it never replaces a hit.
-- A Wikipedia and TMDB miss stores an evidence fingerprint in `reference` (`miss:guide-network-v2:<step>:<fingerprint>`). The fingerprint covers the kind, the sorted years, release years, and channel names, the episode flag, library presence, external ids, and whether a TMDB key is set; it leaves out the synopsis, which changes as airings roll. A changed fingerprint retries at once and starts the steps again.
+- A Wikipedia and TMDB miss stores an evidence fingerprint in `reference` (`miss:guide-network-v2:<step>:<fingerprint>`). The fingerprint covers the kind, the sorted years, release years, and channel names, the episode flag, library presence, external ids, and whether a TMDB key is set; it leaves out the synopsis, which changes as airings roll. A changed fingerprint retries at once. The `<step>` part is always `0`; the retry steps are those of the [picture resolver](#picture-resolver).
 - A failed lookup is not stored; the key waits `10` min in memory.
 - Routes wait for a lookup within a budget, then answer pending: `1.5 s` for guide images and for ratings, `3 s` for a show picture, `6 s` for the **Change picture** list.
 
@@ -1624,17 +1644,18 @@ A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE
 
 `createWarmUrls` in `src/art-warm-plan.js` lists the picture URLs of each tier, in this order:
 
-| Tier           | Pictures                                                                                                                 | Widths                                     |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| `home`         | Home hero candidates; the in-progress and **New recordings** episodes (`picture`); **On now** airings                    | `768`, `1280`, `1920`; `384`; `384`, `768` |
-| `for-you`      | For you top pick and row items                                                                                           | `384`, `768`                               |
-| `recordings`   | Library shelf posters and cards                                                                                          | `384`                                      |
-| `guide-today`  | Guide cells with a picture, from now to `24 h` ahead                                                                     | `192`                                      |
-| `scheduled`    | Upcoming recordings                                                                                                      | `384`                                      |
-| `show-heroes`  | Show page heroes of library shows                                                                                        | `768`                                      |
-| `show-posters` | Show page posters of library shows                                                                                       | `192`                                      |
-| `guide-week`   | Guide cells with a picture, `24 h` ahead and later                                                                       | `192`                                      |
-| `frames`       | Recordings with no saved picture and a file, newest first, up to `500` (the episode route grabs a [frame](#frame-grabs)) | `384`                                      |
+| Tier           | Pictures                                                                                                                         | Widths                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `home`         | Home hero candidates; the in-progress and **New recordings** episodes (`picture`); **On now** airings                            | `768`, `1280`, `1920`; `384`; `384`, `768` |
+| `for-you`      | For you top pick and row items                                                                                                   | `384`, `768`                               |
+| `recordings`   | Library shelf posters and cards                                                                                                  | `384`                                      |
+| `guide-today`  | Guide cells with a picture, from now to `24 h` ahead                                                                             | `192`                                      |
+| `scheduled`    | Upcoming recordings                                                                                                              | `384`                                      |
+| `show-heroes`  | Show page heroes of library shows                                                                                                | `768`                                      |
+| `show-posters` | Show page posters of library shows                                                                                               | `192`                                      |
+| `due-titles`   | Show pictures of titles in the next `7` days of the guide whose `art_resolutions` miss row is due, up to `200` (`dueMissTitles`) | `384`                                      |
+| `guide-week`   | Guide cells with a picture, `24 h` ahead and later                                                                               | `192`                                      |
+| `frames`       | Recordings with no saved picture and a file, newest first, up to `500` (the episode route grabs a [frame](#frame-grabs))         | `384`                                      |
 
 1. Each URL is checked once per run with the `isWarm` check of its route (`createImageWarmCheck` in `src/image-routes.js`); it renders nothing and makes no web request. A show picture is warm when the choice or the `art_resolutions` row is not due, the fingerprint of the local steps (Plex, recording, guide) still matches, and the thumbnail is in the cache (`peek` in `createArtResolver`, `isShowArtWarm` in `src/epg.js`), so a new recording picture after a sync or a Plex scan is warmed. A guide airing is warm when the thumbnail of its own picture, its saved copy, or a title picture is cached (`isProgrammeArtWarm`); in Australia, an airing with Freeview pictures is warm when the thumbnail of any picture its chain can serve is cached: the Freeview pictures, the Freeview title copy, its own picture and saved copy, the title copy, or other airings (`programmeWarmOriginsOf`). A recording picture is warm when its thumbnail is cached under `recording:<id>:<size>-<mtime>` of the saved picture file; with no saved picture, when the episode chain has a cached title picture or frame, or no picture at all (`isEpisodeArtWarm`). An art pool picture is warm when the thumbnail of its source is cached. A warm URL costs no render and no lookup.
 1. A cold URL runs its route inside `runAsBackgroundWork` (`src/background-work.js`, an `AsyncLocalStorage` store). One URL runs at a time, so there is one render at a time.
@@ -1654,7 +1675,7 @@ Online lookups from the warmer are background tasks. The lookup limiter of `crea
 | Visit window                                    | Top and next tiers             | Nothing           | Nothing                     |
 | Nightly, `03:30`                                | All tiers                      | All tiers         | All tiers, no online lookup |
 
-The top tiers are `home`, `for-you`, `recordings`, and `guide-today`; the next tiers are `scheduled`, `show-heroes`, and `show-posters`. With no online lookup, the online steps answer pending without a request, so nothing is saved as a miss; a page request still looks up. The next counted request sets the first column again. Shutdown stops the warmer and its timers. Triggers that come within `30 s` merge into one run; a trigger during a run waits for the run to end.
+The top tiers are `home`, `for-you`, `recordings`, and `guide-today`; the next tiers are `scheduled`, `show-heroes`, `show-posters`, and `due-titles`. With no online lookup, the online steps answer pending without a request, so nothing is saved as a miss; a page request still looks up. The next counted request sets the first column again. Shutdown stops the warmer and its timers. Triggers that come within `30 s` merge into one run; a trigger during a run waits for the run to end.
 
 ### Change picture
 
