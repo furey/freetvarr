@@ -301,7 +301,8 @@ export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) =>
   const kept = await db('title_genres').where({ title_key: key }).first('genres_json').catch(() => null)
   const record = tvmazeRecordOf(show)
   const genres = [...record.genres, ...parseList(kept?.genres_json).filter((genre) => KEPT_TOKEN.test(genre))]
-  await databaseCache.write({ key, ...record, genres, expiresAt: nowMs + HIT_TTL_MS }).catch(() => {})
+  const isPartial = genres.includes('lookup:partial')
+  await databaseCache.write({ key, ...record, genres, expiresAt: nowMs + (isPartial ? MISS_TTL_MS : HIT_TTL_MS) }).catch(() => {})
 }
 
 export const loadTitleGenres = async () => {

@@ -95,3 +95,16 @@ test('a TVmaze show seen in the guide keeps the Wikidata, country and lookup tok
   const row = await db('title_genres').where({ title_key: 'upstart-crow' }).first()
   assert.deepEqual(JSON.parse(row.genres_json), ['Comedy', 'History', 'type:Scripted', 'wd:sitcom', 'country:GB', 'lookup:2'])
 })
+
+test('a TVmaze show seen in the guide keeps a partial lookup on the short retry', async () => {
+  await db('title_genres').insert({
+    title_key: 'mighty-ships',
+    genres_json: JSON.stringify(['Documentary', 'type:Documentary', 'lookup:partial']),
+    categories_json: '[]',
+    source: 'tvmaze:9',
+    expires_at: 1,
+  })
+  await rememberTvmazeShow({ title: 'Mighty Ships', show: { id: 9, name: 'Mighty Ships', genres: ['Documentary'], type: 'Documentary' }, nowMs: 0 })
+  const row = await db('title_genres').where({ title_key: 'mighty-ships' }).first()
+  assert.equal(row.expires_at, 7 * 24 * 60 * 60 * 1000)
+})
