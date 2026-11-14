@@ -65,6 +65,7 @@ const SPORT_LABELS = {
   motorsport: { default: 'Motorsport' },
   'horse-racing': { default: 'Horse racing' },
   'greyhound-racing': { default: 'Greyhound racing' },
+  rodeo: { default: 'Rodeo' },
   golf: { default: 'Golf' },
   netball: { default: 'Netball' },
   basketball: { default: 'Basketball' },
@@ -526,6 +527,11 @@ const CATEGORIES = [
         'Live greyhound racing from the track.',
         'Greyhound racing: the dogs chase the lure.',
         'A big night of greyhound racing.',
+      ] },
+      { key: 'rodeo', prototypes: [
+        'Professional bull riding: cowboys ride bucking bulls.',
+        'Rodeo: bull riding, bronc riding and barrel racing.',
+        'Campdraft: riders work cattle on horseback.',
       ] },
       { key: 'golf', prototypes: [
         'Live golf from the PGA tour.',
