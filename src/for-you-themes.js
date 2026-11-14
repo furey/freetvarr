@@ -93,8 +93,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   if (kind === 'kids') return { kind, sportCode: null, bulletin: false, entries: [fullEntry({ index, subtheme: 'kids-shows' })] }
   const keyword = keywordTagsOf({ index, facts, kind })
   if (keyword) return keyword
-  const scored = (titleVector && prototypes.size ? embeddingEntriesOf({ index, kind, titleVector, prototypes }) : ruleEntriesOf({ index, facts, kind }))
-    .filter((entry) => entry.category !== SPORT)
+  const scored = titleVector && prototypes.size ? embeddingEntriesOf({ index, kind, titleVector, prototypes }) : ruleEntriesOf({ index, facts, kind })
   return {
     kind,
     sportCode: null,
@@ -361,7 +360,7 @@ const embeddingEntriesOf = ({ index, kind, titleVector, prototypes }) => {
   const best = { format: null, topic: null }
   for (const [key, vectors] of prototypes) {
     const subtheme = index.subthemes.get(key)
-    if (!subtheme.kinds.includes(kind)) continue
+    if (!subtheme.kinds.includes(kind) || subtheme.category.key === SPORT) continue
     const score = Math.max(...vectors.map((vector) => dotProduct(titleVector, vector)))
     const slot = subtheme.category.slot
     if (!best[slot] || score > best[slot].score) best[slot] = { subtheme, score }
@@ -476,6 +475,7 @@ const EVENT_KINDS = {
 }
 
 const SPORT_KEYWORDS = [
+  ['soccer', /\b(barclays wsl|wsl football|women['’]?s super league)\b/i],
   ['rugby-league', /\b(nrlw?|rugby league|state of origin|super league|league tonight|nrl 360|matty johns)\b/i],
   ['afl', /\b(aflw?|sanfl|wafl|vfl|aussie rules|australian rules|footy show|footy classified|afl 360|brownlow|talking w)\b/i],
   ['rugby-union', /\b(rugby union|super rugby|wallabies|all blacks|springboks|six nations|rugby championship|bledisloe|rugby)\b/i],
@@ -486,16 +486,16 @@ const SPORT_KEYWORDS = [
   ['motorsport', /\b(supercars|superbikes?|supercross|motocross|formula (1|one)|f1|motogp|moto ?gp|grand prix|bathurst|nascar|indycar|rally|speedway|motorsport|motor racing)\b/i],
   ['greyhound-racing', /\b(greyhounds?|dogs racing)\b/i],
   ['rodeo', /\b(rodeos?|bull ?riding|pbr|campdraft(ing)?|barrel racing)\b/i],
+  ['combat-sports', /\b(ufc|mma|boxing(?! day)|kickboxing|bare knuckle)\b/i],
+  ['surfing', /\b(wsl surfing|world surf league|surfing|surf league)\b/i],
+  ['swimming', /\b(swim gp|swimming|diving championships?)\b/i],
+  ['cycling', /\b(cycling|tour de france|giro d'italia|vuelta)\b/i],
   ['horse-racing', /\b(horse racing|giddy ?up|racing|races|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup)\b/i],
   ['golf', /\b(golf|pga|lpga|liv golf)\b/i],
   ['netball', /\bnetball\b/i],
   ['basketball', /\b(basketball|nba|nbl|wnba|wnbl|euroleague)\b/i],
   ['baseball', /\b(baseball|mlb|world series)\b/i],
   ['ice-hockey', /\b(ice hockey|nhl)\b/i],
-  ['cycling', /\b(cycling|tour de france|giro d'italia|vuelta)\b/i],
-  ['combat-sports', /\b(ufc|mma|boxing(?! day)|kickboxing|bare knuckle)\b/i],
-  ['surfing', /\b(wsl|surfing|surf league)\b/i],
-  ['swimming', /\b(swim gp|swimming|diving championships?)\b/i],
 ]
 
 const guideSportCodeOf = (guideCategories) => [...guideCategories]
@@ -504,7 +504,7 @@ const guideSportCodeOf = (guideCategories) => [...guideCategories]
 
 const PLAIN_FOOTBALL = /\bfootball\b/i
 const PLAIN_FOOTBALL_CODES = { au: null, us: 'american-football', ca: 'american-football' }
-const FISHING = /\b(i?fish(ing)?|angl(er|ers|ing)|tackle)\b/i
+const FISHING = /\b((i|spear)?fish(ing)?|angl(er|ers|ing)|tackle)\b/i
 const SPORT_REPLAY = /\b(replays?|classics?|highlights|flashback|encore|rewind|best of|retro|in review)\b/i
 const SPORT_MATCH = /\b(v|vs\.?|versus)\b|\blive\b|grand final|semi[- ]finals?|qualifying final|\bfinal\b|\bround \d+|\brace \d+|\bday \d+|qualifying|\bgrand prix\b|\btest\b|\bmatch\b|\bgame \d+/i
 const SPORT_MATCH_TEXT = /\b(take on|takes on|face off|against|clash|kick-?off|live coverage|live from)\b/i
@@ -529,8 +529,6 @@ const GUIDE_SPORT_CODES = {
   cricket: 'cricket',
   soccer: 'soccer',
   tennis: 'tennis',
-  'motor sport': 'motorsport',
-  motorsport: 'motorsport',
   'horse racing': 'horse-racing',
   'greyhound racing': 'greyhound-racing',
   rodeo: 'rodeo',
@@ -541,7 +539,7 @@ const GUIDE_SPORT_CODES = {
   'ice hockey': 'ice-hockey',
   cycling: 'cycling',
 }
-const SPORT_GUIDE = new Set(['sports', 'sport', 'sports other', 'other sport', ...Object.keys(GUIDE_SPORT_CODES)])
+const SPORT_GUIDE = new Set(['sports', 'sport', 'australian rules football', 'golf', 'rugby league', 'sports other', 'other sport'])
 const FACTUAL_CATEGORIES = new Set(['reality', 'documentary', 'lifestyle', 'food', 'home', 'travel', 'quiz', 'news'])
 const FICTION_CATEGORIES = new Set(['drama', 'comedy', 'crime', 'sci-fi'])
 const FACTUAL_GUIDE = new Set(['documentary', 'factual', 'reality', 'reality series', 'lifestyle', 'food & cooking', 'nature', 'true crime', 'news', 'news/current affairs', 'house & garden', 'unscripted competition', 'science', 'history', 'animals', 'documentary series', 'other documentary series', 'society documentary', 'other reality television'])

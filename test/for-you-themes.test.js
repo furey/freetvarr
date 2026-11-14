@@ -109,7 +109,13 @@ test('sport codes: keywords first, and plain "football" depends on the country',
   for (const title of ['UFC 334 Prelims', 'MMA Fight Night', 'Boxing: Title Fight', 'Kickboxing Live', 'Bare Knuckle FC']) assert.equal(sportCodeOf({ title, country: 'au' }), 'combat-sports')
   assert.equal(sportCodeOf({ title: 'Boxing Day Test Cricket', country: 'au' }), 'cricket')
   assert.equal(sportCodeOf({ title: 'Boxing Day Sales', country: 'au' }), null)
-  for (const title of ['WSL Replay', 'Surfing Australia', 'Surf League Finals']) assert.equal(sportCodeOf({ title, country: 'au' }), 'surfing')
+  for (const title of ['WSL Surfing: Pipe Pro', 'World Surf League', 'Surfing Australia', 'Surf League Finals']) assert.equal(sportCodeOf({ title, country: 'au' }), 'surfing')
+  for (const title of ["Women's Super League", 'Barclays WSL: Arsenal v Chelsea', 'WSL Football Highlights']) assert.equal(sportCodeOf({ title, country: 'uk' }), 'soccer')
+  assert.equal(sportCodeOf({ title: 'WSL Replay', country: 'au' }), null)
+  assert.equal(sportCodeOf({ title: 'Super League: Wigan v St Helens', country: 'uk' }), 'rugby-league')
+  assert.equal(sportCodeOf({ title: 'Swimming: Relay Races', country: 'au' }), 'swimming')
+  assert.equal(sportCodeOf({ title: 'Cycling: Track Racing', country: 'au' }), 'cycling')
+  assert.equal(sportCodeOf({ title: 'Rodeo: Barrel Racing Finals', country: 'au' }), 'rodeo')
   for (const title of ['Swim GP', 'Swimming: National Trials', 'Diving Championships']) assert.equal(sportCodeOf({ title, country: 'au' }), 'swimming')
 })
 
@@ -117,7 +123,7 @@ test('sport codes: a guide category that names the sport counts, a plain sport c
   assert.equal(sportCodeOf({ title: 'Friday Night Footy', guideCategories: ['Rugby League'], country: 'au' }), 'rugby-league')
   assert.equal(sportCodeOf({ title: 'Friday Night Footy', guideCategories: ['Australian rules football'], country: 'au' }), 'afl')
   assert.equal(sportCodeOf({ title: 'Weekend Sport', guideCategories: ['sports', 'sports other'], country: 'au' }), null)
-  assert.equal(titleKindOf({ guideCategories: ['cricket'] }), 'sport')
+  assert.equal(sportCodeOf({ title: 'Weekend Drive', guideCategories: ['motor sport'], country: 'au' }), null)
 })
 
 test('kind gate: kids channels and OP-39 kids codes, sport, scripted and factual', () => {
@@ -206,6 +212,23 @@ test('sport titles: a sport code needs hard evidence, never the nearest prototyp
   assert.equal(nrl.sportCode, 'rugby-league')
   const factual = tagTitle({ index, facts: facts({ tvmazeType: 'Documentary' }), titleVector: blend([2, 0.6]), prototypes })
   assert.deepEqual(factual.entries.map((entry) => entry.subtheme), ['nature-wildlife'])
+})
+
+test('a motoring magazine with the guide category motor sport stays a motoring show, not Motorsport', () => {
+  const magazine = tagTitle({ index, facts: facts({ title: 'Wheeler Dealers', guideCategories: ['motor sport'] }) })
+  assert.notEqual(magazine.kind, 'sport')
+  assert.equal(magazine.sportCode, null)
+  assert.ok(!magazine.entries.some((entry) => entry.category === 'sport'))
+  assert.ok(magazine.entries.some((entry) => entry.subtheme === 'motoring'))
+})
+
+test('sport titles: a sport prototype never beats a non-sport theme, and spearfishing is Fishing', () => {
+  const prototypes = new Map([['rugby-league', [axis(0)]], ['fishing', [axis(1)]]])
+  const reef = tagTitle({ index, facts: facts({ title: 'Reef Hunters Championships', categories: ['sport'] }), titleVector: blend([0, 0.7], [1, 0.45]), prototypes })
+  assert.equal(reef.sportCode, null)
+  assert.deepEqual(reef.entries.map((entry) => entry.subtheme), ['fishing'])
+  const spear = tagTitle({ index, facts: facts({ title: 'Spearfishing Championships', categories: ['sport'] }), titleVector: axis(0), prototypes })
+  assert.deepEqual(spear.entries.map((entry) => entry.group), ['fishing'])
 })
 
 test('Fewer like this on a show with no sport code leaves rugby league alone', () => {

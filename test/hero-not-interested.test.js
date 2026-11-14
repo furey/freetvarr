@@ -97,6 +97,8 @@ test('dislikeLabelsOf: one wording for the show item and the theme item', async 
   assert.equal(themeLabel(FISHING), 'Hide fishing shows')
   assert.equal(themeLabel(LEAGUE), 'Hide rugby league shows')
   assert.equal(themeLabel({ key: 'afl', title: 'Australian rules', sport: true }), 'Hide Australian rules shows')
+  assert.equal(themeLabel({ key: 'rodeo', title: 'Rodeo', sport: true }), 'Hide rodeo shows')
+  assert.equal(themeLabel({ key: 'combat-sports', title: 'Combat sports', sport: true }), 'Hide combat sports shows')
   assert.equal(themeLabel({ key: 'seasonal-christmas', title: 'Christmas', seasonal: true }), 'Hide Christmas shows')
   assert.equal(themeLabel({ key: 'quiz', title: 'Quiz and game shows' }), 'Hide quiz and game shows')
   assert.equal(themeLabel({ key: 'local-life', title: 'Life in South Georgia & South Sandwich Islands' }), 'Hide shows about life in South Georgia & South Sandwich Islands')
