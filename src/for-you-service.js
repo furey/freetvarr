@@ -27,6 +27,7 @@ import { hiddenShowsOf, profileOf } from './for-you-profile.js'
 import { SPORT_ROW_KEY, SPORT_ROW_TITLE, CATEGORY_KINDS, createCategoryIndex, hiddenCategoriesOf, categoryChoicesOf, categoryMuteKeyOf, categorySettingsOf } from './for-you-categories.js'
 import { hiddenOccasionsOf, isSeasonalKey, occasionOf, seasonalSettingsOf } from './for-you-occasions.js'
 import { currentTimeZone } from './time-zone.js'
+import { hasEpisodeDetails } from './episode-details.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
@@ -294,8 +295,6 @@ const categoriesOffSetting = async () => {
     return []
   }
 }
-
-const hasEpisodeDetails = (programme) => programme.series_no != null || programme.episode_no != null || Boolean(programme.episode_title)
 
 const currentCategoryIndex = () => createCategoryIndex({ country: countryForTimeZone(currentTimeZone()) })
 

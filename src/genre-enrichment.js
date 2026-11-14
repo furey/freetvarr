@@ -7,6 +7,7 @@ import { FILM_MIN_MS } from './film-rule.js'
 import { MOVIE, NOT_MOVIE, ONE_OFF_KIND, SHOW_KIND, loadKindOverrides, withKindOverrides } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 import { isLiveEventTitle } from './for-you-label-rules.js'
+import { hasEpisodeDetails } from './episode-details.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
 
@@ -89,19 +90,19 @@ export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) =>
   if (record?.kindOverride === MOVIE) return true
   if ([NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND].includes(record?.kindOverride)) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
-  if (isLiveEventTitle(programme?.title)) return false
   if (record?.genreTags?.includes('movie')) return !hasEpisodeDetails(programme)
+  if (isLiveEventTitle(programme?.title)) return false
   if (!isMovieLike(programme)) return false
   return genreTagsOfEtsi(programme?.genre).includes('movie') || airingsInWeek <= MAX_FILM_AIRINGS
 }
 
 export const movieChoiceOf = ({ programme, film }) => {
-  if (hasEpisodeDetails(programme)) return null
+  if (hasEpisodeFields(programme)) return null
   if (film) return NOT_MOVIE
   return isLong(programme) && !isNewsOrSport(programme) ? MOVIE : null
 }
 
-const hasEpisodeDetails = (programme) => programme?.series_no != null
+const hasEpisodeFields = (programme) => programme?.series_no != null
   || programme?.episode_no != null
   || Boolean(programme?.episode_title)
 
@@ -153,7 +154,7 @@ export const pickTvItem = ({ rows = [], title, country = '' }) => {
   return matches.find((row) => row.countries.includes(String(country).toUpperCase())) || matches[0] || null
 }
 
-export const isCurrentLookup = (genres = []) => genres.includes(LOOKUP_TOKEN)
+export const isCurrentLookup = (genres = []) => genres.includes(LOOKUP_TOKEN) || genres.includes(PARTIAL_TOKEN)
 
 export const showRecordOf = ({ show = null, item = null }) => {
   const tvmaze = show ? tvmazeRecordOf(show) : { genres: [], genreTags: [], source: null }
@@ -230,14 +231,15 @@ export const createGenreEnrichment = ({
 } = {}) => {
   let running = null
 
-  const lookUp = async ({ title, movie, episodes, year }) => {
-    if (movie && !episodes) return lookUpFilm({ title, year })
+  const lookUp = async ({ title, movie, episodes, year }, { useWikidata }) => {
+    if (movie && !episodes) return { record: await lookUpFilm({ title, year }) }
     await sleep(gapMs)
     const show = pickTvmazeShow({ results: await searchTvmaze(title), title, country: country() })
     if (show) notify(() => onTvmazeShow({ title, show }))
-    const item = await lookUpTvItem({ title }).catch(() => FAILED)
-    if (item === FAILED) return show ? { ...showRecordOf({ show }), partial: true } : FAILED
-    return show || item ? showRecordOf({ show, item }) : null
+    const item = useWikidata ? await lookUpTvItem({ title }).catch(() => FAILED) : SKIPPED
+    const wikidataFailed = item === FAILED
+    if (item === FAILED || item === SKIPPED) return { record: show ? { ...showRecordOf({ show }), partial: true } : UNANSWERED, wikidataFailed }
+    return { record: show || item ? showRecordOf({ show, item }) : null, wikidataFailed }
   }
 
   const lookUpTvItem = async ({ title }) => {
@@ -265,16 +267,18 @@ export const createGenreEnrichment = ({
     let found = 0
     let looked = 0
     let failuresInRow = 0
+    let wikidataFailuresInRow = 0
     for (const item of pending) {
       if (failuresInRow >= MAX_FAILURES_IN_ROW) break
       looked += 1
-      const record = await lookUp(item).catch(() => FAILED)
+      const { record, wikidataFailed = false } = await lookUp(item, { useWikidata: wikidataFailuresInRow < MAX_FAILURES_IN_ROW }).catch(() => ({ record: FAILED }))
       failuresInRow = record === FAILED ? failuresInRow + 1 : 0
-      if (record === FAILED) continue
+      if (wikidataFailuresInRow < MAX_FAILURES_IN_ROW) wikidataFailuresInRow = wikidataFailed ? wikidataFailuresInRow + 1 : 0
+      if (record === FAILED || record === UNANSWERED) continue
       if (record) found += 1
       await cache.write({
         key: item.key,
-        genres: [...(record?.genres || []), ...(record?.partial ? [] : [LOOKUP_TOKEN])],
+        genres: [...(record?.genres || []), record?.partial ? PARTIAL_TOKEN : LOOKUP_TOKEN],
         genreTags: record?.genreTags || [],
         source: record?.source || null,
         expiresAt: now() + (record && !record.partial ? HIT_TTL_MS : MISS_TTL_MS),
@@ -293,8 +297,11 @@ export const createGenreEnrichment = ({
 
 export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) => {
   if (!show || !title) return
+  const key = showKeyOf(title)
+  const kept = await db('title_genres').where({ title_key: key }).first('genres_json').catch(() => null)
   const record = tvmazeRecordOf(show)
-  await databaseCache.write({ key: showKeyOf(title), ...record, expiresAt: nowMs + HIT_TTL_MS }).catch(() => {})
+  const genres = [...record.genres, ...parseList(kept?.genres_json).filter((genre) => KEPT_TOKEN.test(genre))]
+  await databaseCache.write({ key, ...record, genres, expiresAt: nowMs + HIT_TTL_MS }).catch(() => {})
 }
 
 export const loadTitleGenres = async () => {
@@ -483,6 +490,10 @@ const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|ru
 const NEWS_OR_SPORT = new Set(['news', 'sport'])
 const FAILED = Symbol('failed')
 const LOOKUP_TOKEN = 'lookup:2'
+const PARTIAL_TOKEN = 'lookup:partial'
+const KEPT_TOKEN = /^(wd|country|lookup):/
+const SKIPPED = Symbol('skipped')
+const UNANSWERED = Symbol('unanswered')
 const MAX_FAILURES_IN_ROW = 5
 const MAX_FILM_AIRINGS = 4
 const DEFAULT_BUDGET = 1500

@@ -2,6 +2,7 @@ import { KIDS, LIFESTYLE, NEWS, SPORT, categoryCatalogueOf } from './for-you-cat
 import { KNOWN_SHOWS, knownShowOf } from './for-you-known-shows.js'
 import { genreLabelsOf, hasStrongDocumentaryEvidence, isFishingTitle, isLiveEventTitle, realityFacetOf, ruleLabelsOf } from './for-you-label-rules.js'
 import { showKeyOf } from './web/show-key.js'
+import { hasEpisodeDetails } from './episode-details.js'
 import { dotProduct, meanVectorOf, unitVectorOf } from './for-you-similarity.js'
 import { embedTextOf, textHashOf } from './for-you-texts.js'
 import { decayOf } from './for-you-profile.js'
@@ -446,8 +447,6 @@ const embeddingTopicsOf = ({ index, kind, titleVector, prototypes }) => {
 }
 
 const rampOf = (score) => Math.max(0, Math.min(1, (score - CATEGORY_FLOOR) / (CATEGORY_FULL - CATEGORY_FLOOR)))
-
-const hasEpisodeDetails = (programme) => programme?.series_no != null || programme?.episode_no != null || Boolean(programme?.episode_title)
 
 const isTvmazeRecord = (record) => String(record?.source || '').startsWith('tvmaze:')
 

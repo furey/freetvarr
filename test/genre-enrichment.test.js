@@ -87,7 +87,7 @@ test('shows get Wikidata genres and an origin country, and a Wikidata failure ke
   })
   await failing.run({ titles: [{ title: 'Broken Lookup' }] })
   const day = 24 * 60 * 60 * 1000
-  assert.deepEqual([writes[1].genres.includes('lookup:2'), writes[1].expiresAt / day], [false, 7])
+  assert.deepEqual([writes[1].genres.includes('lookup:2'), writes[1].genres.includes('lookup:partial'), writes[1].expiresAt / day], [false, true, 7])
 })
 
 test('records without the lookup:2 token count as stale', () => {
