@@ -1,5 +1,5 @@
 import { db } from './db.js'
-import { countryNameOf, formatGroupTitleOf } from './for-you-category-catalogue.js'
+import { OTHER_SPORT, OTHER_SPORT_TITLE, SPORT_FORMAT, countryNameOf, formatGroupTitleOf } from './for-you-category-catalogue.js'
 import { MAX_TOPICS, createCategoryIndex, recordFactsOf, tagTitle } from './for-you-categories.js'
 import { knownShowOf } from './for-you-known-shows.js'
 import { createKeyResolver } from './for-you-profile.js'
@@ -23,6 +23,7 @@ export const overrideChoicesOf = (index) => {
   return {
     formats: groups.filter((info) => info.slot === 'format').map(choiceOf),
     topics: groups.filter((info) => info.slot === 'topic' && (info.row === 'category' || info.row === 'facet')).map(choiceOf),
+    sports: groups.filter((info) => info.row === 'sport').map(sportChoiceOf),
   }
 }
 
@@ -32,6 +33,9 @@ export const categoryOverrideFrom = ({ body, index }) => {
   const topicKeys = new Set(choices.topics.map((choice) => choice.key))
   const format = body?.format ?? null
   if (format !== null && !formats.has(format)) return { error: 'format must be a format key or null' }
+  const sport = body?.sport ?? null
+  if (format === SPORT_FORMAT) return sportOverrideFrom({ body, sport, choices })
+  if (sport !== null) return { error: 'sport needs the format sport' }
   const topics = body?.topics ?? []
   if (!Array.isArray(topics) || topics.some((topic) => !topicKeys.has(topic))) return { error: 'topics must list topic keys' }
   const unique = [...new Set(topics)]
@@ -47,6 +51,7 @@ export const showCategoriesOf = ({ showKey, title = '', index, override = null, 
     custom: Boolean(override),
     format: labels.format,
     topics: labels.topics,
+    sport: labels.sport ?? null,
     origin: originOf({ showKey, index, record }),
     choices: overrideChoicesOf(index),
   }
@@ -96,7 +101,7 @@ export const mountCategoryOverrideRoutes = ({ app, csrf, limiter = passThrough, 
     if (error) return res.status(400).json({ error })
     try {
       await db(TABLE)
-        .insert({ show_key: showKey, format: override.format, topics_json: JSON.stringify(override.topics), updated_at: Date.now() })
+        .insert({ show_key: showKey, format: override.format, topics_json: storedLabelsOf(override), updated_at: Date.now() })
         .onConflict('show_key')
         .merge(['format', 'topics_json', 'updated_at'])
       onChange()
@@ -127,7 +132,7 @@ const labelsOfTaste = ({ tasteTitle, index }) => {
 }
 
 const automaticLabelsOf = ({ showKey, title, index, record, kindOverride }) => {
-  if (kindOverride === MOVIE) return { format: null, topics: [] }
+  if (kindOverride === MOVIE) return { format: null, topics: [], sport: null }
   const facts = {
     key: showKey,
     title: title || showKey.replaceAll('-', ' '),
@@ -143,14 +148,25 @@ const automaticLabelsOf = ({ showKey, title, index, record, kindOverride }) => {
 }
 
 const labelsOfKeys = ({ keys, index }) => {
+  const sport = keys.find((key) => index.groups.get(key)?.row === 'sport')
+  if (sport) return { format: SPORT_FORMAT, topics: [], sport }
   const choices = overrideChoicesOf(index)
   const topicKeys = new Set(choices.topics.map((choice) => choice.key))
   const formatKeys = new Set(choices.formats.map((choice) => choice.key))
   return {
     format: keys.find((key) => formatKeys.has(key)) ?? null,
     topics: keys.filter((key) => topicKeys.has(key)).slice(0, MAX_TOPICS),
+    sport: null,
   }
 }
+
+const sportOverrideFrom = ({ body, sport, choices }) => {
+  if (Array.isArray(body?.topics) ? body.topics.length : body?.topics != null) return { error: 'sport and topics cannot be sent together' }
+  if (!choices.sports.some((choice) => choice.key === sport)) return { error: 'sport must be a sport code' }
+  return { override: { format: SPORT_FORMAT, topics: [], sport } }
+}
+
+const storedLabelsOf = (override) => JSON.stringify(override.format === SPORT_FORMAT ? { sport: override.sport } : override.topics)
 
 const originOf = ({ showKey, index, record }) => {
   const token = (record?.genres || []).map(String).find((genre) => genre.startsWith('country:'))
@@ -164,20 +180,30 @@ const originEntryOf = ({ code, source }) => {
   return name ? { code, name, source } : null
 }
 
+const sportChoiceOf = (info) => ({ key: info.group, title: info.group === OTHER_SPORT ? OTHER_SPORT_TITLE : info.title })
+
 const choiceOf = (info) => ({ key: info.group, title: info.title, ...(info.formatGroup && { group: formatGroupTitleOf(info.formatGroup) }) })
 
-const overrideOfRow = (row) => ({ format: row.format || null, topics: topicsOf(row.topics_json) })
+const overrideOfRow = (row) => {
+  const stored = parsedOf(row.topics_json)
+  if (row.format === SPORT_FORMAT && typeof stored?.sport === 'string') return { format: SPORT_FORMAT, topics: [], sport: stored.sport }
+  return { format: row.format || null, topics: topicsOf(row.topics_json) }
+}
 
 const recordOfRow = (row) => ({ genreTags: listOf(row.categories_json), genres: listOf(row.genres_json), source: row.source || null })
 
 const topicsOf = (json) => listOf(json).map(String).slice(0, MAX_TOPICS)
 
 const listOf = (json) => {
+  const value = parsedOf(json)
+  return Array.isArray(value) ? value : []
+}
+
+const parsedOf = (json) => {
   try {
-    const value = JSON.parse(json)
-    return Array.isArray(value) ? value : []
+    return JSON.parse(json)
   } catch {
-    return []
+    return null
   }
 }
 

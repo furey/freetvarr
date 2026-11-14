@@ -1,4 +1,4 @@
-export const CATEGORY_CATALOGUE_VERSION = 4
+export const CATEGORY_CATALOGUE_VERSION = 5
 
 export const categoryCatalogueOf = ({ country = '' } = {}) => {
   const place = countryNameOf(country)
@@ -9,7 +9,7 @@ export const categoryCatalogueOf = ({ country = '' } = {}) => {
     phrase: category.key === LOCAL_LIFE ? localLifePhraseOf(place) : category.phrase,
     facets: category.facets.map((facet) => ({
       ...facet,
-      title: category.key === SPORT ? sportLabelOf({ code: facet.key, country }) : facet.title,
+      title: category.row === 'sport' ? sportLabelOf({ code: facet.key, country }) : facet.title,
       prototypes: facet.prototypes.map(fill),
     })),
   }))
@@ -51,6 +51,9 @@ export const compareCategoryInfos = (a, b) => sectionRankOf(a) - sectionRankOf(b
 
 export const LOCAL_LIFE = 'local-life'
 export const SPORT = 'sport'
+export const SPORT_FORMAT = 'sport'
+export const OTHER_SPORT = 'other-sport'
+export const OTHER_SPORT_TITLE = 'Other sport'
 export const LIFESTYLE = 'lifestyle'
 export const HOBBIES = 'hobbies'
 export const NEWS = 'news'
@@ -210,6 +213,14 @@ const CATALOGUE = [
     row: 'none',
     kinds: ['kids'],
     facets: [ruleFacet('kids-shows', 'Kids')],
+  }),
+  format({
+    group: 'other',
+    key: SPORT_FORMAT,
+    title: 'Sport',
+    row: 'none',
+    kinds: ['sport'],
+    facets: [ruleFacet('sport-format', 'Sport')],
   }),
   topic({
     key: 'cooking',

@@ -24,9 +24,13 @@ export const originLineOf = (origin) => (origin?.name ? `Made in ${origin.name} 
 
 export const categoriesPathOf = (title) => `/api/for-you/categories/show/${encodeURIComponent(showKeyOf(title))}`
 
-export const overrideRequestOf = ({ title, format, topics }) => ({ title, format: format || null, topics })
+export const SPORT_FORMAT = 'sport'
 
-export const canSaveCategoriesOf = ({ format, topics = [] }) => Boolean(format) || topics.length > 0
+export const overrideRequestOf = ({ title, format, topics, sport = null }) => (format === SPORT_FORMAT
+  ? { title, format, sport }
+  : { title, format: format || null, topics })
+
+export const canSaveCategoriesOf = ({ format, topics = [], sport = null }) => (format === SPORT_FORMAT ? Boolean(sport) : Boolean(format) || topics.length > 0)
 
 export const categoriesSavedTextOf = (title) => `Saved the categories for ${title}`
 

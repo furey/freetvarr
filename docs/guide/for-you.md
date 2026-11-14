@@ -121,8 +121,9 @@ When Freetvarr files a show under the wrong categories, choose your own. Press *
 
 The sheet has these parts:
 
-- **Format**: one format, in the groups **Scripted**, **Unscripted**, and **Other**. **Other** has **News**, **Kids**, and **None**; News and Kids make no row.
+- **Format**: one format, in the groups **Scripted**, **Unscripted**, and **Other**. **Other** has **News**, **Kids**, **Sport**, and **None**. News and Kids make no row. A show that Freetvarr files under a sport, such as **Rugby league**, has the format **Sport**.
 - **Topics**: up to two topics. When two are on, turning on a third turns off the one you turned on first.
+- **Sport**: shows in place of **Topics** when the format is **Sport**. Choose one sport, such as **Cricket**; **Other sport** is last. The show then goes in that sport's row. Choose another format to take the show out of the sport rows; **Topics** comes back.
 - **Origin**: the country the show comes from, and where Freetvarr found it, such as `Made in Australia (TVmaze)`. You cannot change it here.
 
 Press **Save** to keep your choice. Your choice comes before every automatic source, and For you builds its rows again with it. The country still comes from the automatic sources. To go back to the categories Freetvarr chose, open the sheet again and press **Use automatic categories**.
