@@ -2,11 +2,13 @@ export const syncOutcome = (sync) => {
   if (sync.status === 'running') return 'running'
   if (sync.status === 'ok') return 'ok'
   if (sync.status === 'partial') return 'partial'
+  if (sync.status === 'stopped') return 'stopped'
   return 'failed'
 }
 
 export const syncResult = (sync) => {
   if (sync.status === 'running') return [{ tone: 'running', text: 'syncing…' }]
+  if (sync.status === 'stopped') return [{ tone: 'quiet', text: 'stopped by a restart' }]
   const summary = sync.summary || {}
   const removed = removedCount(summary)
   const parts = [
@@ -20,6 +22,11 @@ export const syncResult = (sync) => {
 }
 
 export const firstSyncError = (sync) => sync.summary?.errors?.[0] ?? ''
+
+export const ranAgainText = ({ sync, clockOf }) => {
+  const at = sync.status === 'stopped' ? sync.summary?.ranAgainAt : null
+  return at ? `Ran again at ${clockOf(at)}` : ''
+}
 
 export const groupSyncsByDay = ({ syncs, dayOf }) => syncs.reduce((groups, sync) => {
   const day = dayOf(sync)

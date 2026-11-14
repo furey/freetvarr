@@ -5,6 +5,7 @@ import { peekDoctorReport } from './doctor.js'
 import { getRecordingState } from './epg.js'
 import { getActiveSyncId, getMediaRoot, getRecordingsRoot } from './sync.js'
 import { isTvheadendUrlSet } from './tvheadend-unconfigured.js'
+import { syncRowOf } from './sync-history.js'
 
 export const HEALTH_LEVELS = ['ok', 'warn', 'fail']
 
@@ -118,7 +119,8 @@ const tvheadendConfigured = async () => isTvheadendUrlSet(await getSetting('tvh_
 const latestFinishedSync = async () => {
   const row = await db('syncs').whereNot('status', 'running').orderBy('id', 'desc').first()
   if (!row) return null
-  return { id: row.id, status: row.status, finishedAt: row.finished_at, summary: parseSummary(row.summary_json) }
+  const sync = syncRowOf(row)
+  return { id: sync.id, status: sync.status, finishedAt: sync.finished_at, summary: sync.summary ?? {} }
 }
 
 const countRecentFailures = ({ nowMs }) => countRows(db('recordings')
@@ -170,14 +172,6 @@ const lowerFirst = (text) => (/^[A-Z][a-z]/.test(text) && !KEEP_CASE.some((word)
 const recentFailuresSentence = (count) => (count === 1
   ? 'A recording failed in the last day.'
   : `${count} recordings failed in the last day.`)
-
-const parseSummary = (json) => {
-  try {
-    return JSON.parse(json || 'null')
-  } catch {
-    return null
-  }
-}
 
 const rankOf = (level) => HEALTH_LEVELS.indexOf(level)
 

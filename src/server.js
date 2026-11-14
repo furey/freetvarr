@@ -36,6 +36,8 @@ import {
   rebaseFilePaths,
   airingOf,
   usePlaybackCheck,
+  noteSyncRanAgain,
+  hasSyncStartedSinceBoot,
 } from './sync.js'
 import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
@@ -212,6 +214,7 @@ import { BUILD_HEADER, readBuildId } from './build-id.js'
 import { webAssets } from './web-assets.js'
 import { getDoctorReport, hostNamesCheck, scheduleDoctorChecks, withHostNamesCheck } from './doctor.js'
 import { reconcileInterruptedSyncs } from './startup-reconcile.js'
+import { scheduleRestartSync } from './restart-sync.js'
 import { getHealthSummary, healthSummaryRoute, pageHealthOf } from './health-summary.js'
 import {
   isTvheadendUnconfigured,
@@ -264,7 +267,7 @@ import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-stre
 import { describeBenchmark } from './live-benchmark.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
-import { listSyncs, syncPageParams } from './sync-history.js'
+import { listSyncs, syncPageParams, syncRowOf } from './sync-history.js'
 import { TV_LOGIN_KEYS, createTvLoginRoute, deleteTvLoginRoute } from './tv-login.js'
 import { OPEN_ENTRY_BACKUP_KEY, resetFreetvarrData } from './reset.js'
 import { claimRun } from './setup-runs.js'
@@ -526,7 +529,7 @@ app.get('/api/sync-status', (req, res) => {
 app.get('/api/syncs', async (req, res) => {
   const { syncs, total, emptyCount } = await listSyncs({ db, ...syncPageParams(req.query) })
   res.json({
-    syncs: syncs.map(({ summary_json, ...r }) => ({ ...r, summary: safeJson(summary_json) })),
+    syncs: syncs.map(syncRowOf),
     total,
     emptyCount,
   })
@@ -2647,25 +2650,22 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: err.message || 'internal error' })
 })
 
-const safeJson = (s) => {
-  if (!s) return null
-  try { return JSON.parse(s) } catch { return null }
-}
-
 const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWRITABLE
   ? `Freetvarr cannot write to ${oneOffRoot}. Freetvarr runs as uid ${process.getuid?.() ?? 'unknown'}; set PUID and PGID in .env to the user and group that own the folder, then recreate the Freetvarr container.`
   : `${oneOffRoot} is not there. Check the one-off folder in Settings.`)
 
 const closeSyncsLeftByRestart = async () => {
   try {
-    const closedSyncs = await reconcileInterruptedSyncs()
-    if (closedSyncs) console.log(`[sync] closed ${closedSyncs} sync(s) left running by a restart`)
+    const stopped = await reconcileInterruptedSyncs()
+    if (stopped.length) console.log(`[sync] marked ${stopped.length} sync(s) as stopped by a restart`)
+    return stopped
   } catch (err) {
     console.error('[sync] failed to reconcile interrupted syncs:', err.message)
+    return []
   }
 }
 
-await closeSyncsLeftByRestart()
+const syncsStoppedByRestart = await closeSyncsLeftByRestart()
 
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
@@ -2717,6 +2717,14 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('[scheduler] failed to start:', err.message)
   }
+  cancelRestartSync = scheduleRestartSync({
+    stopped: syncsStoppedByRestart,
+    syncedSinceBoot: hasSyncStartedSinceBoot,
+    scheduledSyncsOn,
+    nextRunAt: getSchedulerNextRun,
+    startSync,
+    noteRanAgain: noteSyncRanAgain,
+  })
   startAutoImport()
 })
 
@@ -2734,6 +2742,8 @@ const watchArtWarmTriggers = () => {
 let stopArtWarmSchedule = () => {}
 
 let stopAutoImport = () => {}
+
+let cancelRestartSync = () => {}
 
 const startAutoImport = () => {
   const autoImport = createAutoImport({
@@ -2757,6 +2767,7 @@ const liveReaper = setInterval(() => {
 }, LIVE_REAPER_MS)
 
 const shutdown = async () => {
+  cancelRestartSync()
   stopScheduler()
   stopAutoImport()
   stopArtWarmSchedule()

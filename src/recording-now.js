@@ -334,7 +334,7 @@ const describeEnded = async ({ nowMs, importContext }) => {
 
 const findImportSync = async (importedAt) => {
   const sync = await db('syncs')
-    .where('status', '!=', 'running')
+    .whereNotIn('status', ['running', 'stopped'])
     .whereRaw('datetime(finished_at) >= datetime(?)', [importedAt])
     .orderBy('finished_at', 'asc')
     .first()

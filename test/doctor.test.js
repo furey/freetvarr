@@ -569,6 +569,23 @@ test('sync.health: a finished sync reads in plain words', async () => {
   assert.doesNotMatch(sync.detail, /#1|\*\/30/)
 })
 
+test('sync.health: a sync stopped by a restart passes', async () => {
+  const now = Date.now()
+  const latestSync = async () => ({ id: 3, status: 'stopped', finished_at: '2026-10-06 12:30:00', summary: { trigger: 'cron' } })
+  const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
+  assert.equal(sync.status, 'pass')
+  assert.equal(sync.detail, 'A restart stopped the last sync before it finished. Runs every 30 minutes.')
+})
+
+test('sync.health: an older row failed with the restart message passes as stopped', async () => {
+  const { syncRowOf, LEGACY_RESTART_ERROR } = await import('../src/sync-history.js')
+  const now = Date.now()
+  const row = { id: 4, status: 'error', finished_at: '2026-10-06 12:30:00', summary_json: JSON.stringify({ errors: [LEGACY_RESTART_ERROR] }) }
+  const latestSync = async () => syncRowOf(row)
+  const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
+  assert.equal(sync.status, 'pass')
+})
+
 test('sync.health: a failed sync message that ends in a full stop gets no second one', async () => {
   const now = Date.now()
   const latestSync = async () => ({ id: 2, status: 'error', summary: { errors: ['TVHeadend URL is not configured.'] } })

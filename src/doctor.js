@@ -26,6 +26,7 @@ import { measureJob } from './event-loop-lag.js'
 import { activity, trackJob } from './activity.js'
 import { guideFeedUrl, isGuideFeedUrl, localAddressToward, serverPort } from './guide-feed.js'
 import { readAnchorFailures } from './autorec-anchor.js'
+import { syncRowOf } from './sync-history.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -616,6 +617,9 @@ const LATER_CHECKS = [
           action: OPEN_SYNCS,
         }
       }
+      if (last.status === 'stopped') {
+        return { status: 'pass', detail: `A restart stopped the last sync before it finished.${schedule}` }
+      }
       if (last.status === 'partial') {
         return {
           status: 'warn',
@@ -1175,7 +1179,7 @@ const readSettings = async () => {
 
 const readLatestSync = async () => {
   const row = await db('syncs').whereNot({ status: 'running' }).orderBy('started_at', 'desc').first()
-  return row ? { ...row, summary: parseJson(row.summary_json) } : null
+  return row ? syncRowOf(row) : null
 }
 
 const findOnPath = async (tool) => {
@@ -1287,10 +1291,6 @@ const isDockerBridgeAddress = (address) => /^172\.(1[6-9]|2\d|3[01])\./.test(add
 
 
 const pathSegments = (value) => String(value || '').split(/[/\\]+/).filter(Boolean)
-
-const parseJson = (raw) => {
-  try { return JSON.parse(raw) } catch { return null }
-}
 
 const parseDbTime = (value) => {
   const text = String(value || '')

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  syncOutcome, syncResult, firstSyncError, groupSyncsByDay,
+  syncOutcome, syncResult, firstSyncError, groupSyncsByDay, ranAgainText,
 } from '../src/web/sync-row.js'
 
 const sync = ({ id = 1, status = 'ok', ...summary } = {}) => ({ id, status, summary })
@@ -37,4 +37,14 @@ test('groupSyncsByDay: groups neighbouring syncs that share a day', () => {
   const syncs = [{ id: 3, day: 'Today' }, { id: 2, day: 'Today' }, { id: 1, day: 'Yesterday' }]
   const groups = groupSyncsByDay({ syncs, dayOf: (s) => s.day })
   assert.deepEqual(groups.map((g) => [g.day, g.syncs.map((s) => s.id)]), [['Today', [3, 2]], ['Yesterday', [1]]])
+})
+
+test('a sync stopped by a restart reads as stopped, not failed', () => {
+  const stopped = sync({ status: 'stopped', trigger: 'cron', ranAgainAt: '2026-11-14T03:00:00.000Z' })
+  assert.equal(syncOutcome(stopped), 'stopped')
+  assert.deepEqual(syncResult(stopped), [{ tone: 'quiet', text: 'stopped by a restart' }])
+  assert.equal(firstSyncError(stopped), '')
+  assert.equal(ranAgainText({ sync: stopped, clockOf: () => '2:00 pm' }), 'Ran again at 2:00 pm')
+  assert.equal(ranAgainText({ sync: sync({ status: 'stopped' }), clockOf: () => 'x' }), '')
+  assert.equal(ranAgainText({ sync: sync({ ranAgainAt: '2026-11-14T03:00:00.000Z' }), clockOf: () => 'x' }), '')
 })

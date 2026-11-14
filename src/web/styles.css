@@ -2885,6 +2885,7 @@ table.recordings-table tbody td {
 .sync-status-icon.ok { color: var(--color-success); }
 .sync-status-icon.partial { color: var(--color-warning); }
 .sync-status-icon.failed { color: var(--color-live-text); }
+.sync-status-icon.stopped { color: var(--color-text-3); }
 .sync-status-icon.running { color: var(--color-info); }
 .sync-status-spin { transform-box: fill-box; transform-origin: center; animation: sync-status-spin 1s linear infinite; }
 
@@ -2916,6 +2917,7 @@ table.recordings-table tbody td {
 .sync-line > .sync-result { justify-self: end; }
 .sync-line-took-text { text-align: right; font-size: 0.68rem; color: var(--color-text-2); white-space: nowrap; }
 .sync-line-error { grid-column: 2 / -1; margin-top: 0.2rem; font-size: 0.68rem; color: var(--color-live-text); }
+.sync-line-note { grid-column: 2 / -1; margin-top: 0.2rem; font-size: 0.68rem; color: var(--color-text-2); }
 
 .list-row.sync-card { padding: 0; }
 .list-row.sync-card .drawer-card { margin: 0 0.75rem 0.85rem; }

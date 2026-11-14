@@ -175,7 +175,7 @@ flowchart TD
     sweep["sweepLibraryStates, shrinkStoredArtwork,<br>prepareThumbnailCache, imageFocus.startRefresh"]
     adrec["recoverInterruptedCuts,<br>resetInterruptedScans"]
     warm["keepGuideWarm, watchPendingSkips,<br>homeHero.start, onSyncFinished hooks"]
-    start["startUserEvents, startScheduler,<br>startAutoImport"]
+    start["startUserEvents, startScheduler,<br>scheduleRestartSync, startAutoImport"]
   end
   build --> tz --> csrf --> enc --> gate --> bench --> web --> syncs --> listen
   listen --> loop --> reconcile --> sweep --> adrec --> warm --> start
@@ -730,6 +730,7 @@ The record sweeper runs every `15` minutes, at each `GET /api/watchlist` (which 
 | -------------------- | --------------------------------------------------------------------------------------- |
 | `cron`               | `src/scheduler.js`, on each tick of the setting `sync_cron`                             |
 | `recording-finished` | `src/auto-import.js`, after a recording ends                                            |
+| `restart`            | `src/restart-sync.js`, after a restart stopped a sync ([Restart sync](#restart-sync))   |
 | `manual`             | `POST /api/sync` with no `show_id`                                                      |
 | `manual-single`      | `POST /api/sync` with an integer `show_id`; imports only entries that match that folder |
 | `manual:import`      | `POST /api/recordings/:recording_id/library` with `choice: 'include'`                   |
@@ -797,11 +798,28 @@ flowchart TD
 
 The `finally` step clears `inFlight`, then calls each `onSyncFinished` listener with `{ syncId, trigger }`, also after an `error`. The status is `ok`, `partial` when any item failed, or `error`. `summary_json` holds the trigger, the counts `imported`, `skipped`, and `failed`, `errors`, up to `100` items (`SYNC_ITEMS_CAP`), milliseconds per step, the Plex results, the `delete` result, and the `ads` counts.
 
-Before `app.listen`, `closeSyncsLeftByRestart` (`src/startup-reconcile.js`) runs `resetInterruptedImports`, which sets each `importing` row back to `pending`, and `closeInterruptedSyncs`, which sets each `running` row to `error` with the message `Freetvarr restarted before this sync finished.` Both only read and write the database, so a sync that starts after the server listens stays `running`.
+Before `app.listen`, `closeSyncsLeftByRestart` (`src/startup-reconcile.js`) runs `resetInterruptedImports`, which sets each `importing` row back to `pending`, and `closeInterruptedSyncs`, which sets each `running` row to `stopped` and returns `{ id, trigger }` for each. Both only read and write the database, so a sync that starts after the server listens stays `running`.
+
+### Restart sync
+
+`scheduleRestartSync` (`src/restart-sync.js`) runs in the `app.listen` callback after `rebaseFilePaths`, `recoverInterruptedCuts`, `resetInterruptedScans`, and `startScheduler`. After `RESTART_SYNC_DELAY_MS` (`30` seconds), `restartSyncPlan` picks one result from the stopped rows:
+
+| Plan                | Condition                                                                            | Action                               |
+| ------------------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
+| `none`              | No row was stopped.                                                                  | No timer.                            |
+| `leave-to-schedule` | The newest stopped row has the trigger `restart`.                                    | No sync.                             |
+| `already-synced`    | `hasSyncStartedSinceBoot()` is true: `beginSync` created a sync row since this boot. | No sync.                             |
+| `syncs-off`         | `scheduledSyncsOn()` is false.                                                       | No sync.                             |
+| `schedule-due`      | `getSchedulerNextRun()` is at most `2` minutes away (`SCHEDULE_GRACE_MS`).           | No sync.                             |
+| `run-again`         | None of the above.                                                                   | `startSync({ trigger: 'restart' })`. |
+
+The `restart` trigger is the loop guard: a restart sync that a restart stops is never run again. Older stopped rows do not count. A restart within `RESTART_SYNC_DELAY_MS` clears the timer, and the next boot finds no `running` row, so the schedule runs the next sync. `shutdown` calls the cancel function that `scheduleRestartSync` returns. `startSync` holds the sync lock and waits for library changes, so the restart sync never runs beside another sync. When `startSync` starts a new sync that did not give up (`gaveUp`), `noteSyncRanAgain` writes `ranAgainAt` (ISO time) and `ranAgainSyncId` into the `summary_json` of each stopped row. `restart` is in `AUTOMATIC_TRIGGERS`, so with no TVHeadend address the sync skips without a row.
+
+The `stopped` status is not a failure. `SYNC_OUTCOMES.fails` matches only `error` and `partial`; `healthLevelOf`, `healthSummaryOf`, and the `sync.health` Doctor check give a `stopped` last sync no warning; `findImportSync` skips `stopped` rows. Earlier versions wrote a stopped sync as `error` with the message `Freetvarr restarted before this sync finished.`; `syncRowOf` (`src/sync-history.js`) reads such a row as `stopped` and drops that message, with no database change. `GET /api/syncs`, `latestFinishedSync`, and `readLatestSync` read rows through `syncRowOf`, and `SYNC_OUTCOMES.fails` leaves those rows out. In the web app, `syncOutcome` returns `stopped` (a dash in `--color-text-3`), `syncResult` returns `stopped by a restart`, and `ranAgainText` returns `Ran again at <time>`.
 
 ### Sync history
 
-`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger` of `manual`, `cron`, or `auto` for `recording-finished`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
+`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger` of `manual`, `cron` for `cron` and `restart`, or `auto` for `recording-finished`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. A `show` filter always lists `running` and `stopped` rows. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
 
 ## Import state machine
 

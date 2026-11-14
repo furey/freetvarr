@@ -48,6 +48,8 @@ export const getActiveSyncId = () => inFlight?.syncId ?? null
 
 export const isSyncBusy = () => starting != null || inFlight != null
 
+export const hasSyncStartedSinceBoot = () => syncStartedSinceBoot
+
 export const startSync = async (options = {}) => {
   const deadline = Date.now() + (options.libraryWaitMs ?? LIBRARY_WAIT_MS)
   if (isLibraryChanging()) console.warn('[sync] waiting for a library delete or folder rename to finish before the sync starts')
@@ -84,6 +86,7 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
   if (missingUrl) throw missingUrl
 
   const syncId = await createSync(trigger, showId)
+  syncStartedSinceBoot = true
   const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId, identityFor }))
     .catch((err) => {
       console.error(`[sync] unhandled error: ${syncErrorLogOf(err)}`)
@@ -124,6 +127,7 @@ const UPDATE_CHUNK = 500
 const LIBRARY_WAIT_MS = 10 * 60 * 1000
 const LIBRARY_WAIT_ERROR = 'A library delete or folder rename was still running after 10 minutes, so this sync did not run. The next sync tries again.'
 let starting = null
+let syncStartedSinceBoot = false
 
 export const matchShow = (shows, showTitle, { sport = false } = {}) => {
   const title = String(showTitle ?? '')
@@ -200,23 +204,22 @@ const withoutTrailingSlash = (root) => root.replace(/\/+$/, '')
 export const resetInterruptedImports = () =>
   db('recordings').where({ status: 'importing' }).update({ status: 'pending', error: null })
 
-export const INTERRUPTED_SYNC_ERROR = 'Freetvarr restarted before this sync finished.'
-
-export const interruptedSyncSummaryOf = (summaryJson) => {
-  const summary = parseSummary(summaryJson)
-  return { ...summary, errors: [...(summary.errors || []), INTERRUPTED_SYNC_ERROR] }
-}
+export const STOPPED_BY_RESTART = 'stopped'
 
 export const closeInterruptedSyncs = async () => {
   const stuck = await db('syncs').where({ status: 'running' }).whereNull('finished_at').select('id', 'summary_json')
-  for (const { id, summary_json } of stuck) {
-    await db('syncs').where({ id }).update({
-      status: 'error',
-      finished_at: db.fn.now(),
-      summary_json: JSON.stringify(interruptedSyncSummaryOf(summary_json)),
-    })
+  for (const { id } of stuck) {
+    await db('syncs').where({ id }).update({ status: STOPPED_BY_RESTART, finished_at: db.fn.now() })
   }
-  return stuck.length
+  return stuck.map(({ id, summary_json }) => ({ id, trigger: parseSummary(summary_json).trigger ?? null }))
+}
+
+export const noteSyncRanAgain = async ({ ids, syncId, at = new Date() }) => {
+  const rows = await db('syncs').whereIn('id', ids).select('id', 'summary_json')
+  for (const { id, summary_json } of rows) {
+    const summary = { ...parseSummary(summary_json), ranAgainAt: at.toISOString(), ranAgainSyncId: syncId }
+    await db('syncs').where({ id }).update({ summary_json: JSON.stringify(summary) })
+  }
 }
 
 const parseSummary = (summaryJson) => {
@@ -1151,7 +1154,7 @@ const SYNC_STEP_LABELS = {
   libraryCheck: 'Check the library',
 }
 
-const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished']
+const AUTOMATIC_TRIGGERS = ['cron', 'recording-finished', 'restart']
 const DEFAULT_RECORDINGS_ROOT = '/recordings'
 const HOLD_REASONS = {
   excluded: 'Kept out of the library',

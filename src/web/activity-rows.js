@@ -226,6 +226,7 @@ const VIDEO_MODES = {
 const TRIGGERS = {
   manual: 'manual',
   'recording-finished': 'after a recording',
+  restart: 'after a restart',
 }
 
 const STARTED_BY = { cron: 'Schedule', schedule: 'Schedule' }
