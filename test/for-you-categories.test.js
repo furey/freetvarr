@@ -12,6 +12,7 @@ const {
   createCategoryIndex,
   dedupeCategoryRow,
   householdEpisodesOf,
+  mostSpecificCategoryOf,
   hiddenCategoriesOf,
   householdCategoriesOf,
   isKidsSlot,
@@ -463,8 +464,12 @@ test('web: category cards offer Hide for their row, and a muted row hides its ca
   assert.deepEqual(sectionsOf({ payload, hiddenKeys: hidden }).map((section) => section.key), ['might-like', 'premieres'])
   assert.equal(identityOf(item), 'recipe-hour')
   assert.equal(sectionsOf({ payload: { sections: [{ key: 'category-cooking', title: 'Cooking', category: item.category, items: [item] }] } })[0].category.key, 'cooking')
-  const groups = categoryGroupsOf([{ key: 'cooking', title: 'Cooking', on: true, sport: false }, { key: 'afl', title: 'Australian rules', on: false, sport: true }])
-  assert.deepEqual(groups.map((group) => group.label), ['Categories', 'Sport'])
+  const groups = categoryGroupsOf([{ key: 'reality', title: 'Reality', on: true, format: true }, { key: 'cooking', title: 'Cooking', on: true, sport: false }, { key: 'afl', title: 'Australian rules', on: false, sport: true }])
+  assert.deepEqual(groups.map((group) => group.label), ['Formats', 'Topics', 'Sport'])
+  const settings = categorySettingsOf({ index, nowMs: NOW })
+  assert.ok(settings.find((entry) => entry.key === 'documentaries').format)
+  assert.ok(!settings.find((entry) => entry.key === 'medical').format)
+  assert.ok(!settings.some((entry) => ['kids', 'news', 'shopping', 'religion', 'other-sport'].includes(entry.key)))
   assert.equal(categoriesOnCountOf([{ on: true }, { on: false }]), '1 of 2')
   const sport = { key: 'rugby-league', title: 'Rugby league', phrase: 'Rugby league', sport: true }
   const matches = ['1', '2'].map((id) => ({ ...item, id, title: 'Cup', seriesKey: 'cup', category: sport }))
@@ -520,3 +525,10 @@ const airing = (title, extra = {}) => {
     ...extra,
   }
 }
+
+test('most specific category: a sport code, then the heaviest topic, then the format', () => {
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: facts({ title: 'NRL: Storm v Panthers', genreTags: ['sport'] }) })), 'rugby-league')
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: facts({ title: 'Kitchen Heroes', tvmazeType: 'Reality' }) })), 'cooking')
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: facts({ title: 'Shark Tank', tvmazeType: 'Reality' }) })), 'reality')
+  assert.equal(mostSpecificCategoryOf({ kind: 'film', entries: [] }), null)
+})

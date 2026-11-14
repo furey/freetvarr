@@ -409,7 +409,8 @@ const sentenceCaseOf = (name) => (PROPER_LEADS.test(name) || !/^[A-Z][a-z]/.test
 const PROPER_LEADS = /^(Australian|American|British|English|Irish|Scottish|Welsh|New Zealand)\b/
 
 export const categoryGroupsOf = (categories = []) => [
-  { label: 'Categories', categories: categories.filter((category) => !category.sport && !category.seasonal) },
+  { label: 'Formats', categories: categories.filter((category) => category.format && !category.sport && !category.seasonal) },
+  { label: 'Topics', categories: categories.filter((category) => !category.format && !category.sport && !category.seasonal) },
   { label: 'Sport', categories: categories.filter((category) => category.sport) },
   { label: 'Seasonal', categories: categories.filter((category) => category.seasonal) },
 ].filter((group) => group.categories.length)

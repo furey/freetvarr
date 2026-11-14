@@ -43,6 +43,7 @@ import {
   createCategoryIndex,
   dedupeCategoryRow,
   householdEpisodesOf,
+  mostSpecificCategoryOf,
   householdCategoriesOf,
   rankSportCandidates,
   rankCategoryCandidates,
@@ -220,15 +221,25 @@ export const tasteOf = ({ profile, categories }) => ({
 })
 
 const titleTasteOf = ({ tags, index }) => {
-  const entry = [...tags.entries].sort((a, b) => b.weight - a.weight).find((candidate) => candidate.weight > 0)
-  const info = entry && index?.groups.get(entry.group)
-  if (!info) return tags.kind === 'sport' ? { kind: tags.kind, sportCode: tags.sportCode ?? null, category: null } : null
+  const categories = tasteCategoriesOf({ tags, index })
+  if (!categories.length) return tags.kind === 'sport' ? { kind: tags.kind, sportCode: tags.sportCode ?? null, categories: [], hideCategory: null, origin: tags.origin ?? null } : null
+  const hideKey = mostSpecificCategoryOf(tags)
   return {
     kind: tags.kind,
     sportCode: tags.sportCode ?? null,
-    category: { key: entry.group, title: info.menuTitle ?? info.title, phrase: info.phrase, ...(info.row === 'sport' && { sport: true }) },
+    categories,
+    hideCategory: categories.find((category) => category.key === hideKey) ?? categories[0],
+    origin: tags.origin ?? null,
   }
 }
+
+const tasteCategoriesOf = ({ tags, index }) => [...tags.entries]
+  .filter((entry) => entry.weight > 0 && index?.groups.has(entry.group))
+  .sort((a, b) => (a.slot === b.slot ? b.weight - a.weight : a.slot === 'topic' ? -1 : 1))
+  .map((entry) => {
+    const info = index.groups.get(entry.group)
+    return { key: entry.group, title: info.menuTitle ?? info.title, phrase: info.phrase, ...(info.row === 'sport' && { sport: true }) }
+  })
 
 export const categorySectionsOf = ({ allowed, upcoming, history = [], recordings = [], events = [], keyOf: resolveKey, records = new Map(), scored = [], context, vectorsByHash = null, tier = 'basic', guideGenres = new Map(), categoriesOff = [], limit = DEFAULT_LIMIT, used = new Set(), usedIds = new Set() }) => {
   const index = createCategoryIndex({ country: countryForTimeZone(context.timeZone) })

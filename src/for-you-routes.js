@@ -135,13 +135,14 @@ export const mountForYou = ({ app, csrf, limiter = passThrough, start = true, on
 
 export const titleTasteFrom = ({ taste, title }) => {
   const key = showKeyOf(String(title || ''))
-  const category = taste?.titles?.[key]?.category ?? null
+  const known = taste?.titles?.[key]
   const hiddenCategories = taste?.hiddenCategories ?? []
+  const isHidden = (category) => hiddenCategories.includes(category.key) || Boolean(category.sport && hiddenCategories.includes('sport'))
   return {
     seriesKey: key,
     hidden: Boolean(taste?.hiddenShows?.includes(key)),
-    category,
-    categoryHidden: Boolean(category && (hiddenCategories.includes(category.key) || (category.sport && hiddenCategories.includes('sport')))),
+    category: known?.hideCategory ?? null,
+    categoryHidden: (known?.categories ?? []).some(isHidden),
   }
 }
 

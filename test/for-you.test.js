@@ -651,7 +651,7 @@ test('a new household still gets title categories, so a fishing show on a pinned
   const fish = airing('iFish', { genre: 64, start: NOW - 10 * 60 * 1000 })
   const result = run({ programmes: [fish], events: [], pinnedChannelIds: [SEVEN], guideGenres: new Map([['ifish', ['Sports']]]), categoriesOff: ['cooking'] })
   assert.equal(result.coldStart, true)
-  assert.equal(result.taste.titles.ifish.category.key, 'fishing')
+  assert.equal(result.taste.titles.ifish.hideCategory.key, 'fishing')
   assert.ok(result.taste.hiddenCategories.includes('cooking'))
   const entries = [{ channel: { id: SEVEN, name: '7 Sydney', pinned: true }, now: fish }]
   assert.equal(onNowPickOf({ entries, taste: result.taste, nowMs: NOW }), null)

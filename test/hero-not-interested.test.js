@@ -21,8 +21,8 @@ const tasteOf = (overrides = {}) => ({
   showAffinity: {},
   categoryShares: {},
   titles: {
-    ifish: { kind: 'sport', sportCode: null, category: FISHING },
-    'nrl-live': { kind: 'sport', sportCode: 'rugby-league', category: LEAGUE },
+    ifish: { kind: 'sport', sportCode: null, categories: [FISHING], hideCategory: FISHING },
+    'nrl-live': { kind: 'sport', sportCode: 'rugby-league', categories: [LEAGUE], hideCategory: LEAGUE },
   },
   ...overrides,
 })
@@ -126,4 +126,15 @@ test('withFewerCategories: a Fewer like this show cuts the share of its categori
   assert.ok(Math.abs(cut.groups.get('fishing').share - 0.1) < 1e-9)
   assert.equal(cut.groups.get('cooking').share, 0.3)
   assert.equal(withFewerCategories({ household, fewer: [], tagsByKey }), household)
+})
+
+test('onNowPickOf: a show is skipped when any of its categories is hidden, and titleTasteFrom offers the most specific one', () => {
+  const COOKING = { key: 'cooking', title: 'Cooking', phrase: 'cooking' }
+  const REALITY = { key: 'reality', title: 'Reality', phrase: 'reality' }
+  const entries = [entryOf({ id: 5, title: 'Kitchen Stars', genre: 32 }), entryOf({ id: 6, title: 'Late News', genre: 32 })]
+  const taste = tasteOf({ titles: { 'kitchen-stars': { kind: 'factual', sportCode: null, categories: [COOKING, REALITY], hideCategory: COOKING } } })
+  assert.equal(onNowPickOf({ entries, taste, nowMs: NOW }).now.title, 'Kitchen Stars')
+  assert.equal(onNowPickOf({ entries, taste: { ...taste, hiddenCategories: ['reality'] }, nowMs: NOW }).now.title, 'Late News')
+  const reported = titleTasteFrom({ taste: { ...taste, hiddenCategories: ['reality'] }, title: 'Kitchen Stars' })
+  assert.deepEqual([reported.category.key, reported.categoryHidden], ['cooking', true])
 })

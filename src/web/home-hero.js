@@ -287,7 +287,7 @@ const recordingNowSlideOf = ({ recording, channel, nowMs, timeZone, stampUrl }) 
 const onNowSlideOf = ({ entries, recording, taste, nowMs, timeZone, stampUrl }) => {
   const entry = onNowPickOf({ entries, recording, taste, nowMs })
   if (!entry) return null
-  return onNowEntrySlideOf({ channel: entry.channel, program: entry.now, category: titleTasteOf({ taste, title: entry.now.title })?.category ?? null, nowMs, timeZone, stampUrl })
+  return onNowEntrySlideOf({ channel: entry.channel, program: entry.now, category: titleTasteOf({ taste, title: entry.now.title })?.hideCategory ?? null, nowMs, timeZone, stampUrl })
 }
 
 export const onNowPickOf = ({ entries = [], recording = null, taste = null, nowMs }) => entries
@@ -308,7 +308,7 @@ const isWantedLive = ({ program, taste }) => {
   const key = showKeyOf(program.title)
   if (taste.hiddenShows?.includes(key)) return false
   const known = taste.titles?.[key]
-  if (known?.category && isHiddenCategory({ category: known.category, taste })) return false
+  if ((known?.categories ?? []).some((category) => isHiddenCategory({ category, taste }))) return false
   if (liveGenreOf(program.genre) !== 'sport' || !taste.titles) return true
   return known?.kind === 'sport' && Boolean(known.sportCode)
 }
@@ -321,9 +321,9 @@ const isHiddenCategory = ({ category, taste }) => {
 const liveAffinityOf = ({ program, taste }) => {
   if (!taste) return 0
   const key = showKeyOf(program.title)
-  const category = taste.titles?.[key]?.category
+  const shares = (taste.titles?.[key]?.categories ?? []).map((category) => taste.categoryShares?.[category.key] ?? 0)
   const showScore = taste.showAffinity?.[key] > 0 ? 2 : 0
-  const categoryScore = category && taste.categoryShares?.[category.key] > 0 ? 1 : 0
+  const categoryScore = Math.max(0, ...shares) > 0 ? 1 : 0
   return showScore + categoryScore
 }
 

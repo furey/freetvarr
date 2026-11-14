@@ -21,8 +21,8 @@ const TASTE = {
   showAffinity: { ifish: 0.6 },
   categoryShares: {},
   titles: {
-    ifish: { kind: 'sport', sportCode: 'rugby-league', category: LEAGUE },
-    'the-catch': { kind: 'sport', sportCode: null, category: FISHING },
+    ifish: { kind: 'sport', sportCode: 'rugby-league', categories: [LEAGUE], hideCategory: LEAGUE },
+    'the-catch': { kind: 'sport', sportCode: null, categories: [FISHING], hideCategory: FISHING },
   },
 }
 const entryOf = ({ id, title }) => ({
@@ -43,7 +43,7 @@ test('taste store: a hide applies at once, even while the For you result is stal
   const store = createTasteStore({ readHidden: async () => hidden })
   store.note({ taste: TASTE })
   const entries = [entryOf({ id: 1, title: 'iFish' }), entryOf({ id: 2, title: 'NRL Live' })]
-  const titles = { ...TASTE.titles, 'nrl-live': { kind: 'sport', sportCode: 'rugby-league', category: LEAGUE } }
+  const titles = { ...TASTE.titles, 'nrl-live': { kind: 'sport', sportCode: 'rugby-league', categories: [LEAGUE], hideCategory: LEAGUE } }
   const pick = async () => onNowPickOf({ entries, taste: { ...(await store.current()), titles }, nowMs: NOW })?.now.title ?? null
   assert.equal(await pick(), 'iFish')
   hidden.shows = ['ifish']

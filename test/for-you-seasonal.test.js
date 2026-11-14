@@ -357,7 +357,7 @@ test('web: a seasonal row offers only Hide, keeps two airings of a title, and si
   assert.deepEqual(sections[1].rows.flatMap((row) => row.items.map((entry) => entry.id)), ['2', '3'])
   assert.equal(sections[1].category.seasonal, true)
   const groups = categoryGroupsOf([{ key: 'cooking', title: 'Cooking', on: true }, { key: 'afl', title: 'Australian rules', on: true, sport: true }, { key: 'seasonal-christmas', title: 'Christmas', on: true, seasonal: true }])
-  assert.deepEqual(groups.map((group) => [group.label, group.categories.map((entry) => entry.key)]), [['Categories', ['cooking']], ['Sport', ['afl']], ['Seasonal', ['seasonal-christmas']]])
+  assert.deepEqual(groups.map((group) => [group.label, group.categories.map((entry) => entry.key)]), [['Topics', ['cooking']], ['Sport', ['afl']], ['Seasonal', ['seasonal-christmas']]])
 })
 
 test('settings: Categories lists a Seasonal switch per install-country occasion, and Hide lists under hidden shows', async () => {

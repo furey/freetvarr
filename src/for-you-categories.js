@@ -248,6 +248,7 @@ export const categorySettingsOf = ({ index, mutes = new Map(), off = new Set(), 
     key: info.group,
     title: info.title,
     sport: info.row === 'sport',
+    ...(info.slot === 'format' && { format: true }),
     on: !off.has(info.group)
       && !muteOf({ mutes, group: info.group, nowMs }).hidden
       && !(info.row === 'sport' && muteOf({ mutes, group: SPORT_ROW_KEY, nowMs }).hidden),
