@@ -35,7 +35,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 10
+export const SCORING_VERSION = 11
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -295,6 +295,8 @@ const categoriesOffSetting = async () => {
   }
 }
 
+const hasEpisodeDetails = (programme) => programme.series_no != null || programme.episode_no != null || Boolean(programme.episode_title)
+
 const currentCategoryIndex = () => createCategoryIndex({ country: countryForTimeZone(currentTimeZone()) })
 
 const installPlace = () => ({ country: countryForTimeZone(currentTimeZone()), timeZone: currentTimeZone() })
@@ -388,6 +390,7 @@ export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
     ...programmes.map((programme) => ({
       title: programme.title,
       movie: kindOf(programme) === 'movie',
+      episodes: hasEpisodeDetails(programme),
       year: yearOf(programme),
       priority: (pinnedSet.has(String(programme.channel_id)) ? 1 : 0) + (isPrimeTime(programme.start) ? 1 : 0),
     })),
@@ -667,7 +670,11 @@ const forYouCache = createForYouCache({
   onResult: (result) => forYouResultListeners.forEach((listener) => listener(result)),
 })
 const classificationStore = createClassificationStore()
-const genreEnrichment = createGenreEnrichment({ onTvmazeShow: rememberKnownAsFromTvmaze, onFilm: rememberKnownAsFromWikidata })
+const genreEnrichment = createGenreEnrichment({
+  onTvmazeShow: rememberKnownAsFromTvmaze,
+  onFilm: rememberKnownAsFromWikidata,
+  country: () => countryForTimeZone(currentTimeZone()),
+})
 const seriesRatingLookups = createSeriesRatings()
 
 const CACHED_LIMIT = 20

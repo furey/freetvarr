@@ -143,7 +143,7 @@ export const buildForYou = ({
     channelNames,
     pinned: new Set(pinnedChannelIds.map(String)),
     coldStart,
-    genreTagsOf: remembered(genreTagsLookupOf({ records, airings })),
+    genreTagsOf: remembered(genreTagsLookupOf({ records, airings, country: countryForTimeZone(timeZone) })),
     isPremiere: premiereCheckOf({ upcoming, history, records, nowMs, channelNames: new Map(channels.map((channel) => [String(channel.id), channel.name])) }),
     recorded: recordedEpisodesOf({ recordings, keyOf }),
     scheduledProgramIds: new Set([...scheduledProgramIds].map(String)),
@@ -448,13 +448,13 @@ const recordedEpisodesOf = ({ recordings, keyOf }) => {
   return keys
 }
 
-export const genreTagsLookupOf = ({ records, airings }) => (programme) => {
+export const genreTagsLookupOf = ({ records, airings, country = '' }) => (programme) => {
   const key = showKeyOf(programme.title)
   const record = records.get(key)
   const film = isFilmAiring({ programme, record, airingsInWeek: airings.get(key) || 1 })
   const found = new Set([
     ...(record?.genreTags || []),
-    ...genreTagsOfEtsi(programme.genre),
+    ...genreTagsOfEtsi(programme.genre, country),
     ...keywordGenreTagsOf(programme.title),
   ].filter((category) => (film ? category.startsWith('movie') || record?.genreTags?.includes(category) : !category.startsWith('movie'))))
   if (film) found.add('movie')

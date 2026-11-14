@@ -63,10 +63,11 @@ export const genreTagsOfFilmGenres = (labels = []) => {
   return GENRE_TAGS.filter((category) => found.has(category))
 }
 
-export const genreTagsOfEtsi = (genre) => {
+export const genreTagsOfEtsi = (genre, country = '') => {
   const code = Number(genre)
   if (!Number.isInteger(code) || code <= 0) return []
   if (ETSI_CODES[code]) return ETSI_CODES[code]
+  if (country === 'au' && AU_ONLY_GROUPS[code >> 4]) return AU_ONLY_GROUPS[code >> 4]
   return ETSI_GROUPS[code >> 4] || []
 }
 
@@ -123,11 +124,49 @@ export const yearOf = ({ title, synopsis }) => {
   return match ? Number(match[1]) : null
 }
 
-export const pickTvmazeShow = ({ results = [], title, country = 'AU' }) => {
+export const pickTvmazeShow = ({ results = [], title, country = '' }) => {
   const key = showTitleKey(title)
   if (!key) return null
   const matches = results.map((result) => result?.show).filter((show) => show && showTitleKey(show.name) === key)
-  return matches.find((show) => countryOf(show) === country) || matches[0] || null
+  return matches.find((show) => countryOf(show) === String(country).toUpperCase()) || matches[0] || null
+}
+
+export const tvQueryOf = (ids) => `SELECT ?item ?label (GROUP_CONCAT(DISTINCT ?genreLabel; separator="|") AS ?genres) (GROUP_CONCAT(DISTINCT ?code; separator="|") AS ?countries) WHERE {
+  VALUES ?item { ${ids.map((id) => `wd:${id}`).join(' ')} }
+  VALUES ?kind { wd:Q5398426 wd:Q15416 wd:Q1259759 wd:Q526877 }
+  ?item wdt:P31 ?kind .
+  ?item rdfs:label ?label FILTER(LANG(?label) = "en")
+  OPTIONAL { ?item wdt:P136 ?genre . ?genre rdfs:label ?genreLabel FILTER(LANG(?genreLabel) = "en") }
+  OPTIONAL { ?item wdt:P495 ?origin . ?origin wdt:P297 ?code }
+} GROUP BY ?item ?label`
+
+export const tvRowsOf = (sparql) => (sparql?.results?.bindings || []).map((binding) => ({
+  id: String(binding.item?.value || '').split('/').at(-1),
+  label: binding.label?.value || '',
+  genres: String(binding.genres?.value || '').split('|').filter(Boolean),
+  countries: String(binding.countries?.value || '').split('|').filter(Boolean),
+}))
+
+export const pickTvItem = ({ rows = [], title, country = '' }) => {
+  const key = showTitleKey(title)
+  const matches = rows.filter((row) => showTitleKey(row.label) === key)
+  return matches.find((row) => row.countries.includes(String(country).toUpperCase())) || matches[0] || null
+}
+
+export const isCurrentLookup = (genres = []) => genres.includes(LOOKUP_TOKEN)
+
+export const showRecordOf = ({ show = null, item = null }) => {
+  const tvmaze = show ? tvmazeRecordOf(show) : { genres: [], genreTags: [], source: null }
+  const origin = (show && countryOf(show)) || item?.countries?.[0] || null
+  return {
+    genres: [
+      ...tvmaze.genres,
+      ...(item?.genres ?? []).map((genre) => `wd:${genre}`),
+      ...(origin ? [`country:${origin}`] : []),
+    ],
+    genreTags: tvmaze.genreTags,
+    source: tvmaze.source ?? (item ? `wikidata:${item.id}` : null),
+  }
 }
 
 export const pickFilm = ({ rows = [], title, year = null }) => {
@@ -170,6 +209,7 @@ export const lookupOrderOf = ({ titles = [], cachedKeys = new Set(), budget = DE
 const mergedLookupOf = (kept, item) => ({
   ...kept,
   movie: Boolean(kept.movie || item.movie),
+  episodes: Boolean(kept.episodes || item.episodes),
   year: kept.year ?? item.year ?? null,
   priority: Math.max(kept.priority || 0, item.priority || 0),
 })
@@ -186,15 +226,26 @@ export const createGenreEnrichment = ({
   sleep = wait,
   onTvmazeShow = () => {},
   onFilm = () => {},
+  country = () => '',
 } = {}) => {
   let running = null
 
-  const lookUp = async ({ title, movie, year }) => {
-    if (movie) return lookUpFilm({ title, year })
+  const lookUp = async ({ title, movie, episodes, year }) => {
+    if (movie && !episodes) return lookUpFilm({ title, year })
     await sleep(gapMs)
-    const show = pickTvmazeShow({ results: await searchTvmaze(title), title })
+    const show = pickTvmazeShow({ results: await searchTvmaze(title), title, country: country() })
     if (show) notify(() => onTvmazeShow({ title, show }))
-    return show ? tvmazeRecordOf(show) : null
+    const item = await lookUpTvItem({ title }).catch(() => FAILED)
+    if (item === FAILED) return show ? { ...showRecordOf({ show }), partial: true } : FAILED
+    return show || item ? showRecordOf({ show, item }) : null
+  }
+
+  const lookUpTvItem = async ({ title }) => {
+    await sleep(gapMs)
+    const ids = await searchWikidata(title)
+    if (!ids.length) return null
+    await sleep(gapMs)
+    return pickTvItem({ rows: tvRowsOf(await queryWikidata(tvQueryOf(ids))), title, country: country() })
   }
 
   const lookUpFilm = async ({ title, year }) => {
@@ -223,10 +274,10 @@ export const createGenreEnrichment = ({
       if (record) found += 1
       await cache.write({
         key: item.key,
-        genres: record?.genres || [],
+        genres: [...(record?.genres || []), ...(record?.partial ? [] : [LOOKUP_TOKEN])],
         genreTags: record?.genreTags || [],
         source: record?.source || null,
-        expiresAt: now() + (record ? HIT_TTL_MS : MISS_TTL_MS),
+        expiresAt: now() + (record && !record.partial ? HIT_TTL_MS : MISS_TTL_MS),
       }).catch(() => {})
     }
     return { looked, found }
@@ -313,7 +364,9 @@ const wikidataQuery = async (query) => {
 }
 
 const databaseCache = {
-  freshKeys: async (nowMs) => new Set((await db('title_genres').where('expires_at', '>', nowMs).select('title_key')).map((row) => row.title_key)),
+  freshKeys: async (nowMs) => new Set((await db('title_genres').where('expires_at', '>', nowMs).select('title_key', 'genres_json'))
+    .filter((row) => isCurrentLookup(parseList(row.genres_json)))
+    .map((row) => row.title_key)),
   write: ({ key, genres, genreTags, source, expiresAt }) => db('title_genres')
     .insert({
       title_key: key,
@@ -405,6 +458,12 @@ const ETSI_CODES = {
   0xa7: ['home'],
 }
 
+const AU_ONLY_GROUPS = {
+  0xc: ['comedy'],
+  0xd: ['drama'],
+  0xe: ['documentary'],
+}
+
 const ETSI_GROUPS = {
   0x1: ['drama', 'movie'],
   0x2: ['news'],
@@ -423,6 +482,7 @@ const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|ru
 
 const NEWS_OR_SPORT = new Set(['news', 'sport'])
 const FAILED = Symbol('failed')
+const LOOKUP_TOKEN = 'lookup:2'
 const MAX_FAILURES_IN_ROW = 5
 const MAX_FILM_AIRINGS = 4
 const DEFAULT_BUDGET = 1500

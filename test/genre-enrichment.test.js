@@ -16,6 +16,7 @@ const {
   lookupOrderOf,
   pickFilm,
   pickTvmazeShow,
+  isCurrentLookup,
   yearOf,
 } = await import('../src/genre-enrichment.js')
 
@@ -45,6 +46,55 @@ test('maps ETSI content bytes', () => {
   assert.deepEqual(genreTagsOfEtsi(null), [])
 })
 
+test('AU nibbles 0xC to 0xE are comedy, drama and documentary only in Australia, and ETSI codes still decode there', () => {
+  assert.deepEqual(genreTagsOfEtsi(0xc0, 'au'), ['comedy'])
+  assert.deepEqual(genreTagsOfEtsi(0xd0, 'au'), ['drama'])
+  assert.deepEqual(genreTagsOfEtsi(0xe0, 'au'), ['documentary'])
+  assert.deepEqual(genreTagsOfEtsi(0xc0, 'nz'), [])
+  assert.deepEqual(genreTagsOfEtsi(0x14, 'au'), ['comedy', 'movie', 'movie-comedy'])
+})
+
+test('a title with an episode title is never looked up as a film', () => {
+  const order = lookupOrderOf({ titles: [{ title: 'Interview with the Vampire', movie: true }, { title: 'Interview with the Vampire', episodes: true }] })
+  assert.deepEqual(order.map((item) => [item.movie, item.episodes]), [[true, true]])
+})
+
+test('shows get Wikidata genres and an origin country, and a Wikidata failure keeps the TVmaze record for a retry', async () => {
+  const writes = []
+  const enrichment = createGenreEnrichment({
+    searchTvmaze: async (title) => (title === 'Upstart Crow' ? [show('Upstart Crow', { genres: ['Comedy'], network: { country: { code: 'GB' } } })] : []),
+    searchWikidata: async (title) => (title === 'Broken Lookup' ? Promise.reject(new Error('Wikidata HTTP 503')) : ['Q1']),
+    queryWikidata: async (query) => {
+      assert.match(query, /wd:Q5398426/)
+      return { results: { bindings: [{ item: { value: 'http://www.wikidata.org/entity/Q1' }, label: { value: 'Upstart Crow' }, genres: { value: 'sitcom|historical comedy' }, countries: { value: 'GB' } }] } }
+    },
+    cache: { freshKeys: async () => new Set(), write: async (row) => writes.push(row) },
+    isEnabled: async () => true,
+    now: () => 0,
+    sleep: async () => {},
+    country: () => 'au',
+  })
+  await enrichment.run({ titles: [{ title: 'Upstart Crow' }] })
+  assert.deepEqual(writes[0].genres, ['Comedy', 'type:Scripted', 'wd:sitcom', 'wd:historical comedy', 'country:GB', 'lookup:2'])
+  assert.equal(writes[0].source, 'tvmaze:12')
+  const failing = createGenreEnrichment({
+    searchTvmaze: async () => [show('Broken Lookup')],
+    searchWikidata: async () => { throw new Error('Wikidata HTTP 503') },
+    cache: { freshKeys: async () => new Set(), write: async (row) => writes.push(row) },
+    isEnabled: async () => true,
+    now: () => 0,
+    sleep: async () => {},
+  })
+  await failing.run({ titles: [{ title: 'Broken Lookup' }] })
+  const day = 24 * 60 * 60 * 1000
+  assert.deepEqual([writes[1].genres.includes('lookup:2'), writes[1].expiresAt / day], [false, 7])
+})
+
+test('records without the lookup:2 token count as stale', () => {
+  assert.equal(isCurrentLookup(['Comedy', 'type:Scripted']), false)
+  assert.equal(isCurrentLookup(['lookup:2']), true)
+})
+
 test('falls back to keywords for news and sport titles', () => {
   assert.deepEqual(keywordGenreTagsOf('Nine News Sydney'), ['news'])
   assert.deepEqual(keywordGenreTagsOf('Seven News At 4'), ['news'])
@@ -53,14 +103,16 @@ test('falls back to keywords for news and sport titles', () => {
   assert.deepEqual(keywordGenreTagsOf('The Block'), [])
 })
 
-test('accepts only exact normalised title matches and prefers Australian shows', () => {
+test('accepts only exact normalised title matches and prefers shows from the install country', () => {
   const results = [
-    show('The Block', { network: { country: { code: 'NZ' } } }),
+    show('The Block', { id: 98, network: { country: { code: 'NZ' } } }),
     show('The Block', { id: 99, network: { country: { code: 'AU' } } }),
     show('The Blockheads'),
   ]
-  assert.equal(pickTvmazeShow({ results, title: 'The Block' }).id, 99)
-  assert.equal(pickTvmazeShow({ results, title: 'Block' }).id, 99)
+  assert.equal(pickTvmazeShow({ results, title: 'The Block', country: 'au' }).id, 99)
+  assert.equal(pickTvmazeShow({ results, title: 'Block', country: 'au' }).id, 99)
+  assert.equal(pickTvmazeShow({ results, title: 'The Block', country: 'nz' }).id, 98)
+  assert.equal(pickTvmazeShow({ results, title: 'The Block' }).id, 98)
   assert.equal(pickTvmazeShow({ results: [show('The Blockheads')], title: 'The Block' }), null)
 })
 
@@ -216,6 +268,7 @@ test('genre searches go through the shared TVmaze client as background calls', a
   })
   const enrichment = createGenreEnrichment({
     client,
+    searchWikidata: async () => [],
     cache: { freshKeys: async () => new Set(), write: async () => {} },
     isEnabled: async () => true,
     now: () => 0,
