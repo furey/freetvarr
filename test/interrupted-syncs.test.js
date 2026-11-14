@@ -64,3 +64,10 @@ test('server.js plans the restart sync only after the recovery steps and the sch
   assert.ok(restartSyncAt > source.indexOf('await rebaseFilePaths()'))
   assert.ok(restartSyncAt > source.indexOf('await startScheduler()'))
 })
+
+test('server.js cancels the restart sync timer on shutdown', async () => {
+  const source = await fs.readFile(new URL('../src/server.js', import.meta.url), 'utf8')
+  const shutdown = source.slice(source.indexOf('const shutdown = async'))
+  assert.match(source, /cancelRestartSync = scheduleRestartSync\(/)
+  assert.match(shutdown.slice(0, shutdown.indexOf('\n}\n')), /cancelRestartSync\(\)/)
+})

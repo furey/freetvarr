@@ -37,6 +37,7 @@ import {
   airingOf,
   usePlaybackCheck,
   noteSyncRanAgain,
+  hasSyncStartedSinceBoot,
 } from './sync.js'
 import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
@@ -2716,8 +2717,9 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('[scheduler] failed to start:', err.message)
   }
-  scheduleRestartSync({
+  cancelRestartSync = scheduleRestartSync({
     stopped: syncsStoppedByRestart,
+    syncedSinceBoot: hasSyncStartedSinceBoot,
     scheduledSyncsOn,
     nextRunAt: getSchedulerNextRun,
     startSync,
@@ -2741,6 +2743,8 @@ let stopArtWarmSchedule = () => {}
 
 let stopAutoImport = () => {}
 
+let cancelRestartSync = () => {}
+
 const startAutoImport = () => {
   const autoImport = createAutoImport({
     isEnabled: scheduledSyncsOn,
@@ -2763,6 +2767,7 @@ const liveReaper = setInterval(() => {
 }, LIVE_REAPER_MS)
 
 const shutdown = async () => {
+  cancelRestartSync()
   stopScheduler()
   stopAutoImport()
   stopArtWarmSchedule()

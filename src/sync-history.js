@@ -37,7 +37,7 @@ export const SYNC_OUTCOMES = {
 
 export const SYNC_TRIGGERS = {
   manual: `json_extract(summary_json, '$.trigger') LIKE 'manual%'`,
-  cron: `json_extract(summary_json, '$.trigger') = 'cron'`,
+  cron: `json_extract(summary_json, '$.trigger') IN ('cron', 'restart')`,
   auto: `json_extract(summary_json, '$.trigger') = 'recording-finished'`,
 }
 

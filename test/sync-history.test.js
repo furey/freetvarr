@@ -93,6 +93,9 @@ test('listSyncs: a sync started by a finished recording lists under auto, not un
   assert.equal(syncPageParams({ trigger: 'auto' }).trigger, 'auto')
   assert.deepEqual((await listSyncs({ db, trigger: 'auto' })).syncs.map((s) => s.id), [2])
   assert.deepEqual((await listSyncs({ db, trigger: 'cron' })).syncs.map((s) => s.id), [1])
+  await seedRow(db, { minute: 4, summary: { trigger: 'restart', imported: 1 } })
+  assert.deepEqual((await listSyncs({ db, trigger: 'cron' })).syncs.map((s) => s.id), [4, 1])
+  assert.deepEqual((await listSyncs({ db, trigger: 'auto' })).syncs.map((s) => s.id), [2])
   assert.deepEqual((await listSyncs({ db, trigger: 'manual' })).syncs.map((s) => s.id), [3])
 })
 

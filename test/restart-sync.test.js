@@ -12,10 +12,11 @@ import {
 const NOW_MS = Date.parse('2026-11-14T03:00:00Z')
 const inMinutes = (minutes) => new Date(NOW_MS + minutes * 60_000).toISOString()
 
-const runWith = async ({ stopped, syncsOn = true, nextRunAt = inMinutes(30), result = { syncId: 7, alreadyRunning: false } }) => {
+const runWith = async ({ stopped, syncedSinceBoot = false, syncsOn = true, nextRunAt = inMinutes(30), result = { syncId: 7, alreadyRunning: false } }) => {
   const calls = { starts: [], notes: [] }
   const outcome = await runAgainAfterRestart({
     stopped,
+    syncedSinceBoot: () => syncedSinceBoot,
     scheduledSyncsOn: () => syncsOn,
     nextRunAt: () => nextRunAt,
     startSync: async (options) => {
@@ -97,4 +98,35 @@ test('scheduleRestartSync: starts one sync, after the delay', async () => {
 test('scheduleRestartSync: sets no timer when no sync was stopped', () => {
   const cancel = scheduleRestartSync({ stopped: [], startSync: () => assert.fail('no sync expected') })
   assert.equal(typeof cancel, 'function')
+})
+
+test('runAgainAfterRestart: no new sync when any sync already started since this boot', async () => {
+  const { starts, plan } = await runWith({ stopped: [{ id: 4, trigger: 'cron' }], syncedSinceBoot: true })
+  assert.equal(plan, 'already-synced')
+  assert.deepEqual(starts, [])
+})
+
+test('runAgainAfterRestart: a sync that gave up behind a library change leaves no ran-again note', async () => {
+  const { starts, notes } = await runWith({ stopped: [{ id: 4, trigger: 'cron' }], result: { syncId: 9, alreadyRunning: false, gaveUp: true } })
+  assert.equal(starts.length, 1)
+  assert.deepEqual(notes, [])
+})
+
+test('scheduleRestartSync: the returned cancel stops the timer before it fires', async () => {
+  const starts = []
+  const cancel = scheduleRestartSync({
+    delayMs: 5,
+    log: { log: () => {}, warn: () => {} },
+    stopped: [{ id: 4, trigger: 'cron' }],
+    scheduledSyncsOn: () => true,
+    nextRunAt: () => null,
+    startSync: async (options) => {
+      starts.push(options)
+      return { syncId: 8 }
+    },
+    noteRanAgain: async () => {},
+  })
+  cancel()
+  await new Promise((resolve) => { setTimeout(resolve, 40) })
+  assert.deepEqual(starts, [])
 })

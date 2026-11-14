@@ -804,21 +804,22 @@ Before `app.listen`, `closeSyncsLeftByRestart` (`src/startup-reconcile.js`) runs
 
 `scheduleRestartSync` (`src/restart-sync.js`) runs in the `app.listen` callback after `rebaseFilePaths`, `recoverInterruptedCuts`, `resetInterruptedScans`, and `startScheduler`. After `RESTART_SYNC_DELAY_MS` (`30` seconds), `restartSyncPlan` picks one result from the stopped rows:
 
-| Plan                | Condition                                                                  | Action                               |
-| ------------------- | -------------------------------------------------------------------------- | ------------------------------------ |
-| `none`              | No row was stopped.                                                        | No timer.                            |
-| `leave-to-schedule` | The newest stopped row has the trigger `restart`.                          | No sync.                             |
-| `syncs-off`         | `scheduledSyncsOn()` is false.                                             | No sync.                             |
-| `schedule-due`      | `getSchedulerNextRun()` is at most `2` minutes away (`SCHEDULE_GRACE_MS`). | No sync.                             |
-| `run-again`         | None of the above.                                                         | `startSync({ trigger: 'restart' })`. |
+| Plan                | Condition                                                                            | Action                               |
+| ------------------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
+| `none`              | No row was stopped.                                                                  | No timer.                            |
+| `leave-to-schedule` | The newest stopped row has the trigger `restart`.                                    | No sync.                             |
+| `already-synced`    | `hasSyncStartedSinceBoot()` is true: `beginSync` created a sync row since this boot. | No sync.                             |
+| `syncs-off`         | `scheduledSyncsOn()` is false.                                                       | No sync.                             |
+| `schedule-due`      | `getSchedulerNextRun()` is at most `2` minutes away (`SCHEDULE_GRACE_MS`).           | No sync.                             |
+| `run-again`         | None of the above.                                                                   | `startSync({ trigger: 'restart' })`. |
 
-The `restart` trigger is the loop guard: a restart sync that a restart stops is never run again. Older stopped rows do not count. `startSync` holds the sync lock and waits for library changes, so the restart sync never runs beside another sync. When `startSync` starts a new sync, `noteSyncRanAgain` writes `ranAgainAt` (ISO time) and `ranAgainSyncId` into the `summary_json` of each stopped row. `restart` is in `AUTOMATIC_TRIGGERS`, so with no TVHeadend address the sync skips without a row.
+The `restart` trigger is the loop guard: a restart sync that a restart stops is never run again. Older stopped rows do not count. A restart within `RESTART_SYNC_DELAY_MS` clears the timer, and the next boot finds no `running` row, so the schedule runs the next sync. `shutdown` calls the cancel function that `scheduleRestartSync` returns. `startSync` holds the sync lock and waits for library changes, so the restart sync never runs beside another sync. When `startSync` starts a new sync that did not give up (`gaveUp`), `noteSyncRanAgain` writes `ranAgainAt` (ISO time) and `ranAgainSyncId` into the `summary_json` of each stopped row. `restart` is in `AUTOMATIC_TRIGGERS`, so with no TVHeadend address the sync skips without a row.
 
 The `stopped` status is not a failure. `SYNC_OUTCOMES.fails` matches only `error` and `partial`; `healthLevelOf`, `healthSummaryOf`, and the `sync.health` Doctor check give a `stopped` last sync no warning; `findImportSync` skips `stopped` rows. Earlier versions wrote a stopped sync as `error` with the message `Freetvarr restarted before this sync finished.`; `syncRowOf` (`src/sync-history.js`) reads such a row as `stopped` and drops that message, with no database change. `GET /api/syncs`, `latestFinishedSync`, and `readLatestSync` read rows through `syncRowOf`, and `SYNC_OUTCOMES.fails` leaves those rows out. In the web app, `syncOutcome` returns `stopped` (a dash in `--color-text-3`), `syncResult` returns `stopped by a restart`, and `ranAgainText` returns `Ran again at <time>`.
 
 ### Sync history
 
-`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger` of `manual`, `cron`, or `auto` for `recording-finished`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. A `show` filter always lists `running` and `stopped` rows. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
+`src/sync-history.js` serves `GET /api/syncs` (`page`, `pageSize` default `50` and maximum `200`, `show` filters, `trigger` of `manual`, `cron` for `cron` and `restart`, or `auto` for `recording-finished`) and `DELETE /api/syncs[/:id]`. An empty sync has status `ok` and no imports, failures, or removals. A `show` filter always lists `running` and `stopped` rows. `pruneSyncHistory` keeps the newest `100` empty syncs, then the newest `500` syncs, and never deletes a `running` row.
 
 ## Import state machine
 

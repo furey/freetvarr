@@ -48,6 +48,8 @@ export const getActiveSyncId = () => inFlight?.syncId ?? null
 
 export const isSyncBusy = () => starting != null || inFlight != null
 
+export const hasSyncStartedSinceBoot = () => syncStartedSinceBoot
+
 export const startSync = async (options = {}) => {
   const deadline = Date.now() + (options.libraryWaitMs ?? LIBRARY_WAIT_MS)
   if (isLibraryChanging()) console.warn('[sync] waiting for a library delete or folder rename to finish before the sync starts')
@@ -84,6 +86,7 @@ const beginSync = async ({ trigger = 'manual', showId = null, identityFor = show
   if (missingUrl) throw missingUrl
 
   const syncId = await createSync(trigger, showId)
+  syncStartedSinceBoot = true
   const promise = trackJob({ kind: 'sync', title: `Sync #${syncId}`, trigger, ref: { syncId } }, () => doSync({ syncId, trigger, showId, identityFor }))
     .catch((err) => {
       console.error(`[sync] unhandled error: ${syncErrorLogOf(err)}`)
@@ -124,6 +127,7 @@ const UPDATE_CHUNK = 500
 const LIBRARY_WAIT_MS = 10 * 60 * 1000
 const LIBRARY_WAIT_ERROR = 'A library delete or folder rename was still running after 10 minutes, so this sync did not run. The next sync tries again.'
 let starting = null
+let syncStartedSinceBoot = false
 
 export const matchShow = (shows, showTitle, { sport = false } = {}) => {
   const title = String(showTitle ?? '')
