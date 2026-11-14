@@ -13,6 +13,7 @@ export const genreLabelsOf = ({ kind, tvmazeType = null, tvmazeGenres = [], wiki
       ...TVMAZE_TOPICS.filter(([genre]) => tvmaze.has(genre)).map(([, topic]) => topic),
       ...WIKIDATA_TOPICS.filter(([pattern]) => hasWikidata(pattern)).map(([, topic]) => topic),
       ...(tvmazeType === 'Award Show' ? ['music-arts'] : []),
+      ...(tvmazeType === 'Reality' && tvmaze.has('Romance') ? ['dating'] : []),
       ...(kind === 'factual' && tvmaze.has('Crime') ? ['true-crime'] : []),
     ]),
   }
@@ -25,6 +26,7 @@ export const ruleLabelsOf = ({ kind, title = '', genreTags = [], guideGenres = [
   const nibble = byteLabelOf({ genre, country })
   const factual = kind !== 'fiction'
   return {
+    titleFormat: titleFormatOf({ kind, text }),
     format: ruleFormatOf({ kind, text, tags, guide, nibble }),
     formatFacet: realityFacetOf(text),
     titleTopics: factual ? TOPIC_KEYWORDS.filter(([, pattern]) => pattern.test(text)).map(([topic]) => topic) : [],
@@ -54,9 +56,19 @@ export const isLiveEventTitle = (title) => LIVE_EVENT.test(String(title || ''))
 
 export const isFishingTitle = (title) => FISHING.test(String(title || ''))
 
+const titleFormatOf = ({ kind, text }) => {
+  if (kind === 'kids') return null
+  if (kind !== 'factual' && SOAP_TITLE.test(text)) return 'soaps'
+  if (kind === 'fiction') return null
+  if (PANEL_TITLE.test(text)) return 'panel-shows'
+  if (LIFESTYLE_TITLE.test(text)) return 'lifestyle'
+  return null
+}
+
 const genreFormatOf = ({ kind, tvmazeType, tvmaze, hasWikidata }) => {
   if (kind === 'kids') return 'kids'
   if (kind === 'fiction') return fictionFormatOf({ tvmaze, hasWikidata })
+  if (tvmazeType === 'Panel Show' || hasWikidata(/panel (game|show)/)) return 'panel-shows'
   if (tvmaze.has('Comedy') || hasWikidata(/sitcom|comedy|satir/)) return 'comedy'
   if (TVMAZE_FORMATS[tvmazeType]) return TVMAZE_FORMATS[tvmazeType]
   return WIKIDATA_FORMATS.find(([pattern]) => hasWikidata(pattern))?.[1] ?? null
@@ -64,7 +76,9 @@ const genreFormatOf = ({ kind, tvmazeType, tvmaze, hasWikidata }) => {
 
 const fictionFormatOf = ({ tvmaze, hasWikidata }) => {
   if (CRIME_GENRES.some((genre) => tvmaze.has(genre)) || hasWikidata(/crime|detective|police procedural/)) return 'crime-drama'
+  if (tvmaze.has('Soap') || hasWikidata(/soap opera|telenovela/)) return 'soaps'
   if (tvmaze.has('Comedy') || hasWikidata(/sitcom|comedy/)) return 'comedy'
+  if (SCI_FI_GENRES.some((genre) => tvmaze.has(genre)) || hasWikidata(/science fiction|fantasy|supernatural/)) return 'sci-fi-fantasy'
   if (tvmaze.size || hasWikidata(/drama|soap opera|telenovela/)) return 'drama'
   return null
 }
@@ -74,10 +88,12 @@ const ruleFormatOf = ({ kind, text, tags, guide, nibble }) => {
   if (kind === 'fiction' || kind === 'unknown') {
     if (tags.has('crime')) return kind === 'fiction' ? 'crime-drama' : null
     if (tags.has('comedy') && kind === 'fiction') return 'comedy'
-    if ((tags.has('drama') || tags.has('sci-fi')) && kind === 'fiction') return 'drama'
+    if (tags.has('sci-fi') && kind === 'fiction') return 'sci-fi-fantasy'
+    if (tags.has('drama') && kind === 'fiction') return 'drama'
   }
   if (kind === 'fiction') return fictionRuleFormatOf({ text, guide, nibble })
   if (TALK_SHOW.test(text) || guide.has('talk') || guide.has('talk show')) return 'talk-shows'
+  if (guide.has('panel show') || guide.has('panel')) return 'panel-shows'
   if (QUIZ.test(text) || tags.has('quiz')) return 'quiz'
   if (FACTUAL_COMEDY.test(text)) return 'comedy'
   if (DATING.test(text) || REALITY.test(text) || tags.has('reality') || REALITY_GUIDE.some((name) => guide.has(name))) return 'reality'
@@ -87,7 +103,9 @@ const ruleFormatOf = ({ kind, text, tags, guide, nibble }) => {
 
 const fictionRuleFormatOf = ({ text, guide, nibble }) => {
   if (CRIME_TITLE.test(text)) return 'crime-drama'
+  if (SOAP_GUIDE.some((name) => guide.has(name))) return 'soaps'
   if (nibble.format === 'comedy' || guide.has('comedy')) return 'comedy'
+  if (SCI_FI_GUIDE.some((name) => guide.has(name))) return 'sci-fi-fantasy'
   if (nibble.format === 'drama' || FICTION_GUIDE.some((name) => guide.has(name))) return 'drama'
   return null
 }
@@ -103,6 +121,8 @@ const TVMAZE_FORMATS = {
 }
 
 const CRIME_GENRES = ['Crime', 'Legal', 'Espionage']
+
+const SCI_FI_GENRES = ['Science-Fiction', 'Fantasy', 'Supernatural']
 
 const TVMAZE_TOPICS = [
   ['Supernatural', 'mystery-and-paranormal'],
@@ -134,9 +154,12 @@ const WIKIDATA_TOPICS = [
   [/^(?!.*fiction).*science/, 'science-and-technology'],
   [/paranormal|supernatural/, 'mystery-and-paranormal'],
   [/medical/, 'medical'],
+  [/dating/, 'dating'],
 ]
 
 const FISHING = /\b((i|spear)?fish(ing|'n)?|angl(er|ers|ing)|tackle)\b/i
+
+const DATING = /\b(love island|married at first sight|bachelor(ette)?|first dates|dating|farmer wants a wife|if you are the one|swiping|love is blind|too hot to handle|temptation island|perfect match|blind date)\b/i
 
 const TOPIC_KEYWORDS = [
   ['home', /\b(renovat\w*|reno|the block|house rules|grand designs|property|real estate|dream homes?|house hunt\w*|holiday homes|open homes|houses|house wars|builds|builders|flip(ping|s)?|chateau|listing|renters|superhomes|fixer|amazing spaces|architecture|country house|ugliest house|escape to the country|bargain (block|mansions))\b/i],
@@ -157,6 +180,7 @@ const TOPIC_KEYWORDS = [
   ['mystery-and-paranormal', /\b(paranormal|ghosts?|haunted|haunting|unexplained|unxplained|unbelievable|medium|psychics?|ufos?)\b/i],
   ['business-and-money', /\b(business|money|finance|financial|wealth|invest\w*|entrepreneurs?)\b/i],
   ['entertainment-news', /\b(entertainment tonight|entertainment news|e! news|access hollywood|showbiz|red carpet|celebrity news)\b/i],
+  ['dating', DATING],
   ['health-and-lifestyle', /\b(health|healthy|wellness|wellbeing|well-being|fitness|yoga|workout|diet|weight loss|sex)\b/i],
   ['motoring', /\b(motoring|wheeler dealers|top gear|cars?|auto|4wd|4x4|rigs|truckers|tow truck\w*|drive tv|bike show|dashcam)\b/i],
     ['fishing', FISHING],
@@ -178,6 +202,7 @@ const GUIDE_TOPICS = [
   [['music', 'arts & culture', 'arts', 'performing arts'], 'music-arts'],
   [['medical'], 'medical'],
   [['health', 'health & fitness', 'fitness'], 'health-and-lifestyle'],
+  [['dating', 'romance reality'], 'dating'],
   [['business', 'finance', 'business & finance'], 'business-and-money'],
   [['politics', 'current affairs'], 'politics'],
   [['religion', 'religious', 'faith'], 'religion'],
@@ -201,11 +226,15 @@ const AU_ONLY_GROUPS = {
 const ETSI_DOCUMENTARY = 0x23
 const DOCUMENTARY_GUIDE = new Set(['documentary', 'documentaries', 'documentary series', 'other documentary series', 'society documentary'])
 const REALITY_GUIDE = ['reality', 'reality series', 'unscripted competition', 'other reality television']
-const DATING = /\b(love island|married at first sight|bachelor(ette)?|first dates|dating|farmer wants a wife|if you are the one)\b/i
 const REALITY = /\b(big brother|survivor|the amazing race|the voice|idol|got talent|dancing with the stars|i'm a celebrity|lego masters|real housewives|below deck|undercover boss)\b/i
 const QUIZ = /\b(quiz\w*|the chase|chasers|jeopardy|pointless|tipping point|millionaire|million dollar minute|lingo|scrabble|letters and numbers|mastermind|it's academic|bridge of lies|1% club|house of games|deal or no deal|wheel of fortune|family feud|countdown|spelling bee)\b/i
 const CRIME_TITLE = /\b(murders?|mysteries|detective|inspector|ncis|csi|fbi|crime|police)\b/i
-const FICTION_GUIDE = ['drama', 'action & adventure', 'drama serial', 'soap', 'soap opera', 'sci-fi', 'fantasy']
+const FICTION_GUIDE = ['drama', 'action & adventure', 'drama serial']
+const SOAP_GUIDE = ['soap', 'soap opera', 'soaps']
+const SCI_FI_GUIDE = ['sci-fi', 'science fiction', 'fantasy', 'sci-fi & fantasy', 'science fiction & fantasy']
+const SOAP_TITLE = /\b(home and away|neighbours|days of our lives|the bold and the beautiful|the young and the restless|coronation street|emmerdale|eastenders|shortland street|general hospital|hollyoaks)\b/i
+const PANEL_TITLE = /^(qi( xl)?|hypothetical)$|\b(would i lie to you|8 out of 10 cats|big fat quiz|spicks and specks|gruen|have you been paying attention|mock the week|have i got news for you)\b/i
+const LIFESTYLE_TITLE = /\b(better homes and gardens|the living room|house of wellness|gen well|healthy,? wealthy (and|&) wise|weekender|hello sa|south aussie with cosi|what'?s up down under|euromaxx|fresh tv)\b/i
 const TALK_SHOW = /\b(tonight show|late show|late night|morning show|talk show|the project|the view|loose women|this morning)\b/i
 const FACTUAL_COMEDY = /\b(comedy|stand-?up|funniest|laughs|gruen|ridiculousness|the last leg|whose line)\b/i
 const CURRENT_AFFAIRS = /\b(a current affair|60 minutes|7\.30|four corners|insiders|media watch|landline|insight|briefing|planet america|question time|press club)\b/i

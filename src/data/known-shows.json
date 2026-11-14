@@ -43,7 +43,7 @@
    ]
   },
   "8-out-of-10-cats-does-countdown": {
-   "format": "quiz"
+   "format": "panel-shows"
   },
   "a-bite-to-eat-with-alice": {
    "topics": [
@@ -357,6 +357,7 @@
    "origin": "us"
   },
   "better-homes-and-gardens": {
+   "format": "lifestyle",
    "topics": [
     "home",
     "cooking"
@@ -399,7 +400,7 @@
    "format": "reality"
   },
   "big-fat-quiz-best-bits": {
-   "format": "quiz",
+   "format": "panel-shows",
    "origin": "gb"
   },
   "big-rig-bounty-hunters": {
@@ -648,6 +649,7 @@
    ]
   },
   "creek-to-coast": {
+   "format": "lifestyle",
    "topics": [
     "local-life",
     "fishing"
@@ -699,7 +701,7 @@
    ]
   },
   "days-of-our-lives": {
-   "format": "drama",
+   "format": "soaps",
    "origin": "us"
   },
   "deadly-dinosaurs-with-steve-backshall": {
@@ -853,6 +855,7 @@
    "format": "reality"
   },
   "euromaxx": {
+   "format": "lifestyle",
    "topics": [
     "music-arts",
     "travel"
@@ -869,7 +872,7 @@
    "origin": "au"
   },
   "evil": {
-   "format": "crime-drama",
+   "format": "sci-fi-fantasy",
    "origin": "us"
   },
   "explore-tv": {
@@ -878,7 +881,10 @@
    ]
   },
   "f-ck-berlin": {
-   "format": "reality"
+   "format": "reality",
+   "topics": [
+    "dating"
+   ]
   },
   "faithless": {
    "format": "drama",
@@ -995,6 +1001,7 @@
    "origin": "us"
   },
   "fresh-tv": {
+   "format": "lifestyle",
    "topics": [
     "cooking"
    ],
@@ -1021,6 +1028,7 @@
    ]
   },
   "gen-well": {
+   "format": "lifestyle",
    "topics": [
     "health-and-lifestyle"
    ]
@@ -1119,7 +1127,7 @@
    ]
   },
   "gruen": {
-   "format": "comedy",
+   "format": "panel-shows",
    "topics": [
     "entertainment-news"
    ],
@@ -1143,6 +1151,7 @@
    ]
   },
   "healthy-wealthy-wise": {
+   "format": "lifestyle",
    "topics": [
     "health-and-lifestyle",
     "local-life"
@@ -1163,6 +1172,7 @@
    "origin": "us"
   },
   "hello-sa": {
+   "format": "lifestyle",
    "topics": [
     "travel"
    ],
@@ -1208,7 +1218,7 @@
    "origin": "us"
   },
   "home-and-away": {
-   "format": "drama",
+   "format": "soaps",
    "origin": "au"
   },
   "home-town": {
@@ -1275,6 +1285,7 @@
    "origin": "gb"
   },
   "house-of-wellness": {
+   "format": "lifestyle",
    "topics": [
     "health-and-lifestyle"
    ],
@@ -1321,6 +1332,9 @@
   },
   "if-you-are-the-one": {
    "format": "reality",
+   "topics": [
+    "dating"
+   ],
    "origin": "cn"
   },
   "if-you-re-listening": {
@@ -1524,7 +1538,10 @@
    ]
   },
   "love-island-australia": {
-   "format": "reality"
+   "format": "reality",
+   "topics": [
+    "dating"
+   ]
   },
   "love-it-or-list-it-brilliant-builds": {
    "topics": [
@@ -1891,7 +1908,7 @@
    "origin": "us"
   },
   "qi": {
-   "format": "quiz",
+   "format": "panel-shows",
    "origin": "gb"
   },
   "queen-of-oz": {
@@ -2194,6 +2211,7 @@
    ]
   },
   "south-aussie-with-cosi": {
+   "format": "lifestyle",
    "topics": [
     "travel"
    ],
@@ -2217,7 +2235,10 @@
    ]
   },
   "spicks-and-specks": {
-   "format": "quiz",
+   "format": "panel-shows",
+   "topics": [
+    "music-arts"
+   ],
    "origin": "au"
   },
   "spooks": {
@@ -2290,6 +2311,7 @@
    ]
   },
   "sydney-weekender": {
+   "format": "lifestyle",
    "topics": [
     "travel",
     "local-life"
@@ -2378,7 +2400,7 @@
    ]
   },
   "the-bold-and-the-beautiful": {
-   "format": "drama",
+   "format": "soaps",
    "origin": "us"
   },
   "the-boy-the-queen": {
@@ -2519,6 +2541,7 @@
    ]
   },
   "the-living-room": {
+   "format": "lifestyle",
    "topics": [
     "home",
     "cooking"
@@ -2541,16 +2564,14 @@
   "the-morning-show": {
    "format": "talk-shows",
    "topics": [
-    "entertainment-news",
-    "health-and-lifestyle"
+    "entertainment-news"
    ],
    "origin": "au"
   },
   "the-morning-show-weekend": {
    "format": "talk-shows",
    "topics": [
-    "entertainment-news",
-    "health-and-lifestyle"
+    "entertainment-news"
    ],
    "origin": "au"
   },
@@ -2607,7 +2628,7 @@
    ]
   },
   "the-rings-of-power": {
-   "format": "drama",
+   "format": "sci-fi-fantasy",
    "origin": "us"
   },
   "the-sonny-disposition": {
@@ -2629,7 +2650,10 @@
    ]
   },
   "the-swiping-game": {
-   "format": "reality"
+   "format": "reality",
+   "topics": [
+    "dating"
+   ]
   },
   "the-tonight-show-starring-jimmy-fallon": {
    "format": "comedy",
@@ -2680,7 +2704,7 @@
    "origin": "gb"
   },
   "the-young-and-the-restless": {
-   "format": "drama",
+   "format": "soaps",
    "origin": "us"
   },
   "those-who-stayed": {
@@ -2812,7 +2836,7 @@
    "origin": "gb"
   },
   "vampire-academy": {
-   "format": "drama",
+   "format": "sci-fi-fantasy",
    "origin": "us"
   },
   "vanitas": {
@@ -2880,9 +2904,9 @@
    "origin": "gb"
   },
   "what-s-up-down-under": {
+   "format": "lifestyle",
    "topics": [
-    "travel",
-    "health-and-lifestyle"
+    "travel"
    ],
    "origin": "au"
   },
@@ -2951,7 +2975,7 @@
    ]
   },
   "would-i-lie-to-you": {
-   "format": "quiz",
+   "format": "panel-shows",
    "origin": "gb"
   },
   "yagan": {

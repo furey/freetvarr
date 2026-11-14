@@ -20,6 +20,7 @@ import {
 import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
 import { adConfirmOf, adStartedToastOf, freshEpisodeOf, restoreConfirmOf, restoredToastOf } from '/ad-confirm.js'
 import { openPlexLink } from '/components/library-menus.js'
+import { openCategories } from '/components/categories-sheet.js'
 import { loadNicknames } from '/components/also-known-as.js'
 import { holdAtLeast } from '/pending.js'
 import { api, fetchSettings } from '/shared/api.js'
@@ -324,6 +325,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
       pictureOpen.value = true
       return
     }
+    if (key === 'change-categories') return openCategories(current.title)
     if (key === 'refresh-artwork') return refreshArtwork()
     if (key === 'kind-show') return moveToShelf({ kind: 'show', shelf: 'Shows' })
     if (key === 'kind-one-off') return moveToShelf({ kind: 'one-off', shelf: 'One-offs' })

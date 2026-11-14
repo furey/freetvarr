@@ -2,6 +2,7 @@ import { recordWordingOf } from './record-wording.js'
 import { movieKindRowOf } from './movie-choice.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { dislikeLabelsOf, programmeKindOfItem } from './for-you.js'
+import { CHANGE_CATEGORIES } from './category-override.js'
 
 export const PROGRAMME_INFO = { key: 'programme-info', label: 'Programme info', icon: 'info' }
 export const GO_TO_SHOW = { key: 'show', label: 'Go to show', icon: 'show' }
@@ -22,6 +23,7 @@ export const dislikeGroupOf = (dislike) => {
   return [
     { key: 'not-interested', label: labels.show, icon: 'hide' },
     labels.category && { key: 'hide-category', label: labels.category, icon: 'hide' },
+    programmeKindOfItem(dislike) !== 'movie' && CHANGE_CATEGORIES,
   ]
 }
 

@@ -36,7 +36,7 @@ import { currentJob } from './activity.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 11
+export const SCORING_VERSION = 12
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -252,6 +252,24 @@ export const titlesForKeys = async (keys) => {
 
 export const forgetForYouCache = () => forYouCache.forget()
 
+export const categoryKnownKeys = async ({ nowMs = Date.now() } = {}) => {
+  const [guide, history, events] = await Promise.all([
+    getGuideSnapshot().catch(() => null),
+    endedHistory.read({ nowMs }).catch(() => []),
+    db('user_events').whereNotNull('series_key').distinct('series_key').catch(() => []),
+  ])
+  return knownKeysOf({
+    programmes: Object.values(guide?.programsByChannel || {}).flat(),
+    history: history.map((json) => JSON.parse(json)),
+    seriesKeys: events.map((row) => row.series_key),
+  })
+}
+
+export const knownKeysOf = ({ programmes = [], history = [], seriesKeys = [] }) => new Set([
+  ...[...programmes, ...history].map((programme) => showKeyOf(programme.title)),
+  ...seriesKeys.filter(Boolean),
+])
+
 export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
   const [events, categoryEvents] = await Promise.all([
@@ -261,7 +279,8 @@ export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   const { mutes } = categoryChoicesOf(categoryEvents)
   const categories = hiddenCategoriesOf({ index: currentCategoryIndex(), mutes, nowMs })
   const occasions = hiddenOccasionsOf({ ...installPlace(), mutes, nowMs })
-  return [...categories, ...occasions, ...hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs })].sort((a, b) => b.hiddenAt - a.hiddenAt)
+  const shows = hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs }).sort((a, b) => b.hiddenAt - a.hiddenAt)
+  return [...categories, ...occasions, ...shows]
 }
 
 export const getCategorySettings = async ({ nowMs = Date.now() } = {}) => {

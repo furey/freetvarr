@@ -88,7 +88,7 @@ export const HomeHeroCarousel = {
             </div>
             <div class="ui-hero-scrim"></div>
             <div class="ui-hero-body hero-slide-body">
-              <div :class="['ui-hero-kicker', 'hero-slide-eyebrow', { 'is-live': slide.badge }]">
+              <div :class="['ui-hero-kicker', 'hero-slide-eyebrow', { 'is-live': slide.badge, 'has-accent': slide.eyebrowAccent && !slide.badge }]">
                 <span v-if="slide.badge" class="ui-live-badge"><span class="ui-live-dot"></span>{{ slide.badge }}</span>
                 <template v-if="slide.eyebrowAccent"><span class="hero-slide-eyebrow-accent">{{ slide.eyebrowAccent }}</span><span class="hero-slide-eyebrow-dot" aria-hidden="true">·</span><span class="hero-slide-eyebrow-reason">{{ slide.eyebrow }}</span></template>
                 <template v-else>{{ slide.eyebrow }}</template>

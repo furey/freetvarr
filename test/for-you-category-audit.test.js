@@ -12,7 +12,7 @@ import { showKeyOf } from '../src/web/show-key.js'
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/category-audit.json', import.meta.url), 'utf8'))
 const NOW = Date.UTC(2026, 10, 14, 0, 0)
 const HOUR = 60 * 60 * 1000
-const FORMATS = new Set(['reality', 'quiz', 'comedy', 'drama', 'crime-drama', 'documentaries', 'talk-shows', 'kids', 'news'])
+const FORMATS = new Set(['reality', 'quiz', 'panel-shows', 'comedy', 'drama', 'soaps', 'crime-drama', 'sci-fi-fantasy', 'documentaries', 'talk-shows', 'lifestyle', 'kids', 'news'])
 const KIND_BUG_TITLES = ['aria-awards-2026', 'eurovision-song-contest-asia', 'interview-with-the-vampire']
 
 const recordOf = (entry) => {

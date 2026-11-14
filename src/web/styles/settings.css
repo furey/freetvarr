@@ -1710,3 +1710,55 @@ a.settings-row-link:hover {
 .health-guide-notice {
   margin-bottom: 8px;
 }
+
+.categories-sheet-hint {
+  margin: -8px 0 0;
+  text-wrap: pretty;
+}
+
+.categories-sheet-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-wrap: balance;
+}
+
+.categories-sheet-limit {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.categories-sheet-formats {
+  display: grid;
+  gap: 12px;
+}
+
+.categories-sheet-sublabel,
+.suggestions-subgroup {
+  margin: 0 4px 6px;
+  text-wrap: balance;
+}
+
+.suggestions-categories .ui-group + .suggestions-subgroup {
+  margin-top: 12px;
+}
+
+.categories-sheet-footer {
+  position: sticky;
+  bottom: calc(-1 * (env(safe-area-inset-bottom, 0px) + 24px));
+  margin-bottom: calc(-1 * (env(safe-area-inset-bottom, 0px) + 24px));
+  padding: 12px 0 calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: var(--color-surface-2);
+}
+
+.categories-sheet-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.categories-sheet-buttons > .ui-button {
+  flex: 1 1 auto;
+  text-wrap: balance;
+}

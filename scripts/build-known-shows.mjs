@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 export const truthOf = (entry) => {
+  const truth = markedTruthOf(entry)
+  return truth && relabelledOf({ key: entry.key, truth })
+}
+
+const markedTruthOf = (entry) => {
   const mark = entry.mark
   if (isOnlyOther(mark)) return null
   if (mark?.ok) return labelKeysOf({ labels: [mark.theme], entry })
@@ -56,6 +61,13 @@ export const buildFromExport = (exported) => {
     knownShows: { version: KNOWN_SHOWS_VERSION, built: exported.built, shows },
     fixture: { built: exported.built, country: exported.country, titles: entries.map(fixtureEntryOf) },
   }
+}
+
+const relabelledOf = ({ key, truth }) => {
+  const labels = RELABELLED[key]
+  if (!labels) return truth
+  const kept = labels.format ? truth.filter((label) => !FORMATS.has(label)) : truth
+  return [...new Set([...(labels.format ? [labels.format] : []), ...kept, ...(labels.topics ?? [])])]
 }
 
 const isOnlyOther = (mark) => Boolean(mark && !mark.ok && mark.note !== 'lookup' && mark.right.split(' + ').every((label) => label === 'Other'))
@@ -110,7 +122,7 @@ const LABEL_KEYS = {
   'Police and rescue': 'police-rescue',
   Medical: 'medical',
   Health: 'health-and-lifestyle',
-  Lifestyle: 'health-and-lifestyle',
+  Lifestyle: 'lifestyle',
   'Health and lifestyle': 'health-and-lifestyle',
   Fitness: 'health-and-lifestyle',
   Science: 'science-and-technology',
@@ -169,10 +181,48 @@ const SCIENCE_AND_HEALTH_SPLIT = {
   'sex-unlimited': 'health-and-lifestyle',
 }
 
-const FORMATS = new Set(['reality', 'quiz', 'comedy', 'drama', 'crime-drama', 'documentaries', 'talk-shows', 'kids', 'news'])
+const FORMATS = new Set(['reality', 'quiz', 'panel-shows', 'comedy', 'drama', 'soaps', 'crime-drama', 'sci-fi-fantasy', 'documentaries', 'talk-shows', 'lifestyle', 'kids', 'news'])
+
+const SOAP = { format: 'soaps' }
+const PANEL = { format: 'panel-shows' }
+const SCI_FI = { format: 'sci-fi-fantasy' }
+const LIFESTYLE = { format: 'lifestyle' }
+const DATING = { topics: ['dating'] }
+
+const RELABELLED = {
+  'days-of-our-lives': SOAP,
+  'home-and-away': SOAP,
+  'the-bold-and-the-beautiful': SOAP,
+  'the-young-and-the-restless': SOAP,
+  qi: PANEL,
+  'would-i-lie-to-you': PANEL,
+  '8-out-of-10-cats-does-countdown': PANEL,
+  'big-fat-quiz-best-bits': PANEL,
+  'spicks-and-specks': { ...PANEL, topics: ['music-arts'] },
+  gruen: PANEL,
+  'vampire-academy': SCI_FI,
+  'the-rings-of-power': SCI_FI,
+  evil: SCI_FI,
+  'better-homes-and-gardens': { ...LIFESTYLE, topics: ['gardening'] },
+  'the-living-room': LIFESTYLE,
+  'house-of-wellness': LIFESTYLE,
+  'gen-well': { ...LIFESTYLE, topics: ['health-and-lifestyle'] },
+  'healthy-wealthy-wise': LIFESTYLE,
+  'sydney-weekender': LIFESTYLE,
+  'hello-sa': LIFESTYLE,
+  'south-aussie-with-cosi': LIFESTYLE,
+  'what-s-up-down-under': LIFESTYLE,
+  euromaxx: LIFESTYLE,
+  'fresh-tv': LIFESTYLE,
+  'creek-to-coast': LIFESTYLE,
+  'love-island-australia': DATING,
+  'the-swiping-game': DATING,
+  'if-you-are-the-one': DATING,
+  'f-ck-berlin': DATING,
+}
 
 const SPORT_CODES = new Set(Object.values(LABEL_KEYS).filter((key) => ![
-  ...FORMATS, 'cooking', 'home', 'gardening', 'politics', 'true-crime', 'police-rescue', 'medical', 'health-and-lifestyle',
+  ...FORMATS, 'cooking', 'home', 'gardening', 'politics', 'true-crime', 'police-rescue', 'medical', 'health-and-lifestyle', 'dating',
   'science-and-technology', 'nature', 'travel', 'history', 'military-and-war', 'local-life', 'music-arts', 'entertainment-news',
   'mystery-and-paranormal', 'engineering-and-machines', 'business-and-money', 'motoring', 'fishing', 'antiques', 'shopping', 'religion',
 ].includes(key)))
