@@ -2655,6 +2655,12 @@ html :is(button, a[href], [role="button"], [role="tab"], [role="option"], summar
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+html :is(img, .ui-card-art, .ui-poster-art) {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
 }
 
 html :is(.ui-button, .ui-icon-button, .ui-chip, .ui-segment, .ui-stepper-button, .ui-row-link, .ui-row-title-link, .pl-round, .pl-pill, .pl-control, .pl-mini-button, .epg-float-btn, .show-select-action, .for-you-thumb, .library-dialog-go, .library-dialog-cancel, .ui-group-row, .app-nav-item, .settings-nav-link, .library-menu-item, .channels-order-menu-item, .toggle-card, .ui-banner, .epg-pin, .live-star) {
