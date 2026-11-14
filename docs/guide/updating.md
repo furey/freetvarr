@@ -294,6 +294,8 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
+   - To go back from `2.28.0` to `2.24.0` or newer (up to `2.27.x`), undo `0052`. The category hides and switches that `0052` deleted do not come back.
+   - To go back from `2.28.0` to `2.23.x`, undo `0052`, then `0051`.
    - To go back from `2.24.0` to `2.23.x`, undo `0051`.
    - To go back from `2.24.0` to `2.22.x`, undo `0051`, then `0050`.
    - To go back from `2.23.0` to `2.22.x`, undo `0050`.
