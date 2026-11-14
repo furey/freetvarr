@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { syncDetail, sxe } from '../src/web/sync-detail.js'
+import { stoppedText, syncDetail, sxe } from '../src/web/sync-detail.js'
 
 test('syncDetail: lists each item with its episode, kind, and error', () => {
   const detail = syncDetail({
@@ -52,4 +52,10 @@ test('sxe pads season and episode', () => {
   assert.equal(sxe({ season: 3, episode: 12 }), 'S03E12')
   assert.equal(sxe({ season: null, episode: 7 }), 'E07')
   assert.equal(sxe({}), '')
+})
+
+test('stoppedText: says a restart stopped the sync and names the sync that ran again', () => {
+  assert.equal(stoppedText({ status: 'stopped', summary: { ranAgainSyncId: 42 } }), 'Freetvarr restarted before this sync finished. Freetvarr ran it again as sync #42.')
+  assert.equal(stoppedText({ status: 'stopped', summary: {} }), 'Freetvarr restarted before this sync finished. The next sync picks up anything it missed.')
+  assert.equal(syncDetail({ trigger: 'restart' }).trigger, 'Sync after a restart')
 })

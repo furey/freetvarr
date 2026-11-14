@@ -1,6 +1,6 @@
 import { syncOutcome, syncResult } from '/sync-row.js'
 
-const SYNC_OUTCOME_LABELS = { ok: 'OK', partial: 'Partial', failed: 'Failed', running: 'Running' }
+const SYNC_OUTCOME_LABELS = { ok: 'OK', partial: 'Partial', failed: 'Failed', stopped: 'Stopped by a restart', running: 'Running' }
 
 export const SyncStatusIcon = {
   props: { status: { type: String, required: true } },
@@ -14,6 +14,7 @@ export const SyncStatusIcon = {
       <path v-if="outcome === 'ok'" d="M3.5 8.5l3 3 6-7"/>
       <template v-else-if="outcome === 'partial'"><path d="M8 2.25 14.25 13.25H1.75z" stroke-width="1.5"/><path d="M8 6.5v3M8 11.4v.01" stroke-width="1.5"/></template>
       <path v-else-if="outcome === 'failed'" d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>
+      <path v-else-if="outcome === 'stopped'" d="M4 8h8"/>
       <g v-else class="sync-status-spin"><circle cx="8" cy="8" r="5.5" opacity="0.3"/><path d="M8 2.5a5.5 5.5 0 0 1 5.5 5.5"/></g>
     </svg>
   `,

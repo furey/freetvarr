@@ -76,16 +76,27 @@ Freetvarr also syncs about a minute after a recording finishes, so the episode j
 
 Only one sync runs at a time. A second request while one runs returns the running sync.
 
+## Restart during a sync
+
+When Freetvarr restarts in the middle of a sync, it marks that sync **stopped by a restart**, not failed. About `30` seconds after Freetvarr starts again, it runs a new sync, which says `Sync after a restart`. Before that, Freetvarr sets each import that the restart stopped back to waiting, and puts the original file back for each ad cut that the restart stopped. The new sync then imports the waiting recordings. Freetvarr skips the new sync in these cases:
+
+- a sync already started after Freetvarr started again (a scheduled sync, a sync after a recording, or **Sync now**), so the library is already up to date;
+- a scheduled sync is due within `2` minutes, so that sync runs instead;
+- scheduled syncs are off (a custom schedule that never runs);
+- the restart stopped a sync that Freetvarr itself started after the previous restart. If Freetvarr restarts again and again, it leaves the next sync to the schedule.
+
+If Freetvarr restarts again within those `30` seconds, the stopped sync stays stopped and the schedule runs the next sync.
+
 ## Reading a sync
 
 Activity groups syncs under a heading for each day: `Today`, `Yesterday`, or a date such as `10 Oct`. Each row shows:
 
-- a status mark: a tick for **OK**, a warning sign for **Partial**, a cross for a sync that failed, or a spinner while it runs;
+- a status mark: a tick for **OK**, a warning sign for **Partial**, a cross for a sync that failed, a dash for a sync that a [restart stopped](#restart-during-a-sync), or a spinner while it runs;
 - the start and finish times, such as `9:04–9:05am`;
-- the result in words, such as `2 imported`, `1 failed`, `1 removed`, or `nothing new`;
+- the result in words, such as `2 imported`, `1 failed`, `1 removed`, `nothing new`, or `stopped by a restart`;
 - how long the sync took.
 
-A failed sync also shows its first error under the row. On a wider screen, a **Details** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
+A failed sync also shows its first error under the row. A sync that a restart stopped shows when Freetvarr ran it again, such as `Ran again at 9:05am`. On a wider screen, a **Details** column shows whether the schedule or you started the sync, how many recordings it skipped, and the Plex result.
 
 A sync is marked **OK** unless something failed. A short import (a **PARTIAL** recording, whose file came up more than `1MB` short of the TVHeadend recording file) counts as a failure, not a skip. A sync that runs past midnight sits under the day it started, such as `11:58pm – 12:04am`.
 
@@ -115,8 +126,8 @@ Sync history keeps the latest 500 syncs. Empty syncs, which found nothing new, t
 Two filters choose which syncs Activity lists:
 
 - **Show**: **Imports**, **Fails**, **Removals**, and **Empty**. Turn on as many as you like. **Empty** is off at first, and a line under the list counts the empty syncs it hides. Press **Show them** (or **Show it**) on that line to turn **Empty** on.
-- **From**: **Any**, **Schedule** (syncs the sync schedule started), **Manual** (syncs you started), or **After a recording** (syncs that started when a recording finished).
+- **From**: **Any**, **Schedule** (syncs the sync schedule started, and syncs after a restart), **Manual** (syncs you started), or **After a recording** (syncs that started when a recording finished).
 
-The browser remembers your choice. A running sync always shows.
+The browser remembers your choice. A running sync, and a sync that a restart stopped, always show. A sync that a restart stopped is not a fail, so **Fails**, Health, and the Settings health dot leave it out. This includes syncs that earlier Freetvarr versions marked failed with `Freetvarr restarted before this sync finished.`
 
 After each sync, Freetvarr trims the history, drops recordings that TVHeadend removed more than 30 days ago and that are not in your library, and deletes expired `.orig` backups (the originals that [ad removal](/guide/ad-removal#backups-and-retention) keeps after a cut).

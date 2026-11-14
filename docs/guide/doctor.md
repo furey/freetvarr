@@ -139,7 +139,7 @@ Counts the items in the Plex library chosen as the **One-off library**. It skips
 
 ## Syncs {#sync-health}
 
-Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. It fails when a schedule is set but not running. It works without Plex. See [Activity](/guide/syncs).
+Reads the last finished sync and the sync schedule. It warns when the last sync failed or had failed imports. A sync that a [restart stopped](/guide/syncs#restart-during-a-sync) passes. It fails when a schedule is set but not running. It works without Plex. See [Activity](/guide/syncs).
 
 ## Live TV encoder {#live-encoder}
 

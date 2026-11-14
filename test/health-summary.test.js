@@ -59,3 +59,7 @@ test('distinctDrives: drops unreadable folders and folders on the same drive', (
   ])
   assert.equal(split.length, 2)
 })
+
+test('healthSummaryOf: a sync stopped by a restart is not a failure', () => {
+  assert.deepEqual(healthSummaryOf({ lastSync: { status: 'stopped' } }), { level: 'ok', sentence: null })
+})

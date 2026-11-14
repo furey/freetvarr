@@ -6,7 +6,7 @@ import path from 'node:path'
 
 process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-themes-${process.pid}.db`)
 
-const { buildForYou } = await import('../src/for-you.js')
+const { buildForYou, withFewerThemes } = await import('../src/for-you.js')
 const { THEME_CATALOGUE_VERSION, sportLabelOf, themeCatalogueOf } = await import('../src/for-you-theme-catalogue.js')
 const {
   createThemeIndex,
@@ -68,6 +68,10 @@ test('sport rows are named by sport, with the local name for football', () => {
   assert.equal(sportLabelOf({ code: 'rugby-union', country: 'nz' }), 'Rugby union')
   assert.equal(sportLabelOf({ code: 'afl', country: 'au' }), 'Australian rules')
   assert.equal(sportLabelOf({ code: 'greyhound-racing', country: 'au' }), 'Greyhound racing')
+  assert.equal(sportLabelOf({ code: 'rodeo', country: 'au' }), 'Rodeo')
+  assert.equal(sportLabelOf({ code: 'combat-sports', country: 'au' }), 'Combat sports')
+  assert.equal(sportLabelOf({ code: 'surfing', country: 'au' }), 'Surfing')
+  assert.equal(sportLabelOf({ code: 'swimming', country: 'au' }), 'Swimming')
 })
 
 test('sport codes: keywords first, and plain "football" depends on the country', () => {
@@ -94,6 +98,32 @@ test('sport codes: keywords first, and plain "football" depends on the country',
   assert.equal(sportCodeOf({ title: 'Formula 1: Las Vegas Grand Prix', country: 'au' }), 'motorsport')
   assert.equal(sportCodeOf({ title: 'Harness Racing: Inter Dominion', country: 'au' }), 'horse-racing')
   assert.equal(sportCodeOf({ title: 'Greyhounds Live', country: 'au' }), 'greyhound-racing')
+  assert.equal(sportCodeOf({ title: 'Pro Bull Riding Australia', channelNames: ['NITV HD'], country: 'au' }), 'rodeo')
+  assert.equal(sportCodeOf({ title: 'PBR Teams', country: 'us' }), 'rodeo')
+  assert.equal(sportCodeOf({ title: 'Campdraft Championships', country: 'au' }), 'rodeo')
+  assert.equal(sportCodeOf({ title: 'Barrel Racing Finals', country: 'au' }), 'rodeo')
+  assert.equal(sportCodeOf({ title: 'Australian Superbike Championship', country: 'au' }), 'motorsport')
+  assert.equal(sportCodeOf({ title: 'WNBL', country: 'au' }), 'basketball')
+  assert.equal(sportCodeOf({ title: 'Giddy Up Saturday', channelNames: ['7two'], country: 'au' }), 'horse-racing')
+  assert.equal(sportCodeOf({ title: 'Talking W', country: 'au' }), 'afl')
+  for (const title of ['UFC 334 Prelims', 'MMA Fight Night', 'Boxing: Title Fight', 'Kickboxing Live', 'Bare Knuckle FC']) assert.equal(sportCodeOf({ title, country: 'au' }), 'combat-sports')
+  assert.equal(sportCodeOf({ title: 'Boxing Day Test Cricket', country: 'au' }), 'cricket')
+  assert.equal(sportCodeOf({ title: 'Boxing Day Sales', country: 'au' }), null)
+  for (const title of ['WSL Surfing: Pipe Pro', 'World Surf League', 'Surfing Australia', 'Surf League Finals']) assert.equal(sportCodeOf({ title, country: 'au' }), 'surfing')
+  for (const title of ["Women's Super League", 'Barclays WSL: Arsenal v Chelsea', 'WSL Football Highlights']) assert.equal(sportCodeOf({ title, country: 'uk' }), 'soccer')
+  assert.equal(sportCodeOf({ title: 'WSL Replay', country: 'au' }), null)
+  assert.equal(sportCodeOf({ title: 'Super League: Wigan v St Helens', country: 'uk' }), 'rugby-league')
+  assert.equal(sportCodeOf({ title: 'Swimming: Relay Races', country: 'au' }), 'swimming')
+  assert.equal(sportCodeOf({ title: 'Cycling: Track Racing', country: 'au' }), 'cycling')
+  assert.equal(sportCodeOf({ title: 'Rodeo: Barrel Racing Finals', country: 'au' }), 'rodeo')
+  for (const title of ['Swim GP', 'Swimming: National Trials', 'Diving Championships']) assert.equal(sportCodeOf({ title, country: 'au' }), 'swimming')
+})
+
+test('sport codes: a guide category that names the sport counts, a plain sport category does not', () => {
+  assert.equal(sportCodeOf({ title: 'Friday Night Footy', guideCategories: ['Rugby League'], country: 'au' }), 'rugby-league')
+  assert.equal(sportCodeOf({ title: 'Friday Night Footy', guideCategories: ['Australian rules football'], country: 'au' }), 'afl')
+  assert.equal(sportCodeOf({ title: 'Weekend Sport', guideCategories: ['sports', 'sports other'], country: 'au' }), null)
+  assert.equal(sportCodeOf({ title: 'Weekend Drive', guideCategories: ['motor sport'], country: 'au' }), null)
 })
 
 test('kind gate: kids channels and OP-39 kids codes, sport, scripted and factual', () => {
@@ -166,6 +196,52 @@ test('sport titles: league before union, and fishing filed as sport goes to Fish
   const fishing = tagTitle({ index, facts: facts({ title: 'Escape Fishing With ET', categories: ['sport'] }) })
   assert.deepEqual(fishing.entries.map((entry) => entry.group), ['fishing'])
   assert.equal(fishing.sportCode, null)
+})
+
+test('sport titles: a sport code needs hard evidence, never the nearest prototype alone', () => {
+  const prototypes = new Map([['rugby-league', [axis(0)]], ['rodeo', [axis(1)]], ['nature-wildlife', [axis(2)]]])
+  const nearLeague = blend([0, 0.6])
+  const bulls = tagTitle({ index, facts: facts({ title: 'Pro Bull Riding Australia', categories: ['sport'], channelNames: ['NITV HD'] }), titleVector: nearLeague, prototypes })
+  assert.equal(bulls.sportCode, 'rodeo')
+  assert.equal(index.groups.get(bulls.entries[0].group).title, 'Rodeo')
+  const unknown = tagTitle({ index, facts: facts({ title: 'Iron Series', categories: ['sport'], channelNames: ['10 HD'] }), titleVector: nearLeague, prototypes })
+  assert.equal(unknown.kind, 'sport')
+  assert.equal(unknown.sportCode, null)
+  assert.ok(!unknown.entries.some((entry) => entry.category === 'sport'))
+  const nrl = tagTitle({ index, facts: facts({ title: 'NRL: Storm v Panthers', categories: ['sport'] }), titleVector: blend([1, 0.6]), prototypes })
+  assert.equal(nrl.sportCode, 'rugby-league')
+  const factual = tagTitle({ index, facts: facts({ tvmazeType: 'Documentary' }), titleVector: blend([2, 0.6]), prototypes })
+  assert.deepEqual(factual.entries.map((entry) => entry.subtheme), ['nature-wildlife'])
+})
+
+test('a motoring magazine with the guide category motor sport stays a motoring show, not Motorsport', () => {
+  const magazine = tagTitle({ index, facts: facts({ title: 'Wheeler Dealers', guideCategories: ['motor sport'] }) })
+  assert.notEqual(magazine.kind, 'sport')
+  assert.equal(magazine.sportCode, null)
+  assert.ok(!magazine.entries.some((entry) => entry.category === 'sport'))
+  assert.ok(magazine.entries.some((entry) => entry.subtheme === 'motoring'))
+})
+
+test('sport titles: a sport prototype never beats a non-sport theme, and spearfishing is Fishing', () => {
+  const prototypes = new Map([['rugby-league', [axis(0)]], ['fishing', [axis(1)]]])
+  const reef = tagTitle({ index, facts: facts({ title: 'Reef Hunters Championships', categories: ['sport'] }), titleVector: blend([0, 0.7], [1, 0.45]), prototypes })
+  assert.equal(reef.sportCode, null)
+  assert.deepEqual(reef.entries.map((entry) => entry.subtheme), ['fishing'])
+  const spear = tagTitle({ index, facts: facts({ title: 'Spearfishing Championships', categories: ['sport'] }), titleVector: axis(0), prototypes })
+  assert.deepEqual(spear.entries.map((entry) => entry.group), ['fishing'])
+})
+
+test('Fewer like this on a show with no sport code leaves rugby league alone', () => {
+  const prototypes = new Map([['rugby-league', [axis(0)]]])
+  const tagsByKey = new Map([
+    ['pro-bull-riding-australia', tagTitle({ index, facts: facts({ title: 'Pro Bull Riding Australia', categories: ['sport'] }), titleVector: axis(0), prototypes })],
+    ['iron-series', tagTitle({ index, facts: facts({ title: 'Iron Series', categories: ['sport'] }), titleVector: axis(0), prototypes })],
+  ])
+  const household = { groups: new Map([['rugby-league', { group: 'rugby-league', share: 0.4 }], ['rodeo', { group: 'rodeo', share: 0.1 }]]), hidden: new Set() }
+  const fewer = [{ key: 'pro-bull-riding-australia', fewerWeight: 1 }, { key: 'iron-series', fewerWeight: 1 }]
+  const cut = withFewerThemes({ household, fewer, tagsByKey })
+  assert.equal(cut.groups.get('rugby-league').share, 0.4)
+  assert.ok(Math.abs(cut.groups.get('rodeo').share - 0.02) < 1e-9)
 })
 
 test('basic tier: keyword and genre rules still tag titles', () => {

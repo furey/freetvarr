@@ -14,6 +14,12 @@ export const syncDetail = (summary) => {
   }
 }
 
+export const stoppedText = (sync) => {
+  const rerunId = sync.summary?.ranAgainSyncId
+  const next = rerunId ? `Freetvarr ran it again as sync #${rerunId}.` : 'The next sync picks up anything it missed.'
+  return `Freetvarr restarted before this sync finished. ${next}`
+}
+
 export const sxe = ({ season, episode }) => {
   if (season == null && episode == null) return ''
   const pad = (n) => String(n).padStart(2, '0')
@@ -77,6 +83,7 @@ const RESULT_FIELDS = { plexTv: 'plex', plexOneOffs: 'plexOneOffs', plexMovies: 
 const TRIGGER_LABELS = {
   cron: 'Scheduled sync',
   'recording-finished': 'Sync after a recording finished',
+  restart: 'Sync after a restart',
   manual: 'Manual sync',
   'manual-single': 'Manual single-series sync',
   'manual:import': 'Manual import',
