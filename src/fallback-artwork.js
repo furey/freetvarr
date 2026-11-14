@@ -46,7 +46,7 @@ export const createFallbackArtwork = ({
   externalIdsFor = async () => null,
   now = Date.now,
   hitTtlMs = HIT_TTL_MS,
-  missRetryMs = MISS_RETRY_MS,
+  missTtlMs = MISS_TTL_MS,
   tmdbRetryTtlMs = TMDB_RETRY_TTL_MS,
   failureBackoffMs = FAILURE_BACKOFF_MS,
   lookupLimiter = createHostLimiter({ concurrency: LOOKUP_CONCURRENCY, maxQueue: LOOKUP_MAX_QUEUE, reservedForUrgent: LOOKUP_RESERVED_FOR_VIEWS }),
@@ -95,32 +95,28 @@ export const createFallbackArtwork = ({
     apiKey,
   })
 
-  const cachedSources = async ({ title, settings }) => {
+  const cachedSources = async ({ title, settings, retryMissesBefore = null }) => {
     const cached = await readSizedCache({ read: cache.read, key: settings.cacheKey })
     const hasValue = Boolean(cached?.sources?.length)
     const savedTtlMs = isRetryReference(cached?.reference) ? tmdbRetryTtlMs : hitTtlMs
     const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs: savedTtlMs, hasValue, staleBeforeMs })
     if (state === 'missing') return NOT_CACHED
+    if (!hasValue && isMissBefore({ cached, retryMissesBefore })) return NOT_CACHED
     if (!hasValue && !(await isCurrentMiss({ cached, title, settings }))) return NOT_CACHED
     return { stale: state === 'stale', sources: cached.sources }
   }
+
+  const isMissBefore = ({ cached, retryMissesBefore }) => retryMissesBefore != null
+    && Number(cached.expiresAt) - missTtlMs < retryMissesBefore
 
   const isCurrentMiss = async ({ cached, title, settings }) => {
     const miss = missOf(cached.reference)
     return Boolean(miss) && miss.fingerprint === await fingerprintFor({ title, ...settings })
   }
 
-  const missExpiryOf = async ({ cacheKey, fingerprint }) => {
-    const previous = await readSizedCache({ read: cache.read, key: cacheKey }).catch(() => null)
-    const miss = previous?.sources?.length ? null : missOf(previous?.reference)
-    const step = miss?.fingerprint === fingerprint ? miss.step + 1 : 0
-    return { step, expiresAt: now() + missRetryMs[Math.min(step, missRetryMs.length - 1)] }
-  }
-
-  const savedRowOf = async ({ cacheKey, sources, found, fingerprint }) => {
+  const savedRowOf = ({ sources, found, fingerprint }) => {
     if (sources.length) return { sources, reference: referenceOf({ sources, found }), expiresAt: expiryOf({ sources, found }) }
-    const { step, expiresAt } = await missExpiryOf({ cacheKey, fingerprint })
-    return { sources, reference: missReferenceOf({ step, fingerprint }), expiresAt }
+    return { sources, reference: missReferenceOf({ fingerprint }), expiresAt: now() + missTtlMs }
   }
 
   const refreshStale = ({ cached, title, settings }) => {
@@ -145,7 +141,7 @@ export const createFallbackArtwork = ({
         const sources = found?.sources || []
         if (!sources.length && refreshingHit && !hints && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
         const fingerprint = evidenceFingerprintOf({ kind, hints, ids, apiKey })
-        const row = await savedRowOf({ cacheKey, sources, found, fingerprint })
+        const row = savedRowOf({ sources, found, fingerprint })
         await cache.write({ key: sizedKeyOf(cacheKey), ...row }).catch(() => {})
         return sources
       })
@@ -169,10 +165,10 @@ export const createFallbackArtwork = ({
     return startLookup({ title, ...settings })
   }
 
-  const artworkFor = async (title, { kind = null } = {}) => {
+  const artworkFor = async (title, { kind = null, retryMissesBefore = null } = {}) => {
     const settings = await settingsFor({ title, kind })
     if (!settings) return LOOKUP_OFF
-    const cached = await cachedSources({ title, settings })
+    const cached = await cachedSources({ title, settings, retryMissesBefore })
     refreshStale({ cached, title, settings })
     if (cached.sources) return { sources: cached.sources, pending: false, settled: true }
     if (recentlyFailed(settings.cacheKey)) return NO_ARTWORK
@@ -475,7 +471,7 @@ const LOOKUP_OFF = { sources: [], pending: false, off: true }
 const PENDING_ARTWORK = { sources: [], pending: true }
 const HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
-const MISS_RETRY_MS = [6 * HOUR_MS, 24 * HOUR_MS, 3 * 24 * HOUR_MS, 7 * 24 * HOUR_MS]
+const MISS_TTL_MS = 7 * 24 * HOUR_MS
 const FINGERPRINT_LENGTH = 16
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const TMDB_RETRY_TTL_MS = 6 * 60 * 60 * 1000

@@ -38,7 +38,6 @@ export const createShowArtwork = ({
   plexTtlMs = PLEX_TTL_MS,
   hitTtlMs = TVMAZE_HIT_TTL_MS,
   missTtlMs = TVMAZE_MISS_TTL_MS,
-  unhintedMissTtlMs = TVMAZE_UNHINTED_MISS_TTL_MS,
   lookupGapMs = TVMAZE_LOOKUP_GAP_MS,
   failureBackoffMs = TVMAZE_FAILURE_BACKOFF_MS,
   plexWaitMs = PLEX_WAIT_MS,
@@ -73,11 +72,16 @@ export const createShowArtwork = ({
     return { cacheKey: idKeyedCacheKeyOf({ cacheKey: seriesCacheKeyOf(key), ids }), ids, title }
   }
 
-  const cachedTvmazeSources = async (cacheKey) => {
+  const cachedTvmazeSources = async (cacheKey, { retryMissesBefore = null } = {}) => {
     const cached = await readSizedCache({ read: cache.read, key: cacheKey })
-    const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue: Boolean(cached?.sources?.length) })
-    return state === 'missing' ? { stale: false, sources: null } : { stale: state === 'stale', sources: cached.sources }
+    const hasValue = Boolean(cached?.sources?.length)
+    const state = cachedStateOf({ cached, nowMs: now(), hitTtlMs, hasValue })
+    if (state === 'missing' || (!hasValue && isMissBefore({ cached, retryMissesBefore }))) return { stale: false, sources: null }
+    return { stale: state === 'stale', sources: cached.sources }
   }
+
+  const isMissBefore = ({ cached, retryMissesBefore }) => retryMissesBefore != null
+    && Number(cached.expiresAt) - missTtlMs < retryMissesBefore
 
   const tvmazeSourcesFor = async ({ key, title }) => {
     if (!(await isTvmazeEnabled())) return []
@@ -102,8 +106,7 @@ export const createShowArtwork = ({
     const pending = tvmazeLimiter.run(() => lookUpTvmaze({ title, ids }), { isBackground, id: cacheKey })
       .then(async ({ sources, hinted }) => {
         if (!sources.length && refreshingHit && !hinted && !hasExternalIds(ids)) throw new Error('refresh had no guide details')
-        const missMs = hinted ? missTtlMs : unhintedMissTtlMs
-        const expiresAt = now() + (sources.length ? hitTtlMs : missMs)
+        const expiresAt = now() + (sources.length ? hitTtlMs : missTtlMs)
         await cache.write({ key: sizedKeyOf(cacheKey), sources, expiresAt }).catch(() => {})
         return sources
       })
@@ -151,11 +154,11 @@ export const createShowArtwork = ({
     return isFilmKind(kind) ? NO_ARTWORK : tvmazeArtworkFor(title)
   }
 
-  const tvmazeArtworkFor = async (title) => {
+  const tvmazeArtworkFor = async (title, { retryMissesBefore = null } = {}) => {
     const key = showTitleKey(title)
     if (!key || !(await isTvmazeEnabled())) return NO_ARTWORK
     const lookup = await tvmazeLookupOf({ key, title })
-    const cached = await cachedTvmazeSources(lookup.cacheKey)
+    const cached = await cachedTvmazeSources(lookup.cacheKey, { retryMissesBefore })
     refreshStale({ cached, lookup })
     if (cached.sources) return { sources: cached.sources, pending: false }
     if (recentlyFailed(lookup.cacheKey)) return NO_ARTWORK
@@ -333,7 +336,6 @@ const PLEX_MOVIES = 'movie'
 const PLEX_TTL_MS = 10 * 60 * 1000
 const TVMAZE_HIT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const TVMAZE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000
-const TVMAZE_UNHINTED_MISS_TTL_MS = 6 * 60 * 60 * 1000
 const TVMAZE_LOOKUP_GAP_MS = 1000
 const TVMAZE_MAX_QUEUE = 300
 const TVMAZE_FAILURE_BACKOFF_MS = 10 * 60 * 1000

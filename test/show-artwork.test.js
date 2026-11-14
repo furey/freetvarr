@@ -80,12 +80,11 @@ test('sourcesFor: picks the Big Brother airing on the guide channel network, not
   assert.deepEqual(await artwork.sourcesFor('Big Brother'), [BIG_BROTHER_AU_POSTER])
 })
 
-test('sourcesFor: leaves several local Big Brothers unpicked without a channel, and retries the miss sooner', async () => {
+test('sourcesFor: leaves several local Big Brothers unpicked without a channel; only a due title asks past the miss', async () => {
   let clock = 1_000
   let searches = 0
   const artwork = artworkWith({
     now: () => clock,
-    unhintedMissTtlMs: 100,
     hintsFor: async () => null,
     searchTvmaze: async () => { searches += 1; return BIG_BROTHER_SEARCH },
     countryCode: () => 'au',
@@ -95,7 +94,14 @@ test('sourcesFor: leaves several local Big Brothers unpicked without a channel, 
   assert.deepEqual(sources, [])
   clock += 100
   await artwork.sourcesFor('Big Brother')
-  assert.ok(searches > 1)
+  assert.equal(searches, 1)
+  assert.deepEqual(await artwork.tvmazeArtworkFor('Big Brother', { retryMissesBefore: 1_000 }), { sources: [], pending: false })
+  assert.equal(searches, 1)
+  assert.deepEqual(await artwork.tvmazeArtworkFor('Big Brother', { retryMissesBefore: 1_050 }), { sources: [], pending: true })
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(searches, 2)
+  assert.deepEqual(await artwork.tvmazeArtworkFor('Big Brother', { retryMissesBefore: 1_050 }), { sources: [], pending: false })
+  assert.equal(searches, 2)
 })
 
 test('sourcesFor: ignores a picture cached by the old series match and looks the show up again', async () => {
@@ -168,7 +174,6 @@ test('sourcesFor: remembers a title TVmaze does not know until the miss expires'
   const artwork = artworkWith({
     now: () => clock,
     missTtlMs: 500,
-    unhintedMissTtlMs: 500,
     searchTvmaze: async () => { searches += 1; return [] },
   })
   assert.deepEqual(await artwork.sourcesFor('1 Euro House'), [])

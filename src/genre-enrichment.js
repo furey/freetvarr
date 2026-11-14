@@ -9,6 +9,7 @@ import { showKeyOf } from './web/show-key.js'
 import { isLiveEventTitle } from './for-you-label-rules.js'
 import { loadCategoryOverrides, withCategoryOverrides } from './for-you-category-overrides.js'
 import { hasEpisodeDetails } from './episode-details.js'
+import { MOVIE_KIND, loadTitleKinds, requestKindOf, withTitleKinds } from './title-kinds.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
 
@@ -88,6 +89,12 @@ export const isMovieLike = (programme) => {
 }
 
 export const isFilmAiring = ({ programme, record = null, airingsInWeek = 1 }) => {
+  const film = airingLooksLikeFilm({ programme, record, airingsInWeek })
+  if (!record?.titleKind) return film
+  return requestKindOf({ row: record.titleKind, hint: film ? MOVIE_KIND : null }) === MOVIE_KIND
+}
+
+export const airingLooksLikeFilm = ({ programme, record = null, airingsInWeek = 1 }) => {
   if (record?.kindOverride === MOVIE) return true
   if ([NOT_MOVIE, SHOW_KIND, ONE_OFF_KIND].includes(record?.kindOverride)) return false
   if (String(record?.source || '').startsWith('tvmaze:')) return false
@@ -307,17 +314,19 @@ export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) =>
 }
 
 export const loadTitleGenres = async () => {
-  const [rows, overrides, categoryOverrides] = await Promise.all([
+  const [rows, overrides, categoryOverrides, titleKinds] = await Promise.all([
     db('title_genres').select('title_key', 'categories_json', 'genres_json', 'source').catch(() => []),
     loadKindOverrides().catch(() => new Map()),
     loadCategoryOverrides().catch(() => new Map()),
+    loadTitleKinds().catch(() => new Map()),
   ])
   const records = new Map(rows.map((row) => [row.title_key, {
     genreTags: parseList(row.categories_json),
     genres: parseList(row.genres_json),
     source: row.source || null,
   }]))
-  return withCategoryOverrides({ records: withKindOverrides({ records, overrides }), overrides: categoryOverrides })
+  const withKinds = withTitleKinds({ records: withKindOverrides({ records, overrides }), titleKinds })
+  return withCategoryOverrides({ records: withKinds, overrides: categoryOverrides })
 }
 
 const tvmazeRecordOf = (show) => ({

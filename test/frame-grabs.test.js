@@ -338,6 +338,18 @@ test('new ad data clears a miss mark, so the file is grabbed again with the brea
   assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR }), { sources: [], pending: true })
 })
 
+test('a miss mark lasts until a due title asks past it; a newer mark stays', async () => {
+  const { grabs, root } = await grabsWith()
+  const filePath = '/r/dark.ts'
+  const markPath = path.join(root, `${frameIdOf(filePath)}.none`)
+  await fs.writeFile(markPath, '')
+  const markedAt = (await fs.stat(markPath)).mtimeMs
+  assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR }), { sources: [], pending: false })
+  assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR, retryMissesBefore: markedAt - 1000 }), { sources: [], pending: false })
+  assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR, retryMissesBefore: markedAt + 1000 }), { sources: [], pending: true })
+  await grabs.idle()
+})
+
 test('isAdFreeChannel: ABC network channels in Australia carry no ads; commercial channels, SBS, and US or Canadian ABC do', () => {
   for (const name of ['ABC', 'ABC TV HD', 'ABCTV', 'ABC Kids/ABC Family', 'ABC Kids/ABC TV Plus', 'ABC Entertains', 'ABC NEWS', 'ABC ME', 'ABC2', 'ABC HD', 'ABC TV Sydney']) {
     assert.equal(isAdFreeChannel({ channelName: name, country: 'au' }), true, name)
