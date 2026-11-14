@@ -477,7 +477,7 @@ const EVENT_KINDS = {
 
 const SPORT_KEYWORDS = [
   ['rugby-league', /\b(nrlw?|rugby league|state of origin|super league|league tonight|nrl 360|matty johns)\b/i],
-  ['afl', /\b(aflw?|sanfl|wafl|vfl|aussie rules|australian rules|footy show|footy classified|afl 360|brownlow)\b/i],
+  ['afl', /\b(aflw?|sanfl|wafl|vfl|aussie rules|australian rules|footy show|footy classified|afl 360|brownlow|talking w)\b/i],
   ['rugby-union', /\b(rugby union|super rugby|wallabies|all blacks|springboks|six nations|rugby championship|bledisloe|rugby)\b/i],
   ['american-football', /\b(nfl|super bowl|college football|american football)\b/i],
   ['cricket', /\b(cricket|big bash|bbl|wbbl|the ashes|ipl|t20|odis?|sheffield shield|test match)\b/i],
@@ -486,13 +486,16 @@ const SPORT_KEYWORDS = [
   ['motorsport', /\b(supercars|superbikes?|supercross|motocross|formula (1|one)|f1|motogp|moto ?gp|grand prix|bathurst|nascar|indycar|rally|speedway|motorsport|motor racing)\b/i],
   ['greyhound-racing', /\b(greyhounds?|dogs racing)\b/i],
   ['rodeo', /\b(rodeos?|bull ?riding|pbr|campdraft(ing)?|barrel racing)\b/i],
-  ['horse-racing', /\b(horse racing|racing|races|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup)\b/i],
+  ['horse-racing', /\b(horse racing|giddy ?up|racing|races|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup)\b/i],
   ['golf', /\b(golf|pga|lpga|liv golf)\b/i],
   ['netball', /\bnetball\b/i],
   ['basketball', /\b(basketball|nba|nbl|wnba|wnbl|euroleague)\b/i],
   ['baseball', /\b(baseball|mlb|world series)\b/i],
   ['ice-hockey', /\b(ice hockey|nhl)\b/i],
   ['cycling', /\b(cycling|tour de france|giro d'italia|vuelta)\b/i],
+  ['combat-sports', /\b(ufc|mma|boxing(?! day)|kickboxing|bare knuckle)\b/i],
+  ['surfing', /\b(wsl|surfing|surf league)\b/i],
+  ['swimming', /\b(swim gp|swimming|diving championships?)\b/i],
 ]
 
 const guideSportCodeOf = (guideCategories) => [...guideCategories]

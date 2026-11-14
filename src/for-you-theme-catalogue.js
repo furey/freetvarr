@@ -72,6 +72,9 @@ const SPORT_LABELS = {
   baseball: { default: 'Baseball' },
   'ice-hockey': { default: 'Ice hockey' },
   cycling: { default: 'Cycling' },
+  'combat-sports': { default: 'Combat sports' },
+  surfing: { default: 'Surfing' },
+  swimming: { default: 'Swimming' },
   'other-sport': { default: 'Sport' },
 }
 
@@ -562,6 +565,21 @@ const CATEGORIES = [
         'Tour de France cycling stage.',
         'Road cycling race through the mountains.',
         'Track cycling championship.',
+      ] },
+      { key: 'combat-sports', prototypes: [
+        'UFC mixed martial arts fight night.',
+        'World title boxing bout.',
+        'Kickboxing and bare knuckle fighting.',
+      ] },
+      { key: 'surfing', prototypes: [
+        'WSL championship tour surfing event.',
+        'Surfers ride big waves in a surfing contest.',
+        'Surf league competition at the beach.',
+      ] },
+      { key: 'swimming', prototypes: [
+        'Swimming championships: freestyle and relay finals.',
+        'Swim GP racing in the pool.',
+        'Diving championships from the pool.',
       ] },
       { key: 'other-sport', prototypes: [
         'Live sport: athletics, swimming and gymnastics.',

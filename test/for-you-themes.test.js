@@ -69,6 +69,9 @@ test('sport rows are named by sport, with the local name for football', () => {
   assert.equal(sportLabelOf({ code: 'afl', country: 'au' }), 'Australian rules')
   assert.equal(sportLabelOf({ code: 'greyhound-racing', country: 'au' }), 'Greyhound racing')
   assert.equal(sportLabelOf({ code: 'rodeo', country: 'au' }), 'Rodeo')
+  assert.equal(sportLabelOf({ code: 'combat-sports', country: 'au' }), 'Combat sports')
+  assert.equal(sportLabelOf({ code: 'surfing', country: 'au' }), 'Surfing')
+  assert.equal(sportLabelOf({ code: 'swimming', country: 'au' }), 'Swimming')
 })
 
 test('sport codes: keywords first, and plain "football" depends on the country', () => {
@@ -101,6 +104,13 @@ test('sport codes: keywords first, and plain "football" depends on the country',
   assert.equal(sportCodeOf({ title: 'Barrel Racing Finals', country: 'au' }), 'rodeo')
   assert.equal(sportCodeOf({ title: 'Australian Superbike Championship', country: 'au' }), 'motorsport')
   assert.equal(sportCodeOf({ title: 'WNBL', country: 'au' }), 'basketball')
+  assert.equal(sportCodeOf({ title: 'Giddy Up Saturday', channelNames: ['7two'], country: 'au' }), 'horse-racing')
+  assert.equal(sportCodeOf({ title: 'Talking W', country: 'au' }), 'afl')
+  for (const title of ['UFC 334 Prelims', 'MMA Fight Night', 'Boxing: Title Fight', 'Kickboxing Live', 'Bare Knuckle FC']) assert.equal(sportCodeOf({ title, country: 'au' }), 'combat-sports')
+  assert.equal(sportCodeOf({ title: 'Boxing Day Test Cricket', country: 'au' }), 'cricket')
+  assert.equal(sportCodeOf({ title: 'Boxing Day Sales', country: 'au' }), null)
+  for (const title of ['WSL Replay', 'Surfing Australia', 'Surf League Finals']) assert.equal(sportCodeOf({ title, country: 'au' }), 'surfing')
+  for (const title of ['Swim GP', 'Swimming: National Trials', 'Diving Championships']) assert.equal(sportCodeOf({ title, country: 'au' }), 'swimming')
 })
 
 test('sport codes: a guide category that names the sport counts, a plain sport category does not', () => {

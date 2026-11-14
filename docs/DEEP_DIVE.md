@@ -1871,7 +1871,7 @@ The catalogue (`THEME_CATALOGUE_VERSION` `2`):
 - Format categories: `Reality`, `Quiz and game shows`, `Comedy`, `Drama`, `Crime drama`.
 - Topic categories: `Cooking`, `Home and property`, `Politics and current affairs`, `True crime`, `Police and rescue`, `Nature and animals`, `Travel`, `History`, `Science and health`, the local-life category, and `Music and arts`.
 - `Lifestyle` holds `Motoring`, `Fishing`, `Antiques`, and `Fitness`. Each one is its own row, named after the subtheme.
-- `Sport` holds one subtheme per sport: `afl`, `rugby-league`, `rugby-union`, `cricket`, `soccer`, `american-football`, `tennis`, `motorsport`, `horse-racing` (with harness racing), `greyhound-racing`, `rodeo` (with bull riding and campdrafting), `golf`, `netball`, `basketball`, `baseball`, `ice-hockey`, `cycling`, and `other-sport`. `other-sport` is never a row.
+- `Sport` holds one subtheme per sport: `afl`, `rugby-league`, `rugby-union`, `cricket`, `soccer`, `american-football`, `tennis`, `motorsport`, `horse-racing` (with harness racing), `greyhound-racing`, `rodeo` (with bull riding and campdrafting), `combat-sports`, `surfing`, `swimming` (with diving), `golf`, `netball`, `basketball`, `baseball`, `ice-hockey`, `cycling`, and `other-sport`. `other-sport` is never a row.
 - `News`, `Kids`, `Shopping`, and `Religion` take titles but are never rows.
 
 The country comes from the time zone (`countryForTimeZone` in `src/zone-countries.js`):
