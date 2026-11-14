@@ -1903,7 +1903,7 @@ Title facts (`titleFactsOf`, `recordFactsOf`):
 
 - A title is a film only when one airing in the week is a film, no airing has a season, episode number, or episode title, and TVmaze found no show for it.
 - `isFilmAiring` in `src/genre-enrichment.js` returns `false` for a title with a live event word (`isLiveEventTitle`: `awards`, `song contest`, `ceremony`, `telethon`, `festival`, `concert`, `gala`, `parade`, `new year's eve`). A Wikidata film record makes an airing a film only when the airing has no episode details.
-- From the `title_genres` record: `type:<TVmaze type>`, the plain TVmaze genres (only for a `tvmaze:` source), `wd:<Wikidata genre>` tokens, and `country:<code>` as the origin.
+- From the `title_genres` record: `type:<TVmaze type>`, the plain TVmaze genres (only for a `tvmaze:` source), `wd:<Wikidata genre>` tokens, and `country:<code>` as the origin. A lookup writes `lookup:2` when TVmaze and Wikidata both answered, or `lookup:partial` with a `7`-day expiry when Wikidata failed or was skipped; records with neither token are looked up again. After `5` Wikidata failures in a row, a run uses TVmaze only. `rememberTvmazeShow` keeps the `wd:`, `country:`, and `lookup:` tokens of the record. An episode title that reads like a description (`isDescriptionLike`) is not an episode detail (`hasEpisodeDetails` in `src/episode-details.js`). A film record wins over the live event words. Runtime origin is the TVmaze country, then Wikidata, then the known-shows list.
 
 Tagging (`tagTitle`):
 
@@ -1941,7 +1941,7 @@ Rows (`selectCategoryGroups`, `selectSportCodes`):
 
 - A category row needs a share of `4%` or more (`ROW_SHARE`), `3` or more titles with weight, and `4` or more upcoming members. At most `3` category rows show, highest share first.
 - The sport row needs codes with a share of `4%` or more (`ROW_SHARE`), `1` or more titles, and `4` or more upcoming airings. One code gives a row named after the code; more codes give one row named `Sport this week`.
-- Candidates are upcoming members that are not films, not excluded like the other sections, and not shows the household already likes. A category row ranks the facets that hold `25%` or more of the category weight first, leaves out the other facets, then ranks by the airing score. The sport row lists each airing: `sportAiringKindOf` ranks matches first, other shows about the sport next, and replays last, then by start time. It keeps at most `3` airings of one title.
+- Candidates are upcoming members that are not films, not excluded like the other sections, and not shows the household already likes. A show with any hidden or switched-off category is in no category row. A card in a category row offers **Hide** for that row's category. A category row ranks the facets that hold `25%` or more of the category weight first, leaves out the other facets, then ranks by the airing score. The sport row lists each airing: `sportAiringKindOf` ranks matches first, other shows about the sport next, and replays last, then by start time. It keeps at most `3` airings of one title.
 - A category row takes no show that an earlier section took. A row is left out when more than half of its first `12` items show in earlier sections, or when fewer than `4` items are left.
 - The section key is `category-<key>` (or `sport` for `Sport this week`); the title is the category name. Each item carries `category` (`key`, `title`, `phrase`) and a reason with its facet name. **Why this?** names the category share and the closest facet.
 
