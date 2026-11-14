@@ -117,3 +117,7 @@ test('rememberedHealthOf: restores the last health so the alert shows on first p
   assert.equal(rememberedHealthOf('not json'), null)
   assert.equal(rememberedHealthOf(null), null)
 })
+
+test('healthLevelOf: a sync stopped by a restart is not a failure', () => {
+  assert.deepEqual(healthLevelOf({ lastSync: { status: 'stopped' } }), { level: 'ok', sentence: null })
+})

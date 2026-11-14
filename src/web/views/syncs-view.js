@@ -10,7 +10,8 @@ import { describeSyncFrequency } from '/sync-schedule.js'
 import { holdAtLeast } from '/pending.js'
 import { clearSyncHistoryConfirm, deleteSyncConfirm } from '/confirm-copy.js'
 import { syncDay, syncTime } from '/sync-when.js'
-import { firstSyncError, groupSyncsByDay } from '/sync-row.js'
+import { firstSyncError, groupSyncsByDay, ranAgainText } from '/sync-row.js'
+import { formatClock } from '/time-format.js'
 import { useConfirm } from '/components/dialogs.js'
 import { api } from '/shared/api.js'
 import { useFlash } from '/shared/composables.js'
@@ -133,6 +134,7 @@ export const SyncsView = {
                       <span class="sync-details-line">
                         <summary-line :summary="s.summary" :roles="SYNC_DETAIL_ROLES" />
                         <template v-if="firstSyncError(s)"><span class="text-ink-mute">·</span><span class="sync-details-error truncate">{{ firstSyncError(s) }}</span></template>
+                        <template v-if="ranAgainOf(s)"><span class="text-ink-mute">·</span><span class="truncate">{{ ranAgainOf(s) }}</span></template>
                       </span>
                     </td>
                     <td class="ui-tabular whitespace-nowrap text-ink-dim">{{ tookOf(s) }}</td>
@@ -157,6 +159,7 @@ export const SyncsView = {
                   <sync-result :sync="s" />
                   <span class="sync-line-took-text">{{ tookOf(s) }}</span>
                   <span v-if="firstSyncError(s)" class="sync-line-error truncate">{{ firstSyncError(s) }}</span>
+                  <span v-if="ranAgainOf(s)" class="sync-line-note truncate">{{ ranAgainOf(s) }}</span>
                 </div>
                 <sync-detail v-if="isOpen(s)" class="drawer-card" :sync="s" :deletable="s.id !== syncStatus.activeSyncId" @delete="askRemoveSync(s)" @click.stop />
               </article>
@@ -228,6 +231,7 @@ export const SyncsView = {
     }
 
     const timeOf = syncTimeText
+    const ranAgainOf = (s) => ranAgainText({ sync: s, clockOf: (at) => formatClock(Date.parse(at), tz.value) })
     const tookOf = syncTookText
     const dayGroups = computed(() => groupSyncsByDay({ syncs: syncs.value, dayOf: syncDayText }))
     const linkedSyncId = computed(() => Number(routeSection.value) || null)
@@ -355,7 +359,7 @@ export const SyncsView = {
     return {
       syncs, syncStatus, scheduleFrequency, starting,
       outcomes, trigger, toggleOutcome, setTrigger, OUTCOME_OPTIONS, TRIGGER_OPTIONS,
-      emptyText, hiddenEmptyCount, isOpen, toggleOpen, timeOf, tookOf, dayGroups, highlightId,
+      emptyText, hiddenEmptyCount, isOpen, toggleOpen, timeOf, ranAgainOf, tookOf, dayGroups, highlightId,
       firstSyncError, SYNC_DETAIL_ROLES,
       total, loaded, page, pageSize, totalPages, rangeLabel,
       syncNow, refresh, askRemoveSync, askClearAll,

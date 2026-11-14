@@ -39,7 +39,7 @@ export const listSyncs = async ({ db, outcomes = null, trigger = null, page = 1,
   }
   const filtered = () => {
     const q = byTrigger()
-    if (outcomes) q.whereRaw(`(status = 'running' OR ${outcomes.map((o) => `(${SYNC_OUTCOMES[o]})`).join(' OR ')})`)
+    if (outcomes) q.whereRaw(`(status IN ('running', 'stopped') OR ${outcomes.map((o) => `(${SYNC_OUTCOMES[o]})`).join(' OR ')})`)
     return q
   }
   const [{ count }, { emptyCount }, syncs] = await Promise.all([

@@ -616,6 +616,9 @@ const LATER_CHECKS = [
           action: OPEN_SYNCS,
         }
       }
+      if (last.status === 'stopped') {
+        return { status: 'pass', detail: `A restart stopped the last sync before it finished.${schedule}` }
+      }
       if (last.status === 'partial') {
         return {
           status: 'warn',

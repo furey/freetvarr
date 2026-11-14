@@ -1,6 +1,6 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { formatMinutes } from '/time-format.js'
-import { syncDetail } from '/sync-detail.js'
+import { stoppedText, syncDetail } from '/sync-detail.js'
 import { fmtBytes } from '/shared/format.js'
 import { fmtClockTz, fmtRelativeDay } from '/shared/time.js'
 
@@ -24,7 +24,8 @@ export const SyncDetail = {
         </ul>
         <button v-if="hiddenItemCount" type="button" class="btn-link text-xs" @click="showAll = true">Show all {{ detail.items.length }}</button>
         <p v-if="detail.omitted" class="text-xs text-ink-dim">{{ detail.omitted }} more not listed.</p>
-        <p v-if="detail.countsOnly" class="text-xs text-ink-dim">This sync ran before Freetvarr kept a list of each recording, so only its counts are known.</p>
+        <p v-if="sync.status === 'stopped'" class="text-xs text-ink-dim">{{ stoppedText(sync) }}</p>
+        <p v-else-if="detail.countsOnly" class="text-xs text-ink-dim">This sync ran before Freetvarr kept a list of each recording, so only its counts are known.</p>
         <p v-else-if="!detail.items.length && !detail.errors.length" class="text-xs text-ink-dim">Nothing new to import.</p>
         <ul v-if="detail.errors.length" class="sync-errors">
           <li v-for="(error, i) in detail.errors" :key="i"><rich-text :text="error" /></li>
@@ -56,7 +57,7 @@ export const SyncDetail = {
       item.took ? `took ${item.took}` : '',
       item.removedFromTvh ? 'removed from TVHeadend' : '',
     ].filter(Boolean).join(' · ')
-    return { detail, shownItems, hiddenItemCount, showAll, itemMeta }
+    return { detail, shownItems, hiddenItemCount, showAll, itemMeta, stoppedText }
   },
 }
 

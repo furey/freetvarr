@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import knexFactory from 'knex'
 
-import { listSyncs, pruneSyncHistory, syncPageParams, SYNC_PAGE_SIZE_MAX } from '../src/sync-history.js'
+import { listSyncs, pruneSyncHistory, syncPageParams, SYNC_OUTCOMES, SYNC_PAGE_SIZE_MAX } from '../src/sync-history.js'
 
 const openDb = async () => {
   const db = knexFactory({
@@ -107,4 +107,16 @@ test('pruneSyncHistory: drops the oldest empty syncs first, then caps the total'
   await pruneSyncHistory({ db, cap: 3, emptyCap: 1 })
   assert.deepEqual((await db('syncs').select('id').orderBy('id')).map((r) => r.id), [3, 5, 6])
   await db.destroy()
+})
+
+test('listSyncs: a sync stopped by a restart shows under every filter but never counts as a fail or as empty', async (t) => {
+  const db = await openDb()
+  t.after(() => db.destroy())
+  await seedRow(db, { minute: 1, status: 'error', summary: { trigger: 'cron' } })
+  await seedRow(db, { minute: 2, status: 'stopped', summary: { trigger: 'cron' } })
+  await seedRow(db, { minute: 3, summary: { trigger: 'restart', imported: 0 } })
+  const fails = await listSyncs({ db, outcomes: ['fails'] })
+  assert.deepEqual(fails.syncs.map((s) => s.id), [2, 1])
+  assert.equal((await db('syncs').whereRaw(SYNC_OUTCOMES.fails).count({ n: 'id' }).first()).n, 1)
+  assert.equal(fails.emptyCount, 1)
 })

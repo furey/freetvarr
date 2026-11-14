@@ -36,6 +36,7 @@ import {
   rebaseFilePaths,
   airingOf,
   usePlaybackCheck,
+  noteSyncRanAgain,
 } from './sync.js'
 import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
@@ -212,6 +213,7 @@ import { BUILD_HEADER, readBuildId } from './build-id.js'
 import { webAssets } from './web-assets.js'
 import { getDoctorReport, hostNamesCheck, scheduleDoctorChecks, withHostNamesCheck } from './doctor.js'
 import { reconcileInterruptedSyncs } from './startup-reconcile.js'
+import { scheduleRestartSync } from './restart-sync.js'
 import { getHealthSummary, healthSummaryRoute, pageHealthOf } from './health-summary.js'
 import {
   isTvheadendUnconfigured,
@@ -2658,14 +2660,16 @@ const placeholderErrorOf = ({ outcome, oneOffRoot }) => (outcome === FOLDER_UNWR
 
 const closeSyncsLeftByRestart = async () => {
   try {
-    const closedSyncs = await reconcileInterruptedSyncs()
-    if (closedSyncs) console.log(`[sync] closed ${closedSyncs} sync(s) left running by a restart`)
+    const stopped = await reconcileInterruptedSyncs()
+    if (stopped.length) console.log(`[sync] marked ${stopped.length} sync(s) as stopped by a restart`)
+    return stopped
   } catch (err) {
     console.error('[sync] failed to reconcile interrupted syncs:', err.message)
+    return []
   }
 }
 
-await closeSyncsLeftByRestart()
+const syncsStoppedByRestart = await closeSyncsLeftByRestart()
 
 const server = app.listen(PORT, async () => {
   console.log(`freetvarr listening on http://0.0.0.0:${PORT}`)
@@ -2717,6 +2721,13 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('[scheduler] failed to start:', err.message)
   }
+  scheduleRestartSync({
+    stopped: syncsStoppedByRestart,
+    scheduledSyncsOn,
+    nextRunAt: getSchedulerNextRun,
+    startSync,
+    noteRanAgain: noteSyncRanAgain,
+  })
   startAutoImport()
 })
 
