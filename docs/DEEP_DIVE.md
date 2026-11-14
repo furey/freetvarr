@@ -648,7 +648,7 @@ The journal has the same shape as the switch journal, with the state before the 
 3. The guide majority (`guideKindEvidenceOf`): `movie` when every airing is a film, else the commoner of `series` and `one-off`.
 4. A hint: `series` when a recording of the title has episode details.
 
-A guide category of sport or news blocks `movie` (`isSportOrNewsCategories`), unless a category is also `movie`, `movies`, or `film`. The categories come from `programme_categories` for the loaded week, matched by `classificationTitleKey`. A blocked film airing counts as a `one-off`.
+A guide category of sport or news blocks `movie` (`isSportOrNewsCategories`), unless a category is also `movie`, `movies`, or `film`. The categories come from `programme_categories` for the loaded week, matched by `classificationTitleKey`. A blocked film airing counts as a `one-off`. A category counts as news when it holds the word `news` or `current affairs`, and as sport when it holds `sport` or `sports` or names a sport. Episode details follow `hasEpisodeDetails` in `src/episode-details.js`, so a description in the episode title (as Seven lists films) is not an episode. When no evidence is left, for example after an override is removed from a title with no library or guide evidence, the row becomes `series` with source `hint`, so request hints count again.
 
 The table is written only when the evidence of a title changes (`mergeTitleKinds`):
 
@@ -1463,7 +1463,7 @@ No code deletes a row to ask again. `markResolutionsDue` in `src/art-resolver.js
 
 `createFrameGrabs` in `src/frame-grabs.js` takes a frame from a recording file with ffmpeg and saves it as `artwork/frames/<id>.jpg` beside the database (`ARTWORK_PATH`). `<id>` is the first `24` hex characters of a SHA-256 hash of the file path; the origin is `frame:<id>`.
 
-1. `frameFor` answers with the saved frame. With no frame, it puts the file in a queue and answers pending. A `<id>.none` mark older than `retryMissesBefore` (a due title row) is deleted, and the file is grabbed again. A file with a newer `<id>.none` mark, no ffmpeg (`ffmpeg -version` fails, as on an install outside Docker), or a file that the server cannot read answers with no frame.
+1. `frameFor` answers with the saved frame. With no frame, it puts the file in a queue and answers pending. A `<id>.none` mark older than `retryMissesBefore` (a due title row) is deleted, and the file is grabbed again. A title pass gives `retryMissesBefore` to its first file only, so one due retry runs ffmpeg at most once. A file with a newer `<id>.none` mark, no ffmpeg (`ffmpeg -version` fails, as on an install outside Docker), or a file that the server cannot read answers with no frame.
 1. `adPlanOf` sets the ad plan of a recording from `ad_status`, `ad_breaks_json`, the `ad_removal` of its series folder, the `ad_removal_enabled` setting, and `imported_at`:
    - `clear`: `ad_status` is `cut`, `no_breaks`, or `detected` with no breaks.
    - `marked`: `ad_status` is `detected` with breaks.
@@ -1644,18 +1644,18 @@ A guide image with an absolute URL is fetched with at most `3` redirects (`IMAGE
 
 `createWarmUrls` in `src/art-warm-plan.js` lists the picture URLs of each tier, in this order:
 
-| Tier           | Pictures                                                                                                                         | Widths                                     |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `home`         | Home hero candidates; the in-progress and **New recordings** episodes (`picture`); **On now** airings                            | `768`, `1280`, `1920`; `384`; `384`, `768` |
-| `for-you`      | For you top pick and row items                                                                                                   | `384`, `768`                               |
-| `recordings`   | Library shelf posters and cards                                                                                                  | `384`                                      |
-| `guide-today`  | Guide cells with a picture, from now to `24 h` ahead                                                                             | `192`                                      |
-| `scheduled`    | Upcoming recordings                                                                                                              | `384`                                      |
-| `show-heroes`  | Show page heroes of library shows                                                                                                | `768`                                      |
-| `show-posters` | Show page posters of library shows                                                                                               | `192`                                      |
-| `due-titles`   | Show pictures of titles in the next `7` days of the guide whose `art_resolutions` miss row is due, up to `200` (`dueMissTitles`) | `384`                                      |
-| `guide-week`   | Guide cells with a picture, `24 h` ahead and later                                                                               | `192`                                      |
-| `frames`       | Recordings with no saved picture and a file, newest first, up to `500` (the episode route grabs a [frame](#frame-grabs))         | `384`                                      |
+| Tier           | Pictures                                                                                                                                                        | Widths                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `home`         | Home hero candidates; the in-progress and **New recordings** episodes (`picture`); **On now** airings                                                           | `768`, `1280`, `1920`; `384`; `384`, `768` |
+| `for-you`      | For you top pick and row items                                                                                                                                  | `384`, `768`                               |
+| `recordings`   | Library shelf posters and cards                                                                                                                                 | `384`                                      |
+| `guide-today`  | Guide cells with a picture, from now to `24 h` ahead                                                                                                            | `192`                                      |
+| `scheduled`    | Upcoming recordings                                                                                                                                             | `384`                                      |
+| `show-heroes`  | Show page heroes of library shows                                                                                                                               | `768`                                      |
+| `show-posters` | Show page posters of library shows                                                                                                                              | `192`                                      |
+| `due-titles`   | Show pictures of titles in the next `7` days of the guide whose `art_resolutions` miss row is due and still has the title's kind, up to `200` (`dueMissTitles`) | `384`                                      |
+| `guide-week`   | Guide cells with a picture, `24 h` ahead and later                                                                                                              | `192`                                      |
+| `frames`       | Recordings with no saved picture and a file, newest first, up to `500` (the episode route grabs a [frame](#frame-grabs))                                        | `384`                                      |
 
 1. Each URL is checked once per run with the `isWarm` check of its route (`createImageWarmCheck` in `src/image-routes.js`); it renders nothing and makes no web request. A show picture is warm when the choice or the `art_resolutions` row is not due, the fingerprint of the local steps (Plex, recording, guide) still matches, and the thumbnail is in the cache (`peek` in `createArtResolver`, `isShowArtWarm` in `src/epg.js`), so a new recording picture after a sync or a Plex scan is warmed. A guide airing is warm when the thumbnail of its own picture, its saved copy, or a title picture is cached (`isProgrammeArtWarm`); in Australia, an airing with Freeview pictures is warm when the thumbnail of any picture its chain can serve is cached: the Freeview pictures, the Freeview title copy, its own picture and saved copy, the title copy, or other airings (`programmeWarmOriginsOf`). A recording picture is warm when its thumbnail is cached under `recording:<id>:<size>-<mtime>` of the saved picture file; with no saved picture, when the episode chain has a cached title picture or frame, or no picture at all (`isEpisodeArtWarm`). An art pool picture is warm when the thumbnail of its source is cached. A warm URL costs no render and no lookup.
 1. A cold URL runs its route inside `runAsBackgroundWork` (`src/background-work.js`, an `AsyncLocalStorage` store). One URL runs at a time, so there is one render at a time.

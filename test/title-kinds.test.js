@@ -219,3 +219,27 @@ test('createTitleKindStore: writes only changed evidence, reports a kind change 
   assert.deepEqual({ kind: saved.kind, source: saved.source, decidedAt: saved.decidedAt }, { kind: 'movie', source: 'override', decidedAt: 200 })
   assert.equal(reported.length, 2)
 })
+
+test('a removed override with no other evidence leaves a hint row, so request hints count again', () => {
+  const stored = new Map(mergeTitleKinds({ updates: new Map([['the-castle', { override: 'movie' }]]), nowMs: 1 }).rows.map((row) => [row.showKey, row]))
+  assert.equal(stored.get('the-castle').source, 'override')
+  const { rows, changes } = mergeTitleKinds({ stored, updates: new Map([['the-castle', { override: null }]]), nowMs: 2 })
+  assert.deepEqual({ kind: rows[0].kind, source: rows[0].source }, { kind: 'series', source: 'hint' })
+  assert.deepEqual(changes, [{ showKey: 'the-castle', from: 'movie', to: 'series' }])
+  assert.equal(requestKindOf({ row: rows[0], hint: 'movie' }), 'movie')
+  assert.equal(requestKindOf({ row: rows[0], hint: 'one-off' }), 'one-off')
+})
+
+test('a Seven-style film with its description in the episode title keeps the library film kind', () => {
+  const film = airing({ title: 'Paddington 2', episode_title: 'Paddington picks up a series of odd jobs to buy the perfect present for his aunt.' })
+  const updates = guideKindUpdatesOf({ programmes: [film], airingKindOf: () => 'movie', libraryKindsOf: () => ['movie'] })
+  assert.equal(updates.get('paddington-2').guide.episodes, false)
+  assert.deepEqual(decideTitleKind(updates.get('paddington-2')), { kind: 'movie', source: 'library' })
+})
+
+test('guide categories: the live news and sport spellings block a film', () => {
+  for (const categories of [['News & Current Affairs'], ['news/current affairs'], ['Sport'], ['Sports Other'], ['Tennis'], ['Basketball']]) {
+    const updates = guideKindUpdatesOf({ programmes: [NBL_GAME], airingKindOf: () => 'movie', categoriesOf: () => categories })
+    assert.equal(decideTitleKind(updates.get(showKeyOf(NBL_GAME.title))).kind, 'one-off', categories[0])
+  }
+})

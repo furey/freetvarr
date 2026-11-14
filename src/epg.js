@@ -1291,8 +1291,8 @@ export const frameStage = async ({ title, kind, recordingId = null, episodeFile 
   const files = await libraryTitles.frameFilesFor(title, { kind }).catch(() => [])
   const plans = await adPlansFor(files.map((file) => file.recordingId).filter((id) => id != null))
   const planned = files.map((file) => ({ ...file, adPlan: filePlanOf({ file, plans }) }))
-  for (const file of framePreferenceOrderOf(planned)) {
-    const found = await frameGrabs.frameFor({ ...file, onReady, retryMissesBefore })
+  for (const [index, file] of framePreferenceOrderOf(planned).entries()) {
+    const found = await frameGrabs.frameFor({ ...file, onReady, retryMissesBefore: index === 0 ? retryMissesBefore : null })
     if (found.sources.length || found.pending) return found
   }
   return NO_ARTWORK
@@ -1710,10 +1710,13 @@ export const dueMissTitles = async ({ nowMs = Date.now(), horizonMs = GUIDE_DAYS
     .orderBy('next_check_at')
     .select('title_key', 'kind', 'shape')
     .catch(() => [])
-  return rows
-    .filter((row) => titles.has(row.title_key))
-    .slice(0, limit)
-    .map((row) => ({ title: titles.get(row.title_key), kind: row.kind, shape: row.shape }))
+  const due = []
+  for (const row of rows) {
+    if (due.length >= limit) break
+    const title = titles.get(row.title_key)
+    if (title && await canonicalKindFor({ title, hint: row.kind }) === row.kind) due.push({ title, kind: row.kind, shape: row.shape })
+  }
+  return due
 }
 
 const markKindChangesDue = async (changes) => {

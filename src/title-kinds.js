@@ -1,4 +1,5 @@
 import { db } from './db.js'
+import { hasEpisodeDetails } from './episode-details.js'
 import { isSportGuideCategory } from './for-you-categories.js'
 import { KIND_OVERRIDES, MOVIE, NOT_MOVIE, ONE_OFF_KIND as ONE_OFF_OVERRIDE, SHOW_KIND } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
@@ -54,7 +55,7 @@ export const guideKindEvidenceOf = ({ airingKinds = [], episodes = false, sport 
 export const isSportOrNewsCategories = (categories = []) => {
   const texts = [...categories].map((category) => String(category ?? '').trim().toLowerCase())
   if (texts.some((text) => FILM_CATEGORIES.has(text))) return false
-  return texts.some((text) => NEWS_CATEGORIES.has(text) || isSportGuideCategory(text))
+  return texts.some((text) => NEWS_CATEGORY.test(text) || SPORT_CATEGORY.test(text) || isSportGuideCategory(text))
 }
 
 export const guideKindUpdatesOf = ({
@@ -84,7 +85,7 @@ export const libraryKindUpdatesOf = ({ rows = [], stored = new Map(), overrides 
     if (!groupKey) continue
     const group = groups.get(groupKey) ?? { kinds: new Set(), showKeys: new Set(), episodic: false }
     if (row.library_kind) group.kinds.add(row.library_kind)
-    if (row.recording_id && hasRecordingEpisodeDetails(row)) group.episodic = true
+    if (row.recording_id && hasEpisodeDetails(row)) group.episodic = true
     group.showKeys.add(showKeyOf(row.title))
     groups.set(groupKey, group)
   }
@@ -113,7 +114,7 @@ export const mergeTitleKinds = ({ stored = new Map(), updates = new Map(), nowMs
     const before = stored.get(showKey) ?? null
     const evidence = evidenceOf({ ...evidenceOf(before?.evidence), ...definedFieldsOf(partial) })
     if (before && sameEvidence(before.evidence, evidence)) continue
-    const decided = decideTitleKind(evidence) ?? before
+    const decided = decideTitleKind(evidence) ?? (before ? UNDECIDED : null)
     if (!decided) continue
     rows.push({ showKey, kind: decided.kind, source: decided.source, evidence, decidedAt: nowMs })
     if (before && before.kind !== decided.kind) changes.push({ showKey, from: before.kind, to: decided.kind })
@@ -254,9 +255,6 @@ const airingsByShowKeyOf = (programmes) => {
   return groups
 }
 
-const hasEpisodeDetails = (programme) => programme?.series_no != null || programme?.episode_no != null || Boolean(programme?.episode_title)
-
-const hasRecordingEpisodeDetails = (row) => row.series_no != null || row.episode_no != null || Boolean(row.episode_title)
 
 const definedFieldsOf = (partial = {}) => Object.fromEntries(Object.entries(partial).filter(([, value]) => value !== undefined))
 
@@ -271,6 +269,8 @@ const parseJson = (json) => {
 }
 
 const OVERRIDE_KINDS = { [MOVIE]: MOVIE_KIND, [SHOW_KIND]: SERIES_KIND, [ONE_OFF_OVERRIDE]: ONE_OFF_KIND }
-const NEWS_CATEGORIES = new Set(['news', 'news/current affairs', 'current affairs'])
+const NEWS_CATEGORY = /\bnews\b|\bcurrent affairs\b/
+const SPORT_CATEGORY = /\bsports?\b/
 const FILM_CATEGORIES = new Set(['movie', 'movies', 'film'])
 const WRITE_BATCH = 200
+const UNDECIDED = { kind: SERIES_KIND, source: KIND_SOURCES.hint }
