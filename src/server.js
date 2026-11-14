@@ -39,7 +39,7 @@ import {
 } from './sync.js'
 import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
-import { saveArtwork, shrinkStoredArtwork } from './artwork.js'
+import { shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
 import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
 import {
@@ -132,7 +132,7 @@ import {
   searchGuide,
   getRecordingState,
   getChannelThumbnail,
-  getProgrammeImage,
+  saveRecordingPicture,
   findProgrammeThumbnail,
   findShowThumbnail,
   findPersonThumbnail,
@@ -838,7 +838,7 @@ app.post('/api/epg/record', epgLimiter, doubleCsrfProtection, async (req, res) =
       ...options,
       addToLibrary: add_to_library !== false,
     })
-    if (result.uuid) saveArtworkFromGuide({ recordingId: result.uuid, eventId: program_id })
+    if (result.uuid) saveRecordingPicture({ recordingId: result.uuid, eventId: program_id }).catch(() => null)
     res.json({ ok: true, ...result })
   } catch (err) {
     epgError(res, err, 'record')
@@ -879,11 +879,6 @@ app.post('/api/epg/record-series', epgLimiter, doubleCsrfProtection, async (req,
     epgError(res, err, 'record-series')
   }
 })
-
-const saveArtworkFromGuide = async ({ recordingId, eventId }) => {
-  const image = await getProgrammeImage({ eventId }).catch(() => null)
-  if (image) await saveArtwork({ kind: 'recording', id: recordingId, image }).catch(() => null)
-}
 
 const ensureShowRule = async (title, airing = null) => {
   const { created, show_pattern, dest_folder } = await ensureShowFolder({ title, inBackground: true, airing: airing ? airingOf(airing) : {}, origin: USER_ORIGIN })
