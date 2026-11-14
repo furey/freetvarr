@@ -231,6 +231,7 @@ body {
 
 body.sheet-open .app-tabbar {
   visibility: hidden;
+  transition: visibility 0s linear var(--motion-sheet);
 }
 
 .app-nav-item {
