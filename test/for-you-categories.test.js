@@ -532,3 +532,19 @@ test('most specific category: a sport code, then the heaviest topic, then the fo
   assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: facts({ title: 'Shark Tank', tvmazeType: 'Reality' }) })), 'reality')
   assert.equal(mostSpecificCategoryOf({ kind: 'film', entries: [] }), null)
 })
+
+test('For you: a show with any hidden category leaves every category row', () => {
+  const own = ['Recipe Hour', 'Kitchen Nights', 'Bake Off Weekly', 'Chef At Home']
+  const others = ['Market Kitchen', 'Cook Club', 'Chefs Table', 'Pastry Lab', 'Cooking Simply', 'Soup Season']
+  const programmes = [...own, ...others].map((title, i) => airing(title, { start: NOW + (i + 2) * HOUR }))
+  const genresByKey = new Map([...own, ...others].map((title) => [title.toLowerCase().replace(/\s+/g, '-'), { genreTags: ['food', 'reality'], genres: ['Food', 'type:Reality'], source: 'tvmaze:1' }]))
+  const events = [...own, 'Garden Patch'].flatMap((title, i) => [
+    { id: i * 3 + 1, kind: 'record_request', title, channel_id: 'seven', programme_start: NOW - (i + 1) * DAY, ts: NOW - (i + 1) * DAY, meta_json: '{"type":"episode"}' },
+    { id: i * 3 + 2, kind: 'watch_start', title, channel_id: 'seven', programme_start: NOW - (i + 1) * DAY, ts: NOW - (i + 1) * DAY },
+  ])
+  const run = (extra = []) => buildForYou({ nowMs: NOW, programmes, events: [...events, ...extra], channels: [{ id: 'seven', name: 'Seven' }], genresByKey, timeZone: 'Australia/Sydney', limit: 20 })
+  const categoryRowsOf = (result) => result.sections.filter((section) => section.key.startsWith('category-'))
+  assert.ok(categoryRowsOf(run()).length > 0)
+  const hidden = run([{ id: 99, kind: 'category_muted', series_key: 'category-reality', title: 'Reality', ts: NOW - HOUR }])
+  assert.deepEqual(categoryRowsOf(hidden), [])
+})

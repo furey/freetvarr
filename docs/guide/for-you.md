@@ -108,7 +108,7 @@ Press **⋯** beside the title of a category row or the sport row for these choi
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-A **Hide** item on a card or in a menu names one category: the sport, else the main topic, else the format. A show is left out when any of its categories is hidden.
+On a card in a category row, **Hide** names that row's category, the same as the row menu. Elsewhere, such as on the Home hero and in the programme details, **Hide** names one category of the show: the sport, else the main topic, else the format. A show is left out of the category rows and the Home hero when any of its categories is hidden.
 
 To turn a category off before it ever shows, or to turn a hidden category back on, open **Categories** in the [For you settings](#for-you-settings).
 

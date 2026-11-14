@@ -265,7 +265,7 @@ export const categorySectionsOf = ({ allowed, upcoming, history = [], recordings
     fewer: fewerShowsOf(context.profile),
     tagsByKey,
   })
-  const candidates = categoryCandidatesOf({ allowed, keyOf, tagsByKey, isFilm, scored })
+  const candidates = categoryCandidatesOf({ allowed, keyOf, tagsByKey, isFilm, scored, hidden: household.hidden ?? new Set() })
   const itemCounts = new Map([...candidates].map(([group, byKey]) => [group, byKey.size]))
   const rowLimit = Math.min(limit, ROW_LIMIT)
   const taken = new Set(used)
@@ -982,12 +982,15 @@ const bestAiringPerShow = (scored) => {
   return [...byKey.values()].sort((a, b) => b.score - a.score || a.item.start - b.item.start)
 }
 
-const categoryCandidatesOf = ({ allowed, keyOf, tagsByKey, isFilm, scored }) => {
+const hasHiddenCategory = ({ tags, hidden }) => tags.entries
+  .some((entry) => entry.weight > 0 && (hidden.has(entry.group) || (entry.category === 'sport' && hidden.has(SPORT_ROW_KEY))))
+
+const categoryCandidatesOf = ({ allowed, keyOf, tagsByKey, isFilm, scored, hidden = new Set() }) => {
   const preferred = new Map(scored.map((entry) => [entry.key, entry]))
   const groups = new Map()
   for (const programme of allowed) {
     const tags = tagsByKey.get(keyOf(programme.title))
-    if (!tags?.entries.length || isFilm(programme)) continue
+    if (!tags?.entries.length || isFilm(programme) || hasHiddenCategory({ tags, hidden })) continue
     const key = showKeyOf(programme.title)
     const best = preferred.get(key)
     if (best?.liked && tags.kind !== 'sport') continue
