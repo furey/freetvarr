@@ -26,6 +26,7 @@ const {
   categoryChoicesOf,
   categorySettingsOf,
   categoryMutesOf,
+  formatOfTags,
   titleFactsOf,
   titleKindOf,
 } = await import('../src/for-you-categories.js')
@@ -359,6 +360,8 @@ test('boost and off: More multiplies the share by 1.5 once, and a category turne
   assert.equal(settings.find((category) => category.key === 'afl').sport, true)
   assert.ok(!settings.some((category) => ['news', 'kids', 'other-sport'].includes(category.key)))
   assert.deepEqual(hiddenCategoriesOf({ index, mutes: new Map([['quiz', NOW - DAY]]), nowMs: NOW }).map((entry) => [entry.seriesKey, entry.title]), [['category:quiz', 'Quiz and game shows']])
+  assert.deepEqual(hiddenCategoriesOf({ index, mutes: new Map([['sport', NOW - DAY], ['quiz', NOW - 2 * DAY], ['cooking', NOW - 3 * DAY]]), nowMs: NOW }).map((entry) => [entry.categoryKey, entry.title]), [['quiz', 'Quiz and game shows'], ['cooking', 'Cooking'], ['sport', 'Sport this week']])
+  assert.ok(!index.groups.has('sport'))
   const offShare = householdCategoriesOf({ index, weights, tagsByKey, off: new Set(['cooking']), nowMs: NOW })
   assert.equal(offShare.total, 10)
   assert.ok(Math.abs(offShare.groups.get('quiz').share - 0.3) < 1e-9)
@@ -470,7 +473,7 @@ test('web: category cards offer Hide for their row, and a muted row hides its ca
   const settings = categorySettingsOf({ index, nowMs: NOW })
   assert.ok(settings.find((entry) => entry.key === 'documentaries').format)
   assert.ok(!settings.find((entry) => entry.key === 'medical').format)
-  assert.ok(!settings.some((entry) => ['kids', 'news', 'shopping', 'religion', 'other-sport'].includes(entry.key)))
+  assert.ok(!settings.some((entry) => ['kids', 'news', 'sport', 'shopping', 'religion', 'other-sport'].includes(entry.key)))
   const grouped = Object.fromEntries(categoryGroupsOf(settings).map((group) => [group.label, group.categories.map((category) => category.title)]))
   for (const title of ['Soap operas', 'Panel shows', 'Lifestyle', 'Sci-fi and fantasy']) assert.ok(grouped.Formats.includes(title), title)
   assert.ok(grouped.Topics.includes('Dating'))
@@ -566,13 +569,24 @@ test('owner override: wins over the known-shows list and the rules, and keeps th
   assert.equal(mostSpecificCategoryOf(tags), 'cooking')
 })
 
-test('owner override: a fiction format makes the title fiction, and a sport title keeps its sport code', () => {
+test('owner override: a fiction format makes the title fiction, a non-sport format removes the sport code, and format Sport sets one', () => {
   const soap = tagTitle({ index, facts: facts({ title: 'Bay Life', tvmazeType: 'Reality', override: { format: 'soaps', topics: [] } }) })
   assert.equal(soap.kind, 'fiction')
   assert.deepEqual(soap.entries.map((entry) => [entry.group, entry.weight]), [['soaps', 1]])
-  const cricket = tagTitle({ index, facts: facts({ title: 'Cricket: Test Match Day 1', genreTags: ['sport'], override: { format: null, topics: ['history', 'travel'] } }) })
-  assert.equal(cricket.sportCode, 'cricket')
-  assert.deepEqual(cricket.entries.map((entry) => entry.group), ['cricket', 'history', 'travel'])
+  const cricket = facts({ title: 'Cricket: Test Match Day 1', genreTags: ['sport'] })
+  assert.equal(tagTitle({ index, facts: cricket }).sportCode, 'cricket')
+  const notSport = tagTitle({ index, facts: { ...cricket, override: { format: 'documentaries', topics: ['history', 'travel'] } } })
+  assert.equal(notSport.sportCode, null)
+  assert.equal(notSport.kind, 'factual')
+  assert.deepEqual(notSport.entries.map((entry) => entry.group), ['documentaries', 'history', 'travel'])
+  const topicsOnly = tagTitle({ index, facts: { ...cricket, override: { format: null, topics: ['history'] } } })
+  assert.deepEqual([topicsOnly.sportCode, topicsOnly.entries.map((entry) => entry.group)], [null, ['history']])
+  const league = tagTitle({ index, facts: facts({ title: 'Rugby League World Cup 2026', genreTags: ['sport'], override: { format: 'sport-format', topics: [], sport: 'rugby-union' } }) })
+  assert.deepEqual([league.kind, league.sportCode, league.entries.map((entry) => entry.group)], ['sport', 'rugby-union', ['rugby-union']])
+  assert.equal(mostSpecificCategoryOf(league), 'rugby-union')
+  assert.equal(formatOfTags(league), 'sport-format')
+  const quiz = tagTitle({ index, facts: facts({ title: 'Quiet Night', override: { format: 'sport-format', topics: [], sport: 'cricket' } }) })
+  assert.deepEqual([quiz.kind, quiz.sportCode], ['sport', 'cricket'])
 })
 
 test('owner override: the record carries it into the title facts', () => {
@@ -593,7 +607,7 @@ test('category order: formats by group, topics and sports by their shown label, 
   for (const country of ['au', 'us', 'gb']) {
     const groups = groupsOf(country)
     const formats = groups.filter((info) => info.slot === 'format')
-    assert.deepEqual(formats.map((info) => info.group), ['comedy', 'drama', 'crime-drama', 'soaps', 'sci-fi-fantasy', 'reality', 'quiz', 'documentaries', 'lifestyle', 'talk-shows', 'panel-shows', 'news', 'kids'])
+    assert.deepEqual(formats.map((info) => info.group), ['comedy', 'drama', 'crime-drama', 'soaps', 'sci-fi-fantasy', 'reality', 'quiz', 'documentaries', 'lifestyle', 'talk-shows', 'panel-shows', 'news', 'kids', 'sport-format'])
     assert.ok(formats.every((info) => ['scripted', 'unscripted', 'other'].includes(info.formatGroup)), 'every format has a group')
     const topics = groups.filter((info) => info.slot === 'topic' && info.row !== 'sport')
     assert.ok(isSorted(topics.map((info) => info.title)), `${country} topics`)
@@ -612,6 +626,6 @@ test('category order: formats by group, topics and sports by their shown label, 
   assert.deepEqual(formatGroupsOf(choices).map((group) => [group.label, group.choices.map((choice) => choice.title)]), [
     ['Scripted', ['Comedy', 'Drama', 'Crime drama', 'Soap operas', 'Sci-fi and fantasy']],
     ['Unscripted', ['Reality', 'Quiz and game shows', 'Documentaries', 'Lifestyle', 'Talk shows', 'Panel shows']],
-    ['Other', ['News', 'Kids', 'None']],
+    ['Other', ['News', 'Kids', 'Sport', 'None']],
   ])
 })

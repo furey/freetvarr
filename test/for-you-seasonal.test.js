@@ -369,6 +369,7 @@ test('settings: Categories lists a Seasonal switch per install-country occasion,
   assert.equal(off.find((category) => category.key === 'seasonal-halloween').on, false)
   assert.equal((await call('PUT', '/api/for-you/categories/seasonal-halloween', { on: true })).body.categories.find((category) => category.key === 'seasonal-halloween').on, true)
   assert.equal((await call('PUT', '/api/for-you/categories/seasonal-thanksgiving', { on: false })).status, 404)
+  for (const key of ['sport-format', 'sport', 'kids', 'news']) assert.equal((await call('PUT', '/api/for-you/categories/' + key, { on: false })).status, 404, key)
   await db('user_events').insert({ ts: Date.now() - 1000, kind: 'category_muted', series_key: 'category-seasonal-christmas', title: 'Christmas' })
   const hidden = (await call('GET', '/api/for-you/hidden')).body
   assert.deepEqual(hidden.map((show) => [show.seriesKey, show.categoryKey, show.title]), [['category:seasonal-christmas', 'seasonal-christmas', 'Christmas']])

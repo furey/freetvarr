@@ -1,4 +1,4 @@
-import { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, categoryCatalogueOf, compareCategoryInfos, formatGroupTitleOf } from './for-you-category-catalogue.js'
+import { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, SPORT_FORMAT, categoryCatalogueOf, compareCategoryInfos, formatGroupTitleOf } from './for-you-category-catalogue.js'
 import { KNOWN_SHOWS, knownShowOf } from './for-you-known-shows.js'
 import { genreLabelsOf, hasStrongDocumentaryEvidence, isFishingTitle, isLiveEventTitle, realityFacetOf, ruleLabelsOf } from './for-you-label-rules.js'
 import { showKeyOf } from './web/show-key.js'
@@ -397,11 +397,11 @@ const groupInfoOf = ({ category, facet, group }) => {
 
 const tagsOf = ({ kind, origin = null, sportCode = null, bulletin = false, entries = [] }) => ({ kind, sportCode, bulletin, origin, entries })
 
-const labelTagsOf = ({ index, kind, origin, format = null, formatFacet = null, topics = [], pinned = [] }) => {
-  const topicEntries = [...pinned, ...topics]
+const labelTagsOf = ({ index, kind, origin, format = null, formatFacet = null, topics = [] }) => {
+  const topicEntries = topics
     .map((topic) => (typeof topic === 'string' ? { group: topic } : topic))
     .filter((topic) => index.groups.has(topic.group))
-    .slice(0, MAX_TOPICS + pinned.length)
+    .slice(0, MAX_TOPICS)
   const formatShare = !format ? 0 : topicEntries.length ? FORMAT_WEIGHT : 1
   const topicTotal = topicEntries.reduce((sum, topic) => sum + (topic.weight ?? 1), 0) || 1
   const entries = [
@@ -439,26 +439,27 @@ const sportTagsOf = ({ index, facts, known, origin }) => {
 }
 
 const overrideTagsOf = ({ index, facts, kind, override, origin }) => {
-  const code = kind === 'sport' && !isFishingTitle(facts.title)
-    ? sportCodeOf({ title: facts.title, channelNames: [...(facts.channelNames || [])], guideGenres: [...(facts.guideGenres || [])], country: index.country })
-    : null
+  if (override.format === SPORT_FORMAT && index.groups.get(override.sport)?.row === 'sport') {
+    return { ...labelTagsOf({ index, kind: 'sport', origin, topics: [override.sport] }), sportCode: override.sport, custom: true }
+  }
   const tags = labelTagsOf({
     index,
-    kind: kindOfKnown({ known: override, kind }),
+    kind: kindOfKnown({ known: override, kind: kind === 'sport' ? 'factual' : kind }),
     origin,
-    format: override.format ?? null,
+    format: override.format === SPORT_FORMAT ? null : override.format ?? null,
     formatFacet: override.format === 'reality' ? realityFacetOf(facts.title) : null,
-    pinned: code ? [code] : [],
     topics: override.topics ?? [],
   })
-  return { ...tags, ...(code && { sportCode: code }), custom: true }
+  return { ...tags, custom: true }
 }
+
+export const formatOfTags = (tags) => (tags?.sportCode ? SPORT_FORMAT : tags?.entries?.find((entry) => entry.slot === 'format' && entry.weight > 0)?.group ?? null)
 
 const embeddingTopicsOf = ({ index, kind, titleVector, prototypes }) => {
   const best = new Map()
   for (const [key, vectors] of prototypes) {
     const facet = index.facets.get(key)
-    if (!facet || facet.category.slot !== 'topic' || !facet.kinds.includes(kind) || facet.category.key === SPORT || EMBEDDING_NEVER.has(facet.group)) continue
+    if (!facet || facet.category.slot !== 'topic' || !facet.kinds.includes(kind) || facet.category.row === 'sport' || EMBEDDING_NEVER.has(facet.group)) continue
     const score = Math.max(...vectors.map((vector) => dotProduct(titleVector, vector)))
     if (score >= TOPIC_FLOOR && score > (best.get(facet.group)?.score ?? -Infinity)) best.set(facet.group, { group: facet.group, facet: facet.key, score })
   }
@@ -588,4 +589,4 @@ const FICTION_GUIDE = new Set(['drama', 'comedy', 'movies', 'crime', 'action', '
 const MAX_TEXTS_PER_TITLE = 6
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, isFishingTitle }
+export { HOBBIES, KIDS, LIFESTYLE, NEWS, SPORT, SPORT_FORMAT, isFishingTitle }

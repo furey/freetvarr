@@ -7,6 +7,7 @@ import {
   formatGroupsOf,
   originLineOf,
   overrideRequestOf,
+  SPORT_FORMAT,
   sheetHintOf,
   toggledTopicsOf,
 } from '/category-override.js'
@@ -48,7 +49,16 @@ export const CategoriesSheet = {
           </div>
         </div>
       </div>
-      <div class="settings-group">
+      <div v-if="isSport" class="settings-group">
+        <h3 id="categories-sheet-sport" class="ui-group-label categories-sheet-label">Sport</h3>
+        <div ref="sportsEl" class="ui-chip-row categories-sheet-sports" role="radiogroup" aria-labelledby="categories-sheet-sport" @keydown="onSportKey">
+          <button v-for="choice in choices.sports" :key="choice.key" type="button" role="radio"
+            :class="['ui-chip', { 'is-selected': sport === choice.key }]" :aria-checked="String(sport === choice.key)"
+            :tabindex="choice.key === sportFocusKey ? 0 : -1" :disabled="Boolean(busy)" :data-sport="choice.key"
+            @click="sport = choice.key">{{ choice.title }}</button>
+        </div>
+      </div>
+      <div v-else class="settings-group">
         <h3 class="ui-group-label categories-sheet-label">Topics <span class="categories-sheet-limit">Up to 2</span></h3>
         <div class="ui-group">
           <div v-if="!loaded" class="settings-row"><span class="ui-skeleton is-text" style="--skeleton-w: 10em"></span></div>
@@ -89,9 +99,11 @@ export const CategoriesSheet = {
     const error = ref('')
     const format = ref('')
     const topics = ref([])
+    const sport = ref('')
     const custom = ref(false)
     const origin = ref(null)
-    const choices = ref({ formats: [], topics: [] })
+    const choices = ref({ formats: [], topics: [], sports: [] })
+    const isSport = computed(() => loaded.value && format.value === SPORT_FORMAT)
 
     const hint = computed(() => sheetHintOf({ custom: custom.value }))
     const originLine = computed(() => originLineOf(origin.value))
@@ -100,23 +112,30 @@ export const CategoriesSheet = {
     const formatKeys = computed(() => formatGroups.value.flatMap((group) => group.choices.map((choice) => choice.key)))
     const focusKey = computed(() => (formatKeys.value.includes(format.value) ? format.value : formatKeys.value[0]))
 
-    const onFormatKey = async (event) => {
-      const keys = formatKeys.value
-      const next = nextSegmentIndex({ key: event.key, from: keys.indexOf(event.target?.dataset?.format ?? focusKey.value), enabled: keys.map(() => true) })
+    const sportsEl = ref(null)
+    const sportKeys = computed(() => (choices.value.sports ?? []).map((choice) => choice.key))
+    const sportFocusKey = computed(() => (sportKeys.value.includes(sport.value) ? sport.value : sportKeys.value[0]))
+
+    const moveChoice = async ({ event, keys, current, choose, root, attribute }) => {
+      const next = nextSegmentIndex({ key: event.key, from: keys.indexOf(event.target?.getAttribute?.(attribute) ?? current), enabled: keys.map(() => true) })
       if (next === -1) return
       event.preventDefault()
-      format.value = keys[next]
+      choose(keys[next])
       await nextTick()
-      formatGroupsEl.value?.querySelector(`[data-format="${keys[next]}"]`)?.focus()
+      root?.querySelector(`[${attribute}="${keys[next]}"]`)?.focus()
     }
-    const canSave = computed(() => canSaveCategoriesOf({ format: format.value, topics: topics.value }))
+
+    const onFormatKey = (event) => moveChoice({ event, keys: formatKeys.value, current: focusKey.value, choose: (key) => { format.value = key }, root: formatGroupsEl.value, attribute: 'data-format' })
+    const onSportKey = (event) => moveChoice({ event, keys: sportKeys.value, current: sportFocusKey.value, choose: (key) => { sport.value = key }, root: sportsEl.value, attribute: 'data-sport' })
+    const canSave = computed(() => canSaveCategoriesOf({ format: format.value, topics: topics.value, sport: sport.value }))
 
     const apply = (payload) => {
       format.value = payload.format ?? ''
       topics.value = [...(payload.topics ?? [])]
+      sport.value = payload.sport ?? ''
       custom.value = Boolean(payload.custom)
       origin.value = payload.origin ?? null
-      choices.value = payload.choices ?? { formats: [], topics: [] }
+      choices.value = { sports: [], ...(payload.choices ?? { formats: [], topics: [] }) }
       loaded.value = true
     }
 
@@ -162,7 +181,7 @@ export const CategoriesSheet = {
 
     const save = () => change({
       kind: 'save',
-      request: (title) => api('PUT', categoriesPathOf(title), overrideRequestOf({ title, format: format.value, topics: topics.value })),
+      request: (title) => api('PUT', categoriesPathOf(title), overrideRequestOf({ title, format: format.value, topics: topics.value, sport: sport.value })),
       text: categoriesSavedTextOf,
     })
 
@@ -172,7 +191,7 @@ export const CategoriesSheet = {
       text: categoriesResetTextOf,
     })
 
-    return { categoriesTitle, loaded, busy, error, format, topics, custom, choices, formatGroupsEl, formatGroups, focusKey, onFormatKey, hint, originLine, canSave, close, setTopic, save, reset }
+    return { categoriesTitle, loaded, busy, error, format, topics, sport, isSport, custom, choices, formatGroupsEl, formatGroups, focusKey, onFormatKey, sportsEl, sportFocusKey, onSportKey, hint, originLine, canSave, close, setTopic, save, reset }
   },
 }
 
