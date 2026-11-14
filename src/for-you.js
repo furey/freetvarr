@@ -230,6 +230,7 @@ const titleTasteOf = ({ tags, index }) => {
     categories,
     hideCategory: categories.find((category) => category.key === hideKey) ?? categories[0],
     origin: tags.origin ?? null,
+    ...(tags.custom && { custom: true }),
   }
 }
 

@@ -4,6 +4,7 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { ForYouOverlays, ForYouRows } from '/components/for-you-parts.js'
 import { HomeHeroCarousel } from '/components/home-hero-carousel.js'
 import { useLibraryActions } from '/components/library-actions.js'
+import { openCategories } from '/components/categories-sheet.js'
 import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, useLibraryToast } from '/components/library-menus.js'
 import { MenuCard } from '/components/menu-card.js'
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
@@ -462,6 +463,7 @@ export const HomeView = {
           'movie-kind': () => changeKindOf(slide.target.program),
           'not-interested': () => forYou.choose('not-interested', dislikeItemOfSlide(slide)),
           'hide-category': () => forYou.choose('hide-category', dislikeItemOfSlide(slide)),
+          'change-categories': () => openCategories(slide.target.program.title),
         },
       }),
       recording: (slide) => {

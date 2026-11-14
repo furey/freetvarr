@@ -1,4 +1,4 @@
-export const CATEGORY_CATALOGUE_VERSION = 3
+export const CATEGORY_CATALOGUE_VERSION = 4
 
 export const categoryCatalogueOf = ({ country = '' } = {}) => {
   const place = countryNameOf(country)
@@ -39,6 +39,7 @@ export const prototypeTextsOf = (catalogue) => catalogue.flatMap((category) => c
 export const LOCAL_LIFE = 'local-life'
 export const SPORT = 'sport'
 export const LIFESTYLE = 'lifestyle'
+export const HOBBIES = 'hobbies'
 export const NEWS = 'news'
 export const KIDS = 'kids'
 
@@ -102,22 +103,42 @@ const CATALOGUE = [
     facets: [ruleFacet('quiz-trivia', 'Quiz shows'), ruleFacet('quiz-games', 'Game shows')],
   }),
   format({
+    key: 'panel-shows',
+    title: 'Panel shows',
+    phrase: 'panel',
+    kinds: FACTUAL,
+    facets: [ruleFacet('panel-shows', 'Panel shows')],
+  }),
+  format({
     key: 'comedy',
     title: 'Comedy',
     kinds: [...FICTION, 'factual'],
-    facets: [ruleFacet('comedy-sitcom', 'Sitcoms'), ruleFacet('comedy-panel', 'Comedy panel shows'), ruleFacet('comedy-stand-up', 'Stand-up')],
+    facets: [ruleFacet('comedy-sitcom', 'Sitcoms'), ruleFacet('comedy-stand-up', 'Stand-up')],
   }),
   format({
     key: 'drama',
     title: 'Drama',
     kinds: FICTION,
-    facets: [ruleFacet('drama-family', 'Family drama'), ruleFacet('drama-period', 'Period drama'), ruleFacet('drama-fantasy', 'Sci-fi and fantasy'), ruleFacet('drama-workplace', 'Medical and legal drama')],
+    facets: [ruleFacet('drama-family', 'Family drama'), ruleFacet('drama-period', 'Period drama'), ruleFacet('drama-workplace', 'Medical and legal drama')],
+  }),
+  format({
+    key: 'soaps',
+    title: 'Soap operas',
+    phrase: 'soap opera',
+    kinds: FICTION,
+    facets: [ruleFacet('soaps', 'Soap operas')],
   }),
   format({
     key: 'crime-drama',
     title: 'Crime drama',
     kinds: FICTION,
     facets: [ruleFacet('crime-drama-procedural', 'Police procedurals'), ruleFacet('crime-drama-mystery', 'Mysteries'), ruleFacet('crime-drama-thriller', 'Thrillers')],
+  }),
+  format({
+    key: 'sci-fi-fantasy',
+    title: 'Sci-fi and fantasy',
+    kinds: FICTION,
+    facets: [ruleFacet('sci-fi-fantasy', 'Sci-fi and fantasy')],
   }),
   format({
     key: 'documentaries',
@@ -132,6 +153,12 @@ const CATALOGUE = [
     phrase: 'talk show',
     kinds: FACTUAL,
     facets: [ruleFacet('talk-shows', 'Talk shows')],
+  }),
+  format({
+    key: LIFESTYLE,
+    title: 'Lifestyle',
+    kinds: FACTUAL,
+    facets: [ruleFacet('lifestyle-magazine', 'Lifestyle')],
   }),
   format({
     key: KIDS,
@@ -252,14 +279,19 @@ const CATALOGUE = [
   }),
   topic({
     key: 'health-and-lifestyle',
-    title: 'Health and lifestyle',
+    title: 'Health',
     facets: [
-      { key: 'health-and-lifestyle', title: 'Health and lifestyle', prototypes: [
+      { key: 'health-and-lifestyle', title: 'Health', prototypes: [
         'Health experts explain diet, sleep, weight loss and how to live longer.',
         'A personal trainer leads a workout to get fit and strong.',
         'A wellbeing program with tips on mental health, relationships and self-care.',
       ] },
     ],
+  }),
+  topic({
+    key: 'dating',
+    title: 'Dating',
+    facets: [ruleFacet('dating', 'Dating')],
   }),
   topic({
     key: 'science-and-technology',
@@ -412,8 +444,8 @@ const CATALOGUE = [
     ],
   }),
   topic({
-    key: LIFESTYLE,
-    title: 'Lifestyle',
+    key: HOBBIES,
+    title: 'Hobbies',
     row: 'facet',
     facets: [
       { key: 'motoring', title: 'Motoring', prototypes: [

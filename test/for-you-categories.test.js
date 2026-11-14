@@ -26,6 +26,7 @@ const {
   categoryChoicesOf,
   categorySettingsOf,
   categoryMutesOf,
+  titleFactsOf,
   titleKindOf,
 } = await import('../src/for-you-categories.js')
 const { countryForTimeZone } = await import('../src/zone-countries.js')
@@ -246,7 +247,7 @@ test('basic tier: keyword and genre rules still tag titles', () => {
   const block = tagTitle({ index, facts: facts({ title: 'The Block', tvmazeType: 'Reality', genreTags: ['reality'] }) })
   assert.deepEqual(block.entries.map((entry) => entry.category).sort(), ['home', 'reality'])
   const love = tagTitle({ index, facts: facts({ title: 'Love Island Australia', tvmazeType: 'Reality', genreTags: ['reality'] }) })
-  assert.deepEqual(love.entries.map((entry) => entry.facet), ['reality-dating'])
+  assert.deepEqual(love.entries.map((entry) => [entry.group, entry.facet]), [['reality', 'reality-dating'], ['dating', 'dating']])
   const cooking = tagTitle({ index, facts: facts({ title: 'Recipe of the Year', genreTags: ['food'] }) })
   assert.deepEqual(cooking.entries.map((entry) => entry.category), ['cooking'])
   const news = tagTitle({ index, facts: facts({ title: 'Seven News', genreTags: ['news'] }) })
@@ -470,6 +471,12 @@ test('web: category cards offer Hide for their row, and a muted row hides its ca
   assert.ok(settings.find((entry) => entry.key === 'documentaries').format)
   assert.ok(!settings.find((entry) => entry.key === 'medical').format)
   assert.ok(!settings.some((entry) => ['kids', 'news', 'shopping', 'religion', 'other-sport'].includes(entry.key)))
+  const grouped = Object.fromEntries(categoryGroupsOf(settings).map((group) => [group.label, group.categories.map((category) => category.title)]))
+  for (const title of ['Soap operas', 'Panel shows', 'Lifestyle', 'Sci-fi and fantasy']) assert.ok(grouped.Formats.includes(title), title)
+  assert.ok(grouped.Topics.includes('Dating'))
+  assert.ok(grouped.Topics.includes('Health'))
+  assert.ok(!grouped.Topics.includes('Health and lifestyle'))
+  assert.equal(settings.find((entry) => entry.key === 'health-and-lifestyle').title, 'Health')
   assert.equal(categoriesOnCountOf([{ on: true }, { on: false }]), '1 of 2')
   const sport = { key: 'rugby-league', title: 'Rugby league', phrase: 'Rugby league', sport: true }
   const matches = ['1', '2'].map((id) => ({ ...item, id, title: 'Cup', seriesKey: 'cup', category: sport }))
@@ -547,4 +554,33 @@ test('For you: a show with any hidden category leaves every category row', () =>
   assert.ok(categoryRowsOf(run()).length > 0)
   const hidden = run([{ id: 99, kind: 'category_muted', series_key: 'category-reality', title: 'Reality', ts: NOW - HOUR }])
   assert.deepEqual(categoryRowsOf(hidden), [])
+})
+
+test('owner override: wins over the known-shows list and the rules, and keeps the automatic origin', () => {
+  const sharkTank = facts({ key: 'shark-tank', title: 'Shark Tank', tvmazeType: 'Reality', origin: 'us' })
+  assert.deepEqual(tagTitle({ index: listed, facts: sharkTank }).entries.map((entry) => entry.group), ['reality'])
+  const tags = tagTitle({ index: listed, facts: { ...sharkTank, override: { format: 'lifestyle', topics: ['cooking', 'dating'] } } })
+  assert.deepEqual(tags.entries.map((entry) => entry.group), ['lifestyle', 'cooking', 'dating'])
+  assert.equal(tags.origin, 'us')
+  assert.equal(tags.custom, true)
+  assert.equal(mostSpecificCategoryOf(tags), 'cooking')
+})
+
+test('owner override: a fiction format makes the title fiction, and a sport title keeps its sport code', () => {
+  const soap = tagTitle({ index, facts: facts({ title: 'Bay Life', tvmazeType: 'Reality', override: { format: 'soaps', topics: [] } }) })
+  assert.equal(soap.kind, 'fiction')
+  assert.deepEqual(soap.entries.map((entry) => [entry.group, entry.weight]), [['soaps', 1]])
+  const cricket = tagTitle({ index, facts: facts({ title: 'Cricket: Test Match Day 1', genreTags: ['sport'], override: { format: null, topics: ['history'] } }) })
+  assert.equal(cricket.sportCode, 'cricket')
+  assert.deepEqual(cricket.entries.map((entry) => entry.group), ['cricket', 'history'])
+})
+
+test('owner override: the record carries it into the title facts', () => {
+  const titles = titleFactsOf({
+    programmes: [{ title: 'Bay Life', channel_id: '1', start: NOW, end: NOW + HOUR }],
+    keyOf: (title) => title.toLowerCase().replace(/ /g, '-'),
+    genreTagsOf: () => [],
+    recordOf: () => ({ genreTags: [], genres: [], source: null, categoryOverride: { format: 'soaps', topics: [] } }),
+  })
+  assert.deepEqual(titles.get('bay-life').override, { format: 'soaps', topics: [] })
 })

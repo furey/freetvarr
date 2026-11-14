@@ -77,17 +77,18 @@ A category row collects programmes of one kind that you record and watch a lot, 
 
 Freetvarr takes each label from the first source that has one, in this order:
 
-1. A list of known free-to-air shows that comes with Freetvarr. It names the categories of about 600 shows that air in Australia and New Zealand, and it applies in every country. It is rebuilt before each minor release.
-2. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key.
-3. Words in the title, the guide category, and the genre code the channel sends.
-4. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
+1. Your own choice, from [Change categories](#change-categories).
+2. A list of known free-to-air shows that comes with Freetvarr. It names the categories of about 600 shows that air in Australia and New Zealand, and it applies in every country. It is rebuilt before each minor release.
+3. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key.
+4. Words in the title, the guide category, and the genre code the channel sends.
+5. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
 
 **Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough.
 
 These are the categories:
 
-- Formats: **Reality**, **Quiz and game shows**, **Comedy**, **Drama**, **Crime drama**, **Documentaries**, and **Talk shows**.
-- Topics: **Cooking**, **Home and property**, **Gardening**, **Politics and current affairs**, **True crime**, **Police and rescue**, **Medical**, **Health and lifestyle**, **Science and technology**, **Nature and animals**, **Travel**, **History**, **Military and war**, **Music and arts**, **Entertainment news**, **Mystery and paranormal**, **Engineering and machines**, **Business and money**, and a row about life in your country, such as **Life in Australia** or **Life in the United Kingdom**. **Life in Australia** is for shows about Australian life and people, not for every show made in Australia. Freetvarr finds the country from the time zone in Settings → SYSTEM → **Schedule**.
+- Formats: **Reality**, **Quiz and game shows**, **Panel shows**, **Comedy**, **Drama**, **Soap operas**, **Crime drama**, **Sci-fi and fantasy**, **Documentaries**, **Talk shows**, and **Lifestyle**. **Lifestyle** is for magazine shows that mix home, food, travel, or health, such as Better Homes and Gardens; a show about one subject, such as a cooking show, takes that topic only.
+- Topics: **Cooking**, **Home and property**, **Gardening**, **Politics and current affairs**, **True crime**, **Police and rescue**, **Medical**, **Health**, **Dating**, **Science and technology**, **Nature and animals**, **Travel**, **History**, **Military and war**, **Music and arts**, **Entertainment news**, **Mystery and paranormal**, **Engineering and machines**, **Business and money**, and a row about life in your country, such as **Life in Australia** or **Life in the United Kingdom**. **Life in Australia** is for shows about Australian life and people, not for every show made in Australia. Freetvarr finds the country from the time zone in Settings → SYSTEM → **Schedule**.
 - **Motoring**, **Fishing**, and **Antiques**.
 - Sport: one row per sport, named by the sport, not by a league: **Rugby league**, **Australian rules**, **Rugby union**, **Cricket**, **Basketball**, **Tennis**, **Golf**, **Motorsport**, **Horse racing** (with harness racing), **Greyhound racing**, **Rodeo** (with bull riding and campdrafting), **Combat sports** (with UFC and boxing), **Surfing**, **Swimming** (with diving), **Netball**, **Cycling**, **American football**, **Baseball**, and **Ice hockey**. Football is **Football (soccer)** in Australia, **Soccer** in the United States and Canada, and **Football** elsewhere. Leagues, competitions, and shows about a sport go in its row, so the NRL, the NRLW, and State of Origin are all **Rugby league**. A sport show goes in a sport row only when its title, its channel name, or its guide category names the sport. A sport show that names no sport, such as a general sports panel show, goes in no sport row.
 
@@ -113,6 +114,18 @@ On a card in a category row, **Hide** names that row's category, the same as the
 To turn a category off before it ever shows, or to turn a hidden category back on, open **Categories** in the [For you settings](#for-you-settings).
 
 At the Basic [suggestion level](#suggestion-level), Freetvarr files shows by their titles and genres only, so you can get fewer category rows.
+
+## Change categories
+
+When Freetvarr files a show under the wrong categories, choose your own. Press **⋯** on a card in For you or on the Home hero, or **⋯** on the show page, and choose **Change categories**. Films have no categories, so the item does not show for a film.
+
+The sheet has these parts:
+
+- **Format**: one format, or **None**. The list also has **Kids** and **News**, which make no row.
+- **Topics**: up to two topics. When two are on, turning on a third turns off the one you turned on first.
+- **Origin**: the country the show comes from, and where Freetvarr found it, such as `Made in Australia (TVmaze)`. You cannot change it here.
+
+Press **Save** to keep your choice. Your choice comes before every automatic source, and For you builds its rows again with it. The country still comes from the automatic sources. To go back to the categories Freetvarr chose, open the sheet again and press **Use automatic categories**.
 
 ## Seasonal rows
 

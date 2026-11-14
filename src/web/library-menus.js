@@ -3,6 +3,7 @@ import { weekdayClockOf } from './library-shelves.js'
 import { airedRangeText, durationText } from './recording-info.js'
 import { episodeHeading, hasRecordingsIn } from './show-page.js'
 import { showKeyOf } from './show-key.js'
+import { CHANGE_CATEGORIES } from './category-override.js'
 
 export const allEpisodesOf = (show) => (show?.seasons || []).flatMap((season) => season.episodes).filter((episode) => !episode.scheduled)
 
@@ -58,6 +59,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
       shelfMoveOf(show),
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
       hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
+      show.kind !== 'movie' && CHANGE_CATEGORIES,
       hasArtwork && { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
     ],
     [

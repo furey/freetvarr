@@ -63,7 +63,7 @@ test('showMenuOf: lists every action in the approved order with delete counts', 
   const groups = showMenuOf({ show })
   assert.deepEqual(keysOf(groups), [
     ['play-next', 'mark-all-watched', 'mark-all-unwatched'],
-    ['options', 'pause-series', 'show-info', 'plex', 'change-picture', 'refresh-artwork'],
+    ['options', 'pause-series', 'show-info', 'plex', 'change-picture', 'change-categories', 'refresh-artwork'],
     ['delete-watched', 'delete-all'],
   ])
   assert.equal(groups[0][0].detail, 'E42')
@@ -95,7 +95,7 @@ test('showMenuOf: always lists both mark-all items and disables the one that wou
 test('showMenuOf: hides what does not apply and leaves recording episodes out of the counts', () => {
   const show = showWith([episode({ recordingId: 'a' }), episode({ recordingId: 'live', episode: 45 })], { rule: null, resumeNext: null })
   const groups = showMenuOf({ show, activeIds: new Set(['live']) })
-  assert.deepEqual(keysOf(groups), [['mark-all-watched', 'mark-all-unwatched'], ['show-info', 'plex', 'change-picture', 'refresh-artwork'], ['delete-all']])
+  assert.deepEqual(keysOf(groups), [['mark-all-watched', 'mark-all-unwatched'], ['show-info', 'plex', 'change-picture', 'change-categories', 'refresh-artwork'], ['delete-all']])
   assert.equal(groups[2][0].detail, '1')
   const paused = showMenuOf({ show: showWith([episode()], { rule: { paused: true } }) })
   assert.ok(paused[1].some((item) => item.key === 'resume-series'))
@@ -103,8 +103,8 @@ test('showMenuOf: hides what does not apply and leaves recording episodes out of
 
 test('showMenuOf: a series rule with nothing recorded yet offers the picture and rule actions only', () => {
   const show = showWith([], { seasons: [], resumeNext: null })
-  assert.deepEqual(keysOf(showMenuOf({ show })), [['options', 'pause-series', 'show-info', 'change-picture', 'refresh-artwork']])
-  assert.deepEqual(keysOf(showMenuOf({ show: { ...show, rule: null } })), [['show-info']])
+  assert.deepEqual(keysOf(showMenuOf({ show })), [['options', 'pause-series', 'show-info', 'change-picture', 'change-categories', 'refresh-artwork']])
+  assert.deepEqual(keysOf(showMenuOf({ show: { ...show, rule: null } })), [['show-info', 'change-categories']])
 })
 
 test('showMenuOf: Move to Shows on a one-off, Move to One-offs on a show, neither on a movie', () => {
@@ -112,6 +112,8 @@ test('showMenuOf: Move to Shows on a one-off, Move to One-offs on a show, neithe
   assert.ok(itemsOf('oneoff').includes('kind-show'))
   assert.ok(itemsOf('show').includes('kind-one-off'))
   assert.ok(!itemsOf('movie').some((key) => key.startsWith('kind-')))
+  assert.ok(itemsOf('show').includes('change-categories'))
+  assert.ok(!itemsOf('movie').includes('change-categories'))
 })
 
 test('episodeMenuOf: an in-progress episode offers resume, start over and earlier episodes', () => {
