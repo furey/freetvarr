@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 import { enterOnlyClosesKeyboard, installTypeAheadEnter, touchKeyboardOf, KEYBOARD_DISMISS_EVENT, TOUCH_KEYBOARD_QUERY } from '../src/web/shared/type-ahead-enter.js'
-import { editingAfter, isTextEntry, keyboardInsetOf, visibleBottomOf, visibleViewportBottom } from '../src/web/shared/visible-viewport.js'
+import { currentKeyboardInset, editingAfter, installVisibleViewport, isTextEntry, keyboardInsetOf, visibleBottomOf, visibleViewportBottom } from '../src/web/shared/visible-viewport.js'
 
 const fakeTarget = () => {
   const listeners = []
@@ -32,17 +32,31 @@ const keyEvent = ({ key = 'Enter', target, isComposing = false }) => {
 
 const textInput = (type) => ({ tagName: 'INPUT', getAttribute: (name) => (name === 'type' ? type : null) })
 
-test('enterOnlyClosesKeyboard: Enter on a touch screen only closes the keyboard', () => {
-  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: true }), true)
+const KEYBOARD_UP = 344
+
+test('enterOnlyClosesKeyboard: Enter from an on-screen keyboard only closes the keyboard', () => {
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: true, keyboardInset: KEYBOARD_UP }), true)
 })
 
 test('enterOnlyClosesKeyboard: Enter with a mouse and keyboard keeps its normal action', () => {
-  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: false }), false)
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: false, keyboardInset: KEYBOARD_UP }), false)
+})
+
+test('enterOnlyClosesKeyboard: a touch screen with a hardware keyboard and no on-screen keyboard keeps the normal action', () => {
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: true, keyboardInset: 0 }), false)
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: true, keyboardInset: 55 }), false)
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', touch: true, keyboardInset: 80 }), true)
 })
 
 test('enterOnlyClosesKeyboard: other keys and Enter that finishes an IME word pass through', () => {
-  assert.equal(enterOnlyClosesKeyboard({ key: 'ArrowDown', touch: true }), false)
-  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', isComposing: true, touch: true }), false)
+  assert.equal(enterOnlyClosesKeyboard({ key: 'ArrowDown', touch: true, keyboardInset: KEYBOARD_UP }), false)
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', isComposing: true, touch: true, keyboardInset: KEYBOARD_UP }), false)
+  assert.equal(enterOnlyClosesKeyboard({ key: 'Enter', keyCode: 229, touch: true, keyboardInset: KEYBOARD_UP }), false)
+})
+
+test('currentKeyboardInset: reads the window, and is 0 without a visual viewport', () => {
+  assert.equal(currentKeyboardInset({ innerHeight: 844, visualViewport: { offsetTop: 0, height: 500 } }), 344)
+  assert.equal(currentKeyboardInset({ innerHeight: 844 }), 0)
 })
 
 test('touchKeyboardOf: reads the coarse, no-hover media query', () => {
@@ -55,7 +69,7 @@ test('touchKeyboardOf: reads the coarse, no-hover media query', () => {
 
 test('installTypeAheadEnter: on touch, Enter blurs the field, tells it why, and stops every other handler', () => {
   const target = fakeTarget()
-  installTypeAheadEnter({ target, isTouch: () => true })
+  installTypeAheadEnter({ target, isTouch: () => true, keyboardInset: () => KEYBOARD_UP })
   assert.equal(target.listeners[0].capture, true)
   const field = fakeField()
   const event = keyEvent({ target: field })
@@ -68,7 +82,7 @@ test('installTypeAheadEnter: on touch, Enter blurs the field, tells it why, and 
 
 test('installTypeAheadEnter: on desktop, Enter reaches the field handlers untouched', () => {
   const target = fakeTarget()
-  installTypeAheadEnter({ target, isTouch: () => false })
+  installTypeAheadEnter({ target, isTouch: () => false, keyboardInset: () => KEYBOARD_UP })
   const field = fakeField()
   const event = keyEvent({ target: field })
   target.fire(event)
@@ -78,7 +92,7 @@ test('installTypeAheadEnter: on desktop, Enter reaches the field handlers untouc
 
 test('installTypeAheadEnter: ignores fields without data-type-ahead, and removes its listener', () => {
   const target = fakeTarget()
-  const stop = installTypeAheadEnter({ target, isTouch: () => true })
+  const stop = installTypeAheadEnter({ target, isTouch: () => true, keyboardInset: () => KEYBOARD_UP })
   const event = keyEvent({ target: { closest: () => null } })
   target.fire(event)
   assert.equal(event.stopped, false)
@@ -159,4 +173,47 @@ test('guide grid: the keyboard inset adds scroll room under the last channel', (
   const css = readFileSync(new URL('../src/web/styles/guide.css', import.meta.url), 'utf8')
   assert.match(css, /padding-bottom: var\(--keyboard-inset, 0px\)/)
   assert.match(css, /padding-bottom: max\(0px, calc\(var\(--keyboard-inset, 0px\) - var\(--app-tabbar-h\) - var\(--guide-legend-h, 0px\)\)\)/)
+})
+
+const trackingRig = () => {
+  const frames = []
+  globalThis.requestAnimationFrame = (fn) => frames.push(fn)
+  globalThis.cancelAnimationFrame = () => {}
+  globalThis.MutationObserver = class { observe() {} disconnect() {} }
+  const vars = new Map()
+  const root = { style: { setProperty: (name, value) => vars.set(name, value), removeProperty: (name) => vars.delete(name) } }
+  const body = { ...fakeTarget(), classList: { contains: () => false }, ownerDocument: { activeElement: null } }
+  const viewport = { ...fakeTarget(), offsetTop: 0, height: 844, scale: 1 }
+  installVisibleViewport({ body, root, viewport, win: { innerHeight: 844 } })
+  const flush = () => frames.splice(0).forEach((fn) => fn())
+  const resize = (height) => {
+    viewport.height = height
+    viewport.fire({ type: 'resize' })
+    flush()
+  }
+  return { vars, body, viewport, resize }
+}
+
+test('installVisibleViewport: a blur before the keyboard closes keeps the inset, so a tap does not shift the list', () => {
+  const { vars, body, viewport, resize } = trackingRig()
+  body.fire({ type: 'focusin', target: textInput('search') })
+  resize(500)
+  assert.equal(vars.get('--keyboard-inset'), '344px')
+  body.fire({ type: 'focusout', target: textInput('search'), relatedTarget: null })
+  assert.equal(vars.get('--keyboard-inset'), '344px')
+  resize(700)
+  assert.equal(vars.get('--keyboard-inset'), '144px')
+  resize(844)
+  assert.equal(vars.has('--keyboard-inset'), false)
+  assert.equal(vars.has('--visible-viewport-bottom'), false)
+  assert.equal(viewport.listeners.length, 0)
+})
+
+test('installVisibleViewport: a blur with no keyboard showing stops tracking at once', () => {
+  const { vars, body, viewport } = trackingRig()
+  body.fire({ type: 'focusin', target: textInput('search') })
+  assert.equal(vars.get('--keyboard-inset'), '0px')
+  body.fire({ type: 'focusout', target: textInput('search'), relatedTarget: null })
+  assert.equal(vars.has('--keyboard-inset'), false)
+  assert.equal(viewport.listeners.length, 0)
 })

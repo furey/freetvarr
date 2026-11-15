@@ -3,10 +3,15 @@ export const installVisibleViewport = ({ body = document.body, root = document.d
   let frame = 0
   let tracking = false
   let editing = isTextEntry(body.ownerDocument?.activeElement)
+  const overlayOpen = () => OVERLAY_BODY_CLASSES.some((name) => body.classList.contains(name))
+  const needed = () => editing || overlayOpen()
+  const insetNow = () => keyboardInsetOf({ layoutHeight: win.innerHeight, viewport })
   const write = () => {
     frame = 0
+    const inset = insetNow()
+    if (!needed() && inset === 0) return stop()
     root.style.setProperty(VISIBLE_BOTTOM_VAR, `${visibleBottomOf(viewport)}px`)
-    root.style.setProperty(KEYBOARD_INSET_VAR, `${keyboardInsetOf({ layoutHeight: win.innerHeight, viewport })}px`)
+    root.style.setProperty(KEYBOARD_INSET_VAR, `${inset}px`)
   }
   const schedule = () => {
     if (!frame) frame = requestAnimationFrame(write)
@@ -25,9 +30,8 @@ export const installVisibleViewport = ({ body = document.body, root = document.d
     root.style.removeProperty(KEYBOARD_INSET_VAR)
   }
   const sync = () => {
-    const needed = editing || OVERLAY_BODY_CLASSES.some((name) => body.classList.contains(name))
-    if (needed && !tracking) start()
-    if (!needed && tracking) stop()
+    if (needed() && !tracking) start()
+    if (!needed() && tracking && insetNow() === 0) stop()
   }
   const onFocusChange = (event) => {
     editing = editingAfter(event)
@@ -50,6 +54,10 @@ export const keyboardInsetOf = ({ layoutHeight, viewport }) => {
   if ((viewport.scale ?? 1) > ZOOMED_SCALE) return 0
   return Math.max(0, Math.round(layoutHeight - visibleBottomOf(viewport)))
 }
+
+export const currentKeyboardInset = (win = window) => (win.visualViewport
+  ? keyboardInsetOf({ layoutHeight: win.innerHeight, viewport: win.visualViewport })
+  : 0)
 
 export const editingAfter = ({ type, target, relatedTarget }) => isTextEntry(type === 'focusin' ? target : relatedTarget)
 
