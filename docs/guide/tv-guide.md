@@ -54,7 +54,7 @@ While **Show For you** is on, the sheet also has **Hide this show** (**Hide this
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme sheet for an episode that has aired, with its image and description, a Close button, and a card with Hide this show, Hide police and rescue shows, and Change categories" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet for an upcoming episode, with This episode and Every episode, the padding settings, the Close and Record buttons, and a card with Hide this show, Hide police and rescue shows, and Change categories" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

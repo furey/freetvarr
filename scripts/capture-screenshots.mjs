@@ -107,8 +107,8 @@ const openCategoriesSheet = async (page) => {
   await page.waitForTimeout(800)
 }
 
-const CHANGE_CATEGORIES_FORMAT = 'documentaries'
-const CHANGE_CATEGORIES_TOPIC = 'antiques'
+const CHANGE_CATEGORIES_FORMAT = 'lifestyle'
+const CHANGE_CATEGORIES_TOPIC = 'cooking'
 
 const openChangeCategories = async (page, pick) => {
   await openProgramme(page, pick)
@@ -152,8 +152,11 @@ const openSeriesDrawer = async (page, title) => {
   await page.waitForTimeout(800)
 }
 
+const clockTextOf = (ms) => new Intl.DateTimeFormat('en-AU', { timeZone: TIMEZONE, hour: 'numeric', minute: '2-digit', hour12: true })
+  .format(ms).replace(/\s/g, '').toLowerCase()
+
 const openProgramme = async (page, { program }) => {
-  const cell = page.locator('.epg-cell', { hasText: program.title }).first()
+  const cell = page.locator('.epg-cell', { hasText: program.title }).filter({ hasText: clockTextOf(program.start) }).first()
   await scrollGuideUntilShown(page, cell)
   await cell.scrollIntoViewIfNeeded().catch(() => {})
   await cell.click({ timeout: 5_000 }).catch(() => clickCentred(cell))
@@ -266,7 +269,7 @@ const captureAll = async (shots, viewport, { mobile = false } = {}) => {
   })
   const picks = await prepareDemoContext({ context: ctx, base: BASE, simNow: SIM_NOW })
   Object.assign(picks, await libraryKeys({ request: ctx.request, base: BASE }))
-  console.log(`programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; show: ${picks.showcaseKey}; scheduled only: ${picks.scheduledOnlyKey}`)
+  console.log(`up next: ${picks.upNext?.program.title}; programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; show: ${picks.showcaseKey}; scheduled only: ${picks.scheduledOnlyKey}`)
   const page = await ctx.newPage()
   for (const shot of shots) {
     const url = `${BASE}/${resolveHash(shot.hash, picks)}`

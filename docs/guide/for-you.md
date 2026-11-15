@@ -122,7 +122,7 @@ When Freetvarr files a show under the wrong categories, choose your own. Press *
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
   <BrowserFrame phone label="freetvarr.lan/#/guide">
-    <img src="../img/screenshot-change-categories.png" alt="The Change categories sheet on a phone, with Documentaries chosen under Format and Antiques turned on under Topics" width="780" height="1688" loading="lazy">
+    <img src="../img/screenshot-change-categories.png" alt="The Change categories sheet on a phone, with Lifestyle chosen under Format and Cooking turned on under Topics" width="780" height="1688" loading="lazy">
   </BrowserFrame>
 </div>
 <!-- markdownlint-enable MD033 -->

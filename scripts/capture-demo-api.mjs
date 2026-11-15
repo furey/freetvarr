@@ -441,7 +441,7 @@ const pickShowcase = async ({ request, base, guide, simNow }) => {
   return {
     programme,
     recording: recording ?? null,
-    upNext: upNextOf({ guide, simNow, fits: (p) => p.kind === 'series' && p.series_no != null && p.episode_no != null }),
+    upNext: (await withServedImage({ request, base, entries: upNextAll({ guide, simNow, windowMs: 30 * HOUR_MS, fits: (p) => p.kind === 'series' }) }))[0] ?? null,
     upNextFilm: (await withServedImage({ request, base, entries: upNextAll({ guide, simNow, fits: isFilmChoice }) }))[0] ?? null,
     searchTerm: upNextTitle({ guide, simNow }),
     guide,
@@ -450,13 +450,11 @@ const pickShowcase = async ({ request, base, guide, simNow }) => {
 
 const isFilmChoice = (p) => p.kind === 'movie' && p.movieChoice
 
-const upNextOf = ({ guide, simNow, fits }) => upNextAll({ guide, simNow, fits })[0] ?? null
-
-const upNextAll = ({ guide, simNow, fits }) => {
+const upNextAll = ({ guide, simNow, fits, windowMs = 3 * HOUR_MS }) => {
   const channels = visibleChannels(guide)
   return [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
     .flatMap((channel) => programsOf(guide, channel)
-      .filter((p) => p.start > simNow && p.start < simNow + 3 * HOUR_MS && hasRealPicture(p) && !isHiddenEntry(p) && fits(p))
+      .filter((p) => p.start > simNow && p.start < simNow + windowMs && hasRealPicture(p) && !isHiddenEntry(p) && fits(p))
       .slice(0, 1)
       .map((program) => ({ channel, program })))
 }
