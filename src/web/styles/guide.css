@@ -1723,6 +1723,7 @@
   .guide-page .guide-card .epg-scroll {
     height: max(160px, calc(100vh - var(--guide-grid-top, 240px) - var(--app-tabbar-h) - var(--guide-legend-h, 0px)));
     height: max(160px, calc(100dvh - var(--guide-grid-top, 240px) - var(--app-tabbar-h) - var(--guide-legend-h, 0px)));
+    padding-bottom: max(0px, calc(var(--keyboard-inset, 0px) - var(--app-tabbar-h) - var(--guide-legend-h, 0px)));
   }
 
   .guide-page .epg-rail-cell {

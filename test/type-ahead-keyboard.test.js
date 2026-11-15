@@ -158,4 +158,5 @@ test('guide combobox: keeps its list open when Enter only closed the keyboard, a
 test('guide grid: the keyboard inset adds scroll room under the last channel', () => {
   const css = readFileSync(new URL('../src/web/styles/guide.css', import.meta.url), 'utf8')
   assert.match(css, /padding-bottom: var\(--keyboard-inset, 0px\)/)
+  assert.match(css, /padding-bottom: max\(0px, calc\(var\(--keyboard-inset, 0px\) - var\(--app-tabbar-h\) - var\(--guide-legend-h, 0px\)\)\)/)
 })
