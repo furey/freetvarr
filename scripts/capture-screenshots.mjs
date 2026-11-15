@@ -47,6 +47,7 @@ const MOBILE_SHOTS = [
   { hash: '#/live', file: 'screenshot-mobile-live.png', wait: '.live-row, .live-list' },
   { hash: '#/recordings/scheduled', file: 'screenshot-mobile-recording-banner.png', wait: '.ui-banner' },
   { hash: '#/live', file: 'screenshot-mobile-player.png', wait: '.live-row, .live-list', prepare: (page, picks) => playLive(page, picks) },
+  { hash: '#/guide', file: 'screenshot-change-categories.png', wait: '.epg-cell', prepare: (page, picks) => openChangeCategories(page, picks.upNext ?? picks.programme) },
 ]
 
 const HIDE_SCROLLBARS = `
@@ -102,7 +103,22 @@ const openCategoryRowMenu = async (page) => {
 const openCategoriesSheet = async (page) => {
   await page.locator('[data-setting="categories"]').click()
   await page.locator('.ui-sheet .settings-row[data-category]').first().waitFor({ timeout: 10_000 })
-  await page.getByText('Seasonal', { exact: true }).first().scrollIntoViewIfNeeded()
+  await page.getByText('Unscripted', { exact: true }).first().scrollIntoViewIfNeeded()
+  await page.waitForTimeout(800)
+}
+
+const CHANGE_CATEGORIES_FORMAT = 'documentaries'
+const CHANGE_CATEGORIES_TOPIC = 'antiques'
+
+const openChangeCategories = async (page, pick) => {
+  await openProgramme(page, pick)
+  await page.getByRole('button', { name: 'Change categories' }).first().click()
+  await page.locator('.categories-sheet-formats [data-format]').first().waitFor({ timeout: 10_000 })
+  await page.waitForFunction(() => !document.querySelector('.categories-sheet-formats [disabled]'), null, { timeout: 10_000 })
+  await page.locator(`[data-format="${CHANGE_CATEGORIES_FORMAT}"]`).click()
+  const topic = page.locator(`[data-topic="${CHANGE_CATEGORIES_TOPIC}"] input, [data-topic="${CHANGE_CATEGORIES_TOPIC}"] [role=switch]`).first()
+  if (await topic.getAttribute('aria-checked') !== 'true') await topic.click()
+  await page.locator('#categories-sheet-format').evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }))
   await page.waitForTimeout(800)
 }
 

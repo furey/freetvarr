@@ -119,6 +119,14 @@ At the Basic [suggestion level](#suggestion-level), Freetvarr files shows by the
 
 When Freetvarr files a show under the wrong categories, choose your own. Press **⋯** on a card in For you or on the Home hero, or **⋯** on the show page, and choose **Change categories**. Films have no categories, so the item does not show for a film.
 
+<!-- markdownlint-disable MD033 -->
+<div class="phone-frames">
+  <BrowserFrame phone label="freetvarr.lan/#/guide">
+    <img src="../img/screenshot-change-categories.png" alt="The Change categories sheet on a phone, with Documentaries chosen under Format and Antiques turned on under Topics" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
+</div>
+<!-- markdownlint-enable MD033 -->
+
 The sheet has these parts:
 
 - **Format**: one format, in the groups **Scripted**, **Unscripted**, and **Other**. **Other** has **News**, **Kids**, **Sport**, and **None**. News and Kids make no row. A show that Freetvarr files under a sport, such as **Rugby league**, has the format **Sport**.
@@ -198,7 +206,7 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/for-you">
-  <img src="../img/screenshot-for-you-categories.png" alt="The Categories sheet in the For you settings, with a switch for each format, topic, and sport and, under Seasonal, for each occasion" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you-categories.png" alt="The Categories sheet in the For you settings, with a switch for each format under the Scripted and Unscripted headings" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

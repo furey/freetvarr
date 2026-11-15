@@ -48,3 +48,4 @@ img screenshot-programme-movie.png
 img screenshot-mobile-recording-banner.png
 img screenshot-search.png
 img screenshot-series-drawer.png
+img screenshot-change-categories.png
