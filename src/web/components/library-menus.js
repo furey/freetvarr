@@ -492,6 +492,7 @@ const MENU_ICONS = {
   record: [dot(6)],
   series: [circle(12, 12, 9), dot(4.5)],
   show: [{ tag: 'rect', attrs: { x: 3, y: 4, width: 18, height: 13, rx: 2 } }, path('M8 21h8M12 17v4')],
+  guide: [{ tag: 'rect', attrs: { x: 3, y: 4, width: 18, height: 16, rx: 2 } }, path('M3 10h18M9 4v16')],
   skip: [circle(12, 12, 9), path('m5.6 5.6 12.8 12.8')],
   hide: [
     path('M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7'),

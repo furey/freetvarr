@@ -153,9 +153,13 @@ export const ProgrammeSheetHost = {
                 {{ modalAction === primaryAction.key ? pendingActionLabelOf(primaryAction.key) : primaryAction.label }}
               </button>
             </div>
-            <button v-if="canShowInGuide" type="button" class="programme-sheet-guide-link" @click="showSelectedInGuide">Show in TV guide <chevron-right-icon /></button>
-            <button v-if="movieChoiceLabel" type="button" class="programme-sheet-guide-link" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /> {{ movieChoiceLabel }}</button>
-            <button v-for="item in dislikeItems" :key="item.key" type="button" class="programme-sheet-guide-link" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /> {{ item.label }}</button>
+            <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length" class="library-menu programme-sheet-more">
+              <div class="ui-group library-menu-group">
+                <button v-if="canShowInGuide" type="button" class="ui-group-row library-menu-item" @click="showSelectedInGuide"><menu-icon name="guide" /><span class="library-menu-text"><span class="library-menu-label">Show in TV guide</span></span></button>
+                <button v-if="movieChoiceLabel" type="button" class="ui-group-row library-menu-item" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /><span class="library-menu-text"><span class="library-menu-label">{{ movieChoiceLabel }}</span></span></button>
+                <button v-for="item in dislikeItems" :key="item.key" type="button" class="ui-group-row library-menu-item" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /><span class="library-menu-text"><span class="library-menu-label">{{ item.label }}</span></span></button>
+              </div>
+            </div>
           </div>
         </template>
         </div>
