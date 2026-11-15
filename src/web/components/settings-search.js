@@ -15,7 +15,7 @@ export const SettingsSearch = {
       <label class="ui-search-field settings-search-field">
         <search-glyph />
         <span class="ui-visually-hidden">Search settings</span>
-        <input v-model="query" class="ui-search-input" type="search" enterkeyhint="search" placeholder="Search settings"
+        <input v-model="query" class="ui-search-input" type="search" enterkeyhint="done" data-type-ahead placeholder="Search settings"
           autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" :aria-expanded="String(results.length > 0)"
           aria-controls="settings-search-results" :aria-activedescendant="activeId" @keydown="onKey" />
       </label>
