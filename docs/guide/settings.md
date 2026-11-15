@@ -21,7 +21,7 @@ When [Health](/guide/doctor) finds a problem, a dot shows on the Settings icon a
 
 Type in **Search settings**, under the Settings title, to find a page or a single setting. The list shows each match with its place, such as `Recording → Media library`. Old page names find the new pages too: `recording folders` finds **Media library**, and `library and plex` finds **Plex**.
 
-Press a match to open its page. Freetvarr scrolls to the setting and marks it for a moment; a setting inside **Token not found?** (a folded section on the Plex page) opens that section first. On a keyboard, the arrow keys choose a match, **Enter** opens it, and **Esc** clears the search. The search stays when you go back to the list. It looks in Settings only; to find shows and programmes, use [search](/guide/home#search).
+Press a match to open its page. Freetvarr scrolls to the setting and marks it for a moment; a setting inside **Token not found?** (a folded section on the Plex page) opens that section first. On a keyboard, the arrow keys choose a match, **Enter** opens it, and **Esc** clears the search. On a phone or tablet, the keyboard's **Done** key only hides the keyboard; press a match to open it. The search stays when you go back to the list. It looks in Settings only; to find shows and programmes, use [search](/guide/home#search).
 
 ## About
 

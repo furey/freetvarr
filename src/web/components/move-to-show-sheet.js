@@ -17,7 +17,7 @@ export const MoveToShowSheet = {
       <label class="ui-search-field move-show-field">
         <search-glyph />
         <span class="ui-visually-hidden">Search shows</span>
-        <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="search"
+        <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="done" data-type-ahead
           placeholder="Search shows" autocomplete="off" spellcheck="false" />
       </label>
       <p v-if="loadError" class="ui-search-hint" role="alert">Cannot load your shows: {{ loadError }}</p>

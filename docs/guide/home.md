@@ -126,7 +126,7 @@ Press **Search** in any page header, then type at least two letters. Search cove
 - **FOR YOU**: programmes in the next 7 days that appear on [For you](/guide/for-you).
 - **TV GUIDE**: every other programme in the next 7 days, best match first.
 
-Each group shows 5 results. Press **Show all** at the end of a group to list the rest in place. Press `↓` or `↑` to move between results, across groups, and press `Enter` to open the first result once **Searching…** has gone.
+Each group shows 5 results. Press **Show all** at the end of a group to list the rest in place. Press `↓` or `↑` to move between results, across groups, and press `Enter` to open the first result once **Searching…** has gone. On a phone or tablet, the keyboard's **Done** key only hides the keyboard, so you can see every result; press a result to open it.
 
 The search ignores a leading “the”, so `the chase` and `chase` find the same shows.
 
