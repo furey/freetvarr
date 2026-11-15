@@ -48,7 +48,7 @@ export const SeriesView = {
         </template>
         <div v-if="!loaded || (!error && series.length)" class="settings-filters">
           <div class="settings-filter-bar">
-            <input v-no-autofill v-model="filterQ" type="search" class="field-input settings-search"
+            <input v-no-autofill v-model="filterQ" type="search" enterkeyhint="done" data-type-ahead class="field-input settings-search"
               placeholder="Filter series or channels" aria-label="Filter series or channels" />
             <select v-model="sortKey" class="field-input settings-select" aria-label="Sort series">
               <option v-for="o in SERIES_SORTS" :key="o.key" :value="o.key">{{ sentenceCase(o.label) }}</option>
@@ -170,7 +170,7 @@ export const SeriesView = {
             <h3 class="ui-group-label">Title matches</h3>
             <span class="settings-group-count">{{ titleMatchCountLabel }}</span>
           </div>
-          <input v-if="titleMatches.length > 5" v-no-autofill v-model="filterQ" type="search" class="field-input settings-search settings-search-block"
+          <input v-if="titleMatches.length > 5" v-no-autofill v-model="filterQ" type="search" enterkeyhint="done" data-type-ahead class="field-input settings-search settings-search-block"
             placeholder="Filter titles" aria-label="Filter titles" />
           <div v-if="!loaded" class="ui-group"><list-skeleton :rows="3" /></div>
           <div v-else-if="!titleMatches.length" class="ui-group"><p class="settings-empty">No title matches yet. Add one below.</p></div>

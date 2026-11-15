@@ -97,6 +97,7 @@ import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.j
 import { pollHealth } from '/shared/health.js'
 import { installImageFocus } from '/shared/image-focus.js'
 import { installVisibleViewport } from '/shared/visible-viewport.js'
+import { installTypeAheadEnter } from '/shared/type-ahead-enter.js'
 import { loadArtworkStamps } from '/shared/artwork-stamps.js'
 import { artStream } from '/shared/art-stream.js'
 import { pollRecordingNow } from '/shared/recording-now.js'
@@ -359,6 +360,7 @@ const stopPageZoom = (event) => event.preventDefault()
 PAGE_ZOOM_GESTURES.forEach((type) => document.addEventListener(type, stopPageZoom, { passive: false }))
 installImageFocus()
 installVisibleViewport()
+installTypeAheadEnter()
 app.mount('#app')
 registerViewLoader((key) => (VIEW_LOADERS[key] ? VIEW_LOADERS[key]() : Promise.resolve()))
 prefetchViewsAfterLoad()

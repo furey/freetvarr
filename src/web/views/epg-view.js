@@ -130,7 +130,7 @@ export const EpgView = {
         <div v-if="searchOpen" class="guide-search">
           <label class="guide-search-field">
             <search-glyph />
-            <input v-no-autofill v-autofocus v-model="searchQ" type="search" class="guide-search-input"
+            <input v-no-autofill v-autofocus v-model="searchQ" type="search" enterkeyhint="done" data-type-ahead class="guide-search-input"
               placeholder="Search the next 7 days" aria-label="Search the next 7 days" @keydown.esc.stop.prevent="closeSearch" />
           </label>
         </div>
@@ -190,7 +190,7 @@ export const EpgView = {
           <h2 class="ui-group-label">Channels</h2>
           <label class="guide-filter" data-kind-filter-anchor>
             <search-glyph />
-            <input v-no-autofill v-model="railFilter" type="search" placeholder="Filter" v-bind="kindFilter.fieldAttrs.value"
+            <input v-no-autofill v-model="railFilter" type="search" enterkeyhint="done" data-type-ahead placeholder="Filter" v-bind="kindFilter.fieldAttrs.value"
               aria-label="Filter channels by number or name" @keydown="onFilterKeydown"
               @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
           </label>
@@ -280,7 +280,7 @@ export const EpgView = {
           <div class="epg-canvas" :style="{ width: 'calc(var(--epg-rail-px) + ' + (trackWidth + trackTailPx) + 'px)' }">
             <div class="epg-ruler">
               <div class="epg-ruler-corner">
-                <input v-if="narrow" v-no-autofill v-model="railFilter" type="search" class="epg-corner-filter"
+                <input v-if="narrow" v-no-autofill v-model="railFilter" type="search" enterkeyhint="done" data-type-ahead class="epg-corner-filter"
                   :placeholder="railLayout.filterPlaceholder" aria-label="Filter channels by number or name" v-bind="kindFilter.fieldAttrs.value"
                   @keydown="onFilterKeydown" @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
                 <span v-else-if="railMatchIds" class="epg-filter-count"><span role="status" class="epg-filter-count-text" :aria-label="filterCountLabel"><span

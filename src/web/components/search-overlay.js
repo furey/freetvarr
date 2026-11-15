@@ -23,7 +23,7 @@ export const SearchOverlay = {
               <label class="ui-search-field">
                 <search-glyph />
                 <span class="ui-visually-hidden">Search shows and the guide</span>
-                <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="search" @keydown.enter.prevent="openFirstResult"
+                <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="done" data-type-ahead @keydown.enter.prevent="openFirstResult"
                   placeholder="Search shows and the guide" autocomplete="off" spellcheck="false" />
               </label>
               <button type="button" class="ui-button ui-button-sm" @click="close">Cancel</button>

@@ -44,7 +44,7 @@ export const LiveView = {
         <button type="button" class="ui-chip live-scope" :aria-pressed="String(pinnedOnly)" @click="pinnedOnly = !pinnedOnly">Favourites</button>
         <label class="live-filter" data-kind-filter-anchor>
           <search-icon />
-          <input v-no-autofill v-model="filterQ" type="search" placeholder="Filter channels or shows" aria-label="Filter channels or shows"
+          <input v-no-autofill v-model="filterQ" type="search" enterkeyhint="done" data-type-ahead placeholder="Filter channels or shows" aria-label="Filter channels or shows"
             v-bind="kindFilter.fieldAttrs.value" @keydown="kindFilter.onKeydown" @focus="kindFilter.onFocus" @blur="kindFilter.onBlur" />
         </label>
         <toggle-switch compact class="live-images-toggle" :model-value="showImages" @update:model-value="toggleImages">Images</toggle-switch>

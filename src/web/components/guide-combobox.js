@@ -7,6 +7,7 @@ import {
   nextTick,
 } from '/vendor/vue.esm-browser.prod.js'
 import { filterOptions, optionLabel, nextChoosableIndex, isChoosable } from '/typeahead.js'
+import { visibleViewportBottom } from '/shared/visible-viewport.js'
 
 const COMBOBOX_LIST_MAX_PX = 256
 const COMBOBOX_LIST_MIN_PX = 140
@@ -29,8 +30,8 @@ export const GuideCombobox = {
         role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
         :aria-label="label || null" :aria-expanded="open ? 'true' : 'false'" :aria-controls="listId"
         :aria-activedescendant="open && active >= 0 ? optionId(active) : null"
-        spellcheck="false" autocapitalize="off" :value="text"
-        @input="onInput" @keydown="onKeydown" @click="show" @focus="$event.target.select()" @blur="close" />
+        spellcheck="false" autocapitalize="off" enterkeyhint="done" data-type-ahead :value="text"
+        @input="onInput" @keydown="onKeydown" @click="show" @focus="onFocus" @blur="onBlur" @keyboard-dismiss="keepListAfterKeyboard" />
       <teleport to="body">
         <ul v-show="open" ref="list" :id="listId" role="listbox" class="combobox-list" :style="listStyle"
           :aria-label="label || null" @mousedown.prevent>
@@ -69,7 +70,7 @@ export const GuideCombobox = {
     const placeList = () => {
       const box = input.value?.getBoundingClientRect()
       if (!box) return
-      const below = window.innerHeight - box.bottom - COMBOBOX_VIEWPORT_GAP_PX
+      const below = visibleViewportBottom() - box.bottom - COMBOBOX_VIEWPORT_GAP_PX
       const above = box.top - COMBOBOX_VIEWPORT_GAP_PX
       const goesBelow = below >= COMBOBOX_LIST_MIN_PX || below >= above
       const room = goesBelow ? below : above
@@ -102,7 +103,10 @@ export const GuideCombobox = {
       setActive(currentIndex())
     }
 
+    const heldOpen = ref(false)
+
     const close = () => {
+      heldOpen.value = false
       open.value = false
       typed.value = false
       text.value = currentLabel.value
@@ -112,6 +116,7 @@ export const GuideCombobox = {
     const choose = (option) => {
       if (!isChoosable(option)) return
       emit('update:modelValue', option.id)
+      heldOpen.value = false
       open.value = false
       typed.value = false
       text.value = option.id === '' ? props.noneLabel : option.name
@@ -157,14 +162,39 @@ export const GuideCombobox = {
 
     const onKeydown = (e) => keyHandlers[e.key]?.(e)
 
+    const onFocus = (e) => {
+      heldOpen.value = false
+      e.target.select()
+    }
+
+    const onBlur = () => {
+      if (!heldOpen.value) close()
+    }
+
+    const keepListAfterKeyboard = () => {
+      if (open.value) heldOpen.value = true
+    }
+
+    const closeOnOutsidePress = (e) => {
+      if (input.value?.contains(e.target) || list.value?.contains(e.target)) return
+      close()
+    }
+
     watch(currentLabel, (label) => {
       if (!typed.value) text.value = label
     })
 
-    watch(open, (isOpen) => {
-      const method = isOpen ? 'addEventListener' : 'removeEventListener'
+    const followViewport = (on) => {
+      const method = on ? 'addEventListener' : 'removeEventListener'
       window[method]('scroll', placeList, true)
       window[method]('resize', placeList)
+      window.visualViewport?.[method]('resize', placeList)
+    }
+
+    watch(open, followViewport)
+
+    watch(heldOpen, (held) => {
+      document[held ? 'addEventListener' : 'removeEventListener']('pointerdown', closeOnOutsidePress, true)
     })
 
     onMounted(() => {
@@ -172,13 +202,13 @@ export const GuideCombobox = {
       input.value?.focus()
     })
     onUnmounted(() => {
-      window.removeEventListener('scroll', placeList, true)
-      window.removeEventListener('resize', placeList)
+      followViewport(false)
+      document.removeEventListener('pointerdown', closeOnOutsidePress, true)
     })
 
     return {
       input, list, listId, open, typed, active, text, shown, listStyle,
-      optionId, show, close, choose, onInput, onKeydown,
+      optionId, show, close, choose, onInput, onKeydown, onFocus, onBlur, keepListAfterKeyboard,
     }
   },
 }
