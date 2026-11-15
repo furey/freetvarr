@@ -1,3 +1,5 @@
+import { isMovieBlocked } from './title-kinds.js'
+
 export const SHOW = 'show'
 export const ONE_OFF = 'oneoff'
 export const FILM = 'movie'
@@ -10,13 +12,14 @@ export const seriesKindOf = ({
   isFilm = false,
   recordings = [],
   evidence = null,
+  titleKind = null,
 }) => {
   if (override === 'show') return SHOW
   if (override === 'one-off') return ONE_OFF
   if (override === 'movie') return FILM
   if (hasRule) return SHOW
   if (hasTitleMatch) return isSportOneOff({ title, recordings, evidence }) ? ONE_OFF : SHOW
-  if (isFilm && override !== 'not-movie') return FILM
+  if (isFilm && override !== 'not-movie' && !isMovieBlocked(titleKind?.evidence ?? {})) return FILM
   if (isSportOneOff({ title, recordings, evidence })) return ONE_OFF
   if (localDaysOf(recordings) >= MIN_DAYS) return SHOW
   const facts = mergeSeriesFacts(evidence, seriesFactsOf(recordings))

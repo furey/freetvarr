@@ -8,14 +8,13 @@ import { isLandscapeSize } from './image-thumbnails.js'
 import { showTitleKey } from './show-artwork.js'
 import { POSTER_SHAPE, isPortraitSize } from './show-poster.js'
 import { showKeyOf } from './web/show-key.js'
+import { MOVIE_KIND, ONE_OFF_KIND, SERIES_KIND, TITLE_KINDS, decideTitleKind, kindHintFrom, requestKindOf } from './title-kinds.js'
 
-export const MOVIE_KIND = 'movie'
-export const SERIES_KIND = 'series'
-export const ONE_OFF_KIND = 'one-off'
-export const TITLE_KINDS = [MOVIE_KIND, SERIES_KIND, ONE_OFF_KIND]
+export { MOVIE_KIND, ONE_OFF_KIND, SERIES_KIND, TITLE_KINDS, kindHintFrom }
 export const LANDSCAPE_SHAPE = 'landscape'
 export const FINAL_STAGE = 'none'
 export const WEAK_STAGE = 'weak'
+export const MISS_STAGES = ['derived', WEAK_STAGE, FINAL_STAGE]
 
 export const TITLE_CHAINS = {
   [MOVIE_KIND]: ['choice', 'plex', 'recording', 'guide', 'online', 'derived', 'frame', 'derived', FINAL_STAGE],
@@ -61,23 +60,13 @@ export const chainOf = ({ kind, recordingId = null, eventId = null, episodeOrder
   return TITLE_CHAINS[kind] ?? TITLE_CHAINS[SERIES_KIND]
 }
 
-export const kindHintFrom = (value) => (TITLE_KINDS.includes(value) ? value : null)
-
 export const canonicalKindOf = ({ libraryKinds = [], override = null, guideKind = null, hint = null }) => {
-  const hinted = kindHintFrom(hint)
-  const notMovie = override === NOT_MOVIE_OVERRIDE
-  const fromLibrary = hinted
-    ? (libraryKinds.includes(hinted) ? hinted : null)
-    : (libraryKinds.length === 1 ? libraryKinds[0] : null)
-  const candidates = [
-    fromLibrary,
-    OVERRIDE_KINDS[override] ?? null,
-    guideKind,
-    hinted,
-    libraryKinds.length === 1 ? libraryKinds[0] : null,
-  ]
-  return candidates.find((kind) => kind && !(notMovie && kind === MOVIE_KIND)) ?? SERIES_KIND
+  const evidence = { override, library: libraryKinds, guide: guideKind ? { kind: guideKind, seen: [guideKind] } : null, hint }
+  const decided = decideTitleKind(evidence)
+  return requestKindOf({ row: decided && { ...decided, evidence }, hint }) ?? SERIES_KIND
 }
+
+export const storedKindOf = ({ row, hint = null }) => requestKindOf({ row, hint }) ?? SERIES_KIND
 
 export const guideKindsOf = (programmes = []) => {
   const countsByKey = new Map()
@@ -92,7 +81,7 @@ export const guideKindsOf = (programmes = []) => {
 }
 
 export const isGuessedFilmKind = ({ libraryKinds = [], override = null }) =>
-  !libraryKinds.includes(MOVIE_KIND) && OVERRIDE_KINDS[override] !== MOVIE_KIND
+  !libraryKinds.includes(MOVIE_KIND) && override !== MOVIE_OVERRIDE
 
 export const onlineArtworkOf = async ({ kind, lookUpFilm, lookUpSeries, isGuessedFilm }) => {
   if (kind !== MOVIE_KIND) return lookUpSeries()
@@ -211,7 +200,7 @@ export const createArtResolver = ({
     const saved = await store.read(key).catch(() => null)
     if (saved && saved.fingerprint === fingerprint && Number(saved.next_check_at) > now()) return resultOfRow(saved)
     if (inflight.has(key)) return inflight.get(key)
-    const running = runTitleChain({ ctx, local, fingerprint, saved, deadline }).finally(() => inflight.delete(key))
+    const running = runTitleChain({ ctx: retryContextOf({ ctx, saved, nowMs: now() }), local, fingerprint, saved, deadline }).finally(() => inflight.delete(key))
     inflight.set(key, running)
     return running
   }
@@ -378,6 +367,10 @@ export const createArtResolver = ({
   return { resolve, resolveRecordingPicture, peek, forget, invalidate, stampsByKey }
 }
 
+export const retryContextOf = ({ ctx, saved, nowMs }) => (saved && Number(saved.next_check_at) <= nowMs
+  ? { ...ctx, retryMissesBefore: Number(saved.resolved_at) || 0 }
+  : ctx)
+
 const provisionalIf = ({ result, pendingSeen }) => (pendingSeen ? { ...result, provisional: true } : result)
 
 const outerKeyOf = ({ recordingId, eventId }) => (recordingId != null ? `episode|${recordingId}` : `event|${eventId}`)
@@ -468,12 +461,11 @@ const databaseStore = {
   stamped: () => db('art_resolutions').whereNotNull('stamp').select('show_key', 'shape', 'stamp', 'resolved_at'),
 }
 
-const NOT_MOVIE_OVERRIDE = 'not-movie'
+const MOVIE_OVERRIDE = 'movie'
 const PEEK_DUE = { due: true }
 const UNSETTLED_FILM_LOOKUP = { sources: [], pending: true }
-const OVERRIDE_KINDS = { movie: MOVIE_KIND, show: SERIES_KIND, 'one-off': ONE_OFF_KIND }
 const LOCAL_STAGES = ['plex', 'recording', 'guide']
-const SETTLED_STAGES = new Set(['derived', WEAK_STAGE, FINAL_STAGE])
+const SETTLED_STAGES = new Set(MISS_STAGES)
 const TIMED_OUT = Symbol('timed out')
 const LOAD_FAILED = Symbol('load failed')
 const NO_SOURCES = { sources: [], pending: false }

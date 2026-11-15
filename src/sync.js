@@ -32,6 +32,7 @@ import { importSubjectOf } from './activity-subject.js'
 import { isMostlySport, rowAiringOf, seriesKindOf } from './series-kind.js'
 import { loadSeriesEvidence } from './series-evidence.js'
 import { ONE_OFF_KIND, loadKindOverrides } from './programme-kind.js'
+import { loadTitleKinds } from './title-kinds.js'
 import { ensureShowFolder } from './show-folders.js'
 import { showKeyOf } from './web/show-key.js'
 import { AUTO_ORIGIN, USER_ORIGIN, isAutoTitleMatch } from './show-origin.js'
@@ -240,10 +241,11 @@ export const buildFilmPath = ({ item, moviesRoot, copy = 1 }) => {
   return guardWithinRoot({ dest, root: moviesRoot })
 }
 
-export const libraryKind = ({ show, item, moviesRoot, override = null, evidence = null, keyRows = [] }) => {
+export const libraryKind = ({ show, item, moviesRoot, override = null, evidence = null, titleKind = null, keyRows = [] }) => {
   const kind = IMPORT_KINDS[seriesKindOf({
     title: item.title,
     override,
+    titleKind,
     hasRule: hasUserRule({ show, item }),
     hasTitleMatch: Boolean(show),
     isFilm: Boolean(moviesRoot) && looksLikeFilm(item),
@@ -464,6 +466,7 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
         moviesRoot: roots.moviesRoot,
         override,
         evidence: context.evidence.get(keyOfItem) ?? null,
+        titleKind: context.titleKinds.get(keyOfItem) ?? null,
         keyRows,
       })
       const folder = kind === 'tv' ? show ?? await folderForSeries({ item, shows, autorecNames: context.autorecNames, identityFor }) : null
@@ -508,9 +511,10 @@ const doSync = async ({ syncId, trigger, showId = null, identityFor }) => {
 }
 
 const importContextOf = async ({ conn }) => {
-  const [overrides, evidence, rows, autorecs] = await Promise.all([
+  const [overrides, evidence, titleKinds, rows, autorecs] = await Promise.all([
     loadKindOverrides().catch(() => new Map()),
     loadSeriesEvidence().catch(() => new Map()),
+    loadTitleKinds().catch(() => new Map()),
     db('recordings').whereNull('purged_at')
       .select('recording_id', 'title', 'show_title_override', 'season', 'episode', 'episode_title', 'aired_at', 'imported_at', 'genres_json')
       .catch(() => []),
@@ -519,6 +523,7 @@ const importContextOf = async ({ conn }) => {
   return {
     overrides,
     evidence,
+    titleKinds,
     rowsByKey: rowsByShowKey(rows),
     autorecNames: new Map(autorecs.map((autorec) => [autorec.id, autorec.name])),
   }

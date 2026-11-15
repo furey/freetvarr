@@ -34,7 +34,7 @@ export const loadKindOverrides = async () => new Map(
   (await db('programme_kind_overrides').select('show_key', 'kind')).map((row) => [row.show_key, row.kind]),
 )
 
-export const mountProgrammeKindRoutes = ({ app, csrf, limiter = passThrough, onChange = () => {}, titlesFor = async () => new Map() }) => {
+export const mountProgrammeKindRoutes = ({ app, csrf, limiter = passThrough, onChange = async () => {}, titlesFor = async () => new Map() }) => {
   app.get('/api/programme-kind', limiter, async (req, res) => {
     try {
       const rows = await db('programme_kind_overrides').select('show_key', 'kind', 'title', 'updated_at')
@@ -57,7 +57,7 @@ export const mountProgrammeKindRoutes = ({ app, csrf, limiter = passThrough, onC
         .insert({ show_key: showKey, kind, title, updated_at: Date.now() })
         .onConflict('show_key')
         .merge(title ? ['kind', 'title', 'updated_at'] : ['kind', 'updated_at'])
-      onChange()
+      await onChange({ showKey, kind })
       res.json({ ok: true, showKey, kind })
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -69,7 +69,7 @@ export const mountProgrammeKindRoutes = ({ app, csrf, limiter = passThrough, onC
     if (!showKey) return res.status(400).json({ error: SHOW_KEY_ERROR })
     try {
       const removed = await db('programme_kind_overrides').where({ show_key: showKey }).delete()
-      if (removed) onChange()
+      if (removed) await onChange({ showKey, kind: null })
       res.json({ ok: true, showKey, kind: null })
     } catch (err) {
       res.status(500).json({ error: err.message })

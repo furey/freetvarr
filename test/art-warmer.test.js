@@ -52,7 +52,7 @@ const runOnce = async (warmer, trigger, options) => {
 }
 
 test('runPlanOf: change triggers warm the top and next tiers, nightly warms all, and backoff narrows it', () => {
-  assert.deepEqual(runPlanOf({ trigger: 'guide', mode: 'active' }).tiers, ['home', 'for-you', 'recordings', 'guide-today', 'scheduled', 'show-heroes', 'show-posters'])
+  assert.deepEqual(runPlanOf({ trigger: 'guide', mode: 'active' }).tiers, ['home', 'for-you', 'recordings', 'guide-today', 'scheduled', 'show-heroes', 'show-posters', 'due-titles'])
   assert.deepEqual(runPlanOf({ trigger: 'sync', mode: 'quiet' }).tiers, TOP_TIERS)
   assert.equal(runPlanOf({ trigger: 'sync', mode: 'dormant' }), null)
   assert.deepEqual(runPlanOf({ trigger: 'nightly', mode: 'active' }), { tiers: TIER_ORDER, offline: false })
@@ -73,7 +73,7 @@ test('a full run asks each tier in priority order and warms in that order, each 
   await runOnce(warmer, 'nightly')
   assert.deepEqual(calls.tiers, TIER_ORDER)
   assert.deepEqual(calls.warmed, ['/home?w=192', '/shared?w=192', ...TIER_ORDER.slice(1).map((tier) => `/${tier}?w=192`)])
-  assert.match(calls.logs.at(-1), /^\[art-warm\] trigger nightly · tiers home,.* · checked 10 · warm 0 · rendered 10 · pending 0/)
+  assert.match(calls.logs.at(-1), /^\[art-warm\] trigger nightly · tiers home,.* · checked 11 · warm 0 · rendered 11 · pending 0/)
 })
 
 test('no work when every picture is already warm', async () => {

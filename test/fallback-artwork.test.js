@@ -25,7 +25,7 @@ const fallbackWith = ({ lookUp, apiKey = null, enabled = true, clock = { ms: 100
     hintsFor,
     now: () => clock.ms,
     hitTtlMs: 100,
-    missRetryMs: [10, 20, 30, 40],
+    missTtlMs: 10,
     failureBackoffMs: 50,
     staleBeforeMs,
     ...(tmdbRetryTtlMs ? { tmdbRetryTtlMs } : {}),
@@ -54,24 +54,48 @@ test('a miss is remembered for the shorter miss TTL', async () => {
   assert.equal(calls, 2)
 })
 
-test('misses with the same evidence retry on a widening ladder that stops at the last step', async () => {
+test('a miss keeps one TTL with no ladder of its own', async () => {
   let calls = 0
   const { artwork, cache, clock } = fallbackWith({ lookUp: async () => { calls += 1; return null } })
   const expiries = []
-  for (let step = 0; step < 5; step += 1) {
+  for (let round = 0; round < 3; round += 1) {
     await artwork.sourcesFor('Nothing Here')
     const row = cache.rows.get('wide-v1:open:nothing here')
     expiries.push(row.expiresAt - clock.ms)
-    assert.equal(missOf(row.reference).step, step)
-    clock.ms = row.expiresAt - 1
-    await artwork.sourcesFor('Nothing Here')
-    assert.equal(calls, step + 1)
+    assert.equal(missOf(row.reference).step, 0)
     clock.ms = row.expiresAt
   }
-  assert.deepEqual(expiries, [10, 20, 30, 40, 40])
+  assert.deepEqual(expiries, [10, 10, 10])
+  assert.equal(calls, 3)
 })
 
-test('a miss is looked up again at once when its evidence changes, and the ladder starts over', async () => {
+test('a due title asks past a miss saved before its last answer, not past a newer miss or a recent failure', async () => {
+  let calls = 0
+  const { artwork, clock } = fallbackWith({
+    lookUp: async () => {
+      calls += 1
+      if (calls === 3) throw new Error('Wikipedia HTTP 503')
+      return null
+    },
+  })
+  await artwork.sourcesFor('Nothing Here')
+  clock.ms = 1005
+  assert.deepEqual(await artwork.artworkFor('Nothing Here', { retryMissesBefore: 1000 }), { sources: [], pending: false, settled: true })
+  assert.equal(calls, 1)
+  assert.deepEqual(await artwork.artworkFor('Nothing Here', { retryMissesBefore: 1003 }), { sources: [], pending: true })
+  await settled()
+  assert.equal(calls, 2)
+  assert.deepEqual(await artwork.artworkFor('Nothing Here', { retryMissesBefore: 1003 }), { sources: [], pending: false, settled: true })
+  assert.equal(calls, 2)
+  clock.ms = 1009
+  await artwork.artworkFor('Nothing Here', { retryMissesBefore: 1008 })
+  await settled()
+  assert.equal(calls, 3)
+  assert.deepEqual(await artwork.artworkFor('Nothing Here', { retryMissesBefore: 1008 }), { sources: [], pending: false })
+  assert.equal(calls, 3)
+})
+
+test('a miss is looked up again at once when its evidence changes', async () => {
   let calls = 0
   let hints = { title: 'Arrival' }
   const { artwork, cache, clock } = fallbackWith({
@@ -79,21 +103,20 @@ test('a miss is looked up again at once when its evidence changes, and the ladde
     lookUp: async () => { calls += 1; return null },
   })
   await artwork.sourcesFor('Arrival')
-  clock.ms = 1010
+  clock.ms = 1005
   await artwork.sourcesFor('Arrival')
-  assert.equal(missOf(cache.rows.get('wide-v1:open:arrival').reference).step, 1)
-  clock.ms = 1011
-  await artwork.sourcesFor('Arrival')
-  assert.equal(calls, 2)
+  assert.equal(calls, 1)
   hints = { title: 'Arrival', releaseYears: [2016] }
   await artwork.sourcesFor('Arrival')
-  assert.equal(calls, 3)
+  assert.equal(calls, 2)
   const row = cache.rows.get('wide-v1:open:arrival')
   assert.equal(missOf(row.reference).step, 0)
-  assert.equal(row.expiresAt, 1021)
+  assert.equal(row.expiresAt, 1015)
   await artwork.sourcesFor('Arrival')
-  assert.equal(calls, 3)
+  assert.equal(calls, 2)
 })
+
+const settled = () => new Promise((resolve) => setTimeout(resolve, 10))
 
 test('a miss fingerprint changes with kind, years, channels, ids, library presence, and the TMDB key', () => {
   const base = { kind: null, hints: { years: [], releaseYears: [], channelNames: ['ABC'], synopsis: 'A show.' }, ids: null, apiKey: null }

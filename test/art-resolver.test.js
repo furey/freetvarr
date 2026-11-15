@@ -8,6 +8,7 @@ import {
   GUIDE_ONLY_CHAIN,
   TITLE_CHAINS,
   canonicalKindOf,
+  retryContextOf,
   chainOf,
   episodePictureOrderFrom,
   stillsAllowed,
@@ -97,14 +98,16 @@ test('chainOf: each kind runs its own chain, from the owner choice to no picture
   assert.equal(chainOf({ kind: 'series', eventId: 'e1', freeviewFirst: true }), FREEVIEW_FIRST_GUIDE_CHAIN)
 })
 
-test('canonicalKindOf: library kind, then programme-kind override, then guide kind; the URL kind is only a hint', () => {
+test('canonicalKindOf: override, then one library kind, then guide kind; the URL kind is a hint the library or guide must back', () => {
   const table = [
     [{ libraryKinds: ['movie'] }, 'movie'],
     [{ libraryKinds: ['movie'], guideKind: 'series' }, 'movie'],
     [{ libraryKinds: ['movie', 'series'], hint: 'movie' }, 'movie'],
     [{ libraryKinds: ['movie', 'series'], hint: 'series' }, 'series'],
     [{ libraryKinds: ['movie', 'series'] }, 'series'],
-    [{ libraryKinds: ['series'], hint: 'movie' }, 'movie'],
+    [{ libraryKinds: ['series'], hint: 'movie' }, 'series'],
+    [{ libraryKinds: ['series'], guideKind: 'movie', hint: 'movie' }, 'movie'],
+    [{ libraryKinds: ['series'], guideKind: 'movie' }, 'series'],
     [{ override: 'movie', guideKind: 'series' }, 'movie'],
     [{ override: 'show', guideKind: 'movie' }, 'series'],
     [{ override: 'one-off', hint: 'movie' }, 'one-off'],
@@ -115,6 +118,29 @@ test('canonicalKindOf: library kind, then programme-kind override, then guide ki
     [{}, 'series'],
   ]
   for (const [input, kind] of table) assert.equal(canonicalKindOf(input), kind, JSON.stringify(input))
+})
+
+test('a due miss row runs its stages again with retryMissesBefore set to its last answer; a row not yet due runs nothing', async () => {
+  const asked = []
+  const { resolver, clock, store } = resolverWith({
+    stages: { online: async (ctx) => { asked.push(ctx.retryMissesBefore ?? null); return { sources: [] } } },
+  })
+  assert.equal((await resolver.resolve({ title: 'Wild Islands' })).stage, 'none')
+  assert.deepEqual(asked, [null])
+  clock.ms += 60_000
+  await resolver.resolve({ title: 'Wild Islands' })
+  assert.deepEqual(asked, [null])
+  const [row] = [...store.rows.values()]
+  clock.ms = Number(row.next_check_at)
+  await resolver.resolve({ title: 'Wild Islands' })
+  assert.deepEqual(asked, [null, 1_000])
+})
+
+test('retryContextOf: only a due saved row asks past the source misses', () => {
+  const ctx = { title: 'Ages Of Ice' }
+  assert.equal(retryContextOf({ ctx, saved: null, nowMs: 50 }), ctx)
+  assert.equal(retryContextOf({ ctx, saved: { next_check_at: 60, resolved_at: 10 }, nowMs: 50 }), ctx)
+  assert.deepEqual(retryContextOf({ ctx, saved: { next_check_at: 0, resolved_at: 10 }, nowMs: 50 }), { ...ctx, retryMissesBefore: 10 })
 })
 
 test('guideKindsOf: a title is a film only when every airing is a film, else the commoner of series and one-off', () => {

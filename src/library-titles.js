@@ -36,7 +36,12 @@ export const createLibraryTitles = ({ loadRows = loadLibraryTitleRows, ttlMs = L
 
   const frameFilesFor = async (title, { kind = null } = {}) => frameFilesOf({ rows: await rowsFor(title), kind })
 
-  return { hintsFor, recordingImagesFor, kindsFor, frameFilesFor }
+  const allRows = async () => {
+    await refresh()
+    return [...(byKey?.values() ?? [])].flat()
+  }
+
+  return { hintsFor, recordingImagesFor, kindsFor, frameFilesFor, allRows }
 }
 
 export const libraryHintsOf = (rows = []) => {
