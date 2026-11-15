@@ -87,6 +87,13 @@ export const framePreferenceOrderOf = (files) => files
   .sort((a, b) => a.rank - b.rank || a.index - b.index)
   .map(({ file }) => file)
 
+export const retryFileOf = ({ marks = [], before = null }) => {
+  if (before == null) return null
+  const old = marks.filter(({ markedAt }) => markedAt != null && markedAt < before)
+  if (!old.length) return null
+  return old.reduce((oldest, mark) => (mark.markedAt < oldest.markedAt ? mark : oldest)).file
+}
+
 export const hasAdData = (plan) => plan?.state === AD_PLAN_STATES.clear || plan?.state === AD_PLAN_STATES.marked
 
 export const programmeWindowOf = ({ fileDurationS = null, programmeDurationS = null }) => {
@@ -178,7 +185,7 @@ export const createFrameGrabs = ({
   const awaitingAds = new Set()
   let tail = Promise.resolve()
 
-  const frameFor = async ({ filePath, programmeDurationS = null, expectedBytes = null, adPlan = UNKNOWN_AD_PLAN, onReady = () => {} }) => {
+  const frameFor = async ({ filePath, programmeDurationS = null, expectedBytes = null, adPlan = UNKNOWN_AD_PLAN, onReady = () => {}, retryMissesBefore = null }) => {
     if (!filePath) return NO_FRAME
     const id = frameIdOf(filePath)
     if (await exists(framePathOf(id))) {
@@ -186,7 +193,7 @@ export const createFrameGrabs = ({
       if (isTrustedFrameMeta(meta)) return { sources: [frameVersionOriginOf({ id, version: meta.version ?? 0 })], pending: false }
       await markStale({ id, meta })
     }
-    if (await exists(missPathOf(id))) return NO_FRAME
+    if (await keepsMissMark({ id, retryMissesBefore })) return NO_FRAME
     if (queued.has(id)) return PENDING_FRAME
     if (adPlan.state === AD_PLAN_STATES.unknown) return NO_FRAME
     if (adPlan.state === AD_PLAN_STATES.waiting) {
@@ -226,6 +233,14 @@ export const createFrameGrabs = ({
     }
     await markStale({ id, meta })
     return { stale: true, awaited }
+  }
+
+  const keepsMissMark = async ({ id, retryMissesBefore }) => {
+    const markedAt = await modifiedAtOf(missPathOf(id))
+    if (markedAt == null) return false
+    if (retryMissesBefore == null || markedAt >= retryMissesBefore) return true
+    await fs.rm(missPathOf(id), { force: true })
+    return false
   }
 
   const markStale = async ({ id, meta }) => {
@@ -364,7 +379,9 @@ export const createFrameGrabs = ({
 
   const queuedCount = () => queued.size
 
-  return { frameFor, reconsider, read, prune, idle, queuedCount, savedFrameOf }
+  const missMarkedAt = async (filePath) => (filePath ? modifiedAtOf(missPathOf(frameIdOf(filePath))) : null)
+
+  return { frameFor, reconsider, read, prune, idle, queuedCount, savedFrameOf, missMarkedAt }
 }
 
 export const runFfmpegFrame = (args, { timeoutMs = FFMPEG_TIMEOUT_MS, spawnProcess = spawn } = {}) => new Promise((resolve, reject) => {
@@ -422,6 +439,8 @@ const fileSizeOf = async (filePath) => (await fs.stat(filePath)).size
 const isReadableFile = (filePath) => fs.access(filePath, fs.constants.R_OK).then(() => true, () => false)
 
 const exists = (target) => fs.access(target).then(() => true, () => false)
+
+const modifiedAtOf = (target) => fs.stat(target).then((stats) => stats.mtimeMs, () => null)
 
 const pointOf = ({ start, end }, fraction) => Math.round(start + (end - start) * fraction)
 

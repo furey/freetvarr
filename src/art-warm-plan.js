@@ -18,6 +18,7 @@ export const createWarmUrls = ({
   loadGuideProgrammes = async () => [],
   loadUpcoming = async () => [],
   loadFrameRecordings = async () => [],
+  loadDueTitles = async () => [],
   now = Date.now,
 }) => {
   const tiers = {
@@ -32,6 +33,7 @@ export const createWarmUrls = ({
     scheduled: async () => scheduledUrlsOf(await safely(loadUpcoming, [])),
     'show-heroes': async () => showHeroUrlsOf(await safely(loadShows, [])),
     'show-posters': async () => detailPosterUrlsOf(await safely(loadShows, [])),
+    'due-titles': async () => dueTitleUrlsOf(await safely(loadDueTitles, [])),
     'guide-week': async () => guideUrlsOf({ programmes: await safely(loadGuideProgrammes, []), fromMs: now() + DAY_MS, toMs: Infinity }),
     frames: async () => frameUrlsOf(await safely(loadFrameRecordings, [])),
   }
@@ -80,6 +82,15 @@ export const scheduledUrlsOf = (upcoming = []) => upcoming.map((entry) => (entry
   ? `/api/epg/image/${encodeURIComponent(entry.programId)}?w=${LIST_WIDTH}`
   : showImageUrlOf({ title: entry.name, width: LIST_WIDTH })))
 
+export const dueTitleUrlsOf = (titles = []) => titles
+  .filter((entry) => entry?.title)
+  .map((entry) => showImageUrlOf({
+    title: entry.title,
+    shape: entry.shape === POSTER_SHAPE ? POSTER_SHAPE : null,
+    kind: artKindHintOf(entry.kind),
+    width: LIST_WIDTH,
+  }))
+
 export const frameUrlsOf = (recordings = []) => recordings
   .slice(0, FRAME_BACKFILL_LIMIT)
   .map((row) => `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${LIST_WIDTH}`)
@@ -89,3 +100,4 @@ const unique = (urls) => [...new Set(urls)]
 const safely = (load, fallback) => Promise.resolve().then(load).then((value) => value ?? fallback, () => fallback)
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const POSTER_SHAPE = 'poster'

@@ -31,7 +31,7 @@ import { createGuidePictures, guidePictureCandidatesOf } from './guide-pictures.
 import { logoTraitsOf } from './picture-placeholders.js'
 import { OK_VERDICT, STAND_IN_VERDICT, WEAK_VERDICT, createPictureGate, pictureChecks } from './picture-gate.js'
 import { FREEVIEW_IMAGE_HOST, createFreeviewAu, freeviewAiringsOf, freeviewCandidatesOf, freeviewClient, isFreeviewImageSource } from './freeview-au.js'
-import { channelShiftHours, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
+import { channelShiftHours, classificationTitleKey, createClassificationLookup, createClassificationStore, isRatingsLikely, programmeClassification } from './classification-labels.js'
 import { POSTER_SHAPE, portraitPadOf } from './show-poster.js'
 import { createThumbnailStore, getThumbnailRoot, imageCacheBytesFrom, landscapeOf } from './image-thumbnails.js'
 import { createShowArtwork, showTitleKey, tvmazeLookupEnabled } from './show-artwork.js'
@@ -39,6 +39,7 @@ import { artworkClient, createFallbackArtwork, fetchFallbackImage, isFallbackIma
 import {
   FINAL_STAGE,
   LANDSCAPE_SHAPE,
+  MISS_STAGES,
   canonicalKindOf,
   createArtResolver,
   episodePictureOrderFrom,
@@ -53,10 +54,11 @@ import {
   onlineArtworkOf,
   markResolutionsDue,
   stampKindOf,
+  storedKindOf,
   WEAK_STAGE,
 } from './art-resolver.js'
 import { PROGRAMME_STAMP_KIND, createProgrammeStamps } from './programme-stamps.js'
-import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf } from './frame-grabs.js'
+import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, retryFileOf } from './frame-grabs.js'
 import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
@@ -83,7 +85,8 @@ import { createRecordingStateCache } from './recording-state-cache.js'
 import { orderChannels } from './channel-order.js'
 import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
-import { createDisplayKinds, withDisplayKinds } from './display-kind.js'
+import { createAiringKinds, createDisplayKinds, withDisplayKinds } from './display-kind.js'
+import { createTitleKindStore, guideKindUpdatesOf, libraryKindUpdatesOf, loadGuideCategories, withTitleKinds } from './title-kinds.js'
 import { loadSeriesEvidence, saveGuideEvidence } from './series-evidence.js'
 import {
   addPendingSkip,
@@ -1219,26 +1222,28 @@ export const plexOriginOf = ({ source, url }) => {
   return `${PLEX_ORIGIN_PREFIX}${path}${rest ? `?${rest}` : ''}`
 }
 
-const onlineStage = ({ title, kind }) => onlineArtworkOf({
+const onlineStage = ({ title, kind, retryMissesBefore = null }) => onlineArtworkOf({
   kind,
-  lookUpFilm: () => fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK),
-  lookUpSeries: () => seriesOnlineArtwork({ title, kind: isFilmKind(kind) ? SERIES_LOOKUP_KIND : kind }),
+  lookUpFilm: () => fallbackArtwork.artworkFor(title, { kind, retryMissesBefore }).catch(() => NO_ARTWORK),
+  lookUpSeries: () => seriesOnlineArtwork({ title, kind: isFilmKind(kind) ? SERIES_LOOKUP_KIND : kind, retryMissesBefore }),
   isGuessedFilm: () => guessedFilm(title),
 })
 
 const guessedFilm = async (title) => {
+  const row = await titleKindStore.rowFor(title).catch(() => null)
+  if (row) return isGuessedFilmKind({ libraryKinds: row.evidence.library, override: row.evidence.override })
   const [libraryKinds, overrides] = await Promise.all([libraryTitles.kindsFor(title).catch(() => []), kindOverrides()])
   return isGuessedFilmKind({ libraryKinds, override: overrides.get(showKeyOf(title)) ?? null })
 }
 
-const seriesOnlineArtwork = async ({ title, kind }) => {
-  const tvmaze = await showArtwork.tvmazeArtworkFor(title).catch(() => NO_ARTWORK)
+const seriesOnlineArtwork = async ({ title, kind, retryMissesBefore = null }) => {
+  const tvmaze = await showArtwork.tvmazeArtworkFor(title, { retryMissesBefore }).catch(() => NO_ARTWORK)
   if (tvmaze.sources.length) return tvmaze
   if (tvmaze.pending) {
     onlineShowSources({ title, kind })
     return tvmaze
   }
-  return fallbackArtwork.artworkFor(title, { kind }).catch(() => NO_ARTWORK)
+  return fallbackArtwork.artworkFor(title, { kind, retryMissesBefore }).catch(() => NO_ARTWORK)
 }
 
 const onlineSettingsKey = async () => {
@@ -1247,6 +1252,8 @@ const onlineSettingsKey = async () => {
 }
 
 const canonicalKindFor = async ({ title, hint }) => {
+  const row = await titleKindStore.rowFor(title).catch(() => null)
+  if (row) return storedKindOf({ row, hint })
   const [libraryKinds, overrides, guideKind] = await Promise.all([
     libraryTitles.kindsFor(title).catch(() => []),
     kindOverrides(),
@@ -1274,7 +1281,7 @@ const recordingImagesFor = (title) => libraryTitles.recordingImagesFor(title).ca
 
 const recordingRowOf = (recordingId) => db('recordings').where({ recording_id: recordingId }).first()
 
-export const frameStage = async ({ title, kind, recordingId = null, episodeFile = null }) => {
+export const frameStage = async ({ title, kind, recordingId = null, episodeFile = null, retryMissesBefore = null }) => {
   if (!stillsAllowed(await episodePictureOrder().catch(() => undefined))) return NO_ARTWORK
   const onReady = () => publishTitleArtChange(title)
   if (recordingId != null) {
@@ -1284,11 +1291,18 @@ export const frameStage = async ({ title, kind, recordingId = null, episodeFile 
   const files = await libraryTitles.frameFilesFor(title, { kind }).catch(() => [])
   const plans = await adPlansFor(files.map((file) => file.recordingId).filter((id) => id != null))
   const planned = files.map((file) => ({ ...file, adPlan: filePlanOf({ file, plans }) }))
+  const retried = await frameRetryFileOf({ files: planned, before: retryMissesBefore })
   for (const file of framePreferenceOrderOf(planned)) {
-    const found = await frameGrabs.frameFor({ ...file, onReady })
+    const found = await frameGrabs.frameFor({ ...file, onReady, retryMissesBefore: file === retried ? retryMissesBefore : null })
     if (found.sources.length || found.pending) return found
   }
   return NO_ARTWORK
+}
+
+const frameRetryFileOf = async ({ files, before }) => {
+  if (before == null) return null
+  const marks = await Promise.all(files.map(async (file) => ({ file, markedAt: await frameGrabs.missMarkedAt(file.filePath).catch(() => null) })))
+  return retryFileOf({ marks, before })
 }
 
 export const filePlanOf = ({ file, plans }) => (file.recordingId != null
@@ -1656,6 +1670,71 @@ export const programsInWindow = ({ rows, fromMs, toMs }) =>
 
 const getCachedGuide = () => guideCache.get(localMidnightMs())
 
+const saveGuideTitleKinds = async ({ programmes, records, evidence, categories }) => {
+  const libraryKinds = await libraryKindsByTitleKeyOf(programmes)
+  const updates = guideKindUpdatesOf({
+    programmes,
+    airingKindOf: createAiringKinds({ programmes, recordsByKey: records, evidence }),
+    categoriesOf: (title) => categories.get(classificationTitleKey(title)) ?? [],
+    overrideOf: (showKey) => records.get(showKey)?.kindOverride ?? null,
+    libraryKindsOf: (title) => libraryKinds.get(showTitleKey(title)) ?? [],
+  })
+  await titleKindStore.update(updates).catch(logHistoryError('title kinds'))
+  return titleKindStore.all()
+}
+
+const libraryKindsByTitleKeyOf = async (programmes) => {
+  const titles = new Map(programmes.map((programme) => [showTitleKey(programme.title), programme.title]))
+  const entries = await Promise.all([...titles].map(async ([key, title]) => [key, await libraryTitles.kindsFor(title).catch(() => [])]))
+  return new Map(entries)
+}
+
+export const refreshLibraryTitleKinds = async () => {
+  const [rows, overrides, stored] = await Promise.all([
+    libraryTitles.allRows(),
+    loadKindOverrides().catch(() => new Map()),
+    titleKindStore.all(),
+  ])
+  return titleKindStore.update(libraryKindUpdatesOf({ rows, stored, overrides, groupKeyOf: showTitleKey }))
+}
+
+export const rewriteTitleKind = async (showKey) => {
+  overridesCache.expiresAt = 0
+  const overrides = await loadKindOverrides()
+  return titleKindStore.update(new Map([[showKey, { override: overrides.get(showKey) ?? null }]]))
+}
+
+export const dueMissTitles = async ({ nowMs = Date.now(), horizonMs = GUIDE_DAYS * DAY_MS, limit = MAX_DUE_TITLES } = {}) => {
+  const guide = await getCachedGuide().catch(() => null)
+  if (!guide) return []
+  const titles = new Map()
+  for (const programme of guide.programByEventId.values()) {
+    if (programme.end > nowMs && programme.start < nowMs + horizonMs) titles.set(showTitleKey(programme.title), programme.title)
+  }
+  const rows = await db('art_resolutions')
+    .whereIn('stage', MISS_STAGES)
+    .where('next_check_at', '<=', nowMs)
+    .orderBy('next_check_at')
+    .select('title_key', 'kind', 'shape')
+    .catch(() => [])
+  const due = []
+  for (const row of rows) {
+    if (due.length >= limit) break
+    const title = titles.get(row.title_key)
+    if (title && await canonicalKindFor({ title, hint: row.kind }) === row.kind) due.push({ title, kind: row.kind, shape: row.shape })
+  }
+  return due
+}
+
+const markKindChangesDue = async (changes) => {
+  const showKeys = [...new Set(changes.map((change) => change.showKey))]
+  for (let at = 0; at < showKeys.length; at += KIND_CHANGE_BATCH) {
+    const batch = showKeys.slice(at, at + KIND_CHANGE_BATCH)
+    const marked = await markResolutionsDue({ where: (query) => query.whereIn('show_key', batch) })
+    if (marked.length) await announcePictureChanges({ changes: marked })
+  }
+}
+
 const announceGuideLoaded = (guide) => {
   placeholderPictures.noteTitles([...guide.programByEventId.values()].map((programme) => ({ source: programme.image, title: programme.title })))
   setImmediate(() => guideListeners.forEach((listener) => listener(guide)))
@@ -1665,12 +1744,15 @@ const announceGuideLoaded = (guide) => {
 const loadGuide = async (startMs) => {
   const conn = await resolveConnection()
   const endMs = guideDayWindow({ startMs, day: GUIDE_DAYS - 1 }).dayEnd
-  const [channels, listed, recordsByKey, evidence] = await Promise.all([
+  const [channels, listed, records, evidence, categories] = await Promise.all([
     listChannels(conn),
     listEvents({ startMs, endMs, conn }),
     loadTitleGenres().catch(() => new Map()),
     loadSeriesEvidence().catch(() => new Map()),
+    loadGuideCategories({ fromMs: startMs, toMs: endMs }).catch(() => new Map()),
   ])
+  const titleKinds = await saveGuideTitleKinds({ programmes: listed, records, evidence, categories })
+  const recordsByKey = withTitleKinds({ records, titleKinds })
   const kindOf = createDisplayKinds({ programmes: listed, recordsByKey, evidence })
   const events = withDisplayKinds({ programmes: listed, kindOf })
   if (channels.length === 0) {
@@ -1763,6 +1845,7 @@ const hintsByGuide = new WeakMap()
 const kindsByGuide = new WeakMap()
 const displayKindsByGuide = new WeakMap()
 const overridesCache = { value: new Map(), expiresAt: 0 }
+const titleKindStore = createTitleKindStore({ onChange: (changes) => markKindChangesDue(changes) })
 onAdScanResult((result) => refreshFrameAfterAdScan(result))
 const artResolver = createArtResolver({
   stages: {
@@ -1831,6 +1914,9 @@ const FRAME_ORIGIN_LIKE = 'frame:%'
 const FRAME_VERSION_SEPARATOR = '-v'
 const FRAME_PRUNE_BATCH = 200
 const KIND_OVERRIDES_TTL_MS = 30 * 1000
+const KIND_CHANGE_BATCH = 200
+const MAX_DUE_TITLES = 200
+const DAY_MS = 24 * 60 * 60 * 1000
 const NO_IMAGE = { image: null, pending: false }
 const NO_ARTWORK = { sources: [], pending: false }
 const PENDING_IMAGE = { image: null, pending: true }

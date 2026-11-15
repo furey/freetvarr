@@ -163,6 +163,9 @@ import {
   publishStillsChange,
   pruneFrameGrabs,
   isShowArtWarm,
+  dueMissTitles,
+  refreshLibraryTitleKinds,
+  rewriteTitleKind,
   onGuideLoaded,
   isProgrammeArtWarm,
   artLookupBacklog,
@@ -1360,7 +1363,8 @@ const reclassifyLibrary = (trigger) => runReclassification({ trigger })
 
 const RECLASSIFY_STARTUP_DELAY_MS = 3 * 60_000
 
-const refreshAfterKindChange = () => {
+const refreshAfterKindChange = async ({ showKey }) => {
+  await rewriteTitleKind(showKey).catch((err) => console.warn(`[programme-kind] could not save the title kind: ${err.message}`))
   reclassifyLibrary('manual')
   clearGuideCache()
   forgetForYouCache()
@@ -1468,6 +1472,7 @@ const artWarmer = createArtWarmer({
     loadUpcoming: async () => (await getRecordingState()).upcomingRecordings ?? [],
     loadFrameRecordings: () => db('recordings').whereNull('purged_at').whereNull('image_path').whereNotNull('file_path')
       .orderBy('imported_at', 'desc').select('recording_id'),
+    loadDueTitles: () => dueMissTitles(),
   }),
   isWarm: createImageWarmCheck(pictureRoutes),
   warm: pictureResolver,
@@ -2732,12 +2737,16 @@ const watchArtWarmTriggers = () => {
   visitPattern.ready()
   onForYouResult((result) => artWarmer.noteForYou(forYouUrlsOf(result)))
   onGuideLoaded(() => artWarmer.request('guide'))
-  onSyncFinished(() => artWarmer.request('sync'))
+  onSyncFinished(() => refreshLibraryKindsThen(() => artWarmer.request('sync')))
   activity.subscribe((run) => {
-    if (run.kind === 'plex-watch' && run.state === 'done') artWarmer.request('plex-scan')
+    if (run.kind === 'plex-watch' && run.state === 'done') refreshLibraryKindsThen(() => artWarmer.request('plex-scan'))
   })
   stopArtWarmSchedule = startWarmSchedule({ request: artWarmer.request, nextWindowAt: visitPattern.nextWindowAt })
 }
+
+const refreshLibraryKindsThen = (next) => refreshLibraryTitleKinds()
+  .catch((err) => console.warn(`[title-kinds] library kinds: ${err.message}`))
+  .finally(next)
 
 let stopArtWarmSchedule = () => {}
 

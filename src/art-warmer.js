@@ -3,7 +3,7 @@ import { monitorEventLoopDelay } from 'node:perf_hooks'
 import { runAsBackgroundWork } from './background-work.js'
 
 export const TOP_TIERS = ['home', 'for-you', 'recordings', 'guide-today']
-export const NEXT_TIERS = ['scheduled', 'show-heroes', 'show-posters']
+export const NEXT_TIERS = ['scheduled', 'show-heroes', 'show-posters', 'due-titles']
 export const LAST_TIERS = ['guide-week', 'frames']
 export const TIER_ORDER = [...TOP_TIERS, ...NEXT_TIERS, ...LAST_TIERS]
 export const CHANGE_TRIGGERS = ['for-you', 'guide', 'sync', 'plex-scan']

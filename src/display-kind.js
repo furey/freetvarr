@@ -1,19 +1,25 @@
-import { isFilmAiring, movieChoiceOf } from './genre-enrichment.js'
+import { airingLooksLikeFilm, movieChoiceOf } from './genre-enrichment.js'
 import { showKeyOf } from './web/show-key.js'
 import { isSportOneOff } from './series-kind.js'
+import { requestKindOf } from './title-kinds.js'
 
-export const displayKindOf = ({ programme, record = null, airingsInWeek = 1, evidence = null }) => {
-  if (isFilmAiring({ programme, record, airingsInWeek })) return 'movie'
+export const airingKindOf = ({ programme, record = null, airingsInWeek = 1, evidence = null }) => {
+  if (airingLooksLikeFilm({ programme, record, airingsInWeek })) return 'movie'
   if (isSportOneOff({ title: programme?.title, recordings: [{ genre: programme?.genre ?? null }], evidence })) return 'one-off'
   if (isKnownTvShow(record) || hasEpisodeDetails(programme)) return 'series'
   return airingsInWeek >= SERIES_MIN_AIRINGS ? 'series' : 'one-off'
 }
 
-export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map(), evidence = new Map() }) => {
+export const displayKindOf = ({ programme, record = null, airingsInWeek = 1, evidence = null }) => {
+  const airingKind = airingKindOf({ programme, record, airingsInWeek, evidence })
+  return requestKindOf({ row: record?.titleKind ?? null, hint: airingKind }) ?? airingKind
+}
+
+export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map(), evidence = new Map(), kindOf = displayKindOf }) => {
   const airings = airingsByTitleOf(programmes)
   return (programme) => {
     const key = showKeyOf(programme?.title)
-    return displayKindOf({
+    return kindOf({
       programme,
       record: recordsByKey.get(key) || null,
       airingsInWeek: airings.get(key) || 1,
@@ -21,6 +27,8 @@ export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map(), 
     })
   }
 }
+
+export const createAiringKinds = (inputs) => createDisplayKinds({ ...inputs, kindOf: airingKindOf })
 
 export const withDisplayKinds = ({ programmes, kindOf }) => programmes.map((programme) => {
   const kind = kindOf(programme)
