@@ -1703,6 +1703,7 @@ button.ui-group-row {
   font-size: 20px;
   line-height: 26px;
   font-weight: 800;
+  text-wrap: balance;
 }
 
 .ui-sheet-header:has(> .info-btn) .ui-sheet-title {
