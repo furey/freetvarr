@@ -547,11 +547,6 @@ const SPORT_KEYWORDS = [
   ['ice-hockey', /\b(ice hockey|nhl)\b/i],
 ]
 
-export const isSportGuideCategory = (category) => {
-  const text = String(category ?? '').toLowerCase()
-  return SPORT_GUIDE.has(text) || Boolean(GUIDE_SPORT_CODES[text])
-}
-
 const guideSportCodeOf = (guideGenres) => [...guideGenres]
   .map((category) => GUIDE_SPORT_CODES[String(category).toLowerCase()])
   .find(Boolean) ?? null

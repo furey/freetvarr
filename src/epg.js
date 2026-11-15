@@ -58,7 +58,7 @@ import {
   WEAK_STAGE,
 } from './art-resolver.js'
 import { PROGRAMME_STAMP_KIND, createProgrammeStamps } from './programme-stamps.js'
-import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf } from './frame-grabs.js'
+import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, retryFileOf } from './frame-grabs.js'
 import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
 import { loadKindOverrides } from './programme-kind.js'
@@ -1291,11 +1291,18 @@ export const frameStage = async ({ title, kind, recordingId = null, episodeFile 
   const files = await libraryTitles.frameFilesFor(title, { kind }).catch(() => [])
   const plans = await adPlansFor(files.map((file) => file.recordingId).filter((id) => id != null))
   const planned = files.map((file) => ({ ...file, adPlan: filePlanOf({ file, plans }) }))
-  for (const [index, file] of framePreferenceOrderOf(planned).entries()) {
-    const found = await frameGrabs.frameFor({ ...file, onReady, retryMissesBefore: index === 0 ? retryMissesBefore : null })
+  const retried = await frameRetryFileOf({ files: planned, before: retryMissesBefore })
+  for (const file of framePreferenceOrderOf(planned)) {
+    const found = await frameGrabs.frameFor({ ...file, onReady, retryMissesBefore: file === retried ? retryMissesBefore : null })
     if (found.sources.length || found.pending) return found
   }
   return NO_ARTWORK
+}
+
+const frameRetryFileOf = async ({ files, before }) => {
+  if (before == null) return null
+  const marks = await Promise.all(files.map(async (file) => ({ file, markedAt: await frameGrabs.missMarkedAt(file.filePath).catch(() => null) })))
+  return retryFileOf({ marks, before })
 }
 
 export const filePlanOf = ({ file, plans }) => (file.recordingId != null

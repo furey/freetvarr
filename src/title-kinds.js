@@ -1,6 +1,5 @@
 import { db } from './db.js'
 import { hasEpisodeDetails } from './episode-details.js'
-import { isSportGuideCategory } from './for-you-categories.js'
 import { KIND_OVERRIDES, MOVIE, NOT_MOVIE, ONE_OFF_KIND as ONE_OFF_OVERRIDE, SHOW_KIND } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 
@@ -55,7 +54,7 @@ export const guideKindEvidenceOf = ({ airingKinds = [], episodes = false, sport 
 export const isSportOrNewsCategories = (categories = []) => {
   const texts = [...categories].map((category) => String(category ?? '').trim().toLowerCase())
   if (texts.some((text) => FILM_CATEGORIES.has(text))) return false
-  return texts.some((text) => NEWS_CATEGORY.test(text) || SPORT_CATEGORY.test(text) || isSportGuideCategory(text))
+  return texts.some((text) => SPORT_OR_NEWS_CATEGORIES.has(text))
 }
 
 export const guideKindUpdatesOf = ({
@@ -269,8 +268,16 @@ const parseJson = (json) => {
 }
 
 const OVERRIDE_KINDS = { [MOVIE]: MOVIE_KIND, [SHOW_KIND]: SERIES_KIND, [ONE_OFF_OVERRIDE]: ONE_OFF_KIND }
-const NEWS_CATEGORY = /\bnews\b|\bcurrent affairs\b/
-const SPORT_CATEGORY = /\bsports?\b/
+const SPORT_OR_NEWS_CATEGORIES = new Set([
+  'sport',
+  'sports',
+  'other sport',
+  'sports other',
+  'news',
+  'news/current affairs',
+  'news & current affairs',
+  'current affairs',
+])
 const FILM_CATEGORIES = new Set(['movie', 'movies', 'film'])
 const WRITE_BATCH = 200
 const UNDECIDED = { kind: SERIES_KIND, source: KIND_SOURCES.hint }

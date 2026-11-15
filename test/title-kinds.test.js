@@ -238,8 +238,16 @@ test('a Seven-style film with its description in the episode title keeps the lib
 })
 
 test('guide categories: the live news and sport spellings block a film', () => {
-  for (const categories of [['News & Current Affairs'], ['news/current affairs'], ['Sport'], ['Sports Other'], ['Tennis'], ['Basketball']]) {
+  for (const categories of [['News & Current Affairs'], ['news/current affairs'], ['Current Affairs'], [' Sport '], ['Sports'], ['Sports Other'], ['Other Sport'], ['News']]) {
     const updates = guideKindUpdatesOf({ programmes: [NBL_GAME], airingKindOf: () => 'movie', categoriesOf: () => categories })
     assert.equal(decideTitleKind(updates.get(showKeyOf(NBL_GAME.title))).kind, 'one-off', categories[0])
+  }
+})
+
+test('guide categories: a sport film keeps film status', () => {
+  for (const categories of [['Sport drama'], ['Sports film']]) {
+    const film = airing({ title: 'Rocky' })
+    const updates = guideKindUpdatesOf({ programmes: [film], airingKindOf: () => 'movie', categoriesOf: () => categories })
+    assert.equal(decideTitleKind(updates.get('rocky')).kind, 'movie', categories[0])
   }
 })

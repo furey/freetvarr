@@ -14,6 +14,7 @@ import {
   isAdFreeChannel,
   isNearBreak,
   programmeSegmentsOf,
+  retryFileOf,
   distinctFramesOf,
   downloadAdPlanOf,
   steadyFrameOf,
@@ -348,6 +349,22 @@ test('a miss mark lasts until a due title asks past it; a newer mark stays', asy
   assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR, retryMissesBefore: markedAt - 1000 }), { sources: [], pending: false })
   assert.deepEqual(await grabs.frameFor({ filePath, adPlan: CLEAR, retryMissesBefore: markedAt + 1000 }), { sources: [], pending: true })
   await grabs.idle()
+})
+
+test('retryFileOf: a due pass retries only the file with the oldest mark before the cutoff, so each file gets a turn', async () => {
+  const { grabs, root } = await grabsWith()
+  const files = [{ filePath: '/r/first.ts' }, { filePath: '/r/second.ts' }]
+  const markOf = (file) => path.join(root, `${frameIdOf(file.filePath)}.none`)
+  for (const file of files) await fs.writeFile(markOf(file), '')
+  await fs.utimes(markOf(files[0]), new Date(2000), new Date(2000))
+  await fs.utimes(markOf(files[1]), new Date(1000), new Date(1000))
+  const marksOf = async () => Promise.all(files.map(async (file) => ({ file, markedAt: await grabs.missMarkedAt(file.filePath) })))
+  assert.equal(retryFileOf({ marks: await marksOf(), before: 5000 }), files[1])
+  assert.equal(retryFileOf({ marks: await marksOf(), before: 1500 }), files[1])
+  assert.equal(retryFileOf({ marks: await marksOf(), before: 500 }), null)
+  assert.equal(retryFileOf({ marks: await marksOf(), before: null }), null)
+  await fs.utimes(markOf(files[1]), new Date(9000), new Date(9000))
+  assert.equal(retryFileOf({ marks: await marksOf(), before: 5000 }), files[0])
 })
 
 test('isAdFreeChannel: ABC network channels in Australia carry no ads; commercial channels, SBS, and US or Canadian ABC do', () => {

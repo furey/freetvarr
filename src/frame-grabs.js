@@ -87,6 +87,13 @@ export const framePreferenceOrderOf = (files) => files
   .sort((a, b) => a.rank - b.rank || a.index - b.index)
   .map(({ file }) => file)
 
+export const retryFileOf = ({ marks = [], before = null }) => {
+  if (before == null) return null
+  const old = marks.filter(({ markedAt }) => markedAt != null && markedAt < before)
+  if (!old.length) return null
+  return old.reduce((oldest, mark) => (mark.markedAt < oldest.markedAt ? mark : oldest)).file
+}
+
 export const hasAdData = (plan) => plan?.state === AD_PLAN_STATES.clear || plan?.state === AD_PLAN_STATES.marked
 
 export const programmeWindowOf = ({ fileDurationS = null, programmeDurationS = null }) => {
@@ -372,7 +379,9 @@ export const createFrameGrabs = ({
 
   const queuedCount = () => queued.size
 
-  return { frameFor, reconsider, read, prune, idle, queuedCount, savedFrameOf }
+  const missMarkedAt = async (filePath) => (filePath ? modifiedAtOf(missPathOf(frameIdOf(filePath))) : null)
+
+  return { frameFor, reconsider, read, prune, idle, queuedCount, savedFrameOf, missMarkedAt }
 }
 
 export const runFfmpegFrame = (args, { timeoutMs = FFMPEG_TIMEOUT_MS, spawnProcess = spawn } = {}) => new Promise((resolve, reject) => {
