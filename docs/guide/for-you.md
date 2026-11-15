@@ -142,6 +142,8 @@ A seasonal row collects the programmes about an occasion in the days around it, 
 
 The occasions depend on the country of the time zone in Settings → SYSTEM → **Schedule**. With no known country, you get the occasions for all countries only.
 
+The table lists the occasions in date order for Australia. Settings → For you → **Categories** lists them in date order for this year in your country, so some rows move: Father's Day comes in June in the United Kingdom and the United States, and in September in Australia and New Zealand.
+
 | Occasion            | Countries                                                         | The row shows                                                                                                                 |
 | ------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **Waitangi Day**    | New Zealand                                                       | From 3 days before to 6 February                                                                                              |
