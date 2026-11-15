@@ -119,6 +119,14 @@ At the Basic [suggestion level](#suggestion-level), Freetvarr files shows by the
 
 When Freetvarr files a show under the wrong categories, choose your own. Press **⋯** on a card in For you or on the Home hero, or **⋯** on the show page, and choose **Change categories**. Films have no categories, so the item does not show for a film.
 
+<!-- markdownlint-disable MD033 -->
+<div class="phone-frames">
+  <BrowserFrame phone label="freetvarr.lan/#/guide">
+    <img src="../img/screenshot-change-categories.png" alt="The Change categories sheet on a phone, with Lifestyle chosen under Format and Cooking turned on under Topics" width="780" height="1688" loading="lazy">
+  </BrowserFrame>
+</div>
+<!-- markdownlint-enable MD033 -->
+
 The sheet has these parts:
 
 - **Format**: one format, in the groups **Scripted**, **Unscripted**, and **Other**. **Other** has **News**, **Kids**, **Sport**, and **None**. News and Kids make no row. A show that Freetvarr files under a sport, such as **Rugby league**, has the format **Sport**.
@@ -133,6 +141,8 @@ Press **Save** to keep your choice. Your choice comes before every automatic sou
 A seasonal row collects the programmes about an occasion in the days around it, such as Christmas specials in December. It does not depend on what you record and watch, so a new household gets it too. For you shows one seasonal row at most, under **Coming up this week for you**.
 
 The occasions depend on the country of the time zone in Settings → SYSTEM → **Schedule**. With no known country, you get the occasions for all countries only.
+
+The table lists the occasions in date order for Australia. Settings → For you → **Categories** lists them in date order for this year in your country, so some rows move: Father's Day comes in June in the United Kingdom and the United States, and in September in Australia and New Zealand.
 
 | Occasion            | Countries                                                         | The row shows                                                                                                                 |
 | ------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -198,7 +208,7 @@ Open Settings → WATCHING → **For you**, or press the settings button at the 
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/for-you">
-  <img src="../img/screenshot-for-you-categories.png" alt="The Categories sheet in the For you settings, with a switch for each format, topic, and sport and, under Seasonal, for each occasion" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you-categories.png" alt="The Categories sheet in the For you settings, with a switch for each format under the Scripted and Unscripted headings" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

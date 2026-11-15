@@ -47,6 +47,7 @@ const MOBILE_SHOTS = [
   { hash: '#/live', file: 'screenshot-mobile-live.png', wait: '.live-row, .live-list' },
   { hash: '#/recordings/scheduled', file: 'screenshot-mobile-recording-banner.png', wait: '.ui-banner' },
   { hash: '#/live', file: 'screenshot-mobile-player.png', wait: '.live-row, .live-list', prepare: (page, picks) => playLive(page, picks) },
+  { hash: '#/guide', file: 'screenshot-change-categories.png', wait: '.epg-cell', prepare: (page, picks) => openChangeCategories(page, picks.upNext ?? picks.programme) },
 ]
 
 const HIDE_SCROLLBARS = `
@@ -102,7 +103,22 @@ const openCategoryRowMenu = async (page) => {
 const openCategoriesSheet = async (page) => {
   await page.locator('[data-setting="categories"]').click()
   await page.locator('.ui-sheet .settings-row[data-category]').first().waitFor({ timeout: 10_000 })
-  await page.getByText('Seasonal', { exact: true }).first().scrollIntoViewIfNeeded()
+  await page.getByText('Unscripted', { exact: true }).first().scrollIntoViewIfNeeded()
+  await page.waitForTimeout(800)
+}
+
+const CHANGE_CATEGORIES_FORMAT = 'lifestyle'
+const CHANGE_CATEGORIES_TOPIC = 'cooking'
+
+const openChangeCategories = async (page, pick) => {
+  await openProgramme(page, pick)
+  await page.getByRole('button', { name: 'Change categories' }).first().click()
+  await page.locator('.categories-sheet-formats [data-format]').first().waitFor({ timeout: 10_000 })
+  await page.waitForFunction(() => !document.querySelector('.categories-sheet-formats [disabled]'), null, { timeout: 10_000 })
+  await page.locator(`[data-format="${CHANGE_CATEGORIES_FORMAT}"]`).click()
+  const topic = page.locator(`[data-topic="${CHANGE_CATEGORIES_TOPIC}"] input, [data-topic="${CHANGE_CATEGORIES_TOPIC}"] [role=switch]`).first()
+  if (await topic.getAttribute('aria-checked') !== 'true') await topic.click()
+  await page.locator('#categories-sheet-format').evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }))
   await page.waitForTimeout(800)
 }
 
@@ -136,8 +152,11 @@ const openSeriesDrawer = async (page, title) => {
   await page.waitForTimeout(800)
 }
 
+const clockTextOf = (ms) => new Intl.DateTimeFormat('en-AU', { timeZone: TIMEZONE, hour: 'numeric', minute: '2-digit', hour12: true })
+  .format(ms).replace(/\s/g, '').toLowerCase()
+
 const openProgramme = async (page, { program }) => {
-  const cell = page.locator('.epg-cell', { hasText: program.title }).first()
+  const cell = page.locator('.epg-cell', { hasText: program.title }).filter({ hasText: clockTextOf(program.start) }).first()
   await scrollGuideUntilShown(page, cell)
   await cell.scrollIntoViewIfNeeded().catch(() => {})
   await cell.click({ timeout: 5_000 }).catch(() => clickCentred(cell))
@@ -250,7 +269,7 @@ const captureAll = async (shots, viewport, { mobile = false } = {}) => {
   })
   const picks = await prepareDemoContext({ context: ctx, base: BASE, simNow: SIM_NOW })
   Object.assign(picks, await libraryKeys({ request: ctx.request, base: BASE }))
-  console.log(`programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; show: ${picks.showcaseKey}; scheduled only: ${picks.scheduledOnlyKey}`)
+  console.log(`up next: ${picks.upNext?.program.title}; programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; show: ${picks.showcaseKey}; scheduled only: ${picks.scheduledOnlyKey}`)
   const page = await ctx.newPage()
   for (const shot of shots) {
     const url = `${BASE}/${resolveHash(shot.hash, picks)}`
