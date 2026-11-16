@@ -158,6 +158,15 @@ const SKIP_HINT_MS = 1_600
 
 export const FILLED_CAPTION_LINE = 70
 
+export const useMatchMedia = (queryText) => {
+  const query = window.matchMedia?.(queryText)
+  const matches = ref(Boolean(query?.matches))
+  const sync = () => { matches.value = Boolean(query?.matches) }
+  onMounted(() => query?.addEventListener?.('change', sync))
+  onUnmounted(() => query?.removeEventListener?.('change', sync))
+  return matches
+}
+
 export const useLiftedCaptionLine = ({ videoEl, footerEl, isLifted, onChange }) => {
   let geometry = null
   let frame = 0
