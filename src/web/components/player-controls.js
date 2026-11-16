@@ -70,6 +70,20 @@ export const usePlayerFocus = ({ isOpen, isMini = ref(false), rootEl }) => {
   })
 }
 
+export const useInfoCloseReveal = (infoOpen) => {
+  const closing = ref(false)
+  let timer = null
+  watch(infoOpen, (open, wasOpen) => {
+    clearTimeout(timer)
+    closing.value = !open && Boolean(wasOpen)
+    if (closing.value) timer = setTimeout(() => { closing.value = false }, INFO_CLOSE_REVEAL_MS)
+  })
+  onUnmounted(() => clearTimeout(timer))
+  return closing
+}
+
+const INFO_CLOSE_REVEAL_MS = 600
+
 export const useSwipeDown = ({ enabled, onSwipe }) => {
   let start = null
   const onSwipePointerDown = (e) => {

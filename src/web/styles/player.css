@@ -143,9 +143,6 @@
   background: var(--color-surface-3);
 }
 
-.pl-mini-button.is-wide-only {
-  display: none;
-}
 
 .pl-mini-sound.is-on {
   color: var(--color-primary);
@@ -359,15 +356,34 @@ body.player-mini-open .app-content {
     box-shadow: 0 0 0 2px var(--color-primary);
   }
 
-  .pl-mini-button.is-wide-only {
-    display: inline-flex;
+  .pl-mini.is-controls-shown .pl-mini-button:is(.pl-mini-sound, .pl-mini-captions, .pl-mini-max, .pl-mini-more),
+  .pl-mini-button:is(.pl-mini-sound, .pl-mini-captions, .pl-mini-max, .pl-mini-more) {
+    opacity: 1;
+    pointer-events: auto;
   }
 
-  .pl-mini-close {
-    right: 8px;
+  .pl-mini-captions {
+    right: 96px;
+  }
+
+  .pl-mini-captions.is-on {
+    color: var(--color-primary);
+  }
+
+  .pl-mini-captions[aria-disabled="true"] {
+    opacity: 0.4 !important;
+    cursor: default;
+  }
+
+  .pl-mini-sound.is-shifted {
+    right: 140px;
   }
 
   .pl-mini-more {
+    right: 8px;
+  }
+
+  .pl-mini-max {
     right: 52px;
   }
 
@@ -380,7 +396,7 @@ body.player-mini-open .app-content {
   }
 
   .pl-mini-button.pl-mini-pause {
-    top: calc(var(--mini-video-h) / 2 - 26px);
+    top: max(56px, calc(var(--mini-video-h) / 2 - 26px));
     left: calc(50% - 26px);
     width: 52px;
     height: 52px;
@@ -1823,4 +1839,27 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
 
 .pl-frame.is-tune-in-exit :is(.pl-top > :not(.pl-actions), .pl-actions > *, .pl-centre-slot > *, .pl-bottom, .pl-scrim) {
   transition: opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pl-frame .live-info-leave-active {
+  transition:
+    opacity 0.25s ease-in,
+    transform 0.25s cubic-bezier(0.8, 0, 0.8, 0.3);
+}
+
+.pl-frame.is-info-closing .pl-reveal-enter-active {
+  transition: opacity 0.25s ease-out 0.2s;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pl-frame.is-info-closing .pl-reveal-enter-from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-frame .live-info-leave-active,
+  .pl-frame.is-info-closing .pl-reveal-enter-active {
+    transition: none;
+  }
 }
