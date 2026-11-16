@@ -453,10 +453,32 @@ const useMarquee = ({ boxEl, textEl, text, active }) => {
   return { stage, shown }
 }
 
+export const MarqueeText = {
+  props: {
+    text: { type: String, default: '' },
+    active: Boolean,
+  },
+  setup(props) {
+    const boxEl = ref(null)
+    const textEl = ref(null)
+    const { stage } = useMarquee({
+      boxEl,
+      textEl,
+      text: computed(() => props.text),
+      active: computed(() => props.active),
+    })
+    return { boxEl, textEl, stage }
+  },
+  template: `
+    <span ref="boxEl" :class="['pl-marquee', 'pl-marquee-line', 'is-' + stage]"><span ref="textEl" class="pl-marquee-text"><slot /></span></span>
+  `,
+}
+
 export const PLAYER_CHROME_COMPONENTS = {
   ...PLAYER_ICON_COMPONENTS,
   'player-top-bar': PlayerTopBar,
   'player-center-controls': PlayerCenterControls,
   'player-scrubber': PlayerScrubber,
   'player-base-row': PlayerBaseRow,
+  'marquee-text': MarqueeText,
 }

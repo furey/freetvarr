@@ -96,7 +96,8 @@ export const RecordingPlayer = {
           <p v-if="metaLine" class="live-info-meta">{{ metaLine }}</p>
           <p v-if="recording?.synopsis" class="live-info-synopsis">{{ recording.synopsis }}</p>
           <p v-for="line in infoLines" :key="line.label" class="live-info-next">
-            {{ line.label }} <span class="live-info-next-title">{{ line.text }}</span>
+            <span class="live-info-next-label">{{ line.label }}</span>
+            <marquee-text class="live-info-next-value" :text="line.text" :active="infoOpen"><span class="live-info-next-title">{{ line.text }}</span></marquee-text>
           </p>
         </player-info-panel>
         <player-top-bar :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"

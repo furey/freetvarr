@@ -2715,9 +2715,22 @@ table.recordings-table tbody td {
 }
 
 .live-info-next {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  align-items: baseline;
   white-space: nowrap;
+}
+
+.live-info-next-label {
+  flex: none;
+}
+
+.live-info-next-value {
+  min-width: 0;
+  margin-left: 0.35rem;
+}
+
+.live-info-next-value .live-info-next-title {
+  margin-left: 0;
 }
 
 .live-info-next-title {
