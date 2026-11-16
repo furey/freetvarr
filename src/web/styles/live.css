@@ -1228,8 +1228,15 @@ body.player-open .app-tabbar {
 }
 
 .pl-frame.is-info-open .live-info-text > .live-info-next:last-child {
+  align-items: center;
+  gap: 0;
+}
+
+.pl-marquee-line {
   display: block;
-  line-height: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pl-skip-ad {
