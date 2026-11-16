@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   MINI_CAPTION_LINE,
   captionLineOf,
+  liftedCaptionLineOf,
   closePictureInPictureOf,
   isHoverPointer,
   isSwipeDown,
@@ -99,6 +100,21 @@ test('captionLineOf keeps mini cues low and never lifts them', () => {
   assert.equal(MINI_CAPTION_LINE, 90)
   assert.equal(captionLineOf({ mini: false, lifted: true, liftedLine: 70, restingLine: 85 }), 70)
   assert.equal(captionLineOf({ mini: false, lifted: false, liftedLine: 70, restingLine: 85 }), 85)
+})
+
+test('liftedCaptionLineOf keeps a caption line above the controls on a short landscape screen', () => {
+  assert.equal(liftedCaptionLineOf({ frameHeight: 390, footerTop: 282, fallbackLine: 70 }), 64)
+})
+
+test('liftedCaptionLineOf never lifts cues higher than the fixed lift on taller screens', () => {
+  assert.equal(liftedCaptionLineOf({ frameHeight: 810, footerTop: 692, fallbackLine: 70 }), 70)
+  assert.equal(liftedCaptionLineOf({ frameHeight: 844, footerTop: 736, fallbackLine: 70 }), 70)
+})
+
+test('liftedCaptionLineOf falls back to the fixed lift when the controls cannot be measured', () => {
+  assert.equal(liftedCaptionLineOf({ fallbackLine: 70 }), 70)
+  assert.equal(liftedCaptionLineOf({ frameHeight: 390, footerTop: -4, fallbackLine: 70 }), 70)
+  assert.equal(liftedCaptionLineOf({ frameHeight: 390, footerTop: 400, fallbackLine: 70 }), 70)
 })
 
 test('miniControlsShownOf holds controls while paused, the menu is open, or focus is inside', () => {

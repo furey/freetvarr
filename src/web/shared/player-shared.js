@@ -157,6 +157,20 @@ const SKIP_HINT_MS = 1_600
 
 export const FILLED_CAPTION_LINE = 70
 
+export const footerGeometryOf = (video) => {
+  const footer = video?.closest?.('.pl-frame')?.querySelector(':scope > .pl-bottom')
+  const footerBox = footer?.getBoundingClientRect()
+  if (!footerBox?.height) return {}
+  const videoBox = video.getBoundingClientRect()
+  return { frameHeight: videoBox.height, footerTop: footerBox.top - videoBox.top }
+}
+
+export const placeCaptionCues = ({ video, line }) => {
+  for (const track of captionTracksOf(video)) {
+    for (const cue of track.cues || []) if (cue.line !== line) cue.line = line
+  }
+}
+
 export const playback = reactive({
   open: false,
   recording: null,

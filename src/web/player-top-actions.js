@@ -8,28 +8,21 @@ export const ICON_PILL_WIDTH = 40
 export const LOGO_WIDTH = 40
 
 export const LABELLED_PILL_WIDTHS = {
-  info: 84,
   series: 102,
   multiview: 124,
-  minimise: 122,
-  airplay: 110,
   sound: 104,
   record: 120,
 }
 
-export const MENU_ORDER = ['info', 'series', 'multiview', 'minimise', 'airplay']
+export const MENU_ORDER = ['series', 'multiview', 'minimise', 'airplay']
 
-export const topBarActionsOf = ({ actions = [], canMinimise, infoOpen, infoId, prePlay }) => {
+export const topBarActionsOf = ({ actions = [], canMinimise, prePlay }) => {
   if (prePlay) return []
   return [
     ...actions,
     canMinimise && {
       key: 'minimise', order: 2, priority: 3, icon: 'minimise-icon', label: 'Miniplayer', ariaLabel: 'Miniplayer',
-      menuLabel: 'Miniplayer',
-    },
-    {
-      key: 'info', order: 4, priority: 1, icon: 'info-icon', label: 'Info', ariaLabel: 'Programme info', menuLabel: 'Programme info',
-      pressed: infoOpen, expanded: infoOpen, controls: infoId,
+      title: 'Miniplayer', menuLabel: 'Miniplayer', round: true,
     },
   ].filter((action) => action && !action.hidden)
 }
@@ -56,8 +49,8 @@ export const topBarLayoutOf = ({
 }
 
 export const optionalWidthOf = ({ key, round = false, labelled = false }) => {
-  if (round) return ROUND_WIDTH
-  return labelled ? LABELLED_PILL_WIDTHS[key] ?? ICON_PILL_WIDTH : ICON_PILL_WIDTH
+  if (round || !labelled) return ROUND_WIDTH
+  return LABELLED_PILL_WIDTHS[key] ?? ROUND_WIDTH
 }
 
 export const menuOrderOf = (keys) =>

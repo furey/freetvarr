@@ -1,6 +1,7 @@
-import { ref, computed, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
-import { soundToggleOf, playerMenuItemsOf } from '/player-mute.js'
+import { soundToggleOf, playerMenuItemsOf, baseRowButtonsOf, NO_CAPTIONS_ON_CHANNEL } from '/player-mute.js'
+import { marqueePlanOf } from '/marquee.js'
 import {
   topBarActionsOf,
   topBarLayoutOf,
@@ -13,7 +14,7 @@ import {
   LATE_COMPACT,
 } from '/player-top-actions.js'
 
-const MENU_EVENTS = { captions: 'toggle-captions', pip: 'toggle-pip', fullscreen: 'toggle-fullscreen', info: 'toggle-info', minimise: 'minimise' }
+const MENU_EVENTS = { pip: 'toggle-pip', minimise: 'minimise' }
 
 export const PlayerTopBar = {
   components: PLAYER_ICON_COMPONENTS,
@@ -23,11 +24,6 @@ export const PlayerTopBar = {
     title: { type: String, default: '' },
     subtitle: { type: String, default: '' },
     backLabel: { type: String, default: 'Close' },
-    infoOpen: Boolean,
-    infoId: { type: String, required: true },
-    hasCaptions: Boolean,
-    captionsOn: Boolean,
-    fullscreen: Boolean,
     canPip: Boolean,
     pipActive: Boolean,
     canMinimise: Boolean,
@@ -36,7 +32,7 @@ export const PlayerTopBar = {
     hasRecord: Boolean,
     prePlay: Boolean,
   },
-  emits: ['back', 'toggle-info', 'toggle-captions', 'toggle-fullscreen', 'toggle-pip', 'minimise', 'toggle-mute', 'action'],
+  emits: ['back', 'toggle-pip', 'minimise', 'toggle-mute', 'action'],
   setup(props, { emit }) {
     const barEl = ref(null)
     const actionsEl = ref(null)
@@ -45,7 +41,7 @@ export const PlayerTopBar = {
     const sound = computed(() => soundToggleOf({ muted: props.muted }))
 
     const allActions = computed(() => topBarActionsOf({
-      actions: props.actions, canMinimise: props.canMinimise, infoOpen: props.infoOpen, infoId: props.infoId, prePlay: props.prePlay,
+      actions: props.actions, canMinimise: props.canMinimise, prePlay: props.prePlay,
     }))
 
     const layout = computed(() => {
@@ -74,12 +70,13 @@ export const PlayerTopBar = {
         .map((key) => allActions.value.find((action) => action.key === key))
         .filter(Boolean)
         .map(menuItemOf),
-      hasCaptions: props.hasCaptions,
-      captionsOn: props.captionsOn,
       canPip: props.canPip && !props.prePlay,
       pipActive: props.pipActive,
-      fullscreen: props.fullscreen,
     }))
+    const hasMenu = computed(() => menuItems.value.length > 0)
+    watch(hasMenu, (shown) => {
+      if (!shown) menuOpen.value = false
+    })
 
     const chooseAction = (key) => {
       if (MENU_EVENTS[key]) return emit(MENU_EVENTS[key])
@@ -112,7 +109,7 @@ export const PlayerTopBar = {
     })
     onUnmounted(() => observer?.disconnect())
 
-    return { barEl, actionsEl, menuOpen, sound, layout, inlineActions, menuItems, chooseAction, chooseMenuItem }
+    return { barEl, actionsEl, menuOpen, sound, layout, inlineActions, menuItems, hasMenu, chooseAction, chooseMenuItem }
   },
   template: `
     <header ref="barEl" class="pl-top">
@@ -139,14 +136,12 @@ export const PlayerTopBar = {
           :title="sound.title" aria-keyshortcuts="m" @click="$emit('toggle-mute')">
           <speaker-muted-icon v-if="sound.muted" /><speaker-icon v-else />
         </button>
-        <button type="button" class="pl-round pl-more" aria-label="More" title="More" aria-haspopup="dialog" @click="menuOpen = true"><more-glyph /></button>
+        <button v-if="hasMenu" type="button" class="pl-round pl-more" aria-label="More" title="More" aria-haspopup="dialog" @click="menuOpen = true"><more-glyph /></button>
       </div>
       <ui-sheet :open="menuOpen" title="More" @close="menuOpen = false">
         <div class="ui-group">
           <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row pl-menu-row" :disabled="item.disabled || null"
-            :title="item.title || null"
-            :role="item.key === 'captions' ? 'menuitemcheckbox' : null" :aria-checked="item.key === 'captions' ? String(item.on) : null"
-            @click="chooseMenuItem(item.key)">
+            :title="item.title || null" @click="chooseMenuItem(item.key)">
             <component :is="item.icon" v-if="item.icon" v-bind="item.iconProps || {}" class="pl-menu-icon" />
             <span class="ui-group-row-main"><span class="ui-group-row-title">{{ item.label }}</span></span>
             <span v-if="item.value" :class="['pl-mini-menu-value', { 'is-on': item.on }]">{{ item.value }}</span>
@@ -168,7 +163,7 @@ const menuItemOf = (action) => ({
   value: action.menuValue,
 })
 
-const PILL_LABEL_MIN_FRAME = 1000
+const PILL_LABEL_MIN_FRAME = 1250
 
 export const PlayerCenterControls = {
   components: PLAYER_ICON_COMPONENTS,
@@ -240,9 +235,149 @@ export const PlayerScrubber = {
   `,
 }
 
+export const PlayerBaseRow = {
+  props: {
+    episode: { type: String, default: '' },
+    summary: { type: String, default: '' },
+    showSummary: Boolean,
+    showActions: Boolean,
+    animate: Boolean,
+    hasCaptions: Boolean,
+    captionsOn: Boolean,
+    noCaptionsTitle: { type: String, default: NO_CAPTIONS_ON_CHANNEL },
+    infoOpen: Boolean,
+    infoId: { type: String, required: true },
+    fullscreen: Boolean,
+  },
+  emits: ['toggle-captions', 'toggle-info', 'toggle-fullscreen'],
+  setup(props) {
+    const lineEl = ref(null)
+    const textEl = ref(null)
+    const buttons = computed(() => baseRowButtonsOf({
+      hasCaptions: props.hasCaptions,
+      captionsOn: props.captionsOn,
+      infoOpen: props.infoOpen,
+      fullscreen: props.fullscreen,
+      noCaptionsTitle: props.noCaptionsTitle,
+    }))
+    const marquee = useMarquee({
+      boxEl: lineEl,
+      textEl,
+      text: computed(() => (props.showSummary ? props.summary : '')),
+      active: computed(() => props.animate && props.showSummary),
+    })
+    return { lineEl, textEl, buttons, marquee }
+  },
+  template: `
+    <div class="pl-base">
+      <div v-if="showSummary" class="pl-base-summary">
+        <span v-if="episode" class="pl-base-line is-episode">{{ episode }}</span>
+        <span v-if="summary" ref="lineEl" :class="['pl-base-line', 'pl-marquee', 'is-' + marquee]"><span ref="textEl" class="pl-marquee-text">{{ summary }}</span></span>
+      </div>
+      <div v-if="showActions" class="pl-base-actions">
+        <button type="button" class="pl-round" aria-label="Captions" aria-keyshortcuts="c" :title="buttons.captions.title"
+          :disabled="buttons.captions.disabled || null" :aria-pressed="String(buttons.captions.pressed)"
+          @click="$emit('toggle-captions')"><captions-icon /></button>
+        <button type="button" class="pl-round" aria-label="Programme info" aria-keyshortcuts="i" :title="buttons.info.title"
+          :aria-pressed="String(buttons.info.pressed)" :aria-expanded="String(buttons.info.pressed)" :aria-controls="infoId"
+          @click="$emit('toggle-info')"><info-icon /></button>
+        <button type="button" class="pl-round" :aria-label="buttons.fullscreen.ariaLabel" aria-keyshortcuts="f"
+          :title="buttons.fullscreen.title" @click="$emit('toggle-fullscreen')"><component :is="buttons.fullscreen.icon" /></button>
+      </div>
+    </div>
+  `,
+}
+
+const useMarquee = ({ boxEl, textEl, text, active }) => {
+  const stage = ref('rest')
+  const motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+  const animations = new Set()
+  let run = 0
+  let timer = null
+  let boxWidth = 0
+  let observer = null
+
+  const stop = () => {
+    run += 1
+    clearTimeout(timer)
+    animations.forEach((animation) => animation.cancel())
+    animations.clear()
+    stage.value = 'rest'
+  }
+
+  const pause = (ms, id) => new Promise((resolve) => {
+    timer = setTimeout(() => resolve(id === run), ms)
+  })
+
+  const play = async (el, keyframes, options, id) => {
+    const animation = el.animate(keyframes, { ...options, fill: 'forwards' })
+    animations.add(animation)
+    await animation.finished.catch(() => {})
+    return id === run
+  }
+
+  const cycle = async (plan, id) => {
+    const box = boxEl.value
+    const textNode = textEl.value
+    if (!(await pause(plan.holdMs, id))) return
+    stage.value = 'moving'
+    const shift = [{ transform: 'translateX(0)' }, { transform: `translateX(${-plan.shiftPx}px)` }]
+    if (!(await play(textNode, shift, { duration: plan.scrollMs, easing: 'linear' }, id))) return
+    stage.value = 'end'
+    if (!(await pause(plan.holdMs, id))) return
+    if (!(await play(box, [{ opacity: 1 }, { opacity: 0 }], { duration: plan.fadeMs }, id))) return
+    animations.forEach((animation) => animation.cancel())
+    animations.clear()
+    stage.value = 'rest'
+    if (!(await play(box, [{ opacity: 0 }, { opacity: 1 }], { duration: plan.fadeMs }, id))) return
+    animations.forEach((animation) => animation.cancel())
+    animations.clear()
+    cycle(plan, id)
+  }
+
+  const start = () => {
+    stop()
+    const box = boxEl.value
+    if (!box || !textEl.value || !active.value || document.visibilityState === 'hidden') return
+    boxWidth = box.clientWidth
+    const plan = marqueePlanOf({ contentWidth: box.scrollWidth, boxWidth, reducedMotion: Boolean(motion?.matches) })
+    if (plan) cycle(plan, run)
+  }
+
+  const restartAfterRender = () => nextTick(start)
+  const onResize = () => {
+    if (boxEl.value && boxEl.value.clientWidth !== boxWidth) start()
+  }
+  const onVisibility = () => (document.visibilityState === 'hidden' ? stop() : start())
+
+  watch([text, active, boxEl], () => {
+    observer?.disconnect()
+    if (boxEl.value) observer?.observe(boxEl.value)
+    restartAfterRender()
+  })
+
+  onMounted(() => {
+    observer = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null
+    if (boxEl.value) observer?.observe(boxEl.value)
+    document.addEventListener('visibilitychange', onVisibility)
+    motion?.addEventListener?.('change', start)
+    document.fonts?.ready.then(start)
+    start()
+  })
+  onUnmounted(() => {
+    stop()
+    observer?.disconnect()
+    document.removeEventListener('visibilitychange', onVisibility)
+    motion?.removeEventListener?.('change', start)
+  })
+
+  return stage
+}
+
 export const PLAYER_CHROME_COMPONENTS = {
   ...PLAYER_ICON_COMPONENTS,
   'player-top-bar': PlayerTopBar,
   'player-center-controls': PlayerCenterControls,
   'player-scrubber': PlayerScrubber,
+  'player-base-row': PlayerBaseRow,
 }

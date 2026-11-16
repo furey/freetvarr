@@ -6,7 +6,10 @@ import {
   steadyBehindMinutesOf,
   behindPillText,
   leftPillText,
-  liveHintText,
+  liveSummaryText,
+  fromStartSummaryText,
+  summaryEpisodeText,
+  endsAtText,
   percentWithin,
   adMarkersOf,
   programmeRangeText,
@@ -24,9 +27,41 @@ test('leftPillText rounds up to whole minutes', () => {
   assert.equal(leftPillText(0), '1 MIN LEFT')
 })
 
-test('liveHintText names the buffer length when there is one', () => {
-  assert.equal(liveHintText(1800), 'Pause or rewind up to 30 minutes. Double-tap either side to skip 10 seconds.')
-  assert.equal(liveHintText(0), 'Double-tap either side to skip 10 seconds.')
+const clockText = (ms) => {
+  const date = new Date(ms)
+  const hours = date.getUTCHours()
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+  return `${hours % 12 || 12}:${minutes}${hours < 12 ? 'am' : 'pm'}`
+}
+const at = (hours, minutes) => Date.UTC(2026, 10, 16, hours, minutes)
+
+test('liveSummaryText gives the minutes left and the next programme with its start time', () => {
+  const next = { title: 'The Project', start: at(20, 30) }
+  assert.equal(liveSummaryText({ endMs: at(20, 30), nowMs: at(20, 6), next, clockText }), '24 min left · Next 8:30pm The Project')
+})
+
+test('liveSummaryText drops a part the guide does not have', () => {
+  assert.equal(liveSummaryText({ endMs: at(20, 30), nowMs: at(20, 6), next: null, clockText }), '24 min left')
+  assert.equal(liveSummaryText({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project', start: at(20, 30) }, clockText }), 'Next 8:30pm The Project')
+  assert.equal(liveSummaryText({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project' }, clockText }), 'Next The Project')
+  assert.equal(liveSummaryText({ endMs: undefined, nowMs: at(20, 6), next: { start: at(20, 30) }, clockText }), '')
+})
+
+test('fromStartSummaryText says whether the recording is still growing', () => {
+  assert.equal(fromStartSummaryText({ growing: true }), 'From the start · still recording')
+  assert.equal(fromStartSummaryText({ growing: false }), 'From the start')
+})
+
+test('summaryEpisodeText prefers the episode line and falls back to the genre', () => {
+  assert.equal(summaryEpisodeText({ episodeLine: 'S03E07 · The Reunion', genreText: 'Sport' }), 'S03E07 · The Reunion')
+  assert.equal(summaryEpisodeText({ episodeLine: '', genreText: 'Sport' }), 'Sport')
+  assert.equal(summaryEpisodeText({ episodeLine: '', genreText: '' }), '')
+})
+
+test('endsAtText adds the time left to the clock at normal speed', () => {
+  assert.equal(endsAtText({ durationS: 3600, positionS: 1200, nowMs: at(21, 2), clockText }), 'Ends 9:42pm')
+  assert.equal(endsAtText({ durationS: 3600, positionS: 4000, nowMs: at(21, 2), clockText }), 'Ends 9:02pm')
+  assert.equal(endsAtText({ durationS: 0, positionS: 0, nowMs: at(21, 2), clockText }), '')
 })
 
 test('percentWithin clamps and guards an empty range', () => {
