@@ -60,8 +60,9 @@ test('the More menu offers pop out only where picture in picture works', () => {
 })
 
 test('the More menu lists actions that do not fit the bar before pop out', () => {
-  const keys = playerMenuItemsOf({ overflow: [{ key: 'series' }, { key: 'minimise' }], canPip: true }).map((item) => item.key)
+  const keys = playerMenuItemsOf({ overflow: [{ key: 'series' }], canMinimise: true, canPip: true }).map((item) => item.key)
   assert.deepEqual(keys, ['series', 'minimise', 'pip'])
+  assert.deepEqual(playerMenuItemsOf({ canMinimise: false, canPip: false }), [])
 })
 
 test('the pop out label follows the picture in picture state', () => {

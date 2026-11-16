@@ -168,7 +168,7 @@ export const LivePlayer = {
         </player-info-panel>
         <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
           :subtitle="playerSubtitle" back-label="Stop and close"
-          :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
+          :can-pip="canPip" :pip-active="pipActive" :can-minimise="!miniInRow" :muted="playerMuted"
           @back="stopLive" @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
           :actions="topActions" :has-record="!prePlayChrome" :pre-play="prePlayChrome" @action="onTopAction">
           <template #default="{ compact }">
@@ -208,8 +208,8 @@ export const LivePlayer = {
             :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
           <player-base-row :episode="summaryEpisode" :summary="summaryText" :show-summary="!panelOpen" :show-actions="!prePlayChrome"
             :animate="controlsShown" :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :info-open="infoOpen"
-            info-id="live-info" :fullscreen="isStageFullscreen"
-            @toggle-captions="toggleLiveCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleLiveFullscreen" />
+            info-id="live-info" :fullscreen="isStageFullscreen" can-minimise
+            @minimise="minimise" @minimise-placement="miniInRow = $event" @toggle-captions="toggleLiveCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleLiveFullscreen" />
         </footer>
         <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
           <span>{{ live.skipHint.label }}</span>
@@ -550,6 +550,7 @@ export const LivePlayer = {
       mini.value = true
     }
     const expand = () => { mini.value = false }
+    const miniInRow = ref(false)
 
     const miniMeta = computed(() => miniMetaOf([
       live.channel?.name,
@@ -871,7 +872,7 @@ export const LivePlayer = {
       isBehindLive, jumpToLive, hasBufferBar, liveScrubber, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
       bufferStartText, bufferEndText, summaryEpisode, summaryText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
-      canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,
+      canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, miniInRow, expand, miniMeta, miniProgress,
       multi, primarySlotClass, primarySlotStyle, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor,
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,

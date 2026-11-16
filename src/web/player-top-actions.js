@@ -14,17 +14,22 @@ export const LABELLED_PILL_WIDTHS = {
   record: 120,
 }
 
-export const MENU_ORDER = ['series', 'multiview', 'minimise', 'airplay']
+export const MENU_ORDER = ['series', 'multiview', 'airplay']
 
-export const topBarActionsOf = ({ actions = [], canMinimise, prePlay }) => {
+export const BASE_ROW_BUTTON_WIDTH = 44
+export const BASE_ROW_BUTTON_GAP = 8
+export const BASE_ROW_SUMMARY_GAP = 12
+export const BASE_ROW_MIN_SUMMARY_WIDTH = 140
+
+export const topBarActionsOf = ({ actions = [], prePlay }) => {
   if (prePlay) return []
-  return [
-    ...actions,
-    canMinimise && {
-      key: 'minimise', order: 2, priority: 3, icon: 'minimise-icon', label: 'Miniplayer', ariaLabel: 'Miniplayer',
-      title: 'Miniplayer', menuLabel: 'Miniplayer', round: true,
-    },
-  ].filter((action) => action && !action.hidden)
+  return actions.filter((action) => action && !action.hidden)
+}
+
+export const miniplayerFitsBaseRowOf = ({ rowWidth }) => {
+  const buttons = 4
+  const buttonsWidth = buttons * BASE_ROW_BUTTON_WIDTH + (buttons - 1) * BASE_ROW_BUTTON_GAP
+  return rowWidth - buttonsWidth - BASE_ROW_SUMMARY_GAP >= BASE_ROW_MIN_SUMMARY_WIDTH
 }
 
 export const topBarLayoutOf = ({

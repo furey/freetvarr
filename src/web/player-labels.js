@@ -25,6 +25,11 @@ export const liveEdgeOf = ({ behindMinutes = 0, fromStart = false }) => {
 
 export const leftPillText = (seconds) => `${Math.max(1, Math.ceil(seconds / 60))} MIN LEFT`
 
+export const SCRUB_PILL_RESERVED_PX = 220
+export const SCRUB_MIN_TRACK_PX = 280
+
+export const scrubPillShownOf = ({ scrubWidth }) => scrubWidth - SCRUB_PILL_RESERVED_PX >= SCRUB_MIN_TRACK_PX
+
 export const liveSummaryText = ({ endMs, nowMs, next, clockText }) => joinedParts([
   minutesLeftText({ endMs, nowMs }),
   nextAiringText({ next, clockText }),

@@ -6,6 +6,7 @@ import {
   steadyBehindMinutesOf,
   behindPillText,
   leftPillText,
+  scrubPillShownOf,
   liveSummaryText,
   fromStartSummaryText,
   summaryEpisodeText,
@@ -20,6 +21,14 @@ test('behindPillText shows whole minutes, at least one', () => {
   assert.equal(behindPillText(0), '1 MIN BEHIND')
   assert.equal(behindPillText(2), '2 MIN BEHIND')
   assert.equal(behindPillText(30), '30 MIN BEHIND')
+})
+
+test('scrubPillShownOf hides the minutes-left pill on a portrait phone and shows it from landscape up', () => {
+  assert.equal(scrubPillShownOf({ scrubWidth: 358 }), false)
+  assert.equal(scrubPillShownOf({ scrubWidth: 499 }), false)
+  assert.equal(scrubPillShownOf({ scrubWidth: 500 }), true)
+  assert.equal(scrubPillShownOf({ scrubWidth: 812 }), true)
+  assert.equal(scrubPillShownOf({ scrubWidth: 0 }), false)
 })
 
 test('leftPillText rounds up to whole minutes', () => {

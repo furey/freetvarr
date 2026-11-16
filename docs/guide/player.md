@@ -23,10 +23,9 @@ The top bar has these controls:
 - The channel logo and the title of what is playing.
 - **Multiview** (live TV only): watch up to four channels at once. See [Multiview](#multiview).
 - The AirPlay button (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
-- The Miniplayer button: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer).
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
 - The sound button: turns the sound on or off. See [Sound](#sound).
-- **⋯** (**More**): **Pop out (picture in picture)** (see [Pop out](#pop-out)), and the buttons that do not fit in the top bar, such as **Multiview** or **Miniplayer**. The **⋯** button shows only when the menu has something in it.
+- **⋯** (**More**): **Pop out (picture in picture)** (see [Pop out](#pop-out)), the buttons that do not fit in the top bar, such as **Multiview**, and **Miniplayer** when the row under the position bar has no room for it. The **⋯** button shows only when the menu has something in it.
 
 On a wide screen, **Multiview** and **Series** show their names. On a narrower screen, they show only their icons. Point at an icon-only button with the mouse to see its name.
 
@@ -37,13 +36,14 @@ The row under the position bar shows what is playing on the left:
 - Live TV: the minutes left and the next programme, such as `24 min left · Next 8:30pm The Project`. A tablet or computer also shows the season, episode, and episode title above it. While you watch **From the start**, the row reads `From the start · still recording`.
 - Recordings: the clock time the episode ends if you watch to the end, such as `Ends 9:42pm`.
 
-The right of the row has these buttons:
+The right of the row has these buttons, in this order:
 
-- **Captions**: turns captions on or off. See [Captions](#captions).
 - **Programme info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
+- **Captions**: turns captions on or off. See [Captions](#captions).
+- **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer). On a very narrow screen, **Miniplayer** is in the **⋯** menu instead.
 - **Full screen**: fills the screen. See [Full screen](#full-screen).
 
-During a marked ad break, recordings show **Skip ad** over the picture, above the position bar. Recordings also show a pill on the position bar that says how many minutes are left. See [Playback](/guide/recordings#playback).
+During a marked ad break, recordings show **Skip ad** over the picture, above the position bar. On a screen wider than a phone held upright, recordings also show a pill after the end time of the position bar that says how many minutes are left, such as `35 MIN LEFT`. See [Playback](/guide/recordings#playback).
 
 On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `2` seconds; change the delay in [Playback settings](#playback-settings).
 
@@ -78,7 +78,7 @@ Press the **Captions** button, at the bottom right of the player, to turn captio
 
 ## Miniplayer
 
-Press the Miniplayer button in the top bar (or **Miniplayer** in the **⋯** menu, when the bar has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
+Press the **Miniplayer** button at the bottom right of the player (or **Miniplayer** in the **⋯** menu, when the row has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
 
 - On a phone, the Miniplayer is a bar above the tab bar.
 - On a tablet or computer, it is a small card in a corner of the screen. On a small screen it is a bar instead.

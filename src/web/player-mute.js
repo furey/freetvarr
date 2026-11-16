@@ -16,8 +16,9 @@ export const soundToggleOf = ({ muted }) => (muted
   ? { muted: true, ariaLabel: 'Unmute', title: 'Unmute (M)' }
   : { muted: false, ariaLabel: 'Mute', title: 'Mute (M)' })
 
-export const playerMenuItemsOf = ({ overflow = [], canPip, pipActive }) => [
+export const playerMenuItemsOf = ({ overflow = [], canMinimise, canPip, pipActive }) => [
   ...overflow,
+  canMinimise && { key: 'minimise', label: 'Miniplayer', icon: 'minimise-icon' },
   canPip && {
     key: 'pip',
     label: pipActive ? 'Close pop out (picture in picture)' : 'Pop out (picture in picture)',

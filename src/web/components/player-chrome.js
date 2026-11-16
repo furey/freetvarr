@@ -2,9 +2,11 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from '/vendor/
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { soundToggleOf, playerMenuItemsOf, baseRowButtonsOf, NO_CAPTIONS_ON_CHANNEL } from '/player-mute.js'
 import { marqueePlanOf, marqueeKeepsGoing, marqueeTextChangeOf } from '/marquee.js'
+import { scrubPillShownOf } from '/player-labels.js'
 import {
   topBarActionsOf,
   topBarLayoutOf,
+  miniplayerFitsBaseRowOf,
   optionalWidthOf,
   moreMenuKeysOf,
   ROUND_WIDTH,
@@ -40,9 +42,7 @@ export const PlayerTopBar = {
     const measure = ref({ barWidth: 0, frameWidth: 0, gap: 10, actionsGap: 8 })
     const sound = computed(() => soundToggleOf({ muted: props.muted }))
 
-    const allActions = computed(() => topBarActionsOf({
-      actions: props.actions, canMinimise: props.canMinimise, prePlay: props.prePlay,
-    }))
+    const allActions = computed(() => topBarActionsOf({ actions: props.actions, prePlay: props.prePlay }))
 
     const layout = computed(() => {
       const { barWidth, frameWidth, gap, actionsGap } = measure.value
@@ -70,6 +70,7 @@ export const PlayerTopBar = {
         .map((key) => allActions.value.find((action) => action.key === key))
         .filter(Boolean)
         .map(menuItemOf),
+      canMinimise: props.canMinimise && !props.prePlay,
       canPip: props.canPip && !props.prePlay,
       pipActive: props.pipActive,
     }))
@@ -163,7 +164,7 @@ const menuItemOf = (action) => ({
   value: action.menuValue,
 })
 
-const PILL_LABEL_MIN_FRAME = 1250
+const PILL_LABEL_MIN_FRAME = 1150
 
 export const PlayerCenterControls = {
   components: PLAYER_ICON_COMPONENTS,
@@ -214,8 +215,14 @@ export const PlayerScrubber = {
     valueText: { type: String, default: '' },
   },
   emits: ['scrub', 'commit'],
+  setup(props) {
+    const scrubEl = ref(null)
+    const scrubWidth = useElementWidth(scrubEl)
+    const pillShown = computed(() => Boolean(props.pillText) && scrubPillShownOf({ scrubWidth: scrubWidth.value }))
+    return { scrubEl, pillShown }
+  },
   template: `
-    <div :class="['pl-scrub', { 'is-growing': growing }]">
+    <div ref="scrubEl" :class="['pl-scrub', { 'is-growing': growing }]">
       <span class="pl-time">{{ startText }}</span>
       <div class="pl-track" :style="{ '--played': fillPercent + '%' }">
         <span class="pl-track-rail"></span>
@@ -229,13 +236,14 @@ export const PlayerScrubber = {
           :aria-label="ariaLabel" :aria-valuetext="valueText || null"
           @input="$emit('scrub', Number($event.target.value))" @change="$emit('commit', Number($event.target.value))">
       </div>
-      <span v-if="pillText" :class="['pl-tag', { 'is-live': pillLive }]">{{ pillText }}</span>
       <span class="pl-time is-end">{{ endText }}</span>
+      <span v-if="pillShown" :class="['pl-tag', { 'is-live': pillLive }]">{{ pillText }}</span>
     </div>
   `,
 }
 
 export const PlayerBaseRow = {
+  components: PLAYER_ICON_COMPONENTS,
   props: {
     episode: { type: String, default: '' },
     summary: { type: String, default: '' },
@@ -248,9 +256,16 @@ export const PlayerBaseRow = {
     infoOpen: Boolean,
     infoId: { type: String, required: true },
     fullscreen: Boolean,
+    canMinimise: Boolean,
   },
-  emits: ['toggle-captions', 'toggle-info', 'toggle-fullscreen'],
-  setup(props) {
+  emits: ['toggle-captions', 'toggle-info', 'toggle-fullscreen', 'minimise', 'minimise-placement'],
+  setup(props, { emit }) {
+    const rowEl = ref(null)
+    const rowWidth = useElementWidth(rowEl)
+    const miniInRow = computed(() => props.canMinimise && props.showActions
+      && miniplayerFitsBaseRowOf({ rowWidth: rowWidth.value }))
+    watch(miniInRow, (inRow) => emit('minimise-placement', inRow), { immediate: true })
+    onUnmounted(() => emit('minimise-placement', false))
     const lineEl = ref(null)
     const textEl = ref(null)
     const buttons = computed(() => baseRowButtonsOf({
@@ -266,26 +281,41 @@ export const PlayerBaseRow = {
       text: computed(() => (props.showSummary ? props.summary : '')),
       active: computed(() => props.animate && props.showSummary),
     })
-    return { lineEl, textEl, buttons, marqueeStage, marqueeText }
+    return { rowEl, miniInRow, lineEl, textEl, buttons, marqueeStage, marqueeText }
   },
   template: `
-    <div class="pl-base">
+    <div ref="rowEl" class="pl-base">
       <div v-if="showSummary" class="pl-base-summary">
         <span v-if="episode" class="pl-base-line is-episode">{{ episode }}</span>
         <span v-if="summary" ref="lineEl" :class="['pl-base-line', 'pl-marquee', 'is-' + marqueeStage]"><span ref="textEl" class="pl-marquee-text">{{ marqueeText || summary }}</span></span>
       </div>
       <div v-if="showActions" class="pl-base-actions">
-        <button type="button" class="pl-round" aria-label="Captions" aria-keyshortcuts="c" :title="buttons.captions.title"
-          :aria-disabled="buttons.captions.disabled ? 'true' : null" :aria-pressed="String(buttons.captions.pressed)"
-          @click="buttons.captions.disabled || $emit('toggle-captions')"><captions-icon /></button>
         <button type="button" class="pl-round" aria-label="Programme info" aria-keyshortcuts="i" :title="buttons.info.title"
           :aria-expanded="String(buttons.info.expanded)" :aria-controls="infoId"
           @click="$emit('toggle-info')"><info-icon /></button>
+        <button type="button" class="pl-round" aria-label="Captions" aria-keyshortcuts="c" :title="buttons.captions.title"
+          :aria-disabled="buttons.captions.disabled ? 'true' : null" :aria-pressed="String(buttons.captions.pressed)"
+          @click="buttons.captions.disabled || $emit('toggle-captions')"><captions-icon /></button>
+        <button v-if="miniInRow" type="button" class="pl-round" aria-label="Miniplayer" title="Miniplayer"
+          @click="$emit('minimise')"><minimise-icon /></button>
         <button type="button" class="pl-round" :aria-label="buttons.fullscreen.ariaLabel" aria-keyshortcuts="f"
           :title="buttons.fullscreen.title" @click="$emit('toggle-fullscreen')"><component :is="buttons.fullscreen.icon" /></button>
       </div>
     </div>
   `,
+}
+
+const useElementWidth = (el) => {
+  const width = ref(0)
+  const observer = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(([entry]) => { width.value = Math.round(entry.contentRect.width) })
+    : null
+  watch(el, (element, previous) => {
+    if (previous) observer?.unobserve(previous)
+    if (element) observer?.observe(element)
+  }, { flush: 'post', immediate: true })
+  onUnmounted(() => observer?.disconnect())
+  return width
 }
 
 const useMarquee = ({ boxEl, textEl, text, active }) => {

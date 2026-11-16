@@ -1198,9 +1198,17 @@ body.player-open .app-tabbar {
   margin-right: calc(var(--pl-edge-right) + 3 * 44px + 2 * 8px + 12px - 1.25rem);
 }
 
+.pl-frame.is-info-open:has(.pl-base-actions > :nth-child(4)) .live-info-text > :last-child {
+  margin-right: calc(var(--pl-edge-right) + 4 * 44px + 3 * 8px + 12px - 1.25rem);
+}
+
 @container (max-width: 40rem) {
   .pl-frame.is-info-open .live-info-text > :last-child {
     margin-right: calc(var(--pl-edge-right) + 3 * 44px + 2 * 8px + 12px - 0.75rem);
+  }
+
+  .pl-frame.is-info-open:has(.pl-base-actions > :nth-child(4)) .live-info-text > :last-child {
+    margin-right: calc(var(--pl-edge-right) + 4 * 44px + 3 * 8px + 12px - 0.75rem);
   }
 }
 
@@ -1346,7 +1354,7 @@ body.player-open .app-tabbar {
   }
 }
 
-@container (max-width: 1250px) {
+@container (max-width: 1150px) {
   .pl-pill-label {
     display: none;
   }

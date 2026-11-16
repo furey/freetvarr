@@ -99,7 +99,7 @@ export const RecordingPlayer = {
           </p>
         </player-info-panel>
         <player-top-bar :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
-          back-label="Close" :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
+          back-label="Close" :can-pip="canPip" :pip-active="pipActive" :can-minimise="!miniInRow" :muted="playerMuted"
           @back="stopPlayback" @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
           :actions="topActions" @action="onTopAction" />
         <player-center-controls v-if="playback.phase !== 'ended' && !infoOpen" :paused="shownPaused"
@@ -119,8 +119,8 @@ export const RecordingPlayer = {
             :value-text="fmtPlayTime(shownPosition)" @scrub="onScrubInput" @commit="onScrubCommit" />
           <player-base-row :summary="endsText" :show-summary="!infoOpen" show-actions :animate="controlsShown"
             :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" :no-captions-title="NO_CAPTIONS_ON_RECORDING"
-            :info-open="infoOpen" info-id="play-info" :fullscreen="isStageFullscreen"
-            @toggle-captions="togglePlayCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleFullscreen" />
+            :info-open="infoOpen" info-id="play-info" :fullscreen="isStageFullscreen" can-minimise
+            @minimise="minimise" @minimise-placement="miniInRow = $event" @toggle-captions="togglePlayCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleFullscreen" />
         </footer>
         <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
           <span>{{ playback.skipHint.label }}</span>
@@ -236,6 +236,7 @@ export const RecordingPlayer = {
       mini.value = true
     }
     const expand = () => { mini.value = false }
+    const miniInRow = ref(false)
     const miniMeta = computed(() => miniMetaOf([
       playback.recording?.channel_name,
       playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - playback.position)).toLowerCase() : '',
@@ -387,7 +388,7 @@ export const RecordingPlayer = {
       toggleFullscreen, isStageFullscreen, showAirplay, topActions, onTopAction, shownPaused,
       captionsOn: liveCaptionsOn, togglePlayCaptions,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
-      mini, minimise, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
+      mini, minimise, miniInRow, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
     }
   },
 }
