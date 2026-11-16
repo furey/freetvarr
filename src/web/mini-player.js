@@ -81,7 +81,7 @@ export const MINI_CAPTIONS_MIN_WIDTH = MINI_BADGE_RIGHT_EDGE + MINI_BADGE_CLEARA
 
 export const miniCaptionsOnCardOf = ({ cardWidth }) => cardWidth >= MINI_CAPTIONS_MIN_WIDTH
 
-export const miniMetaWithSoundOf = ({ meta, muted, phone }) => (phone && muted ? miniMetaOf([meta, 'Muted']) : meta)
+export const miniMetaWithSoundOf = ({ meta, muted, phone }) => (phone && muted ? miniMetaOf(['Muted', meta]) : meta)
 
 export const miniMenuItemsOf = ({ phone, muted, captionsOnCard, hasCaptions, captionsOn, canPip, pipActive }) => [
   phone && { key: 'sound', label: 'Sound', value: muted ? 'Muted' : 'On', on: !muted },

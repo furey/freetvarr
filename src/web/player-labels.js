@@ -30,12 +30,17 @@ export const SCRUB_MIN_TRACK_PX = 280
 
 export const scrubPillShownOf = ({ scrubWidth }) => scrubWidth - SCRUB_PILL_RESERVED_PX >= SCRUB_MIN_TRACK_PX
 
-export const liveSummaryText = ({ endMs, nowMs, next, clockText }) => joinedParts([
-  minutesLeftText({ endMs, nowMs }),
-  nextAiringText({ next, clockText }),
-])
+export const liveSummaryPartsOf = ({ endMs, nowMs, next, clockText }) => ({
+  lead: minutesLeftText({ endMs, nowMs }),
+  rest: nextAiringText({ next, clockText }),
+})
 
-export const fromStartSummaryText = ({ growing }) => (growing ? 'From the start · still recording' : 'From the start')
+export const fromStartSummaryPartsOf = ({ growing }) => ({ lead: 'From the start', rest: growing ? 'still recording' : '' })
+
+export const shownLiveSummaryOf = ({ phonePortrait, paused, parts }) => {
+  if (phonePortrait && !paused) return parts.lead || parts.rest
+  return joinedParts([parts.lead, parts.rest])
+}
 
 export const summaryEpisodeText = ({ episodeLine, genreText }) => episodeLine || genreText || ''
 

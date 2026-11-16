@@ -69,7 +69,7 @@ export const RecordingPlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="playback.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Recording player'">
-      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-info-closing': infoClosing, 'is-controls-hidden': !controlsShown && !mini }]"
+      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen || infoClosing, 'is-info-closing': infoClosing, 'is-controls-hidden': !controlsShown && !mini }]"
         @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll" @pointercancel="cancelPlayTap"
         @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>

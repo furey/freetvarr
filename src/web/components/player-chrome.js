@@ -320,6 +320,8 @@ const useElementWidth = (el) => {
   return width
 }
 
+const TEXT_FADE_MS = 140
+
 const useMarquee = ({ boxEl, textEl, text, active }) => {
   const stage = ref('rest')
   const shown = ref(text.value)
@@ -411,6 +413,24 @@ const useMarquee = ({ boxEl, textEl, text, active }) => {
     return ruler.measureText(value).width
   }
 
+  const swapText = async (value) => {
+    const box = boxEl.value
+    const fades = box && shown.value && value && !motion?.matches && document.visibilityState !== 'hidden'
+    if (!fades) {
+      shown.value = value
+      return nextTick(start)
+    }
+    stop()
+    const id = run
+    if (!(await play(box, [{ opacity: 1 }, { opacity: 0 }], { duration: TEXT_FADE_MS }, id))) return
+    shown.value = value
+    await nextTick()
+    if (id !== run) return
+    if (!(await play(box, [{ opacity: 0 }, { opacity: 1 }], { duration: TEXT_FADE_MS }, id))) return
+    clearAnimations()
+    start()
+  }
+
   const onTextChange = (value) => {
     const timing = marqueeTextChangeOf({ running, contentWidth: running ? textWidthOf(value) : 0, boxWidth })
     if (timing === 'at-reset') {
@@ -418,8 +438,7 @@ const useMarquee = ({ boxEl, textEl, text, active }) => {
       return
     }
     pending = null
-    shown.value = value
-    nextTick(start)
+    swapText(value)
   }
 
   const onResize = () => {

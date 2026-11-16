@@ -161,7 +161,7 @@ test('the card shows its Captions button only when four buttons clear the LIVE b
 })
 
 test('the phone bar meta line says Muted while the sound is off', () => {
-  assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: true, phone: true }), 'Seven · 24 min left · Muted')
+  assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: true, phone: true }), 'Muted · Seven · 24 min left')
   assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: false, phone: true }), 'Seven · 24 min left')
   assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: true, phone: false }), 'Seven · 24 min left')
   assert.equal(miniMetaWithSoundOf({ meta: '', muted: true, phone: true }), 'Muted')

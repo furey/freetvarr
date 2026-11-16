@@ -258,10 +258,10 @@ export const PlayerMini = {
       @focusin="syncFocus" @focusout="onFocusOut">
       <button type="button" class="pl-mini-expand" :aria-label="'Open full player: ' + title" @click="$emit('expand')"></button>
       <div class="pl-mini-picture" aria-hidden="true" @click="onPictureClick"><span class="pl-mini-scrim"></span></div>
-      <span v-if="isLive" class="ui-live-badge pl-mini-badge"><span class="ui-live-dot" aria-hidden="true"></span>Live</span>
+      <span v-if="isLive && !phone" class="ui-live-badge pl-mini-badge"><span class="ui-live-dot" aria-hidden="true"></span>Live</span>
       <div class="pl-mini-text">
         <p class="pl-mini-title">{{ title }}</p>
-        <p v-if="shownMeta" class="pl-mini-meta">{{ shownMeta }}</p>
+        <p v-if="shownMeta || (phone && isLive)" class="pl-mini-meta"><template v-if="phone && isLive"><span class="pl-mini-live"><i class="pl-mini-live-dot" aria-hidden="true"></i>Live</span><template v-if="shownMeta"> · </template></template>{{ shownMeta }}</p>
       </div>
       <div class="pl-mini-actions">
         <button type="button" class="pl-mini-button pl-mini-pause" :disabled="pauseDisabled" :aria-label="paused ? 'Play' : 'Pause'"
