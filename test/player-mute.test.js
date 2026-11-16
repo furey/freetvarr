@@ -7,6 +7,9 @@ import {
   muteButtonOf,
   soundToggleOf,
   playerMenuItemsOf,
+  baseRowButtonsOf,
+  NO_CAPTIONS_ON_CHANNEL,
+  CAPTIONS_HIDDEN_BY_INFO_TITLE,
 } from '../src/web/player-mute.js'
 import { initialMultiView, isMutedIn } from '../src/web/multi-view.js'
 
@@ -52,27 +55,39 @@ test('the player sound button carries its words in the label and tooltip', () =>
 
 test('the More menu offers pop out only where picture in picture works', () => {
   const keys = (args) => playerMenuItemsOf(args).map((item) => item.key)
-  assert.deepEqual(keys({ canPip: true, pipActive: false, fullscreen: false }), ['pip', 'fullscreen'])
-  assert.deepEqual(keys({ canPip: false, pipActive: false, fullscreen: false }), ['fullscreen'])
+  assert.deepEqual(keys({ canPip: true, pipActive: false }), ['pip'])
+  assert.deepEqual(keys({ canPip: false, pipActive: false }), [])
 })
 
-test('the More menu lists Captions first, only when captions exist, with an On or Off state', () => {
-  const keys = (args) => playerMenuItemsOf(args).map((item) => item.key)
-  assert.deepEqual(keys({ hasCaptions: true, canPip: true, fullscreen: false }), ['captions', 'pip', 'fullscreen'])
-  assert.deepEqual(keys({ hasCaptions: false, canPip: true, fullscreen: false }), ['pip', 'fullscreen'])
-  const [off] = playerMenuItemsOf({ hasCaptions: true, captionsOn: false })
-  assert.deepEqual([off.label, off.value, off.on], ['Captions', 'Off', false])
-  const [on] = playerMenuItemsOf({ hasCaptions: true, captionsOn: true })
-  assert.deepEqual([on.value, on.on], ['On', true])
+test('the More menu lists actions that do not fit the bar before pop out', () => {
+  const keys = playerMenuItemsOf({ overflow: [{ key: 'series' }], canMinimise: true, canPip: true }).map((item) => item.key)
+  assert.deepEqual(keys, ['series', 'minimise', 'pip'])
+  assert.deepEqual(playerMenuItemsOf({ canMinimise: false, canPip: false }), [])
 })
 
-test('the More menu labels follow the picture in picture and full screen state', () => {
-  const [pop, full] = playerMenuItemsOf({ canPip: true, pipActive: false, fullscreen: false })
-  assert.equal(pop.label, 'Pop out (picture in picture)')
-  assert.equal(full.label, 'Full screen')
-  const [popOpen, fullOpen] = playerMenuItemsOf({ canPip: true, pipActive: true, fullscreen: true })
-  assert.equal(popOpen.label, 'Close pop out (picture in picture)')
-  assert.equal(fullOpen.label, 'Exit full screen')
+test('the pop out label follows the picture in picture state', () => {
+  assert.equal(playerMenuItemsOf({ canPip: true, pipActive: false })[0].label, 'Pop out (picture in picture)')
+  assert.equal(playerMenuItemsOf({ canPip: true, pipActive: true })[0].label, 'Close pop out (picture in picture)')
+})
+
+test('the Captions button dims with a reason when it cannot work', () => {
+  const none = baseRowButtonsOf({ hasCaptions: false, noCaptionsTitle: NO_CAPTIONS_ON_CHANNEL }).captions
+  assert.deepEqual(none, { disabled: true, pressed: false, title: 'No captions on this channel' })
+  const hidden = baseRowButtonsOf({ hasCaptions: true, captionsOn: true, infoOpen: true }).captions
+  assert.deepEqual(hidden, { disabled: true, pressed: false, title: CAPTIONS_HIDDEN_BY_INFO_TITLE })
+  const on = baseRowButtonsOf({ hasCaptions: true, captionsOn: true }).captions
+  assert.deepEqual(on, { disabled: false, pressed: true, title: 'Captions (C)' })
+  assert.equal(baseRowButtonsOf({ hasCaptions: true, captionsOn: false }).captions.pressed, false)
+})
+
+test('the Info button shows expanded while the panel is open', () => {
+  assert.deepEqual(baseRowButtonsOf({ infoOpen: true }).info, { expanded: true, title: 'Programme info (I)' })
+  assert.equal(baseRowButtonsOf({ infoOpen: false }).info.expanded, false)
+})
+
+test('the Full screen button names the action it takes', () => {
+  assert.deepEqual(baseRowButtonsOf({ fullscreen: false }).fullscreen, { ariaLabel: 'Full screen', title: 'Full screen (F)', icon: 'fullscreen-icon' })
+  assert.deepEqual(baseRowButtonsOf({ fullscreen: true }).fullscreen, { ariaLabel: 'Exit full screen', title: 'Exit full screen (F)', icon: 'exit-fullscreen-icon' })
 })
 
 test('Multiview starts with the single player sound state', () => {

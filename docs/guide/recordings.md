@@ -305,9 +305,10 @@ Press an episode row, or **Play** or **Resume** on the show page, to watch it in
 
 The recording player adds these to the [player controls](/guide/player#controls):
 
-- **Skip ad** appears at the bottom right while you watch an ad break that detection found (see [Ad removal](/guide/ad-removal)). Press it to jump to the end of the break.
-- The position bar marks the ad breaks, and a pill says how many minutes are left.
-- **AirPlay** sends the episode to an Apple TV, from Safari.
+- **Skip ad** appears at the right, above the position bar, while you watch an ad break that detection found (see [Ad removal](/guide/ad-removal)). Press it to jump to the end of the break.
+- The row under the position bar says when the episode ends if you watch to the end, such as `Ends 9:42pm`.
+- The position bar marks the ad breaks. On a screen wider than a phone held upright, a pill after the end time says how many minutes are left.
+- The AirPlay button sends the episode to an Apple TV, from Safari.
 
 The player uses the imported file, or the TVHeadend copy when the recording is not imported. A recording still in progress plays from its show page with **Watch from the start**; you can also use **Start over** → **From the start** in the [live player](/guide/player#start-over).
 
@@ -315,7 +316,7 @@ The player converts the file as it plays, the same way it converts [live TV](/gu
 
 ### Recording info
 
-**Info** shows the recording's details over the picture:
+The **Programme info** button, at the bottom right of the player, shows the recording's details over the picture:
 
 - The channel, and `FROM LIBRARY` or `FROM TVHEADEND` for the file that plays.
 - The title, the season and episode, and the episode title.

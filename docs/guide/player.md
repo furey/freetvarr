@@ -22,15 +22,28 @@ The top bar has these controls:
 - The back button closes the player. For live TV, closing also frees the tuner (the device that receives the broadcast).
 - The channel logo and the title of what is playing.
 - **Multiview** (live TV only): watch up to four channels at once. See [Multiview](#multiview).
-- **AirPlay** (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
-- **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer).
+- The AirPlay button (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
-- During a marked ad break, recordings show **Skip ad** over the picture. Recordings also show a pill on the position bar that says how many minutes are left. See [Playback](/guide/recordings#playback).
-- **Info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
 - The sound button: turns the sound on or off. See [Sound](#sound).
-- **⋯** (**More**): **Captions**, **Pop out (picture in picture)** (see [Pop out](#pop-out)), and **Full screen**. Buttons that do not fit in the top bar, such as **Multiview** or **Miniplayer**, move into this menu.
+- **⋯** (**More**): **Pop out (picture in picture)** (see [Pop out](#pop-out)), the buttons that do not fit in the top bar, such as **Multiview**, and **Miniplayer** when the row under the position bar has no room for it. The **⋯** button shows only when the menu has something in it.
+
+On a wide screen, **Multiview** and **Series** show their names. On a narrower screen, they show only their icons. Point at an icon-only button with the mouse to see its name.
 
 The centre of the picture has **Start over** (see [Start over](#start-over)), the large **Pause** or **Play** button, and, for live TV, **Go live** or the `LIVE` mark. The position bar sits under the picture.
+
+The row under the position bar shows what is playing on the left:
+
+- Live TV: the minutes left and the next programme, such as `24 min left · Next 8:30pm The Project`. A tablet or computer also shows the season, episode, and episode title above it. While you watch **From the start**, the row reads `From the start · still recording`.
+- Recordings: the clock time the episode ends if you watch to the end, such as `Ends 9:42pm`.
+
+The right of the row has these buttons, in this order:
+
+- **Programme info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
+- **Captions**: turns captions on or off. See [Captions](#captions).
+- **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer). On a very narrow screen, **Miniplayer** is in the **⋯** menu instead.
+- **Full screen**: fills the screen. See [Full screen](#full-screen).
+
+During a marked ad break, recordings show **Skip ad** over the picture, above the position bar. On a screen wider than a phone held upright, recordings also show a pill after the end time of the position bar that says how many minutes are left, such as `35 MIN LEFT`. See [Playback](/guide/recordings#playback).
 
 On a phone or tablet, tap the picture to show or hide the controls. On a computer, move the mouse to show them, and click the picture to pause or carry on. The controls hide again after `2` seconds; change the delay in [Playback settings](#playback-settings).
 
@@ -59,13 +72,13 @@ To start every video muted on a device, turn on **Start muted** in [Playback set
 
 ## Captions
 
-Open **⋯**, then press **Captions** to turn captions on or off. The menu row shows **On** or **Off**. On a keyboard, press `c`. Each browser remembers the choice, for live TV and recordings alike.
+Press the **Captions** button, at the bottom right of the player, to turn captions on or off. The button is highlighted while captions are on. On a keyboard, press `c`. Each browser remembers the choice, for live TV and recordings alike.
 
-**Captions** shows only when the channel or the recording carries the broadcast's [Teletext](https://en.wikipedia.org/wiki/Teletext) subtitles. Some programmes on such a channel still have none. See [Captions](/guide/live-tv#captions).
+**Captions** works only when the channel or the recording carries the broadcast's [Teletext](https://en.wikipedia.org/wiki/Teletext) subtitles. Otherwise the button is dimmed, and pointing at it with the mouse shows `No captions on this channel` or `No captions on this recording`. Some programmes on a channel with captions still have none. See [Captions](/guide/live-tv#captions).
 
 ## Miniplayer
 
-Press **Miniplayer** in the top bar (or in the **⋯** menu, when the bar has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
+Press the **Miniplayer** button at the bottom right of the player (or **Miniplayer** in the **⋯** menu, when the row has no room for it) to shrink the player, or swipe down on the picture on a phone. The video keeps playing while you move between pages in Freetvarr.
 
 - On a phone, the Miniplayer is a bar above the tab bar.
 - On a tablet or computer, it is a small card in a corner of the screen. On a small screen it is a bar instead.
@@ -79,9 +92,9 @@ Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, 
 
 ## Full screen
 
-Open **⋯**, then press **Full screen**. On a computer, you can also press `f`, or double-click the picture.
+Press the **Full screen** button, at the bottom right of the player. On a computer, you can also press `f`, or double-click the picture. Press the button again, or press `f`, to leave full screen.
 
-On a phone, turn the phone sideways while the player is open, and the picture fills the screen. On an iPhone, the player stays in Freetvarr with its own controls, so **Start over**, **Multiview**, and the other buttons keep working. **Full screen** in the **⋯** menu opens the iPhone's own video player instead.
+On a phone, turn the phone sideways while the player is open, and the picture fills the screen. On an iPhone, the player stays in Freetvarr with its own controls, so **Start over**, **Multiview**, and the other buttons keep working. The **Full screen** button opens the iPhone's own video player instead.
 
 ## Multiview
 

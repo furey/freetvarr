@@ -65,7 +65,7 @@ The [Player](/guide/player) page covers the controls that live TV shares with re
 
 ## Programme info
 
-Press **Info** in the top bar of the player to show what is on. On a narrow screen, **Info** is **Programme info** in the **⋯** menu. The panel sits over the bottom of the picture and shows:
+Press the **Programme info** button, at the bottom right of the player, to show what is on. On a keyboard, press `i`. The panel sits over the bottom of the picture and shows:
 
 - The channel logo, number, and name.
 - The title, the episode title, and the season and episode number.
@@ -77,13 +77,13 @@ On a wide screen, the panel also shows the programme picture. While you watch fr
 
 When you tune in to a channel, and when a new programme starts, the classification (such as `M` or `MA15+`) shows over the picture for 5 seconds. The panel also shows it. The label does not show in the miniplayer or in Multiview. See [Classification](/guide/tv-guide#classification).
 
-Press **Info** again, or click the picture above the panel, to close it. That click closes the panel only: it does not pause or skip.
+Press **Programme info** again, or click the picture above the panel, to close it. That click closes the panel only: it does not pause or skip. The **Captions**, **Programme info**, and **Full screen** buttons stay at the bottom right while the panel is open.
 
 ## Captions
 
-Open **⋯** in the player, then press **Captions** to turn captions on or off. On a keyboard, press `c`. Captions are off until you turn them on, and each browser remembers your choice for the next channel. While the programme info panel is open, captions hide. Closing the panel brings them back if they were on.
+Press the **Captions** button, at the bottom right of the player, to turn captions on or off. On a keyboard, press `c`. Captions are off until you turn them on, and each browser remembers your choice for the next channel. While the programme info panel is open, captions hide and the **Captions** button is dimmed. Closing the panel brings them back if they were on.
 
-Captions come from the broadcast's [Teletext](https://en.wikipedia.org/wiki/Teletext) subtitles (text data that broadcasters send with the picture). **Captions** shows only for a channel that carries them, and some programmes on that channel have no captions at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
+Captions come from the broadcast's [Teletext](https://en.wikipedia.org/wiki/Teletext) subtitles (text data that broadcasters send with the picture). On a channel that does not carry them, the **Captions** button is dimmed, and some programmes on a channel with captions have none at all. To watch captions in other apps, see [Captions in other apps](#captions-in-other-apps).
 
 ## Record from the player
 

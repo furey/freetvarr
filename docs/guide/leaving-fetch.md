@@ -571,7 +571,7 @@ Freetvarr works only on your home network and has no sign-in, so never make it r
 
 ### Captions
 
-Australian channels send captions in an older format called Teletext. Freetvarr's browser player shows them: open **⋯** in the player and press **Captions** (see [Captions](/guide/live-tv#captions)). The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them too (see [Captions in other apps](/guide/live-tv#captions-in-other-apps)).
+Australian channels send captions in an older format called Teletext. Freetvarr's browser player shows them: press the **Captions** button at the bottom right of the player (see [Captions](/guide/live-tv#captions)). The HDHomeRun app may not show them, because SiliconDust does not say it supports Teletext. Kodi and VLC (free video players) show them too (see [Captions in other apps](/guide/live-tv#captions-in-other-apps)).
 
 ### Your aerial
 

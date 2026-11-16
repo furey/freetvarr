@@ -51,9 +51,16 @@ const hasWebkitPresentationMode = (video) =>
 
 export const MINI_CAPTION_LINE = 90
 
+export const ONE_CAPTION_LINE_PERCENT = 8
+
 export const captionLineOf = ({ mini, lifted, liftedLine, restingLine }) => {
   if (mini) return MINI_CAPTION_LINE
   return lifted ? liftedLine : restingLine
+}
+
+export const liftedCaptionLineOf = ({ frameHeight, footerTop, fallbackLine }) => {
+  if (!(frameHeight > 0) || !(footerTop > 0) || footerTop > frameHeight) return fallbackLine
+  return Math.min(fallbackLine, Math.floor((footerTop / frameHeight) * 100) - ONE_CAPTION_LINE_PERCENT)
 }
 
 export const miniControlsShownOf = ({ hovering, tapShown, paused, menuOpen, focusInside }) =>

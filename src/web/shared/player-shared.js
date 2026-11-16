@@ -5,6 +5,7 @@ import { storedFlag, browserStorage } from '/shared/storage.js'
 import { loadPlayerMuted, savePlayerMuted } from '/player-mute.js'
 import { PAGE_RESYNC_EVENTS } from '/player-paused.js'
 import { initialRotateState, rotateStepOf, fullscreenExitedState, isPhoneScreen } from '/rotate-fullscreen.js'
+import { liftedCaptionLineOf } from '/mini-player.js'
 
 export const live = reactive({
   open: false,
@@ -156,6 +157,53 @@ export const isPictureTarget = (el, video) => el === video || Boolean(el?.classL
 const SKIP_HINT_MS = 1_600
 
 export const FILLED_CAPTION_LINE = 70
+
+export const useLiftedCaptionLine = ({ videoEl, footerEl, isLifted, onChange }) => {
+  let geometry = null
+  let frame = 0
+  const liftedLine = () => {
+    if (!isLifted()) return FILLED_CAPTION_LINE
+    geometry ??= footerGeometryOf({ video: videoEl.value, footer: footerEl.value })
+    return liftedCaptionLineOf({ ...geometry, fallbackLine: FILLED_CAPTION_LINE })
+  }
+  const remeasure = () => {
+    geometry = null
+    onChange()
+  }
+  const remeasureNextFrame = () => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(remeasure)
+  }
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(remeasureNextFrame) : null
+  watch(footerEl, (footer, previous) => {
+    if (previous) observer?.unobserve(previous)
+    if (footer) observer?.observe(footer)
+  }, { flush: 'post', immediate: true })
+  onMounted(() => {
+    window.addEventListener('resize', remeasureNextFrame)
+    window.addEventListener('orientationchange', remeasureNextFrame)
+  })
+  onUnmounted(() => {
+    cancelAnimationFrame(frame)
+    observer?.disconnect()
+    window.removeEventListener('resize', remeasureNextFrame)
+    window.removeEventListener('orientationchange', remeasureNextFrame)
+  })
+  return { liftedLine, remeasure }
+}
+
+const footerGeometryOf = ({ video, footer }) => {
+  const footerBox = footer?.getBoundingClientRect()
+  if (!video || !footerBox?.height) return null
+  const videoBox = video.getBoundingClientRect()
+  return { frameHeight: videoBox.height, footerTop: footerBox.top - videoBox.top }
+}
+
+export const placeCaptionCues = ({ video, line }) => {
+  for (const track of captionTracksOf(video)) {
+    for (const cue of track.cues || []) if (cue.line !== line) cue.line = line
+  }
+}
 
 export const playback = reactive({
   open: false,
