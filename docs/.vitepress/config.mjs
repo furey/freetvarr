@@ -138,12 +138,12 @@ export default withMermaid(defineConfig({
       {
         text: 'Connect it up',
         items: [
-          { text: 'TVHeadend', link: '/guide/tvheadend' },
           { text: 'Plex', link: '/guide/plex' },
           { text: 'Sonarr and Radarr', link: '/guide/sonarr-radarr' },
-          { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
           { text: 'Ad removal', link: '/guide/ad-removal' },
-          { text: 'TV apps', link: '/guide/tv-apps' }
+          { text: 'TV apps', link: '/guide/tv-apps' },
+          { text: 'Remove from TVHeadend', link: '/guide/remove-from-tvheadend' },
+          { text: 'TVHeadend by hand', link: '/guide/tvheadend-by-hand' }
         ]
       },
       {

@@ -209,7 +209,7 @@ test('runDoctor: the open default access entry warns that anyone can change TVHe
   assert.match(check.detail, /0\.0\.0\.0\/0,::\/0/)
   assert.match(check.detail, /anyone on your network can change TVHeadend/)
   assert.match(check.fix, /SECURE AND CONNECT/)
-  assert.equal(check.doc, 'guide/tvheadend#_2-secure-tvheadend')
+  assert.equal(check.doc, 'guide/tvheadend-by-hand#_2-secure-tvheadend')
 })
 
 test('runDoctor: an anonymous entry without admin rights passes the open-access check', async () => {

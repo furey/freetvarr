@@ -1,7 +1,7 @@
 ---
 title: Windows (untested)
 description: >-
-  A theoretical route to run Freetvarr and TVHeadend on a Windows PC through
+  A theoretical route to run Freetvarr on a Windows PC through
   WSL, its limits, and the specs it needs. The author has not tested it.
 ---
 

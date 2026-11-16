@@ -22,7 +22,7 @@ To watch with the TV guide in [Jellyfin](https://jellyfin.org) or [Kodi](https:/
 | ----------------------------------------------------------------------------- | ---------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
 | Freetvarr                                                                     | Any modern browser, phones included      | TVHeadend              | No install. Pause and rewind `30` minutes. Captions. [Multiview](/guide/player#multiview) |
 | The tuner's own app, e.g. [HDHomeRun](https://www.silicondust.com/hdhomerun/) | Apple TV, iOS, Android, Fire TV, Windows | The tuner              | No server in the path. Simplest thing that works                                          |
-| [Plex](https://www.plex.tv) live TV                                           | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which you already do in TVHeadend               |
+| [Plex](https://www.plex.tv) live TV                                           | Every Plex client                        | The tuner              | Free. Plex Pass is only needed to record, which Freetvarr already does                    |
 | Jellyfin live TV                                                              | Apple TV, iOS, Android, web              | TVHeadend or the tuner | Free, and carries the TV guide. [TV apps](/guide/tv-apps) sets it up                      |
 | Kodi + TVHeadend PVR add-on                                                   | Apple TV, Android, Shield                | TVHeadend              | Full guide, and it renders captions. [TV apps](/guide/tv-apps) sets it up                 |
 
@@ -141,7 +141,7 @@ Stream limits:
 - **CPU**: a software re-encode costs far more CPU than a hardware one. See [Video handling](#video-handling).
 
 > [!NOTE]<br>
-> The Freetvarr user in TVHeadend needs the streaming right, which the [TVHeadend guide](/guide/tvheadend#_8-make-a-user-for-freetvarr) already grants. TVHeadend gives Freetvarr's stream a low priority (`weight` `50`; extra Multiview pictures use `40`, `30`, and `20`), so a recording always takes the tuner first.
+> The Freetvarr user in TVHeadend needs the streaming right, which [TVHeadend by hand: step 8](/guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr) already grants. TVHeadend gives Freetvarr's stream a low priority (`weight` `50`; extra Multiview pictures use `40`, `30`, and `20`), so a recording always takes the tuner first.
 
 ## Video handling
 
@@ -177,7 +177,7 @@ The author uses the HDHomeRun app, which finds the tuner by itself. The app talk
 
 ## Plex
 
-Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass only to *record* through Plex, and TVHeadend and Freetvarr already do that for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi connected to TVHeadend instead.
+Plex discovers an HDHomeRun the same way its own DVR feature does, and plays live channels on any client without a Plex Pass ([Plex: Live TV & DVR](https://support.plex.tv/articles/225877347-live-tv-dvr/)). You need a Plex Pass only to *record* through Plex, and Freetvarr already does that for free. With a USB or PCIe tuner, watch through Jellyfin or Kodi connected to TVHeadend instead.
 
 ## Captions in other apps
 

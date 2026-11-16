@@ -60,7 +60,7 @@ export const SettingsView = {
         <section id="section-tvheadend" class="settings-section">
           <p class="settings-intro">The address and login Freetvarr uses to read the guide, channels, and recordings, and to set recordings.</p>
           <teleport v-if="section === 'tvheadend'" defer to="#settings-page-info">
-            <info-button title="TVHeadend" doc="guide/tvheadend" piece="tvheadend">
+            <info-button title="TVHeadend" doc="guide/tvheadend-by-hand" piece="tvheadend">
               <p>The address and login Freetvarr uses for the TVHeadend API. Freetvarr reads the guide, channels, and recordings from it, and sets and cancels recordings.</p>
               <p><strong>Auto-discover TVHeadend</strong> looks for TVHeadend on your network. The TVHeadend user needs the rights in the setup guide.</p>
             </info-button>

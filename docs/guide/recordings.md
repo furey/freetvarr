@@ -37,7 +37,7 @@ Library shows each shelf as a row of its 12 most recently added or updated title
 
 **See all** opens one shelf on its own page, such as `#/recordings/movies`, with every title in a grid: posters for Shows and Movies, and wide pictures for Specials and one-offs. Tabs at the top of the page move between **Shows**, **Movies**, and **One-offs** without adding a step to Back. **‹ Library** at the top, or the browser's Back, returns to Library at the same place, with each row scrolled where you left it.
 
-A show that has no recordings yet but has an episode scheduled in TVHeadend also gets a poster on its shelf. The day and time of the recording show under the poster, such as `Tue 8:30pm`.
+A show that has no recordings yet but has an episode scheduled also gets a poster on its shelf. The day and time of the recording show under the poster, such as `Tue 8:30pm`.
 
 Freetvarr decides between Shows and One-offs the same way for the shelf, for the TV guide, and for the folder the file goes to. It checks these in order:
 
@@ -87,7 +87,7 @@ A show page has these parts:
 - **Play** or **Resume**: plays the next episode you have not watched.
 - **Recording options**: opens the [Recording options](#recording-options) of a show with a series recording.
 - **⋯**: opens the [show menu](#show-menu).
-- **Status line**: what the series recording does next, such as `Next: Tue 8:30pm on 9HD`, `Recording now`, or `Paused`, with a summary such as `Records every new episode on 9HD · keeps the latest 10 · ads removed`. Press it to open Recording options. A show with no series recording says `Not recording new episodes`, with a **TV guide** button. A show with no series recording but an episode scheduled in TVHeadend says when it records instead, such as `Records tonight 8:30pm on 9HD`.
+- **Status line**: what the series recording does next, such as `Next: Tue 8:30pm on 9HD`, `Recording now`, or `Paused`, with a summary such as `Records every new episode on 9HD · keeps the latest 10 · ads removed`. Press it to open Recording options. A show with no series recording says `Not recording new episodes`, with a **TV guide** button. A show with no series recording but an episode scheduled says when it records instead, such as `Records tonight 8:30pm on 9HD`.
 - **Classification**: the age label of the latest episode, such as `M` or `MA15+`. A show recorded before Freetvarr 2.0.0 has none.
 - **About**: the synopsis of the show, and a line from a review. See [About and cast and crew](#about-and-cast-and-crew).
 - **Cast and crew**: the people in the show. See [About and cast and crew](#about-and-cast-and-crew).
