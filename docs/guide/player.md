@@ -33,7 +33,7 @@ The centre of the picture has **Start over** (see [Start over](#start-over)), th
 
 The row under the position bar shows what is playing on the left:
 
-- Live TV: the minutes left and the next programme, such as `24 min left · Next 8:30pm The Project`. A tablet or computer also shows the season, episode, and episode title above it. While you watch **From the start**, the row reads `From the start · still recording`.
+- Live TV: the minutes left and the next programme, such as `24 min left · Next 8:30pm The Project`. A tablet or computer also shows the season, episode, and episode title above it. While you watch **From the start**, the row reads `From the start · still recording`. On a phone held upright, the row shows only the minutes left (or `From the start`) while the picture plays, and the full line while it is paused.
 - Recordings: the clock time the episode ends if you watch to the end, such as `Ends 9:42pm`.
 
 The right of the row has these buttons, in this order:
@@ -84,7 +84,7 @@ Press the **Miniplayer** button at the bottom right of the player (or **Miniplay
 - On a tablet or computer, it is a small card in a corner of the screen. On a small screen it is a bar instead.
 - On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in [Multiview](#multiview) **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
 
-On a phone, the Miniplayer bar shows **Pause** or **Play** and **⋯**. Tap anywhere else on the bar to go back to the full player. While the sound is off, the line under the title ends with `Muted`. The **⋯** menu has **Sound**, **Pop out (picture in picture)** where the browser supports it, and **Close player**.
+On a phone, the Miniplayer bar shows **Pause** or **Play** and **⋯**. Tap anywhere else on the bar to go back to the full player. For live TV, the line under the title starts with a red dot and `Live`. While the sound is off, `Muted` comes next, before the channel. The **⋯** menu has **Sound**, **Pop out (picture in picture)** where the browser supports it, and **Close player**.
 
 On a tablet or computer, the card always shows the sound button, **Captions**, the full player button, and **⋯**. A card too narrow for **Captions** moves it into **⋯**, and a dimmed **Captions** button means the channel or recording has none. Tap the picture or point at it with the mouse to show **Pause** or **Play** in the middle of the picture. The **⋯** menu has **Pop out (picture in picture)** where the browser supports it, and **Close player**. Tap the picture while its controls show, or press the full player button, to go back to the full player.
 

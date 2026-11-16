@@ -7,10 +7,11 @@ import {
   behindPillText,
   leftPillText,
   scrubPillShownOf,
-  liveSummaryText,
-  fromStartSummaryText,
   summaryEpisodeText,
   endsAtText,
+  liveSummaryPartsOf,
+  fromStartSummaryPartsOf,
+  shownLiveSummaryOf,
   percentWithin,
   adMarkersOf,
   programmeRangeText,
@@ -44,22 +45,40 @@ const clockText = (ms) => {
 }
 const at = (hours, minutes) => Date.UTC(2026, 10, 16, hours, minutes)
 
-test('liveSummaryText gives the minutes left and the next programme with its start time', () => {
+const fullLine = (options) => shownLiveSummaryOf({ phonePortrait: false, paused: false, parts: liveSummaryPartsOf({ ...options, clockText }) })
+
+test('the live summary gives the minutes left and the next programme with its start time', () => {
   const next = { title: 'The Project', start: at(20, 30) }
-  assert.equal(liveSummaryText({ endMs: at(20, 30), nowMs: at(20, 6), next, clockText }), '24 min left · Next 8:30pm The Project')
+  assert.equal(fullLine({ endMs: at(20, 30), nowMs: at(20, 6), next }), '24 min left · Next 8:30pm The Project')
 })
 
-test('liveSummaryText drops a part the guide does not have', () => {
-  assert.equal(liveSummaryText({ endMs: at(20, 30), nowMs: at(20, 6), next: null, clockText }), '24 min left')
-  assert.equal(liveSummaryText({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project', start: at(20, 30) }, clockText }), 'Next 8:30pm The Project')
-  assert.equal(liveSummaryText({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project' }, clockText }), 'Next The Project')
-  assert.equal(liveSummaryText({ endMs: undefined, nowMs: at(20, 6), next: { start: at(20, 30) }, clockText }), '')
+test('the live summary drops a part the guide does not have', () => {
+  assert.equal(fullLine({ endMs: at(20, 30), nowMs: at(20, 6), next: null }), '24 min left')
+  assert.equal(fullLine({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project', start: at(20, 30) } }), 'Next 8:30pm The Project')
+  assert.equal(fullLine({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project' } }), 'Next The Project')
+  assert.equal(fullLine({ endMs: undefined, nowMs: at(20, 6), next: { start: at(20, 30) } }), '')
 })
 
-test('fromStartSummaryText says whether the recording is still growing', () => {
-  assert.equal(fromStartSummaryText({ growing: true }), 'From the start · still recording')
-  assert.equal(fromStartSummaryText({ growing: false }), 'From the start')
+test('a playing portrait phone shows only the minutes left, and a pause shows the next programme too', () => {
+  const parts = liveSummaryPartsOf({ endMs: at(20, 30), nowMs: at(20, 6), next: { title: 'The Project', start: at(20, 30) }, clockText })
+  assert.equal(shownLiveSummaryOf({ phonePortrait: true, paused: false, parts }), '24 min left')
+  assert.equal(shownLiveSummaryOf({ phonePortrait: true, paused: true, parts }), '24 min left · Next 8:30pm The Project')
+  assert.equal(shownLiveSummaryOf({ phonePortrait: false, paused: false, parts }), '24 min left · Next 8:30pm The Project')
 })
+
+test('a playing portrait phone falls back to the next programme when the guide has no end time', () => {
+  const parts = liveSummaryPartsOf({ endMs: undefined, nowMs: at(20, 6), next: { title: 'The Project', start: at(20, 30) }, clockText })
+  assert.equal(shownLiveSummaryOf({ phonePortrait: true, paused: false, parts }), 'Next 8:30pm The Project')
+})
+
+test('watching from the start drops still recording on a playing portrait phone only', () => {
+  const growing = fromStartSummaryPartsOf({ growing: true })
+  assert.equal(shownLiveSummaryOf({ phonePortrait: true, paused: false, parts: growing }), 'From the start')
+  assert.equal(shownLiveSummaryOf({ phonePortrait: true, paused: true, parts: growing }), 'From the start · still recording')
+  assert.equal(shownLiveSummaryOf({ phonePortrait: false, paused: false, parts: growing }), 'From the start · still recording')
+  assert.equal(shownLiveSummaryOf({ phonePortrait: false, paused: false, parts: fromStartSummaryPartsOf({ growing: false }) }), 'From the start')
+})
+
 
 test('summaryEpisodeText prefers the episode line and falls back to the genre', () => {
   assert.equal(summaryEpisodeText({ episodeLine: 'S03E07 · The Reunion', genreText: 'Sport' }), 'S03E07 · The Reunion')

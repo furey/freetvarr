@@ -28,8 +28,9 @@ import {
   behindPillText,
   liveEdgeOf,
   steadyBehindMinutesOf,
-  liveSummaryText,
-  fromStartSummaryText,
+  liveSummaryPartsOf,
+  fromStartSummaryPartsOf,
+  shownLiveSummaryOf,
   summaryEpisodeText,
   percentWithin,
   programmeRangeText,
@@ -96,6 +97,7 @@ import {
   playerMini,
   playerMuted,
   useLiftedCaptionLine,
+  useMatchMedia,
 } from '/shared/player-shared.js'
 import { VIDEO_STATE_EVENTS } from '/player-paused.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -116,7 +118,7 @@ export const LivePlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Live TV'">
-      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld, 'is-info-open': infoOpen && !tuneInShown, 'is-info-closing': infoClosing }]"
+      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld, 'is-info-open': (infoOpen || infoClosing) && !tuneInShown, 'is-info-closing': infoClosing }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
@@ -721,9 +723,14 @@ export const LivePlayer = {
       genreText: infoMetaLine.value,
     }))
 
-    const summaryText = computed(() => (live.fromStart
-      ? fromStartSummaryText({ growing: live.fromStart.growing !== false })
-      : liveSummaryText({ endMs: info.value.now?.end, nowMs: playingAtMs.value, next: info.value.next, clockText: fmtClockTz })))
+    const phonePortrait = useMatchMedia(PHONE_PORTRAIT_QUERY)
+    const summaryText = computed(() => shownLiveSummaryOf({
+      phonePortrait: phonePortrait.value,
+      paused: shownPaused.value,
+      parts: live.fromStart
+        ? fromStartSummaryPartsOf({ growing: live.fromStart.growing !== false })
+        : liveSummaryPartsOf({ endMs: info.value.now?.end, nowMs: playingAtMs.value, next: info.value.next, clockText: fmtClockTz }),
+    }))
 
     const infoChannelLabel = computed(() =>
       [channelNumberLabel(live.channel?.number), live.channel?.name].filter(Boolean).join(' '))
@@ -912,6 +919,8 @@ const TUNING_TEXT = 'Tuning…'
 const SLOW_TUNE_TEXT = 'Still waiting for a signal'
 
 const HAVE_FUTURE_DATA = 3
+
+const PHONE_PORTRAIT_QUERY = '(max-width: 767px)'
 
 const PLAYER_OPEN_CLASS = 'player-open'
 const PLAYER_MINI_CLASS = 'player-mini-open'

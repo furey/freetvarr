@@ -99,6 +99,21 @@
   color: var(--color-text-2);
 }
 
+.pl-mini-live {
+  color: var(--color-live-text);
+  font-weight: 700;
+}
+
+.pl-mini-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 5px 1px 0;
+  border-radius: 50%;
+  background: var(--color-live);
+  vertical-align: middle;
+}
+
 .pl-mini-actions {
   position: relative;
   display: flex;
