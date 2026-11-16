@@ -70,12 +70,25 @@ export const miniPictureClickOf = ({ controlsShown }) => (controlsShown ? 'expan
 
 export const isHoverPointer = (pointerType) => pointerType === 'mouse' || pointerType === 'pen'
 
-export const miniMenuItemsOf = ({ phone, hasCaptions, captionsOn, canPip, pipActive, muted }) => [
+export const MINI_CARD_BUTTON_EDGE = 8
+export const MINI_CARD_BUTTON_STEP = 44
+export const MINI_CARD_BUTTON_WIDTH = 40
+export const MINI_BADGE_RIGHT_EDGE = 63
+export const MINI_BADGE_CLEARANCE = 8
+
+export const MINI_CAPTIONS_MIN_WIDTH = MINI_BADGE_RIGHT_EDGE + MINI_BADGE_CLEARANCE
+  + MINI_CARD_BUTTON_EDGE + 3 * MINI_CARD_BUTTON_STEP + MINI_CARD_BUTTON_WIDTH
+
+export const miniCaptionsOnCardOf = ({ cardWidth }) => cardWidth >= MINI_CAPTIONS_MIN_WIDTH
+
+export const miniMetaWithSoundOf = ({ meta, muted, phone }) => (phone && muted ? miniMetaOf([meta, 'Muted']) : meta)
+
+export const miniMenuItemsOf = ({ phone, muted, captionsOnCard, hasCaptions, captionsOn, canPip, pipActive }) => [
   phone && { key: 'sound', label: 'Sound', value: muted ? 'Muted' : 'On', on: !muted },
-  { key: 'expand', label: 'Back to full player' },
-  !phone && hasCaptions && { key: 'captions', label: 'Captions', value: captionsOn ? 'On' : 'Off', on: captionsOn },
+  !phone && !captionsOnCard && hasCaptions && { key: 'captions', label: 'Captions', value: captionsOn ? 'On' : 'Off', on: captionsOn },
   canPip && {
     key: 'pip',
     label: pipActive ? 'Close pop out (picture in picture)' : 'Pop out (picture in picture)',
   },
+  { key: 'close', label: 'Close player' },
 ].filter(Boolean)

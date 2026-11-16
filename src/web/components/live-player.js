@@ -17,6 +17,7 @@ import {
   useControlsAutoHide,
   useInfoDismissTaps,
   useSwipeDown,
+  useInfoCloseReveal,
 } from '/components/player-controls.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
@@ -115,7 +116,7 @@ export const LivePlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Live TV'">
-      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld, 'is-info-open': infoOpen && !tuneInShown }]"
+      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld, 'is-info-open': infoOpen && !tuneInShown, 'is-info-closing': infoClosing }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
@@ -179,6 +180,7 @@ export const LivePlayer = {
           </template>
         </player-top-bar>
         <p v-if="conflictText && live.phase === 'live'" class="pl-notice" role="status">{{ conflictText }}</p>
+        <transition name="pl-reveal">
         <player-center-controls v-if="live.phase === 'live' && chips === 'hidden' && !panelOpen && !tuneInExit" :paused="shownPaused"
           :show-start-over="startOverOptions.length > 0" :start-over-disabled="startOverAction.kind === 'none'" :start-over-title="startOverButtonTitle"
           @start-over="openStartOver" @toggle-pause="toggleLivePause">
@@ -190,6 +192,7 @@ export const LivePlayer = {
             </template>
           </template>
         </player-center-controls>
+        </transition>
         <div v-if="live.phase === 'ended'" class="pl-ended">
           <p class="pl-ended-message">{{ live.message }}</p>
           <ul v-if="live.holders.length" class="pl-ended-holders">
@@ -201,11 +204,13 @@ export const LivePlayer = {
           </div>
         </div>
         <footer v-if="live.phase === 'live' && !tuneInExit && !(panelOpen && prePlayChrome)" ref="footerEl" class="pl-bottom">
+          <transition name="pl-reveal">
           <player-scrubber v-if="hasBufferBar && !panelOpen" :min="liveScrubber.min" :max="liveScrubber.max" :value="liveScrubber.value"
             :fill-percent="liveScrubber.fillPercent" :buffer-percent="liveScrubber.bufferPercent" :edge-percent="liveScrubber.edgePercent"
             :growing="liveScrubber.growing" :class="{ 'is-scrubbing': live.scrubbing }"
             :start-text="liveScrubber.startText" :end-text="liveScrubber.endText" :aria-label="liveScrubber.ariaLabel"
             :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
+          </transition>
           <player-base-row :episode="summaryEpisode" :summary="summaryText" :show-summary="!panelOpen" :show-actions="!prePlayChrome"
             :animate="controlsShown" :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :info-open="infoOpen"
             info-id="live-info" :fullscreen="isStageFullscreen" can-minimise
@@ -428,6 +433,7 @@ export const LivePlayer = {
       },
     })
 
+    const infoClosing = useInfoCloseReveal(infoOpen)
     const toggleInfo = () => {
       if (tuneInShown.value) return dismissTuneIn()
       infoOpen.value = !infoOpen.value
@@ -877,7 +883,7 @@ export const LivePlayer = {
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
-      infoOpen, toggleInfo, tuneInShown, tuneInExit, headingHeld, prePlayChrome, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
+      infoOpen, infoClosing, toggleInfo, tuneInShown, tuneInExit, headingHeld, prePlayChrome, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
       tuneInClassification,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,

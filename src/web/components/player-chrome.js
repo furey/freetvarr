@@ -285,10 +285,12 @@ export const PlayerBaseRow = {
   },
   template: `
     <div ref="rowEl" class="pl-base">
+      <transition name="pl-reveal">
       <div v-if="showSummary" class="pl-base-summary">
         <span v-if="episode" class="pl-base-line is-episode">{{ episode }}</span>
         <span v-if="summary" ref="lineEl" :class="['pl-base-line', 'pl-marquee', 'is-' + marqueeStage]"><span ref="textEl" class="pl-marquee-text">{{ marqueeText || summary }}</span></span>
       </div>
+      </transition>
       <div v-if="showActions" class="pl-base-actions">
         <button type="button" class="pl-round" aria-label="Programme info" aria-keyshortcuts="i" :title="buttons.info.title"
           :aria-expanded="String(buttons.info.expanded)" :aria-controls="infoId"

@@ -6,6 +6,8 @@ import {
   isHoverPointer,
   miniControlsShownOf,
   miniMenuItemsOf,
+  miniCaptionsOnCardOf,
+  miniMetaWithSoundOf,
   miniPictureClickOf,
   pictureInPictureSupportOf,
   isInPictureInPicture,
@@ -32,8 +34,8 @@ const MiniMenuIcon = {
   template: `
     <speaker-muted-icon v-if="name === 'sound' && muted" class="pl-mini-menu-icon" />
     <speaker-icon v-else-if="name === 'sound'" class="pl-mini-menu-icon" />
-    <expand-arrows-icon v-else-if="name === 'expand'" class="pl-mini-menu-icon" />
     <captions-icon v-else-if="name === 'captions'" class="pl-mini-menu-icon" />
+    <cross-icon v-else-if="name === 'close'" class="pl-mini-menu-icon" />
     <pop-out-icon v-else class="pl-mini-menu-icon" />
   `,
 }
@@ -66,6 +68,7 @@ export const PlayerMini = {
     muted: Boolean,
     hasCaptions: Boolean,
     captionsOn: Boolean,
+    noCaptionsTitle: { type: String, default: 'No captions on this channel' },
   },
   emits: ['expand', 'toggle-pause', 'close', 'toggle-pip', 'toggle-mute', 'toggle-captions'],
   setup(props, { emit }) {
@@ -93,11 +96,12 @@ export const PlayerMini = {
     }))
     const menuItems = computed(() => miniMenuItemsOf({
       phone: phone.value,
+      muted: props.muted,
+      captionsOnCard: captionsOnCard.value,
       hasCaptions: props.hasCaptions,
       captionsOn: props.captionsOn,
       canPip: props.canPip,
       pipActive: props.pipActive,
-      muted: props.muted,
     }))
 
     const showForTouch = () => {
@@ -136,7 +140,7 @@ export const PlayerMini = {
       if (key === 'sound') return emit('toggle-mute')
       if (key === 'captions') return emit('toggle-captions')
       if (key === 'pip') return emit('toggle-pip')
-      emit('expand')
+      if (key === 'close') emit('close')
     }
     const onDocumentPointerDown = (e) => {
       if (menuOpen.value && !rootEl.value?.contains(e.target)) closeMenu()
@@ -153,6 +157,8 @@ export const PlayerMini = {
       try { canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height) } catch {}
     }
 
+    const captionsOnCard = computed(() => card.value && miniCaptionsOnCardOf({ cardWidth: shownWidth.value }))
+    const shownMeta = computed(() => miniMetaWithSoundOf({ meta: props.meta, muted: props.muted, phone: phone.value }))
     const shownWidth = computed(() => dragWidth.value ?? miniWidthOf({ share: miniShare.value, viewportWidth: viewportWidth.value }))
     const gripRange = computed(() => ({
       min: Math.round(MINI_RULE.min * 100),
@@ -242,7 +248,7 @@ export const PlayerMini = {
     return {
       card, gripRange, sizeChip, dragWidth, gripCorner: MINI_GRIP_CORNER, resetSize,
       onGripDown, onGripMove, finishGrip, cancelGrip, onGripKeydown,
-      rootEl, moreEl, thumbEl, phone, sound, controlsShown, menuItems, menuOpen, sheetOpen,
+      rootEl, moreEl, thumbEl, phone, sound, captionsOnCard, shownMeta, controlsShown, menuItems, menuOpen, sheetOpen,
       onPointerEnter, onPointerLeave, onPointerDown, onPictureClick, syncFocus, onFocusOut, openMore, chooseItem,
     }
   },
@@ -255,19 +261,24 @@ export const PlayerMini = {
       <span v-if="isLive" class="ui-live-badge pl-mini-badge"><span class="ui-live-dot" aria-hidden="true"></span>Live</span>
       <div class="pl-mini-text">
         <p class="pl-mini-title">{{ title }}</p>
-        <p v-if="meta" class="pl-mini-meta">{{ meta }}</p>
+        <p v-if="shownMeta" class="pl-mini-meta">{{ shownMeta }}</p>
       </div>
       <div class="pl-mini-actions">
-        <button type="button" :class="['pl-mini-button', 'pl-mini-sound', 'is-wide-only', { 'is-on': sound.audible }]"
+        <button type="button" class="pl-mini-button pl-mini-pause" :disabled="pauseDisabled" :aria-label="paused ? 'Play' : 'Pause'"
+          @click="$emit('toggle-pause')"><play-icon v-if="paused" /><pause-icon v-else /></button>
+        <button v-if="!phone" type="button" :class="['pl-mini-button', 'pl-mini-sound', { 'is-on': sound.audible, 'is-shifted': captionsOnCard }]"
           :aria-pressed="String(sound.audible)" :aria-label="sound.ariaLabel" :title="sound.label" @click="$emit('toggle-mute')">
           <speaker-icon v-if="sound.audible" /><speaker-muted-icon v-else />
         </button>
-        <button type="button" class="pl-mini-button pl-mini-pause" :disabled="pauseDisabled" :aria-label="paused ? 'Play' : 'Pause'"
-          @click="$emit('toggle-pause')"><play-icon v-if="paused" /><pause-icon v-else /></button>
+        <button v-if="captionsOnCard" type="button" :class="['pl-mini-button', 'pl-mini-captions', { 'is-on': hasCaptions && captionsOn }]"
+          aria-label="Captions" :aria-pressed="String(Boolean(hasCaptions && captionsOn))"
+          :aria-disabled="hasCaptions ? null : 'true'" :title="hasCaptions ? 'Captions' : noCaptionsTitle"
+          @click="hasCaptions && $emit('toggle-captions')"><captions-icon /></button>
+        <button v-if="!phone" type="button" class="pl-mini-button pl-mini-max" aria-label="Open full player" title="Full player"
+          @click="$emit('expand')"><expand-arrows-icon /></button>
         <button ref="moreEl" type="button" :class="['pl-mini-button', 'pl-mini-more', { 'is-open': menuOpen || sheetOpen }]"
           aria-label="More" title="More" :aria-haspopup="phone ? 'dialog' : 'menu'" :aria-expanded="String(menuOpen || sheetOpen)"
           @click="openMore"><more-glyph /></button>
-        <button type="button" class="pl-mini-button pl-mini-close" aria-label="Stop and close" @click="$emit('close')"><cross-icon /></button>
       </div>
       <div v-if="card" :class="['mv-corner-grip', 'pl-mini-grip', 'is-' + gripCorner, { 'is-active': dragWidth != null }]"
         role="separator" tabindex="0" aria-label="Resize the Miniplayer" aria-orientation="vertical"
@@ -279,8 +290,7 @@ export const PlayerMini = {
       <span v-if="sizeChip" class="pl-mini-size-chip" aria-hidden="true">{{ sizeChip }}</span>
       <div v-if="menuOpen" class="pl-mini-menu" role="menu" aria-label="Miniplayer options">
         <button v-for="item in menuItems" :key="item.key" type="button" class="pl-mini-menu-item"
-          :role="item.key === 'captions' ? 'menuitemcheckbox' : 'menuitem'" :aria-checked="item.key === 'captions' ? String(item.on) : null"
-          @click="chooseItem(item.key)">
+          :role="item.key === 'captions' ? 'menuitemcheckbox' : 'menuitem'" :aria-checked="item.key === 'captions' ? String(item.on) : null" @click="chooseItem(item.key)">
           <mini-menu-icon :name="item.key" :muted="muted" />
           <span class="pl-mini-menu-label">{{ item.label }}</span>
           <span v-if="item.value" :class="['pl-mini-menu-value', { 'is-on': item.on }]">{{ item.value }}</span>
@@ -292,8 +302,7 @@ export const PlayerMini = {
       <ui-sheet v-if="phone" :open="sheetOpen" :title="title" :subtitle="meta" @close="sheetOpen = false">
         <template #header-lead><canvas ref="thumbEl" class="pl-mini-sheet-thumb" width="128" height="72" aria-hidden="true"></canvas></template>
         <div class="ui-group">
-          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row pl-mini-sheet-row"
-            :aria-pressed="item.key === 'sound' ? String(item.on) : null" @click="chooseItem(item.key)">
+          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row pl-mini-sheet-row" @click="chooseItem(item.key)">
             <mini-menu-icon :name="item.key" :muted="muted" />
             <span class="ui-group-row-main"><span class="ui-group-row-title">{{ item.label }}</span></span>
             <span v-if="item.value" :class="['pl-mini-menu-value', { 'is-on': item.on }]">{{ item.value }}</span>
