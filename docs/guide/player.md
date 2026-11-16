@@ -34,12 +34,10 @@ The centre of the picture has **Start over** (see [Start over](#start-over)), th
 
 The row under the position bar shows what is playing on the left:
 
-- Live TV: the minutes left and the next programme, such as `24 min left · Next 8:30pm The Project`. A computer also shows the season, episode, and episode title above it. While you watch **From the start**, the row reads `From the start · still recording`.
+- Live TV: the minutes left and the next programme, such as `24 min left · Next 8:30pm The Project`. A tablet or computer also shows the season, episode, and episode title above it. While you watch **From the start**, the row reads `From the start · still recording`.
 - Recordings: the clock time the episode ends if you watch to the end, such as `Ends 9:42pm`.
 
-When the text is too long for the row, it ends with `…`, then moves to show the rest.
-
-The right of the row has three buttons:
+The right of the row has these buttons:
 
 - **Captions**: turns captions on or off. See [Captions](#captions).
 - **Programme info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
