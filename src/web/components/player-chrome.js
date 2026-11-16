@@ -422,7 +422,11 @@ const useMarquee = ({ boxEl, textEl, text, active }) => {
     }
     stop()
     const id = run
-    if (!(await play(box, [{ opacity: 1 }, { opacity: 0 }], { duration: TEXT_FADE_MS }, id))) return
+    if (!(await play(box, [{ opacity: 1 }, { opacity: 0 }], { duration: TEXT_FADE_MS }, id))) {
+      shown.value = value
+      if (document.visibilityState !== 'hidden') nextTick(start)
+      return
+    }
     shown.value = value
     await nextTick()
     if (id !== run) return
