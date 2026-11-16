@@ -16,13 +16,34 @@ export const soundToggleOf = ({ muted }) => (muted
   ? { muted: true, ariaLabel: 'Unmute', title: 'Unmute (M)' }
   : { muted: false, ariaLabel: 'Mute', title: 'Mute (M)' })
 
-export const playerMenuItemsOf = ({ overflow = [], hasCaptions, captionsOn, canPip, pipActive, fullscreen }) => [
+export const playerMenuItemsOf = ({ overflow = [], canMinimise, canPip, pipActive }) => [
   ...overflow,
-  hasCaptions && { key: 'captions', label: 'Captions', icon: 'captions-icon', value: captionsOn ? 'On' : 'Off', on: Boolean(captionsOn) },
+  canMinimise && { key: 'minimise', label: 'Miniplayer', icon: 'minimise-icon' },
   canPip && {
     key: 'pip',
     label: pipActive ? 'Close pop out (picture in picture)' : 'Pop out (picture in picture)',
     icon: pipActive ? 'exit-pip-icon' : 'pop-out-icon',
   },
-  { key: 'fullscreen', label: fullscreen ? 'Exit full screen' : 'Full screen', icon: fullscreen ? 'exit-fullscreen-icon' : 'fullscreen-icon' },
 ].filter(Boolean)
+
+export const baseRowButtonsOf = ({ hasCaptions, captionsOn, infoOpen, fullscreen, noCaptionsTitle }) => ({
+  captions: {
+    disabled: !hasCaptions || Boolean(infoOpen),
+    pressed: Boolean(hasCaptions && captionsOn && !infoOpen),
+    title: captionsTitleOf({ hasCaptions, infoOpen, noCaptionsTitle }),
+  },
+  info: { expanded: Boolean(infoOpen), title: 'Programme info (I)' },
+  fullscreen: fullscreen
+    ? { ariaLabel: 'Exit full screen', title: 'Exit full screen (F)', icon: 'exit-fullscreen-icon' }
+    : { ariaLabel: 'Full screen', title: 'Full screen (F)', icon: 'fullscreen-icon' },
+})
+
+const captionsTitleOf = ({ hasCaptions, infoOpen, noCaptionsTitle }) => {
+  if (!hasCaptions) return noCaptionsTitle
+  if (infoOpen) return CAPTIONS_HIDDEN_BY_INFO_TITLE
+  return 'Captions (C)'
+}
+
+export const NO_CAPTIONS_ON_CHANNEL = 'No captions on this channel'
+export const NO_CAPTIONS_ON_RECORDING = 'No captions on this recording'
+export const CAPTIONS_HIDDEN_BY_INFO_TITLE = 'Captions hide while programme info is open'

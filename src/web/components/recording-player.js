@@ -13,7 +13,8 @@ import {
 } from '/recording-info.js'
 import { CAPTION_LINE_PERCENT } from '/live-captions.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
-import { adMarkersOf, leftPillText, percentWithin, joinedParts } from '/player-labels.js'
+import { adMarkersOf, leftPillText, percentWithin, joinedParts, endsAtText } from '/player-labels.js'
+import { NO_CAPTIONS_ON_RECORDING } from '/player-mute.js'
 import {
   usePlayerKeys,
   usePlayerFocus,
@@ -47,20 +48,19 @@ import {
 } from '/shared/playback-session.js'
 import {
   liveCaptionsOn,
-  captionTracksOf,
   isStageFullscreen,
   toggleStageFullscreen,
   enterStageFullscreen,
   useRotateToFullscreen,
   usePausedResync,
-  FILLED_CAPTION_LINE,
+  placeCaptionCues,
+  useLiftedCaptionLine,
   playback,
   playerMini,
   playerMuted,
 } from '/shared/player-shared.js'
-import { tz, fmtTime, now } from '/shared/time.js'
+import { tz, fmtTime, fmtClockTz, now } from '/shared/time.js'
 import { VIDEO_STATE_EVENTS, initialPausedState, pausedStateAfter } from '/player-paused.js'
-import { SKIP_STEP_S } from '/double-tap.js'
 
 export const RecordingPlayer = {
   components: { ...PLAYER_CHROME_COMPONENTS, 'player-mini': PlayerMini },
@@ -99,10 +99,8 @@ export const RecordingPlayer = {
           </p>
         </player-info-panel>
         <player-top-bar :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
-          back-label="Close" :info-open="infoOpen" info-id="play-info" :has-captions="playback.captions"
-          :captions-on="captionsOn" :fullscreen="isStageFullscreen" :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
-          @back="stopPlayback" @toggle-info="toggleInfo" @toggle-captions="togglePlayCaptions" @toggle-fullscreen="toggleFullscreen"
-          @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
+          back-label="Close" :can-pip="canPip" :pip-active="pipActive" :can-minimise="!miniInRow" :muted="playerMuted"
+          @back="stopPlayback" @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
           :actions="topActions" @action="onTopAction" />
         <player-center-controls v-if="playback.phase !== 'ended' && !infoOpen" :paused="shownPaused"
           :show-start-over="playback.resumed" @start-over="startPlaybackOver" @toggle-pause="togglePlayback" />
@@ -114,12 +112,15 @@ export const RecordingPlayer = {
           </div>
         </div>
         <button v-if="inAdBreak && !infoOpen" type="button" class="pl-pill pl-skip-ad" @click="skipCurrentAd">Skip ad</button>
-        <footer v-if="playback.phase !== 'ended' && !infoOpen" class="pl-bottom">
-          <player-scrubber :min="0" :max="scrubMax" :value="Math.floor(shownPosition)" :step="1"
+        <footer v-if="playback.phase !== 'ended'" ref="footerEl" class="pl-bottom">
+          <player-scrubber v-if="!infoOpen" :min="0" :max="scrubMax" :value="Math.floor(shownPosition)" :step="1"
             :fill-percent="fillPercent" :buffer-percent="0" :markers="adMarkers" :start-text="fmtPlayTime(shownPosition)"
             :end-text="fmtPlayTime(playback.duration)" :pill-text="leftText" aria-label="Position"
             :value-text="fmtPlayTime(shownPosition)" @scrub="onScrubInput" @commit="onScrubCommit" />
-          <p class="pl-hint">{{ hintText }}</p>
+          <player-base-row :summary="endsText" :show-summary="!infoOpen" show-actions :animate="controlsShown"
+            :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" :no-captions-title="NO_CAPTIONS_ON_RECORDING"
+            :info-open="infoOpen" info-id="play-info" :fullscreen="isStageFullscreen" can-minimise
+            @minimise="minimise" @minimise-placement="miniInRow = $event" @toggle-captions="togglePlayCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleFullscreen" />
         </footer>
         <div v-if="playback.skipHint" :key="playback.skipHint.key" :class="['live-skip-hint', playback.skipHint.side]" aria-hidden="true">
           <span>{{ playback.skipHint.label }}</span>
@@ -137,6 +138,7 @@ export const RecordingPlayer = {
   setup() {
     const videoEl = ref(null)
     const stageEl = ref(null)
+    const footerEl = ref(null)
     const recording = computed(() => playback.recording)
     const infoOpen = playInfoOpen
     const shownPaused = computed(() => playback.paused || playback.stuck)
@@ -190,7 +192,12 @@ export const RecordingPlayer = {
     const adMarkers = computed(() => adMarkersOf({ breaks: playback.adBreaks, duration: playback.duration }))
     const leftText = computed(() =>
       (playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - shownPosition.value)) : ''))
-    const hintText = RECORDING_HINT_TEXT
+    const endsText = computed(() => endsAtText({
+      durationS: playback.duration,
+      positionS: shownPosition.value,
+      nowMs: now.value.getTime(),
+      clockText: fmtClockTz,
+    }))
 
     const statusText = computed(() => {
       if (playback.phase === 'ended') return playback.message
@@ -229,6 +236,7 @@ export const RecordingPlayer = {
       mini.value = true
     }
     const expand = () => { mini.value = false }
+    const miniInRow = ref(false)
     const miniMeta = computed(() => miniMetaOf([
       playback.recording?.channel_name,
       playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - playback.position)).toLowerCase() : '',
@@ -241,23 +249,24 @@ export const RecordingPlayer = {
         || playback.scrubbing || infoOpen.value),
       rootEl: stageEl,
     })
-    const captionLine = computed(() => captionLineOf({
-      mini: mini.value,
-      lifted: controlsShown.value,
-      liftedLine: FILLED_CAPTION_LINE,
-      restingLine: CAPTION_LINE_PERCENT,
-    }))
-    const placeCaptions = () => {
-      for (const track of captionTracksOf(playVideo)) {
-        for (const cue of track.cues || []) if (cue.line !== captionLine.value) cue.line = captionLine.value
-      }
-    }
-    watch(captionLine, placeCaptions)
+    const placeCaptions = () => placeCaptionCues({
+      video: playVideo,
+      line: captionLineOf({
+        mini: mini.value,
+        lifted: controlsShown.value,
+        liftedLine: liftedLine(),
+        restingLine: CAPTION_LINE_PERCENT,
+      }),
+    })
+    const { liftedLine, remeasure } = useLiftedCaptionLine({
+      videoEl, footerEl, isLifted: () => controlsShown.value && !mini.value, onChange: placeCaptions,
+    })
+    watch([mini, controlsShown], remeasure, { flush: 'post' })
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
     const topActions = computed(() => [{
-      key: 'airplay', order: 5, priority: 2, icon: 'airplay-icon', label: 'AirPlay', ariaLabel: 'AirPlay', menuLabel: 'AirPlay',
-      hidden: !playback.airplay,
+      key: 'airplay', order: 5, priority: 2, icon: 'airplay-icon', label: 'AirPlay', ariaLabel: 'AirPlay', title: 'AirPlay',
+      menuLabel: 'AirPlay', round: true, hidden: !playback.airplay,
     }])
     const onTopAction = (key) => {
       if (key === 'airplay') showAirplay()
@@ -372,18 +381,17 @@ export const RecordingPlayer = {
 
     return {
       playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
-      infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, hintText,
+      infoOpen, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
       toggleFullscreen, isStageFullscreen, showAirplay, topActions, onTopAction, shownPaused,
       captionsOn: liveCaptionsOn, togglePlayCaptions,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
-      mini, minimise, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
+      mini, minimise, miniInRow, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
     }
   },
 }
 
 const DIRECT_PAUSE_EVENTS = new Set(['play', 'playing', 'pause', 'ended'])
 
-const RECORDING_HINT_TEXT = `Double-tap either side to skip ${SKIP_STEP_S} seconds.`

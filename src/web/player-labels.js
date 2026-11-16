@@ -1,4 +1,4 @@
-import { SKIP_STEP_S } from './double-tap.js'
+import { minutesLeftText } from './mini-player.js'
 
 export const BEHIND_SHOWN_FROM_S = 15
 export const LIVE_SHOWN_UNDER_S = 10
@@ -25,10 +25,24 @@ export const liveEdgeOf = ({ behindMinutes = 0, fromStart = false }) => {
 
 export const leftPillText = (seconds) => `${Math.max(1, Math.ceil(seconds / 60))} MIN LEFT`
 
-export const liveHintText = (bufferSeconds) => {
-  const skip = `Double-tap either side to skip ${SKIP_STEP_S} seconds.`
-  const minutes = Math.floor(bufferSeconds / 60)
-  return minutes > 0 ? `Pause or rewind up to ${minutes} minutes. ${skip}` : skip
+export const SCRUB_PILL_RESERVED_PX = 220
+export const SCRUB_MIN_TRACK_PX = 280
+
+export const scrubPillShownOf = ({ scrubWidth }) => scrubWidth - SCRUB_PILL_RESERVED_PX >= SCRUB_MIN_TRACK_PX
+
+export const liveSummaryText = ({ endMs, nowMs, next, clockText }) => joinedParts([
+  minutesLeftText({ endMs, nowMs }),
+  nextAiringText({ next, clockText }),
+])
+
+export const fromStartSummaryText = ({ growing }) => (growing ? 'From the start · still recording' : 'From the start')
+
+export const summaryEpisodeText = ({ episodeLine, genreText }) => episodeLine || genreText || ''
+
+export const endsAtText = ({ durationS, positionS, nowMs, clockText }) => {
+  if (!(durationS > 0)) return ''
+  const remainingMs = Math.max(0, durationS - (positionS || 0)) * 1000
+  return `Ends ${clockText(nowMs + remainingMs)}`
 }
 
 export const percentWithin = ({ value, min, max }) => {
@@ -51,5 +65,10 @@ export const programmeRangeText = ({ program, clockText }) =>
   (program ? `${clockText(program.start)}–${clockText(program.end)}` : '')
 
 export const joinedParts = (parts) => parts.filter(Boolean).join(' · ')
+
+const nextAiringText = ({ next, clockText }) => {
+  if (!next?.title) return ''
+  return Number.isFinite(next.start) ? `Next ${clockText(next.start)} ${next.title}` : `Next ${next.title}`
+}
 
 const wholeMinutesOf = (seconds) => Math.max(1, Math.round(seconds / 60))

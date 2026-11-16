@@ -350,7 +350,7 @@ If the line says `software` and the channel stutters, the CPU is too slow for th
 ## Missing captions
 
 - Your broadcaster sends captions as [Teletext](https://en.wikipedia.org/wiki/Teletext) or as DVB subtitles. Australian broadcasters send Teletext. Some players decode Teletext and some don't (it isn't a recording fault). See [Captions in other apps](/guide/live-tv#captions-in-other-apps).
-- In Freetvarr's player, **Captions** in the **⋯** menu shows only for channels and recordings that carry Teletext subtitles, and some programmes have none. See [Captions](/guide/live-tv#captions).
+- In Freetvarr's player, the **Captions** button works only for channels and recordings that carry Teletext subtitles, and some programmes have none. See [Captions](/guide/live-tv#captions).
 
 ## Chrome Live Caption
 
@@ -361,7 +361,7 @@ To switch it off:
 1. Open `chrome://settings/accessibility` in Chrome.
 2. Turn off **Live Caption**.
 
-Freetvarr's own captions show inside the picture. Open **⋯** in the player and press **Captions** to show or hide them.
+Freetvarr's own captions show inside the picture. Press the **Captions** button at the bottom right of the player to show or hide them.
 
 ## Wrong timestamps
 

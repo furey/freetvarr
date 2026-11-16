@@ -33,6 +33,7 @@ import {
   tapZoneOf,
   isPictureTarget,
   FILLED_CAPTION_LINE,
+  placeCaptionCues,
   playback,
   playbackHooks,
   playerMini,
@@ -624,16 +625,14 @@ const resumeIfPaused = () => {
   if (liveAttached && liveVideo.paused) liveVideo.play()?.catch(() => {})
 }
 
-export const placeLiveCaptions = () => {
+export const placeLiveCaptions = ({ liftedLine = FILLED_CAPTION_LINE } = {}) => {
   const line = captionLineOf({
     mini: playerMini.value,
     lifted: live.captionsLifted,
-    liftedLine: FILLED_CAPTION_LINE,
+    liftedLine,
     restingLine: CAPTION_LINE_PERCENT,
   })
-  for (const track of captionTracksOf(liveVideo)) {
-    for (const cue of track.cues || []) if (cue.line !== line) cue.line = line
-  }
+  placeCaptionCues({ video: liveVideo, line })
 }
 
 export const keepSeekInsideBuffer = () => {

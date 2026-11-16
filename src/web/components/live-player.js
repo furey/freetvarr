@@ -27,7 +27,9 @@ import {
   behindPillText,
   liveEdgeOf,
   steadyBehindMinutesOf,
-  liveHintText,
+  liveSummaryText,
+  fromStartSummaryText,
+  summaryEpisodeText,
   percentWithin,
   programmeRangeText,
   joinedParts,
@@ -92,6 +94,7 @@ import {
   usePausedResync,
   playerMini,
   playerMuted,
+  useLiftedCaptionLine,
 } from '/shared/player-shared.js'
 import { VIDEO_STATE_EVENTS } from '/player-paused.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -112,7 +115,7 @@ export const LivePlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="live.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Live TV'">
-      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld }]"
+      <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld, 'is-info-open': infoOpen && !tuneInShown }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
@@ -164,11 +167,9 @@ export const LivePlayer = {
             </p>
         </player-info-panel>
         <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
-          :subtitle="playerSubtitle" back-label="Stop and close" :info-open="panelOpen" info-id="live-info"
-          :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :fullscreen="isStageFullscreen"
-          :can-pip="canPip" :pip-active="pipActive" :can-minimise="true" :muted="playerMuted"
-          @back="stopLive" @toggle-info="toggleInfo" @toggle-captions="toggleLiveCaptions" @toggle-fullscreen="toggleLiveFullscreen"
-          @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
+          :subtitle="playerSubtitle" back-label="Stop and close"
+          :can-pip="canPip" :pip-active="pipActive" :can-minimise="!miniInRow" :muted="playerMuted"
+          @back="stopLive" @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
           :actions="topActions" :has-record="!prePlayChrome" :pre-play="prePlayChrome" @action="onTopAction">
           <template #default="{ compact }">
             <button v-if="!prePlayChrome" type="button" :class="['pl-pill', 'is-record', { 'is-recording': recordButton.recording, 'is-compact': compact }]"
@@ -199,13 +200,16 @@ export const LivePlayer = {
             <button type="button" class="ui-button ui-button-secondary" @click="stopLive">Close</button>
           </div>
         </div>
-        <footer v-if="live.phase === 'live' && !panelOpen && !tuneInExit" class="pl-bottom">
-          <player-scrubber v-if="hasBufferBar" :min="liveScrubber.min" :max="liveScrubber.max" :value="liveScrubber.value"
+        <footer v-if="live.phase === 'live' && !tuneInExit && !(panelOpen && prePlayChrome)" ref="footerEl" class="pl-bottom">
+          <player-scrubber v-if="hasBufferBar && !panelOpen" :min="liveScrubber.min" :max="liveScrubber.max" :value="liveScrubber.value"
             :fill-percent="liveScrubber.fillPercent" :buffer-percent="liveScrubber.bufferPercent" :edge-percent="liveScrubber.edgePercent"
             :growing="liveScrubber.growing" :class="{ 'is-scrubbing': live.scrubbing }"
             :start-text="liveScrubber.startText" :end-text="liveScrubber.endText" :aria-label="liveScrubber.ariaLabel"
             :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
-          <p class="pl-hint">{{ hintText }}</p>
+          <player-base-row :episode="summaryEpisode" :summary="summaryText" :show-summary="!panelOpen" :show-actions="!prePlayChrome"
+            :animate="controlsShown" :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :info-open="infoOpen"
+            info-id="live-info" :fullscreen="isStageFullscreen" can-minimise
+            @minimise="minimise" @minimise-placement="miniInRow = $event" @toggle-captions="toggleLiveCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleLiveFullscreen" />
         </footer>
         <div v-if="live.skipHint" :key="live.skipHint.key" :class="['live-skip-hint', live.skipHint.side]" aria-hidden="true">
           <span>{{ live.skipHint.label }}</span>
@@ -229,6 +233,7 @@ export const LivePlayer = {
   setup() {
     const videoEl = ref(null)
     const frameEl = ref(null)
+    const footerEl = ref(null)
     const chips = ref(live.phase === 'tuning' ? 'tuning' : 'hidden')
     const chipsRun = ref(0)
     let chipsTimer = null
@@ -384,7 +389,7 @@ export const LivePlayer = {
     }
 
     const onTextTrackAdded = (e) => {
-      e.track?.addEventListener?.('cuechange', placeLiveCaptions)
+      e.track?.addEventListener?.('cuechange', placeCaptions)
       if (!liveHls) applyLiveCaptions()
     }
 
@@ -456,9 +461,6 @@ export const LivePlayer = {
       ? fmtClockTz(live.fromStart.recordingStartedAt)
       : fmtClockTz(now.value.getTime() - bufferSpan.value * 1000)))
     const bufferEndText = computed(() => fmtClockTz(now.value.getTime()))
-    const hintText = computed(() => (live.fromStart
-      ? `Watching ${live.fromStart.title || 'the recording'} from the start while it keeps recording.`
-      : liveHintText(live.bufferSeconds)))
 
     const fromStartFinished = computed(() => live.fromStart?.growing === false)
     const fromStartEdge = computed(() => {
@@ -548,6 +550,7 @@ export const LivePlayer = {
       mini.value = true
     }
     const expand = () => { mini.value = false }
+    const miniInRow = ref(false)
 
     const miniMeta = computed(() => miniMetaOf([
       live.channel?.name,
@@ -588,9 +591,12 @@ export const LivePlayer = {
     watch(controlsShown, (shown) => {
       if (shown && !tuneInInfo.value && !tuneInExit.value) headingHeld.value = false
       live.captionsLifted = shown
-      placeLiveCaptions()
     }, { immediate: true })
-    watch(mini, placeLiveCaptions)
+    const placeCaptions = () => placeLiveCaptions({ liftedLine: liftedLine() })
+    const { liftedLine, remeasure } = useLiftedCaptionLine({
+      videoEl, footerEl, isLifted: () => live.captionsLifted && !mini.value, onChange: placeCaptions,
+    })
+    watch([controlsShown, mini], remeasure, { flush: 'post' })
 
     const { onSwipePointerDown, onSwipePointerUp } = useSwipeDown({
       enabled: () => live.open && !mini.value && !multi.active && !infoOpen.value,
@@ -702,8 +708,16 @@ export const LivePlayer = {
     const playerSubtitle = computed(() => joinedParts([
       live.channel?.name,
       programmeRangeText({ program: info.value.now, clockText: fmtClockTz }),
-      info.value.next ? `Next: ${info.value.next.title}` : '',
     ]))
+
+    const summaryEpisode = computed(() => summaryEpisodeText({
+      episodeLine: infoEpisodeLine.value,
+      genreText: infoMetaLine.value,
+    }))
+
+    const summaryText = computed(() => (live.fromStart
+      ? fromStartSummaryText({ growing: live.fromStart.growing !== false })
+      : liveSummaryText({ endMs: info.value.now?.end, nowMs: playingAtMs.value, next: info.value.next, clockText: fmtClockTz })))
 
     const infoChannelLabel = computed(() =>
       [channelNumberLabel(live.channel?.number), live.channel?.name].filter(Boolean).join(' '))
@@ -854,11 +868,11 @@ export const LivePlayer = {
 
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause, topActions, onTopAction, shownPaused,
-      live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
+      live, videoEl, footerEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
       isBehindLive, jumpToLive, hasBufferBar, liveScrubber, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
-      bufferStartText, bufferEndText, hintText, playerTitle, playerSubtitle,
+      bufferStartText, bufferEndText, summaryEpisode, summaryText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
-      canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, expand, miniMeta, miniProgress,
+      canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, miniInRow, expand, miniMeta, miniProgress,
       multi, primarySlotClass, primarySlotStyle, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor,
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,

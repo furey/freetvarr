@@ -8,30 +8,28 @@ export const ICON_PILL_WIDTH = 40
 export const LOGO_WIDTH = 40
 
 export const LABELLED_PILL_WIDTHS = {
-  info: 84,
   series: 102,
   multiview: 124,
-  minimise: 122,
-  airplay: 110,
   sound: 104,
   record: 120,
 }
 
-export const MENU_ORDER = ['info', 'series', 'multiview', 'minimise', 'airplay']
+export const MENU_ORDER = ['series', 'multiview', 'airplay']
 
-export const topBarActionsOf = ({ actions = [], canMinimise, infoOpen, infoId, prePlay }) => {
+export const BASE_ROW_BUTTON_WIDTH = 44
+export const BASE_ROW_BUTTON_GAP = 8
+export const BASE_ROW_SUMMARY_GAP = 12
+export const BASE_ROW_MIN_SUMMARY_WIDTH = 140
+
+export const topBarActionsOf = ({ actions = [], prePlay }) => {
   if (prePlay) return []
-  return [
-    ...actions,
-    canMinimise && {
-      key: 'minimise', order: 2, priority: 3, icon: 'minimise-icon', label: 'Miniplayer', ariaLabel: 'Miniplayer',
-      menuLabel: 'Miniplayer',
-    },
-    {
-      key: 'info', order: 4, priority: 1, icon: 'info-icon', label: 'Info', ariaLabel: 'Programme info', menuLabel: 'Programme info',
-      pressed: infoOpen, expanded: infoOpen, controls: infoId,
-    },
-  ].filter((action) => action && !action.hidden)
+  return actions.filter((action) => action && !action.hidden)
+}
+
+export const miniplayerFitsBaseRowOf = ({ rowWidth }) => {
+  const buttons = 4
+  const buttonsWidth = buttons * BASE_ROW_BUTTON_WIDTH + (buttons - 1) * BASE_ROW_BUTTON_GAP
+  return rowWidth - buttonsWidth - BASE_ROW_SUMMARY_GAP >= BASE_ROW_MIN_SUMMARY_WIDTH
 }
 
 export const topBarLayoutOf = ({
@@ -56,8 +54,8 @@ export const topBarLayoutOf = ({
 }
 
 export const optionalWidthOf = ({ key, round = false, labelled = false }) => {
-  if (round) return ROUND_WIDTH
-  return labelled ? LABELLED_PILL_WIDTHS[key] ?? ICON_PILL_WIDTH : ICON_PILL_WIDTH
+  if (round || !labelled) return ROUND_WIDTH
+  return LABELLED_PILL_WIDTHS[key] ?? ROUND_WIDTH
 }
 
 export const menuOrderOf = (keys) =>
