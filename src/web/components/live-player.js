@@ -166,7 +166,9 @@ export const LivePlayer = {
             <p v-else-if="tuneInShown && !info.loaded && live.nowTitle" class="live-info-title">{{ live.nowTitle }}</p>
             <p v-else-if="info.loaded && !info.next" class="live-info-empty">{{ NO_GUIDE_TEXT }}</p>
             <p v-if="info.next && !tuneInShown" class="live-info-next">
-              Next <span class="live-info-next-title">{{ info.next.title }}</span> {{ fmtClockTz(info.next.start) }}
+              <span class="live-info-next-label">Next</span>
+              <marquee-text class="live-info-next-value" :text="info.next.title + ' ' + fmtClockTz(info.next.start)" :active="infoOpen"><span
+                class="live-info-next-title">{{ info.next.title }}</span>{{ fmtClockTz(info.next.start) }}</marquee-text>
             </p>
         </player-info-panel>
         <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
