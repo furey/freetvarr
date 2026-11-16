@@ -2,13 +2,12 @@
 title: Plex DVR instead
 description: >-
   If you already have a Plex Pass, Plex's own DVR with a network tuner may be
-  all you need. When it is enough, what it costs, and what TVHeadend and
-  Freetvarr add.
+  all you need. When it is enough, what it costs, and what Freetvarr adds.
 ---
 
 # Plex DVR instead
 
-[Plex](https://www.plex.tv/) has its own recorder, Live TV & DVR. With a network tuner such as an [HDHomeRun](https://www.silicondust.com/hdhomerun/), it records free-to-air TV (channels broadcast free by antenna) straight into your Plex library. If you already have a [Plex Pass](https://www.plex.tv/plex-pass/) (Plex's paid plan), that may be all you need, and you can skip [TVHeadend](/guide/tvheadend) (the free, open-source recorder that Freetvarr works with) and Freetvarr.
+[Plex](https://www.plex.tv/) has its own recorder, Live TV & DVR. With a network tuner such as an [HDHomeRun](https://www.silicondust.com/hdhomerun/), it records free-to-air TV (channels broadcast free by antenna) straight into your Plex library. If you already have a [Plex Pass](https://www.plex.tv/plex-pass/) (Plex's paid plan), that may be all you need, and you can skip Freetvarr. Freetvarr records through [TVHeadend](https://tvheadend.org/), the free recording software that runs inside Freetvarr's install.
 
 The author built Freetvarr before noticing that the author's own Plex Pass already covered Plex DVR.
 
@@ -17,7 +16,7 @@ The author built Freetvarr before noticing that the author's own Plex Pass alrea
 
 ## Cost
 
-Recording in Plex needs a Plex Pass. Watching live TV through Plex is free ([Plex FAQ](https://support.plex.tv/articles/226463767-frequently-asked-questions-dvr-live-tv/)). TVHeadend and Freetvarr are free and open source.
+Recording in Plex needs a Plex Pass. Watching live TV through Plex is free ([Plex FAQ](https://support.plex.tv/articles/226463767-frequently-asked-questions-dvr-live-tv/)). Freetvarr and TVHeadend are free and open source.
 
 Plex Pass prices, from [Plex's plans page](https://www.plex.tv/en-au/plans/) in October 2026:
 
@@ -49,7 +48,7 @@ Plex DVR suits you if most of these are true:
 - **Ad skipping without touching the file.** By default Plex marks the ad breaks and the player offers a Skip button, so a wrong detection costs nothing ([Removing commercials](https://support.plex.tv/articles/115003944134-removing-commercials/)).
 - **Watching away from home**, with Plex's remote access and a Plex Pass.
 
-## What TVHeadend and Freetvarr add
+## What Freetvarr adds
 
 - **No subscription.** Everything is free, now and later, whatever Plex charges.
 - **A recorder that is separate from Plex.** A Plex Media Server update cannot stop a TVHeadend recording. Plex forum users report missed and cut-short recordings after some server updates ([example](https://forums.plex.tv/t/dvr-fails-after-update/916861)).
@@ -91,4 +90,4 @@ Plex's own guide is [Live TV & DVR](https://support.plex.tv/articles/225877347-l
 > [!WARNING]<br>
 > Plex expects to have the tuner to itself ([Supported tuners](https://support.plex.tv/articles/225877427-supported-dvr-tuners-and-antennas/)). Don't record from Plex DVR and TVHeadend on the same tuner at the same time. To try Plex DVR, pause TVHeadend's recordings first.
 
-If Plex DVR does the job, you need nothing else on this site. If you later want a free recorder, browser live TV, or captions in your recordings, [Hardware requirements](/guide/hardware-requirements) and [TVHeadend](/guide/tvheadend) are the next steps.
+If Plex DVR does the job, you need nothing else on this site. If you later want a free recorder, browser live TV, or captions in your recordings, [Hardware requirements](/guide/hardware-requirements) and [Getting started](/guide/getting-started) are the next steps.

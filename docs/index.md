@@ -7,7 +7,7 @@ hero:
   text: >-
     <span class="hero-line-1"><em class="hero-em">Live TV</em> on your devices.</span><span class="hero-line-2"><em class="hero-em">Recordings</em> in your media library, <em class="hero-em">ad&nbsp;free.<span style="font-size:0.8em;position:relative;line-height:0;top:-0.2em;left:-0.2em;">*</span></em></span>
   tagline: >-
-    Self-hosted TV for any tuner that TVHeadend can use. Watch live,
+    Self-hosted TV for any TVHeadend-compatible tuner. Watch live,
     browse the TV guide, and record straight into your media library.<br><span
     style="font-size:0.575em">*optional via
     Comskip</span>
@@ -43,9 +43,9 @@ features:
   - title: TV guide
     illustration: tv-guide
     details: >-
-      A 7-day programme guide in the browser: schedule, cancel, and
-      series-record in TVHeadend, see which tuner records what, or watch for a
-      show that is not in the guide yet.
+      A 7-day programme guide in the browser: schedule and cancel recordings,
+      record a series, see which tuner records what, or watch for a show that
+      is not in the guide yet.
     link: /guide/tv-guide
     linkText: Browse and record
   - title: Series folders
@@ -91,7 +91,7 @@ features:
   - title: Authless LAN service
     illustration: authless-lan
     details: >-
-      Backed by SQLite in a single Docker container, with no external runtime
+      Backed by SQLite in its own Docker container, with no external runtime
       dependencies. Built for a trusted home network, with rate limiting and
       browser-side protections (details in the security model).
     link: /deep-dive#security-model

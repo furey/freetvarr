@@ -18,12 +18,12 @@ Each section starts from what you see, then gives the cause and the fix. The sec
 
 Freetvarr shows `Failed: TVHeadend rejected the credentials (HTTP 401).` or the same with `HTTP 403`, in setup, in Settings, or on a page that reads from TVHeadend. Settings adds the API path that failed, such as `(stage: serverinfo)`.
 
-- **`401` with an empty username**: TVHeadend asks for a login and Freetvarr sent none. Enter the username and password of the TVHeadend user ([TVHeadend step 8](/guide/tvheadend#_8-make-a-user-for-freetvarr)).
+- **`401` with an empty username**: TVHeadend asks for a login and Freetvarr sent none. Enter the username and password of the TVHeadend user ([TVHeadend step 8](/guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr)).
 - **`403` at `serverinfo`**: TVHeadend refused the login. Check these in order:
   1. The password. TVHeadend keeps it under **Configuration → Users → Passwords**, not on the access entry (the TVHeadend rule that holds the user's rights, under **Configuration → Users → Access Entries**). The password entry needs **Enabled** ticked and the same username as the access entry.
   2. The access entry has **Enabled** ticked.
-  3. **Allowed networks** on the access entry includes the address Freetvarr connects from. Under host networking (`network_mode: host`, where the container shares the host's network; [TVHeadend step 1](/guide/tvheadend#_1-run-the-container)) that is the host's LAN address. A URL of `http://127.0.0.1:9981` connects from `127.0.0.1` instead, which a LAN prefix does not cover.
-- **`403` at a later stage** (`status/inputs`, `dvr/entry/…`, `epggrab/channel/grid`): the login works but the user lacks a right. Tick the rights in [the rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr), and keep **Rights** ticked in the entry's **Change parameters**.
+  3. **Allowed networks** on the access entry includes the address Freetvarr connects from. Under host networking (`network_mode: host`, where the container shares the host's network; [TVHeadend step 1](/guide/tvheadend-by-hand#_1-run-the-container)) that is the host's LAN address. A URL of `http://127.0.0.1:9981` connects from `127.0.0.1` instead, which a LAN prefix does not cover.
+- **`403` at a later stage** (`status/inputs`, `dvr/entry/…`, `epggrab/channel/grid`): the login works but the user lacks a right. Tick the rights in [the rights table](/guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr), and keep **Rights** ticked in the entry's **Change parameters**.
 - **The order of entries**: access entries are an ordered list, evaluated top to bottom, so a broader entry above yours can win.
 
 TVHeadend's default configuration accepts HTTP Digest logins only, and Freetvarr answers Digest. To test the login outside Freetvarr, run this command in a terminal on a computer on your home network. A `200` means the login works; a `403` means it does not.
@@ -51,7 +51,7 @@ curl --digest -u <user>:<password> -o /dev/null -w '%{http_code}\n' \
 
 ## TVHeadend admin login
 
-TVHeadend's web interface answers `403 Forbidden` to the admin login: the password TVHeadend stored is not the one you are typing. [Securing by hand](/guide/tvheadend#securing-by-hand) says how to reset it with `--noacl`.
+TVHeadend's web interface answers `403 Forbidden` to the admin login: the password TVHeadend stored is not the one you are typing. [Securing by hand](/guide/tvheadend-by-hand#securing-by-hand) says how to reset it with `--noacl`.
 
 ## Test path failures
 
@@ -83,7 +83,7 @@ TVHeadend's web interface answers `403 Forbidden` to the admin login: the passwo
 
 **Check TVHeadend** in Settings → RECORDING → Media library reads the recording path from TVHeadend's default DVR profile and compares it with **As TVHeadend sees it** under **RECORDINGS FOLDER**.
 
-- **"TVHeadend has no recording path. Set one in its DVR profile."**: set **Recording system path** on the default profile ([TVHeadend step 7](/guide/tvheadend#_7-set-the-recording-path)).
+- **"TVHeadend has no recording path. Set one in its DVR profile."**: set **Recording system path** on the default profile ([TVHeadend step 7](/guide/tvheadend-by-hand#_7-set-the-recording-path)).
 - **"TVHeadend records to /x, not /recordings."**: change TVHeadend's path to the container path of its recordings mount (`/recordings` in the Docker Compose file that the install script downloads), or put TVHeadend's path in **As TVHeadend sees it**. That field holds the path TVHeadend uses inside its own container, and that path must be the same host folder Freetvarr mounts, as `recordings_root`. [The two recordings paths](/guide/configuration#the-two-recordings-paths) has the detail.
 
 ## Missing tuner
@@ -100,16 +100,16 @@ In TVHeadend's web interface, **Configuration → DVB Inputs → TV adapters** i
 
 Health says `TVHeadend has no channels.`, the Channels row of [setup](/guide/getting-started#_2-run-setup) says `No channels yet`, or the TV guide has no rows.
 
-- Each tuner in **TV adapters** needs **Enabled** ticked and your network set in its **Networks** field ([TVHeadend step 3](/guide/tvheadend#_3-add-the-tuner)).
-- Every mux (a bundle of channels on one broadcast frequency) in **Configuration → DVB Inputs → Muxes** ending `FAIL` means the wrong pre-defined mux list, or an antenna that doesn't reach that transmitter. Pick the list for the transmitter your antenna points at ([step 4](/guide/tvheadend#_4-scan-the-muxes)).
-- Muxes `OK` but no channels: the services (the individual channel streams inside a mux) are not mapped yet. Press **Map all** under **Configuration → DVB Inputs → Services** ([step 5](/guide/tvheadend#_5-map-services-to-channels)).
+- Each tuner in **TV adapters** needs **Enabled** ticked and your network set in its **Networks** field ([TVHeadend step 3](/guide/tvheadend-by-hand#_3-add-the-tuner)).
+- Every mux (a bundle of channels on one broadcast frequency) in **Configuration → DVB Inputs → Muxes** ending `FAIL` means the wrong pre-defined mux list, or an antenna that doesn't reach that transmitter. Pick the list for the transmitter your antenna points at ([step 4](/guide/tvheadend-by-hand#_4-scan-the-muxes)).
+- Muxes `OK` but no channels: the services (the individual channel streams inside a mux) are not mapped yet. Press **Map all** under **Configuration → DVB Inputs → Services** ([step 5](/guide/tvheadend-by-hand#_5-map-services-to-channels)).
 - Freetvarr drops channels marked disabled in **Configuration → Channel/EPG → Channels**.
 
 ## Empty guide
 
 The TV guide shows channels but no programmes, or only about a day of them.
 
-- Without an [XMLTV](https://wiki.xmltv.org/) feed (a TV guide file on the web) you get only what the broadcast signal carries. In Australia that is about a day of thin data. UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)).
+- Without an [XMLTV](https://wiki.xmltv.org/) feed (a TV guide file on the web) you get only what the broadcast signal carries. In Australia that is about a day of thin data. UK and European Freeview carry up to seven days over the air. Set up the feed ([step 6](/guide/tvheadend-by-hand#_6-load-the-xmltv-guide)).
 - TVHeadend's log says `broadcasts tot= 0`: no feed channel is linked to a TVHeadend channel yet. To read the log, run:
 
   ```sh
@@ -162,22 +162,22 @@ Programme images come from the guide feed's `<programme>` `<icon>` entries. Over
 Recordings on the days after a daylight-saving change start an hour early or late, often after a TVHeadend restart. The over-the-air EIT guide data of some broadcasters carries the wrong UTC offset after the change, and TVHeadend uses it until the XMLTV feed covers those dates. The author saw this in Sydney after `2026-10-04`.
 
 - In TVHeadend's web interface, press **Re-run internal EPG grabbers** under **Configuration → Channel/EPG → EPG Grabber**, then check the times in the **Electronic Program Guide** tab.
-- Keep the XMLTV module at a higher priority than EIT ([Guide priority](/guide/tvheadend#guide-priority)).
+- Keep the XMLTV module at a higher priority than EIT ([Guide priority](/guide/tvheadend-by-hand#guide-priority)).
 
 ## Scheduled recordings vanished
 
 Upcoming recordings from series recordings disappear after TVHeadend crashes or restarts, and return when the guide reloads. While the TV guide is empty, TVHeadend removes the scheduled entries of each autorec (the TVHeadend entry behind a [series recording](/guide/series#how-a-series-recording-works)). With both of TVHeadend's guide save options off, the TV guide is empty after a restart.
 
-- Turn on periodic save and save after import ([Saving the guide](/guide/tvheadend#saving-the-guide)).
+- Turn on periodic save and save after import ([Saving the guide](/guide/tvheadend-by-hand#saving-the-guide)).
 - In TVHeadend's web interface, press **Re-run internal EPG grabbers** to reload the TV guide now (the series recordings schedule again from it).
 
 ## Duplicate episode recordings
 
-TVHeadend records the same episode twice in a row. The DVR profile's **Re-record if errors** setting is `10` by default, and a recording with more data errors than that schedules a repeat. Freetvarr shows the first recording as Recorded with a data-error warning, not as failed. In TVHeadend's DVR profile, set **Re-record if errors** to `0` ([TVHeadend step 7](/guide/tvheadend#_7-set-the-recording-path)).
+TVHeadend records the same episode twice in a row. The DVR profile's **Re-record if errors** setting is `10` by default, and a recording with more data errors than that schedules a repeat. Freetvarr shows the first recording as Recorded with a data-error warning, not as failed. In TVHeadend's DVR profile, set **Re-record if errors** to `0` ([TVHeadend step 7](/guide/tvheadend-by-hand#_7-set-the-recording-path)).
 
 ## Setup wizard keeps opening
 
-TVHeadend's first-run wizard opens on every page load. The `wizard` value in **Configuration → General → Base** is still set because the wizard never finished. Open TVHeadend's first-run wizard and finish or cancel it, and the value clears ([Securing by hand](/guide/tvheadend#securing-by-hand)).
+TVHeadend's first-run wizard opens on every page load. The `wizard` value in **Configuration → General → Base** is still set because the wizard never finished. Open TVHeadend's first-run wizard and finish or cancel it, and the value clears ([Securing by hand](/guide/tvheadend-by-hand#securing-by-hand)).
 
 ## Unimported recordings
 

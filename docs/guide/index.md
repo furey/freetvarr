@@ -1,8 +1,8 @@
 ---
 title: What Freetvarr is
 description: >-
-  Freetvarr records free-to-air TV through TVHeadend and files each episode
-  into your media library for Plex, Jellyfin, or Kodi. Live TV plays in any browser.
+  Freetvarr records free-to-air TV and files each episode into your media
+  library for Plex, Jellyfin, or Kodi. Live TV plays in any browser.
 ---
 
 # What Freetvarr is
@@ -20,12 +20,12 @@ With it, you can:
 - **[Watch recordings in your own player](/guide/series).** Each episode goes into a series and season folder with its episode number, so your player shows the right title and artwork. If you use [Plex](/guide/plex), Freetvarr also tells Plex to scan for new episodes and keeps what you have watched the same in both.
 - **[Cut the ad breaks](/guide/ad-removal)**, if you want them gone. Freetvarr keeps the original in case a cut goes wrong.
 - **[Watch live TV in a browser](/guide/live-tv)** on any phone, tablet, or computer, with no app to install. Pause or rewind up to `30` minutes (the default; `LIVE_TV_BUFFER_MINUTES` raises it to `120`), start a programme over while it records, or watch up to four channels at once with [Multiview](/guide/player#multiview) (two on a phone). To watch live TV on the TV itself, use one of the TV apps that [Live TV](/guide/live-tv#the-options) lists.
-- **[Clear out TVHeadend](/guide/remove-from-tvheadend).** Freetvarr can delete each recording from [TVHeadend](https://tvheadend.org/) (the free recorder program that drives the tuner and writes the files) once the episode is in your media library.
+- **[Clear out TVHeadend](/guide/remove-from-tvheadend).** Freetvarr can delete each recording from [TVHeadend](https://tvheadend.org/) (the free recording software that runs inside Freetvarr's install) once the episode is in your media library.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <BrowserFrame />
 
-Freetvarr runs in [Docker](https://docs.docker.com/) next to TVHeadend and a TVHeadend-compatible tuner, on a computer that stays on, such as a NAS or a mini PC. [Hardware requirements](/guide/hardware-requirements) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
+Freetvarr runs in [Docker](https://docs.docker.com/) on a computer that stays on, such as a NAS or a mini PC, with a TVHeadend-compatible tuner. TVHeadend drives your tuner and records. Freetvarr sets it up and controls it for you. [Hardware requirements](/guide/hardware-requirements) covers the tuner and the computer, and [Getting started](/guide/getting-started) covers the install.
 
 ## Plex DVR
 
@@ -42,12 +42,12 @@ Everywhere TVHeadend works. Freetvarr talks only to TVHeadend's HTTP API and the
 Any tuner that TVHeadend can drive works: a network tuner, a USB DVB stick, a PCIe card, SAT>IP (a satellite tuner that sends its signal over your network), or IPTV. [Hardware requirements](/guide/hardware-requirements) covers the choice.
 
 > [!NOTE]<br>
-> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney [XMLTV](https://wiki.xmltv.org/) feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. XMLTV is a TV guide file format. [Comskip](https://www.kaashoek.com/comskip/) is the ad-detection tool, and `comskip.ini` is its settings file. Each one is an example. Substitute your own region's values as you go; [Hardware requirements](/guide/hardware-requirements) and [TVHeadend](/guide/tvheadend) say what to pick instead.
+> These pages use Australian values in their examples (the `Australia/Sydney` time zone, the `au-Sydney` mux list, a Sydney [XMLTV](https://wiki.xmltv.org/) feed, a `comskip.ini` tuned for Australian channels) because that is where the author lives. XMLTV is a TV guide file format. [Comskip](https://www.kaashoek.com/comskip/) is the ad-detection tool, and `comskip.ini` is its settings file. Each one is an example. Substitute your own region's values as you go; [Hardware requirements](/guide/hardware-requirements) and [TVHeadend by hand](/guide/tvheadend-by-hand) say what to pick instead.
 
 ## What Freetvarr isn't
 
 - **Not a downloader.** Freetvarr works with the recordings TVHeadend has made, and its [TV guide](/guide/tv-guide) schedules what TVHeadend records next. It doesn't search the internet for content. If [Sonarr](https://sonarr.tv/) or [Radarr](https://radarr.video/) download to the same Plex library, Freetvarr can list those files in Recordings and delete them through Sonarr and Radarr ([Sonarr and Radarr](/guide/sonarr-radarr)).
-- **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never controls the hardware. See [TVHeadend](/guide/tvheadend).
+- **Not a tuner.** TVHeadend drives the tuner, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never controls the hardware. See [TVHeadend by hand](/guide/tvheadend-by-hand).
 - **Not authenticated.** There's no login, so it's built for a home network you trust. The usual web hardening is in place (CSRF protection, rate limiting, a strict content-security policy), but anyone who can reach the page can change its settings, so don't expose it to the internet. See the [security model](/deep-dive#security-model).
 - **Not a converter.** Files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`; Freetvarr never re-encodes them. The optional ad removal drops the ad sections without re-encoding, so there's no quality loss. If you want `.mkv`, run the files through [Tdarr](https://home.tdarr.io/) or similar afterwards. To make MP4 copies of your [Fetch TV](https://www.fetchtv.com.au/) recordings yourself, see [Converting recordings to MP4](/guide/leaving-fetch#converting-recordings-to-mp4).
 - **Not a notifier.** No Discord / ntfy / push integration. **Add to watchlist** in [Search](/guide/tv-guide#watchlist) adds a show to a list in the app; it sends no message.
@@ -62,8 +62,7 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 ## Where next
 
 - **[Hardware requirements](/guide/hardware-requirements)**: what tuner and computer to buy, and how the tuner wires into the aerial you already have.
-- **[Getting started](/guide/getting-started)**: install Freetvarr and TVHeadend with Docker, then complete the [setup](/guide/getting-started#_2-run-setup) in a browser.
-- **[TVHeadend](/guide/tvheadend)**: what setup changes in the recorder, and how to do it by hand (for a satellite tuner or an existing TVHeadend).
+- **[Getting started](/guide/getting-started)**: install Freetvarr with Docker, then complete the [setup](/guide/getting-started#_2-run-setup) in a browser.
 - **[Home and search](/guide/home)** and **[For you](/guide/for-you)**: what to watch now, and suggestions.
 - **[Live TV](/guide/live-tv)** and **[Player](/guide/player)**: watch live and recorded TV in the browser.
 - **[TV guide](/guide/tv-guide)**: browse 7 days of programmes and schedule recordings from the browser.
@@ -72,7 +71,8 @@ The author first wrote [Fetcharr](https://github.com/furey/fetcharr), which copi
 - **[Series rules and folders](/guide/series)**: record a series and choose its folder.
 - **[Activity](/guide/syncs)**: watch imports happen and read the status of each one.
 - **[Ad removal](/guide/ad-removal)**: find ad breaks with Comskip (an ad-detection tool), and optionally cut them.
-- **[Plex](/guide/plex)**, **[Remove from TVHeadend](/guide/remove-from-tvheadend)**, and **[TV apps](/guide/tv-apps)**: the optional extras.
+- **[Plex](/guide/plex)**, **[TV apps](/guide/tv-apps)**, and **[Remove from TVHeadend](/guide/remove-from-tvheadend)**: the optional extras.
+- **[TVHeadend by hand](/guide/tvheadend-by-hand)**: what setup changes in TVHeadend, and each step by hand (for a satellite tuner or a TVHeadend you already run).
 - **[Leaving Fetch TV](/guide/leaving-fetch)**: save your recordings, buy a tuner, and cancel before the levy. Former Fetcharr users also read **[From Fetcharr](/guide/from-fetcharr)**.
 - **[Configuration](/guide/configuration)**, **[Troubleshooting](/guide/troubleshooting)**, and **[Health](/guide/doctor)**: the [Docker Compose](https://docs.docker.com/compose/) settings, the fixes for common snags, and the built-in checks.
 

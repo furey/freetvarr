@@ -40,7 +40,7 @@ To watch live TV only, you need just the tuner and its free app. The drive and t
 [Freetvarr](/guide/) is one more optional piece. Freetvarr's author built it for a home setup and shares it in case it makes things easier. Freetvarr's install includes TVHeadend, and Freetvarr's [setup](/guide/getting-started#_2-run-setup) sets up TVHeadend for you: logins, channels, and the TV guide. Freetvarr can install Plex too. If you already run TVHeadend or Plex, Freetvarr uses yours. You can use any of the other software instead.
 
 > [!TIP]<br>
-> If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip TVHeadend and Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
+> If you already pay for a Plex Pass, Plex's own recorder may be all you need: buy the tuner, set up Plex DVR, and skip Freetvarr. [Plex DVR instead](/guide/plex-dvr) compares the two, including the Plex Pass price if you don't have one.
 
 ## What the Fetch box did
 
@@ -113,7 +113,7 @@ SiliconDust also sells a recording service, its [DVR service](https://info.hdhom
 
 ### Path 2: Watch and record
 
-This is the author's setup. The tuner sends TV to TVHeadend, free recording software that runs on an always-on computer at home. Freetvarr runs alongside it and gives you:
+This is the author's setup. Freetvarr runs on an always-on computer at home. Its install includes TVHeadend, the free recording software that drives your tuner and records. Freetvarr sets TVHeadend up and controls it for you, and gives you:
 
 - A 7-day [TV guide](/guide/tv-guide), where you record one programme or a whole series.
 - [Recordings](/guide/recordings) filed into your media library (the folders of video files that Plex, Jellyfin, or Kodi reads), so you watch them on your TV in Plex, Jellyfin, or Kodi, with pause, rewind, and skip.

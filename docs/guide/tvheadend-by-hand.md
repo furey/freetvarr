@@ -1,18 +1,20 @@
 ---
-title: TVHeadend
+title: TVHeadend by hand
 description: >-
-  What Freetvarr's install script and setup change in TVHeadend, and
-  how to do each step by hand: tuner, channels, XMLTV guide, and user.
+  For a satellite tuner, a TVHeadend you already run, or a check of what
+  setup did: each TVHeadend step by hand, from tuner to user.
 ---
 
-# TVHeadend
+# TVHeadend by hand
 
-[TVHeadend](https://tvheadend.org/) is the recorder (its [documentation](https://docs.tvheadend.org/) covers every setting). It drives the tuner, holds the channel list and the TV guide, runs the timers, and writes the files. Freetvarr reads all of that over TVHeadend's HTTP API, so Freetvarr needs a working TVHeadend. Freetvarr's install script and [setup](/guide/getting-started#_2-run-setup) set one up for you.
+[TVHeadend](https://tvheadend.org/) is the free recording software that runs inside Freetvarr's install (its [documentation](https://docs.tvheadend.org/) covers every setting). It drives your tuner and records. Freetvarr sets it up and controls it for you over TVHeadend's HTTP API.
 
-This page lists each TVHeadend setting in the order TVHeadend needs it. Each step depends on the one before it. Any TVHeadend-compatible tuner works here. The steps change only where they name a device or a country.
+Use the steps below for a satellite tuner, for a TVHeadend you already run elsewhere, or to check what setup did. The [install script](/guide/getting-started#_1-install) and Freetvarr's [setup](/guide/getting-started#_2-run-setup) do most of them for you.
 
 > [!TIP]<br>
-> Most of this page is manual setup, and you can skip most of it. The [install script](/guide/getting-started#_1-install) does step 1. Freetvarr's [setup](/guide/getting-started#_2-run-setup) does steps 2 to 6 and step 8 for an aerial or cable tuner, and checks step 7. Read on to set up TVHeadend by hand, to use a satellite tuner, to connect an existing TVHeadend, or to see what setup changed.
+> The install script does step 1. For an aerial or cable tuner, setup does steps 2 to 6 and step 8, and checks step 7.
+
+Each step is a TVHeadend setting, in the order TVHeadend needs it. Each step depends on the one before it. Any TVHeadend-compatible tuner works here. The steps change only where they name a device or a country.
 
 > [!NOTE]<br>
 > The [HDHomeRun](https://www.silicondust.com/hdhomerun/) tuner, the `au-Sydney` mux list (the broadcast frequencies TVHeadend scans), and the Sydney [XMLTV](https://wiki.xmltv.org/) feed (a TV guide file TVHeadend downloads) on this page are the author's own setup in Australia. They are the worked example, not a requirement. Substitute your own tuner, transmitter, and TV guide source. [Outside Australia](#outside-australia) lists the guide sources and mux lists for other countries.

@@ -55,5 +55,5 @@ Removed recordings stay in the [recording log](/guide/recordings#not-in-tvheaden
 ## If a remove fails
 
 - **"Recording(s) not in TVHeadend's finished list"** means the entry has left TVHeadend's **Finished Recordings** tab, usually because you removed or deleted it in TVHeadend's own web interface. Nothing needs fixing (the row stays as it is).
-- **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. In TVHeadend's web interface, tick **Video recorder** `Basic`, `View all`, and `Manage all` under **Configuration → Users → Access Entries** (`Manage all` covers recordings another user scheduled). See [TVHeadend](/guide/tvheadend#_8-make-a-user-for-freetvarr).
+- **An HTTP `401` or `403`** means the Freetvarr user lacks DVR rights. In TVHeadend's web interface, tick **Video recorder** `Basic`, `View all`, and `Manage all` under **Configuration → Users → Access Entries** (`Manage all` covers recordings another user scheduled). See [TVHeadend](/guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr).
 - **A file that won't disappear** is a permissions problem, not an API one. TVHeadend deletes the file as its own user, so check that `PUID` and `PGID` (the user and group IDs that own the files) in the `.env` file match across both [Docker](https://docs.docker.com/) containers ([Compose environment](/guide/configuration#compose-environment)).

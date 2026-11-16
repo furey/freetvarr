@@ -1,8 +1,8 @@
 ---
 title: TV guide
 description: >-
-  A 7-day programme guide in the browser: schedule, cancel, and series-record
-  in TVHeadend without opening TVHeadend, and keep a watchlist of shows.
+  A 7-day programme guide in the browser: schedule and cancel recordings,
+  record a series, and keep a watchlist of shows.
 ---
 
 # TV guide
@@ -12,7 +12,7 @@ description: >-
 
 The TV guide is a 7-day programme guide. Press a programme to record it, cancel it, record a whole [series](/guide/series), or add a show to your [watchlist](#watchlist) for when it airs. Freetvarr imports each recording into your library after [TVHeadend](https://tvheadend.org) records it.
 
-The TV guide shows only the listings you loaded into TVHeadend. With the [XMLTV](https://wiki.xmltv.org/) guide feed set up ([step 6](/guide/tvheadend#_6-load-the-xmltv-guide)), you get seven days with episode numbers. XMLTV is a standard TV guide data file that a guide service supplies. Without it you get what the broadcast carries: about a day, with little detail.
+The TV guide shows only the listings you loaded into TVHeadend. With the [XMLTV](https://wiki.xmltv.org/) guide feed set up ([step 6](/guide/tvheadend-by-hand#_6-load-the-xmltv-guide)), you get seven days with episode numbers. XMLTV is a standard TV guide data file that a guide service supplies. Without it you get what the broadcast carries: about a day, with little detail.
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
@@ -61,7 +61,7 @@ While **Show For you** is on, the sheet also has **Hide this show** (**Hide this
 A switch in the sheet picks what to do. One line under it says what the main button does.
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
-- **Every episode** with **Record series** creates a series recording in TVHeadend. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** records the show on whichever channel airs it. See [How a series recording works](/guide/series#how-a-series-recording-works).
+- **Every episode** with **Record series** creates a series recording. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** records the show on whichever channel airs it. See [How a series recording works](/guide/series#how-a-series-recording-works).
 - **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library (the folder that holds your TV shows). The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
 - **Watch live** shows when the programme is on air.
 - **Watch from the start** shows when TVHeadend is recording the programme. It plays the recording from its first minute while it keeps recording. The line under it says the time it plays from.

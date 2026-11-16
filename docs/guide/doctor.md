@@ -50,15 +50,15 @@ Asks TVHeadend for its version (`/api/serverinfo`). It fails when no TVHeadend a
 
 ## Login {#tvh-auth}
 
-Checks that TVHeadend accepts the username and password. A `401` means TVHeadend asked for a login and did not get a valid one. A `403` means a wrong password, an address outside **Allowed networks**, or an access entry with no rights (an access entry is a TVHeadend login and its rights; see [Make a user for Freetvarr](/guide/tvheadend#_8-make-a-user-for-freetvarr)). See [TVHeadend 401 or 403](/guide/troubleshooting#tvheadend-401-or-403).
+Checks that TVHeadend accepts the username and password. A `401` means TVHeadend asked for a login and did not get a valid one. A `403` means a wrong password, an address outside **Allowed networks**, or an access entry with no rights (an access entry is a TVHeadend login and its rights; see [Make a user for Freetvarr](/guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr)). See [TVHeadend 401 or 403](/guide/troubleshooting#tvheadend-401-or-403).
 
 ## User rights {#tvh-rights}
 
-Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The checks cannot test the **Streaming** rights without starting a stream, so it does not check them.
+Reads the tuner status, which needs **Admin**, and the upcoming recordings, which need **Video recorder**. A `403` on either names the right to tick on the TVHeadend access entry. The [rights table](/guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr) lists every right Freetvarr uses. The checks cannot test the **Streaming** rights without starting a stream, so it does not check them.
 
 ## Open access {#tvh-open}
 
-Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the [linuxserver](https://www.linuxserver.io/) [Docker](https://docs.docker.com/) image (the one in Freetvarr's Docker Compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend#_2-secure-tvheadend).
+Reads TVHeadend's access entries. It warns when an enabled entry with username `*` has **Admin** (then anyone on that network can change TVHeadend without a login). A fresh TVHeadend from the [linuxserver](https://www.linuxserver.io/) [Docker](https://docs.docker.com/) image (the one in Freetvarr's Docker Compose file) starts with such an entry. See [Secure TVHeadend](/guide/tvheadend-by-hand#_2-secure-tvheadend).
 
 ## Tuners {#tvh-tuners}
 

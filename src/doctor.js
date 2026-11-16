@@ -188,7 +188,7 @@ const LATER_CHECKS = [
     id: 'tvh.rights',
     group: 'tvheadend',
     title: 'User rights',
-    doc: 'guide/tvheadend#_8-make-a-user-for-freetvarr',
+    doc: 'guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr',
     needsTvh: true,
     run: async (ctx) => {
       const refused = (await Promise.all(RIGHT_PROBES.map((probe) =>
@@ -211,7 +211,7 @@ const LATER_CHECKS = [
     id: 'tvh.open',
     group: 'tvheadend',
     title: 'Open access',
-    doc: 'guide/tvheadend#_2-secure-tvheadend',
+    doc: 'guide/tvheadend-by-hand#_2-secure-tvheadend',
     needsTvh: true,
     run: async (ctx) => {
       const body = await ctx.read('access/entry/grid', { limit: ACCESS_ENTRY_LIMIT })
@@ -1356,7 +1356,7 @@ const AD_TOOLS = ['comskip', 'ffmpeg', 'ffprobe']
 const TZ_ENV_FIX = 'Correct TZ in .env (for example Australia/Sydney), or choose the zone in Settings.'
 const TZ_SETTINGS_FIX = 'Choose your time zone in Settings.'
 const ZONE_SOURCES = { env: 'from TZ in .env', setting: 'from Settings', system: 'from the system' }
-const RIGHTS_DOC = 'guide/tvheadend#_8-make-a-user-for-freetvarr'
+const RIGHTS_DOC = 'guide/tvheadend-by-hand#_8-make-a-user-for-freetvarr'
 const ACCESS_ENTRY_LIMIT = 100
 const RIGHT_PROBES = [
   { right: 'Admin', path: 'status/inputs', params: {} },

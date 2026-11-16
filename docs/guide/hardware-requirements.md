@@ -19,7 +19,7 @@ The broadcast standard where you live decides the model: DVB-T/T2 in Australia, 
 | Europe, cable                      | DVB-C          | `HDFX-4DT` Flex Quatro, or `HDHR5-4DT` Connect Quatro (T/T2/C)     |
 | United States, Canada              | ATSC 1.0 / 3.0 | `HDFX-4US` Flex Quatro, `HDHR5-4US` Connect Quatro, or the Flex 4K |
 
-The wiring, the connector, and the signal checks below are the same for every model. Only the model number and the TV guide source change (see [Outside Australia](/guide/tvheadend#outside-australia) on the TVHeadend page for the TV guide).
+The wiring, the connector, and the signal checks below are the same for every model. Only the model number and the TV guide source change (see [Outside Australia](/guide/tvheadend-by-hand#outside-australia) on [TVHeadend by hand](/guide/tvheadend-by-hand) for the TV guide).
 
 ## The tuner
 
@@ -143,7 +143,7 @@ Only with a power injector: if its `TELEVISION` port is not fully isolated it ca
 
 ## The computer
 
-Freetvarr and TVHeadend run in Docker on one computer that stays on: a NAS (e.g. Synology, QNAP, etc.), a mini PC, or an old laptop or desktop. Recording takes almost no processor time, because TVHeadend saves the broadcast to disk as it arrives, with no conversion. The processor and graphics chip matter for [live TV](/guide/live-tv) in a browser, [ad removal](/guide/ad-removal), and the [For you](/guide/for-you) suggestions.
+Freetvarr runs in Docker on one computer that stays on: a NAS (e.g. Synology, QNAP, etc.), a mini PC, or an old laptop or desktop. The install runs TVHeadend on the same computer, in its own Docker container. Recording takes almost no processor time, because TVHeadend saves the broadcast to disk as it arrives, with no conversion. The processor and graphics chip matter for [live TV](/guide/live-tv) in a browser, [ad removal](/guide/ad-removal), and the [For you](/guide/for-you) suggestions.
 
 | Part             | Minimum                                                              | Recommended                                                                                                                                                   | What it changes                                                                                                                                                                                         |
 | ---------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
