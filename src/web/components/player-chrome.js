@@ -1,7 +1,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { soundToggleOf, playerMenuItemsOf, baseRowButtonsOf, NO_CAPTIONS_ON_CHANNEL } from '/player-mute.js'
-import { marqueePlanOf } from '/marquee.js'
+import { marqueePlanOf, marqueeKeepsGoing, marqueeTextChangeOf } from '/marquee.js'
 import {
   topBarActionsOf,
   topBarLayoutOf,
@@ -260,26 +260,26 @@ export const PlayerBaseRow = {
       fullscreen: props.fullscreen,
       noCaptionsTitle: props.noCaptionsTitle,
     }))
-    const marquee = useMarquee({
+    const { stage: marqueeStage, shown: marqueeText } = useMarquee({
       boxEl: lineEl,
       textEl,
       text: computed(() => (props.showSummary ? props.summary : '')),
       active: computed(() => props.animate && props.showSummary),
     })
-    return { lineEl, textEl, buttons, marquee }
+    return { lineEl, textEl, buttons, marqueeStage, marqueeText }
   },
   template: `
     <div class="pl-base">
       <div v-if="showSummary" class="pl-base-summary">
         <span v-if="episode" class="pl-base-line is-episode">{{ episode }}</span>
-        <span v-if="summary" ref="lineEl" :class="['pl-base-line', 'pl-marquee', 'is-' + marquee]"><span ref="textEl" class="pl-marquee-text">{{ summary }}</span></span>
+        <span v-if="summary" ref="lineEl" :class="['pl-base-line', 'pl-marquee', 'is-' + marqueeStage]"><span ref="textEl" class="pl-marquee-text">{{ marqueeText || summary }}</span></span>
       </div>
       <div v-if="showActions" class="pl-base-actions">
         <button type="button" class="pl-round" aria-label="Captions" aria-keyshortcuts="c" :title="buttons.captions.title"
-          :disabled="buttons.captions.disabled || null" :aria-pressed="String(buttons.captions.pressed)"
-          @click="$emit('toggle-captions')"><captions-icon /></button>
+          :aria-disabled="buttons.captions.disabled ? 'true' : null" :aria-pressed="String(buttons.captions.pressed)"
+          @click="buttons.captions.disabled || $emit('toggle-captions')"><captions-icon /></button>
         <button type="button" class="pl-round" aria-label="Programme info" aria-keyshortcuts="i" :title="buttons.info.title"
-          :aria-pressed="String(buttons.info.pressed)" :aria-expanded="String(buttons.info.pressed)" :aria-controls="infoId"
+          :aria-expanded="String(buttons.info.expanded)" :aria-controls="infoId"
           @click="$emit('toggle-info')"><info-icon /></button>
         <button type="button" class="pl-round" :aria-label="buttons.fullscreen.ariaLabel" aria-keyshortcuts="f"
           :title="buttons.fullscreen.title" @click="$emit('toggle-fullscreen')"><component :is="buttons.fullscreen.icon" /></button>
@@ -290,18 +290,27 @@ export const PlayerBaseRow = {
 
 const useMarquee = ({ boxEl, textEl, text, active }) => {
   const stage = ref('rest')
+  const shown = ref(text.value)
   const motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   const animations = new Set()
   let run = 0
+  let running = false
+  let pending = null
   let timer = null
   let boxWidth = 0
   let observer = null
+  let ruler = null
+
+  const clearAnimations = () => {
+    animations.forEach((animation) => animation.cancel())
+    animations.clear()
+  }
 
   const stop = () => {
     run += 1
+    running = false
     clearTimeout(timer)
-    animations.forEach((animation) => animation.cancel())
-    animations.clear()
+    clearAnimations()
     stage.value = 'rest'
   }
 
@@ -316,44 +325,82 @@ const useMarquee = ({ boxEl, textEl, text, active }) => {
     return id === run
   }
 
-  const cycle = async (plan, id) => {
+  const planNow = () => {
     const box = boxEl.value
-    const textNode = textEl.value
+    if (!box || !textEl.value) return null
+    boxWidth = box.clientWidth
+    return marqueePlanOf({ contentWidth: box.scrollWidth, boxWidth, reducedMotion: Boolean(motion?.matches) })
+  }
+
+  const applyPending = async (id) => {
+    shown.value = pending
+    pending = null
+    await nextTick()
+    return id === run
+  }
+
+  const cycle = async (plan, id, cyclesDone) => {
+    running = true
     if (!(await pause(plan.holdMs, id))) return
     stage.value = 'moving'
     const shift = [{ transform: 'translateX(0)' }, { transform: `translateX(${-plan.shiftPx}px)` }]
-    if (!(await play(textNode, shift, { duration: plan.scrollMs, easing: 'linear' }, id))) return
+    if (!(await play(textEl.value, shift, { duration: plan.scrollMs, easing: 'linear' }, id))) return
     stage.value = 'end'
     if (!(await pause(plan.holdMs, id))) return
-    if (!(await play(box, [{ opacity: 1 }, { opacity: 0 }], { duration: plan.fadeMs }, id))) return
-    animations.forEach((animation) => animation.cancel())
-    animations.clear()
+    if (!(await play(boxEl.value, [{ opacity: 1 }, { opacity: 0 }], { duration: plan.fadeMs }, id))) return
+    clearAnimations()
     stage.value = 'rest'
-    if (!(await play(box, [{ opacity: 0 }, { opacity: 1 }], { duration: plan.fadeMs }, id))) return
-    animations.forEach((animation) => animation.cancel())
-    animations.clear()
-    cycle(plan, id)
+    const textChanged = pending !== null
+    if (textChanged && !(await applyPending(id))) return
+    const next = textChanged ? planNow() : plan
+    const done = textChanged ? 0 : cyclesDone + 1
+    if (!(await play(boxEl.value, [{ opacity: 0 }, { opacity: 1 }], { duration: plan.fadeMs }, id))) return
+    clearAnimations()
+    if (!next || !marqueeKeepsGoing({ cyclesDone: done })) {
+      running = false
+      return
+    }
+    cycle(next, id, done)
   }
 
   const start = () => {
     stop()
-    const box = boxEl.value
-    if (!box || !textEl.value || !active.value || document.visibilityState === 'hidden') return
-    boxWidth = box.clientWidth
-    const plan = marqueePlanOf({ contentWidth: box.scrollWidth, boxWidth, reducedMotion: Boolean(motion?.matches) })
-    if (plan) cycle(plan, run)
+    if (pending !== null) shown.value = pending
+    pending = null
+    if (!active.value || document.visibilityState === 'hidden') return
+    const plan = planNow()
+    if (plan) cycle(plan, run, 0)
   }
 
-  const restartAfterRender = () => nextTick(start)
+  const textWidthOf = (value) => {
+    ruler ??= document.createElement('canvas').getContext('2d')
+    if (!ruler || !boxEl.value) return 0
+    ruler.font = getComputedStyle(boxEl.value).font
+    return ruler.measureText(value).width
+  }
+
+  const onTextChange = (value) => {
+    const timing = marqueeTextChangeOf({ running, contentWidth: running ? textWidthOf(value) : 0, boxWidth })
+    if (timing === 'at-reset') {
+      pending = value
+      return
+    }
+    pending = null
+    shown.value = value
+    nextTick(start)
+  }
+
   const onResize = () => {
     if (boxEl.value && boxEl.value.clientWidth !== boxWidth) start()
   }
   const onVisibility = () => (document.visibilityState === 'hidden' ? stop() : start())
 
-  watch([text, active, boxEl], () => {
+  watch(text, onTextChange)
+
+  watch([active, boxEl], () => {
     observer?.disconnect()
     if (boxEl.value) observer?.observe(boxEl.value)
-    restartAfterRender()
+    nextTick(start)
   })
 
   onMounted(() => {
@@ -371,7 +418,7 @@ const useMarquee = ({ boxEl, textEl, text, active }) => {
     motion?.removeEventListener?.('change', start)
   })
 
-  return stage
+  return { stage, shown }
 }
 
 export const PLAYER_CHROME_COMPONENTS = {

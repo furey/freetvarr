@@ -5,6 +5,7 @@ import { storedFlag, browserStorage } from '/shared/storage.js'
 import { loadPlayerMuted, savePlayerMuted } from '/player-mute.js'
 import { PAGE_RESYNC_EVENTS } from '/player-paused.js'
 import { initialRotateState, rotateStepOf, fullscreenExitedState, isPhoneScreen } from '/rotate-fullscreen.js'
+import { liftedCaptionLineOf } from '/mini-player.js'
 
 export const live = reactive({
   open: false,
@@ -157,10 +158,43 @@ const SKIP_HINT_MS = 1_600
 
 export const FILLED_CAPTION_LINE = 70
 
-export const footerGeometryOf = (video) => {
-  const footer = video?.closest?.('.pl-frame')?.querySelector(':scope > .pl-bottom')
+export const useLiftedCaptionLine = ({ videoEl, footerEl, isLifted, onChange }) => {
+  let geometry = null
+  let frame = 0
+  const liftedLine = () => {
+    if (!isLifted()) return FILLED_CAPTION_LINE
+    geometry ??= footerGeometryOf({ video: videoEl.value, footer: footerEl.value })
+    return liftedCaptionLineOf({ ...geometry, fallbackLine: FILLED_CAPTION_LINE })
+  }
+  const remeasure = () => {
+    geometry = null
+    onChange()
+  }
+  const remeasureNextFrame = () => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(remeasure)
+  }
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(remeasureNextFrame) : null
+  watch(footerEl, (footer, previous) => {
+    if (previous) observer?.unobserve(previous)
+    if (footer) observer?.observe(footer)
+  }, { flush: 'post', immediate: true })
+  onMounted(() => {
+    window.addEventListener('resize', remeasureNextFrame)
+    window.addEventListener('orientationchange', remeasureNextFrame)
+  })
+  onUnmounted(() => {
+    cancelAnimationFrame(frame)
+    observer?.disconnect()
+    window.removeEventListener('resize', remeasureNextFrame)
+    window.removeEventListener('orientationchange', remeasureNextFrame)
+  })
+  return { liftedLine, remeasure }
+}
+
+const footerGeometryOf = ({ video, footer }) => {
   const footerBox = footer?.getBoundingClientRect()
-  if (!footerBox?.height) return {}
+  if (!video || !footerBox?.height) return null
   const videoBox = video.getBoundingClientRect()
   return { frameHeight: videoBox.height, footerTop: footerBox.top - videoBox.top }
 }

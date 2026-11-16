@@ -13,3 +13,12 @@ export const marqueePlanOf = ({ contentWidth, boxWidth, reducedMotion = false })
     fadeMs: MARQUEE_FADE_MS,
   }
 }
+
+export const MARQUEE_MAX_CYCLES = 3
+
+export const marqueeKeepsGoing = ({ cyclesDone }) => cyclesDone < MARQUEE_MAX_CYCLES
+
+export const marqueeTextChangeOf = ({ running, contentWidth, boxWidth }) => {
+  if (!running) return 'now'
+  return marqueePlanOf({ contentWidth, boxWidth }) ? 'at-reset' : 'now'
+}

@@ -94,6 +94,7 @@ import {
   usePausedResync,
   playerMini,
   playerMuted,
+  useLiftedCaptionLine,
 } from '/shared/player-shared.js'
 import { VIDEO_STATE_EVENTS } from '/player-paused.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -199,7 +200,7 @@ export const LivePlayer = {
             <button type="button" class="ui-button ui-button-secondary" @click="stopLive">Close</button>
           </div>
         </div>
-        <footer v-if="live.phase === 'live' && !tuneInExit && !(panelOpen && prePlayChrome)" class="pl-bottom">
+        <footer v-if="live.phase === 'live' && !tuneInExit && !(panelOpen && prePlayChrome)" ref="footerEl" class="pl-bottom">
           <player-scrubber v-if="hasBufferBar && !panelOpen" :min="liveScrubber.min" :max="liveScrubber.max" :value="liveScrubber.value"
             :fill-percent="liveScrubber.fillPercent" :buffer-percent="liveScrubber.bufferPercent" :edge-percent="liveScrubber.edgePercent"
             :growing="liveScrubber.growing" :class="{ 'is-scrubbing': live.scrubbing }"
@@ -232,6 +233,7 @@ export const LivePlayer = {
   setup() {
     const videoEl = ref(null)
     const frameEl = ref(null)
+    const footerEl = ref(null)
     const chips = ref(live.phase === 'tuning' ? 'tuning' : 'hidden')
     const chipsRun = ref(0)
     let chipsTimer = null
@@ -387,7 +389,7 @@ export const LivePlayer = {
     }
 
     const onTextTrackAdded = (e) => {
-      e.track?.addEventListener?.('cuechange', placeLiveCaptions)
+      e.track?.addEventListener?.('cuechange', placeCaptions)
       if (!liveHls) applyLiveCaptions()
     }
 
@@ -588,9 +590,12 @@ export const LivePlayer = {
     watch(controlsShown, (shown) => {
       if (shown && !tuneInInfo.value && !tuneInExit.value) headingHeld.value = false
       live.captionsLifted = shown
-      placeLiveCaptions()
     }, { immediate: true })
-    watch(mini, placeLiveCaptions)
+    const placeCaptions = () => placeLiveCaptions({ liftedLine: liftedLine() })
+    const { liftedLine, remeasure } = useLiftedCaptionLine({
+      videoEl, footerEl, isLifted: () => live.captionsLifted && !mini.value, onChange: placeCaptions,
+    })
+    watch([controlsShown, mini], remeasure, { flush: 'post' })
 
     const { onSwipePointerDown, onSwipePointerUp } = useSwipeDown({
       enabled: () => live.open && !mini.value && !multi.active && !infoOpen.value,
@@ -862,7 +867,7 @@ export const LivePlayer = {
 
     return {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause, topActions, onTopAction, shownPaused,
-      live, videoEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
+      live, videoEl, footerEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
       isBehindLive, jumpToLive, hasBufferBar, liveScrubber, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
       bufferStartText, bufferEndText, summaryEpisode, summaryText, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,

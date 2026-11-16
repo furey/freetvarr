@@ -31,7 +31,7 @@ export const baseRowButtonsOf = ({ hasCaptions, captionsOn, infoOpen, fullscreen
     pressed: Boolean(hasCaptions && captionsOn && !infoOpen),
     title: captionsTitleOf({ hasCaptions, infoOpen, noCaptionsTitle }),
   },
-  info: { pressed: Boolean(infoOpen), title: 'Programme info (I)' },
+  info: { expanded: Boolean(infoOpen), title: 'Programme info (I)' },
   fullscreen: fullscreen
     ? { ariaLabel: 'Exit full screen', title: 'Exit full screen (F)', icon: 'exit-fullscreen-icon' }
     : { ariaLabel: 'Full screen', title: 'Full screen (F)', icon: 'fullscreen-icon' },

@@ -24,7 +24,7 @@ import {
   useSwipeDown,
 } from '/components/player-controls.js'
 import { PlayerMini, usePictureInPicture } from '/components/player-mini.js'
-import { miniMetaOf, captionLineOf, liftedCaptionLineOf } from '/mini-player.js'
+import { miniMetaOf, captionLineOf } from '/mini-player.js'
 import {
   playInfoOpen,
   applyPlayCaptions,
@@ -53,9 +53,8 @@ import {
   enterStageFullscreen,
   useRotateToFullscreen,
   usePausedResync,
-  FILLED_CAPTION_LINE,
-  footerGeometryOf,
   placeCaptionCues,
+  useLiftedCaptionLine,
   playback,
   playerMini,
   playerMuted,
@@ -113,7 +112,7 @@ export const RecordingPlayer = {
           </div>
         </div>
         <button v-if="inAdBreak && !infoOpen" type="button" class="pl-pill pl-skip-ad" @click="skipCurrentAd">Skip ad</button>
-        <footer v-if="playback.phase !== 'ended'" class="pl-bottom">
+        <footer v-if="playback.phase !== 'ended'" ref="footerEl" class="pl-bottom">
           <player-scrubber v-if="!infoOpen" :min="0" :max="scrubMax" :value="Math.floor(shownPosition)" :step="1"
             :fill-percent="fillPercent" :buffer-percent="0" :markers="adMarkers" :start-text="fmtPlayTime(shownPosition)"
             :end-text="fmtPlayTime(playback.duration)" :pill-text="leftText" aria-label="Position"
@@ -139,6 +138,7 @@ export const RecordingPlayer = {
   setup() {
     const videoEl = ref(null)
     const stageEl = ref(null)
+    const footerEl = ref(null)
     const recording = computed(() => playback.recording)
     const infoOpen = playInfoOpen
     const shownPaused = computed(() => playback.paused || playback.stuck)
@@ -253,11 +253,14 @@ export const RecordingPlayer = {
       line: captionLineOf({
         mini: mini.value,
         lifted: controlsShown.value,
-        liftedLine: liftedCaptionLineOf({ ...footerGeometryOf(playVideo), fallbackLine: FILLED_CAPTION_LINE }),
+        liftedLine: liftedLine(),
         restingLine: CAPTION_LINE_PERCENT,
       }),
     })
-    watch([mini, controlsShown], placeCaptions)
+    const { liftedLine, remeasure } = useLiftedCaptionLine({
+      videoEl, footerEl, isLifted: () => controlsShown.value && !mini.value, onChange: placeCaptions,
+    })
+    watch([mini, controlsShown], remeasure, { flush: 'post' })
 
     const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
     const topActions = computed(() => [{
@@ -377,7 +380,7 @@ export const RecordingPlayer = {
 
     return {
       playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
-      infoOpen, toggleInfo, videoEl, stageEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
+      infoOpen, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,

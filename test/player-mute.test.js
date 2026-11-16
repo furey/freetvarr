@@ -79,9 +79,9 @@ test('the Captions button dims with a reason when it cannot work', () => {
   assert.equal(baseRowButtonsOf({ hasCaptions: true, captionsOn: false }).captions.pressed, false)
 })
 
-test('the Info button shows pressed while the panel is open', () => {
-  assert.deepEqual(baseRowButtonsOf({ infoOpen: true }).info, { pressed: true, title: 'Programme info (I)' })
-  assert.equal(baseRowButtonsOf({ infoOpen: false }).info.pressed, false)
+test('the Info button shows expanded while the panel is open', () => {
+  assert.deepEqual(baseRowButtonsOf({ infoOpen: true }).info, { expanded: true, title: 'Programme info (I)' })
+  assert.equal(baseRowButtonsOf({ infoOpen: false }).info.expanded, false)
 })
 
 test('the Full screen button names the action it takes', () => {

@@ -17,7 +17,7 @@ import { fromStartGoneAction, fromStartResumeSecondsOf } from '/from-start-timel
 import { deviceTokenFrom } from '/device-token.js'
 import { fromStartProgrammeOf } from '/from-start-programme.js'
 import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
-import { captionLineOf, liftedCaptionLineOf, closePictureInPictureOf } from '/mini-player.js'
+import { captionLineOf, closePictureInPictureOf } from '/mini-player.js'
 import { initialPausedState, pausedStateAfter } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
 import { browserStorage } from '/shared/storage.js'
@@ -33,7 +33,6 @@ import {
   tapZoneOf,
   isPictureTarget,
   FILLED_CAPTION_LINE,
-  footerGeometryOf,
   placeCaptionCues,
   playback,
   playbackHooks,
@@ -626,11 +625,11 @@ const resumeIfPaused = () => {
   if (liveAttached && liveVideo.paused) liveVideo.play()?.catch(() => {})
 }
 
-export const placeLiveCaptions = () => {
+export const placeLiveCaptions = ({ liftedLine = FILLED_CAPTION_LINE } = {}) => {
   const line = captionLineOf({
     mini: playerMini.value,
     lifted: live.captionsLifted,
-    liftedLine: liftedCaptionLineOf({ ...footerGeometryOf(liveVideo), fallbackLine: FILLED_CAPTION_LINE }),
+    liftedLine,
     restingLine: CAPTION_LINE_PERCENT,
   })
   placeCaptionCues({ video: liveVideo, line })
