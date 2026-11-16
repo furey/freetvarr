@@ -22,6 +22,7 @@ import {
   useControlsAutoHide,
   useInfoDismissTaps,
   useSwipeDown,
+  useInfoCloseReveal,
 } from '/components/player-controls.js'
 import { PlayerMini, usePictureInPicture } from '/components/player-mini.js'
 import { miniMetaOf, captionLineOf } from '/mini-player.js'
@@ -68,7 +69,7 @@ export const RecordingPlayer = {
     <teleport to="body">
     <transition name="pl-fade">
     <div v-show="playback.open" :class="['pl-backdrop', { 'is-mini': mini }]" :role="mini ? 'region' : 'dialog'" :aria-label="mini ? 'Miniplayer' : 'Recording player'">
-      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-controls-hidden': !controlsShown && !mini }]"
+      <div ref="stageEl" tabindex="-1" :class="['play-stage', 'live-frame', 'pl-frame', { 'is-info-open': infoOpen, 'is-info-closing': infoClosing, 'is-controls-hidden': !controlsShown && !mini }]"
         @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll" @pointercancel="cancelPlayTap"
         @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
@@ -102,8 +103,10 @@ export const RecordingPlayer = {
           back-label="Close" :can-pip="canPip" :pip-active="pipActive" :can-minimise="!miniInRow" :muted="playerMuted"
           @back="stopPlayback" @toggle-pip="togglePip" @minimise="minimise" @toggle-mute="togglePlayerMuted"
           :actions="topActions" @action="onTopAction" />
+        <transition name="pl-reveal">
         <player-center-controls v-if="playback.phase !== 'ended' && !infoOpen" :paused="shownPaused"
           :show-start-over="playback.resumed" @start-over="startPlaybackOver" @toggle-pause="togglePlayback" />
+        </transition>
         <div v-if="playback.phase === 'ended'" class="pl-ended">
           <p class="pl-ended-message">{{ playback.message }}</p>
           <div class="pl-ended-actions">
@@ -111,12 +114,16 @@ export const RecordingPlayer = {
             <button type="button" class="ui-button ui-button-secondary" @click="stopPlayback">Close</button>
           </div>
         </div>
+        <transition name="pl-reveal">
         <button v-if="inAdBreak && !infoOpen" type="button" class="pl-pill pl-skip-ad" @click="skipCurrentAd">Skip ad</button>
+        </transition>
         <footer v-if="playback.phase !== 'ended'" ref="footerEl" class="pl-bottom">
+          <transition name="pl-reveal">
           <player-scrubber v-if="!infoOpen" :min="0" :max="scrubMax" :value="Math.floor(shownPosition)" :step="1"
             :fill-percent="fillPercent" :buffer-percent="0" :markers="adMarkers" :start-text="fmtPlayTime(shownPosition)"
             :end-text="fmtPlayTime(playback.duration)" :pill-text="leftText" aria-label="Position"
             :value-text="fmtPlayTime(shownPosition)" @scrub="onScrubInput" @commit="onScrubCommit" />
+          </transition>
           <player-base-row :summary="endsText" :show-summary="!infoOpen" show-actions :animate="controlsShown"
             :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" :no-captions-title="NO_CAPTIONS_ON_RECORDING"
             :info-open="infoOpen" info-id="play-info" :fullscreen="isStageFullscreen" can-minimise
@@ -128,7 +135,7 @@ export const RecordingPlayer = {
         <span class="sr-only" aria-live="polite">{{ playback.skipHint?.spoken || '' }}</span>
         <player-mini v-if="mini" :title="header.title" :meta="miniMeta" :progress="fillPercent"
           :paused="shownPaused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
-          :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" @toggle-captions="togglePlayCaptions"
+          :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" :no-captions-title="NO_CAPTIONS_ON_RECORDING" @toggle-captions="togglePlayCaptions"
           @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
@@ -182,6 +189,7 @@ export const RecordingPlayer = {
     })
 
     const toggleInfo = () => { infoOpen.value = !infoOpen.value }
+    const infoClosing = useInfoCloseReveal(infoOpen)
 
     const inAdBreak = computed(() =>
       playback.phase === 'playing' && adBreakAt({ breaks: playback.adBreaks, time: playback.position }) !== null)
@@ -381,7 +389,7 @@ export const RecordingPlayer = {
 
     return {
       playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
-      infoOpen, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
+      infoOpen, infoClosing, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,

@@ -9,6 +9,9 @@ import {
   isSwipeDown,
   miniControlsShownOf,
   miniMenuItemsOf,
+  miniCaptionsOnCardOf,
+  miniMetaWithSoundOf,
+  MINI_CAPTIONS_MIN_WIDTH,
   miniPictureClickOf,
   minutesLeftText,
   pictureInPictureSupportOf,
@@ -130,16 +133,38 @@ test('miniPictureClickOf opens the full player only while controls show', () => 
   assert.equal(isHoverPointer('touch'), false)
 })
 
-test('miniMenuItemsOf lists captions only with captions and pop out only with support', () => {
+test('the card ⋯ menu lists Captions only when the card has no room for its button, then Pop out and Close player', () => {
   const keysOf = (options) => miniMenuItemsOf(options).map((item) => item.key)
-  const wide = { phone: false, hasCaptions: true, captionsOn: true, canPip: true, pipActive: false, muted: false }
-  assert.deepEqual(keysOf(wide), ['expand', 'captions', 'pip'])
-  assert.deepEqual(keysOf({ ...wide, hasCaptions: false, canPip: false }), ['expand'])
-  assert.deepEqual(keysOf({ ...wide, phone: true }), ['sound', 'expand', 'pip'])
-  const captions = miniMenuItemsOf(wide).find((item) => item.key === 'captions')
+  const card = { phone: false, hasCaptions: true, captionsOn: true, canPip: true, pipActive: false }
+  assert.deepEqual(keysOf({ ...card, captionsOnCard: true }), ['pip', 'close'])
+  assert.deepEqual(keysOf({ ...card, captionsOnCard: false }), ['captions', 'pip', 'close'])
+  assert.deepEqual(keysOf({ ...card, captionsOnCard: false, hasCaptions: false, canPip: false }), ['close'])
+  const captions = miniMenuItemsOf({ ...card, captionsOnCard: false }).find((item) => item.key === 'captions')
   assert.deepEqual([captions.value, captions.on], ['On', true])
-  const sound = miniMenuItemsOf({ ...wide, phone: true, muted: true }).find((item) => item.key === 'sound')
+  assert.equal(miniMenuItemsOf(card).at(-1).label, 'Close player')
+})
+
+test('the phone ⋯ sheet lists Sound, Pop out, and Close player, and never Play or Pause', () => {
+  const phone = { phone: true, hasCaptions: true, captionsOn: false, canPip: true, pipActive: false }
+  assert.deepEqual(miniMenuItemsOf({ ...phone, muted: false }).map((item) => item.key), ['sound', 'pip', 'close'])
+  const sound = miniMenuItemsOf({ ...phone, muted: true })[0]
   assert.deepEqual([sound.value, sound.on], ['Muted', false])
+  assert.equal(miniMenuItemsOf({ ...phone, muted: false })[0].value, 'On')
+})
+
+test('the card shows its Captions button only when four buttons clear the LIVE badge', () => {
+  assert.equal(MINI_CAPTIONS_MIN_WIDTH, 251)
+  assert.equal(miniCaptionsOnCardOf({ cardWidth: 240 }), false)
+  assert.equal(miniCaptionsOnCardOf({ cardWidth: 250 }), false)
+  assert.equal(miniCaptionsOnCardOf({ cardWidth: 251 }), true)
+  assert.equal(miniCaptionsOnCardOf({ cardWidth: 360 }), true)
+})
+
+test('the phone bar meta line says Muted while the sound is off', () => {
+  assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: true, phone: true }), 'Seven · 24 min left · Muted')
+  assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: false, phone: true }), 'Seven · 24 min left')
+  assert.equal(miniMetaWithSoundOf({ meta: 'Seven · 24 min left', muted: true, phone: false }), 'Seven · 24 min left')
+  assert.equal(miniMetaWithSoundOf({ meta: '', muted: true, phone: true }), 'Muted')
 })
 
 test('closePictureInPictureOf exits the standard window when it shows this video', () => {

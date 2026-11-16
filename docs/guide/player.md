@@ -84,7 +84,11 @@ Press the **Miniplayer** button at the bottom right of the player (or **Miniplay
 - On a tablet or computer, it is a small card in a corner of the screen. On a small screen it is a bar instead.
 - On a tablet or computer, drag the curved grip on the corner of the card that faces the middle of the screen to resize it, between a fifth and just under half of the screen width (the same limits as the small picture in [Multiview](#multiview) **Big and small**); double-click the grip to reset it, and this device keeps the size you choose.
 
-Tap the Miniplayer, or point at it with the mouse, to show its controls: pause, close, and a **⋯** menu. A tablet or computer also shows the sound button. The menu has **Back to full player**, **Pop out (picture in picture)** where the browser supports it, **Sound** on a phone, and **Captions** on a wider screen. Tap the picture while the controls show to go back to the full player. Close stops the video, and for live TV frees the tuner.
+On a phone, the Miniplayer bar shows **Pause** or **Play** and **⋯**. Tap anywhere else on the bar to go back to the full player. While the sound is off, the line under the title ends with `Muted`. The **⋯** menu has **Sound**, **Pop out (picture in picture)** where the browser supports it, and **Close player**.
+
+On a tablet or computer, the card always shows the sound button, **Captions**, the full player button, and **⋯**. A card too narrow for **Captions** moves it into **⋯**, and a dimmed **Captions** button means the channel or recording has none. Tap the picture or point at it with the mouse to show **Pause** or **Play** in the middle of the picture. The **⋯** menu has **Pop out (picture in picture)** where the browser supports it, and **Close player**. Tap the picture while its controls show, or press the full player button, to go back to the full player.
+
+**Close player** stops the video, and for live TV frees the tuner.
 
 ## Pop out
 
