@@ -1849,11 +1849,12 @@ html :is(.mv-sound, .mv-more, .mv-meter, .pl-go-live):active:not(:disabled) {
 
 .pl-frame.is-info-closing .pl-reveal-enter-active {
   transition: opacity 0.25s ease-out 0.2s;
-  pointer-events: none;
 }
 
-.pl-frame.is-info-closing .pl-reveal-enter-from {
-  opacity: 0;
+@media (prefers-reduced-motion: no-preference) {
+  .pl-frame.is-info-closing .pl-reveal-enter-from {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

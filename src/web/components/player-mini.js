@@ -290,8 +290,7 @@ export const PlayerMini = {
       <span v-if="sizeChip" class="pl-mini-size-chip" aria-hidden="true">{{ sizeChip }}</span>
       <div v-if="menuOpen" class="pl-mini-menu" role="menu" aria-label="Miniplayer options">
         <button v-for="item in menuItems" :key="item.key" type="button" class="pl-mini-menu-item"
-          :role="item.key === 'captions' ? 'menuitemcheckbox' : 'menuitem'" :aria-checked="item.key === 'captions' ? String(item.on) : null"
-          :disabled="item.disabled || null" @click="chooseItem(item.key)">
+          :role="item.key === 'captions' ? 'menuitemcheckbox' : 'menuitem'" :aria-checked="item.key === 'captions' ? String(item.on) : null" @click="chooseItem(item.key)">
           <mini-menu-icon :name="item.key" :muted="muted" />
           <span class="pl-mini-menu-label">{{ item.label }}</span>
           <span v-if="item.value" :class="['pl-mini-menu-value', { 'is-on': item.on }]">{{ item.value }}</span>
@@ -303,8 +302,7 @@ export const PlayerMini = {
       <ui-sheet v-if="phone" :open="sheetOpen" :title="title" :subtitle="meta" @close="sheetOpen = false">
         <template #header-lead><canvas ref="thumbEl" class="pl-mini-sheet-thumb" width="128" height="72" aria-hidden="true"></canvas></template>
         <div class="ui-group">
-          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row pl-mini-sheet-row"
-            :disabled="item.disabled || null" @click="chooseItem(item.key)">
+          <button v-for="item in menuItems" :key="item.key" type="button" class="ui-group-row pl-mini-sheet-row" @click="chooseItem(item.key)">
             <mini-menu-icon :name="item.key" :muted="muted" />
             <span class="ui-group-row-main"><span class="ui-group-row-title">{{ item.label }}</span></span>
             <span v-if="item.value" :class="['pl-mini-menu-value', { 'is-on': item.on }]">{{ item.value }}</span>
