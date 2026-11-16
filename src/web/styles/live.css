@@ -1190,6 +1190,14 @@ body.player-open .app-tabbar {
   transform: none;
 }
 
+.pl-frame:is(.is-tune-in, .is-tune-in-exit) .live-info-body {
+  padding-bottom: var(--pl-edge-bottom);
+}
+
+.pl-frame:is(.is-tune-in, .is-tune-in-exit) .live-info-text {
+  padding-bottom: calc(44px + 0.35rem);
+}
+
 .pl-frame.is-info-open .live-info-body {
   padding-bottom: var(--pl-edge-bottom);
 }

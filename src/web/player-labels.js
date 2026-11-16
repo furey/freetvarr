@@ -37,8 +37,8 @@ export const liveSummaryPartsOf = ({ endMs, nowMs, next, clockText }) => ({
 
 export const fromStartSummaryPartsOf = ({ growing }) => ({ lead: 'From the start', rest: growing ? 'still recording' : '' })
 
-export const shownLiveSummaryOf = ({ phonePortrait, paused, parts }) => {
-  if (phonePortrait && !paused) return parts.lead || parts.rest
+export const shownLiveSummaryOf = ({ phonePortrait, parts }) => {
+  if (phonePortrait) return parts.lead || parts.rest
   return joinedParts([parts.lead, parts.rest])
 }
 

@@ -214,7 +214,7 @@ export const LivePlayer = {
             :value-text="scrubberPill.text" @scrub="onLiveScrubInput" @commit="onLiveScrubCommit" />
           </transition>
           <player-base-row :episode="summaryEpisode" :summary="summaryText" :show-summary="!panelOpen" :show-actions="!prePlayChrome"
-            :animate="controlsShown" :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :info-open="infoOpen"
+            :animate="controlsShown && !phonePortrait" :has-captions="Boolean(live.captions)" :captions-on="captionsOn" :info-open="infoOpen"
             info-id="live-info" :fullscreen="isStageFullscreen" can-minimise
             @minimise="minimise" @minimise-placement="miniInRow = $event" @toggle-captions="toggleLiveCaptions" @toggle-info="toggleInfo" @toggle-fullscreen="toggleLiveFullscreen" />
         </footer>
@@ -726,7 +726,6 @@ export const LivePlayer = {
     const phonePortrait = useMatchMedia(PHONE_PORTRAIT_QUERY)
     const summaryText = computed(() => shownLiveSummaryOf({
       phonePortrait: phonePortrait.value,
-      paused: shownPaused.value,
       parts: live.fromStart
         ? fromStartSummaryPartsOf({ growing: live.fromStart.growing !== false })
         : liveSummaryPartsOf({ endMs: info.value.now?.end, nowMs: playingAtMs.value, next: info.value.next, clockText: fmtClockTz }),
@@ -883,7 +882,7 @@ export const LivePlayer = {
       recordButton, recordFromLive, seriesButton, recordSeriesFromLive, toggleLivePause, topActions, onTopAction, shownPaused,
       live, videoEl, footerEl, chips, chipsRun, stopLive, retryLive, statusText, conflictText, liveHolderText,
       isBehindLive, jumpToLive, hasBufferBar, liveScrubber, liveEdge, shownLivePosition, liveFillPercent, scrubberPill,
-      bufferStartText, bufferEndText, summaryEpisode, summaryText, playerTitle, playerSubtitle,
+      bufferStartText, bufferEndText, summaryEpisode, summaryText, phonePortrait, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, miniInRow, expand, miniMeta, miniProgress,
       multi, primarySlotClass, primarySlotStyle, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor,
