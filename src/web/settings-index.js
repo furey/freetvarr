@@ -54,6 +54,8 @@ const ENTRIES = [
   { label: 'Genres', page: 'film-tv-info', setting: 'genres', description: 'Genres from TVmaze and Wikidata for For you and search.', tags: ['tvmaze', 'wikidata', 'other titles'] },
   { label: 'TMDB key', page: 'film-tv-info', setting: 'tmdb-key', description: 'The optional key for TMDB posters, ratings, and reviews.', tags: ['api key', 'the movie database', 'token'] },
   { label: 'TMDB API key', page: 'film-tv-info', setting: 'tmdb-key', description: 'Test, save, or remove the TMDB key.', tags: ['api key', 'token'] },
+  { label: 'Category labeller', page: 'film-tv-info', setting: 'labeller-key', description: 'The optional TypeSafe key that lets Jev pick categories for shows with none.', tags: ['api key', 'typesafe', 'jev', 'categories', 'for you'] },
+  { label: 'TypeSafe API key', page: 'film-tv-info', setting: 'labeller-key', description: 'Test, save, or remove the TypeSafe key for the category labeller.', tags: ['api key', 'jev', 'token'] },
   { label: 'Picture cropping', page: 'film-tv-info', setting: 'picture-cropping', description: 'How Freetvarr crops programme pictures.', tags: ['crop'] },
   { label: 'Stills from recordings', page: 'film-tv-info', setting: 'episode-pictures', description: 'Frames from inside recordings, for titles and episodes with no picture.', tags: ['artwork', 'images', 'frame', 'still', 'episode pictures', 'spoilers'] },
   { label: 'Use stills', page: 'film-tv-info', setting: 'episode-picture-order', description: 'Off, when nothing else, or before the series picture.', tags: ['episode pictures', 'frame', 'still', 'spoilers'] },

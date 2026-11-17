@@ -263,6 +263,7 @@ import { recordingTitlesOf } from './recording-now-library.js'
 import { mountProgrammeKindRoutes } from './programme-kind.js'
 import { mountRecordingDefaults, getAddToLibraryDefault } from './recording-defaults.js'
 import { mountTmdbKey } from './tmdb-key.js'
+import { mountLabellerKey } from './labeller-key.js'
 import { classificationKeyOf, createClassificationStore, isRatingsLikely, shiftHoursByChannelOf } from './classification-labels.js'
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
@@ -1351,6 +1352,7 @@ mountArrRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange:
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+mountLabellerKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
 mountAllowedHosts({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, allowedHosts, seenHosts, machineNames: MACHINE_NAMES })
 mountSearchRoutes({
   app,

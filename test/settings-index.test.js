@@ -10,6 +10,7 @@ const SETTINGS_VIEW_FILES = [
   'views/settings-view.js',
   'components/tv-apps-panel.js',
   'components/tmdb-key-setting.js',
+  'components/labeller-key-setting.js',
   'components/movie-corrections.js',
   'components/live-streams-settings.js',
   'components/plex-watch-setting.js',

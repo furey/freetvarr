@@ -82,8 +82,9 @@ Freetvarr takes each label from the first source that has one, in this order:
 3. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key.
 4. Words in the title, the guide category, and the genre code the channel sends.
 5. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
+6. With a TypeSafe key, the [category labeller](#category-labeller), for shows that get no category from steps 1 to 5. It is off without a key.
 
-**Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough.
+**Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough. The category labeller can choose **Documentaries** by itself, but only for a show that has no other category.
 
 These are the categories:
 
@@ -135,6 +136,38 @@ The sheet has these parts:
 - **Origin**: the country the show comes from, and where Freetvarr found it, such as `Made in Australia (TVmaze)`. You cannot change it here.
 
 Press **Save** to keep your choice. Your choice comes before every automatic source, and For you builds its rows again with it. The country still comes from the automatic sources. To go back to the categories Freetvarr chose, open the sheet again and press **Use automatic categories**.
+
+## Category labeller
+
+The category labeller is optional. It asks [Jev](https://docs.typesafe.ai/introduction), a classification model from [TypeSafe](https://typesafe.ai), to choose categories for the shows that Freetvarr cannot sort by itself. Without a TypeSafe key, nothing changes: Freetvarr sends nothing to TypeSafe, and the categories come from the sources in [Category rows](#category-rows).
+
+With a key, Freetvarr asks only about a show that gets no category at all from your own choice, the known-shows list, the genre lookups, the guide, or the description match. Jev can choose any format, up to two topics, a sport, and the country the show comes from. Your own choice and the known-shows list always come first, and Freetvarr never changes a category that another source gave.
+
+Freetvarr asks after each guide load and after the nightly update, and only about shows whose genre lookup is done. It asks about each show once, keeps the answer, and asks again only when a new Freetvarr version changes the categories or the questions, or when your country changes. It spends at most US$0.50 a day on TypeSafe, which covers about `3,500` shows, so the first run labels every waiting show in one go. The day runs from midnight to midnight in the server's time zone. When the day's limit is reached, it goes on after midnight.
+
+For each show, Freetvarr sends:
+
+- The title.
+- One guide description, cut to `300` characters.
+- One episode title.
+- The guide genres and the genre code the channel sends.
+- The names of the channels that show it.
+- Your country, from the time zone.
+
+Nothing about what you watch, record, or hide leaves Freetvarr. Freetvarr never sends viewing history, recordings, the Watchlist, or details of TVHeadend or Plex.
+
+To add a key:
+
+1. Sign up at the [TypeSafe console](https://console.typesafe.ai).
+2. Open [API keys](https://console.typesafe.ai/keys) in the console and create a key. Copy it.
+3. In Freetvarr, go to Settings → WATCHING → Film and TV info and paste it into **TypeSafe API key (optional)** under **CATEGORY LABELLER**.
+4. Press **Save key**. Freetvarr checks the key with TypeSafe before it saves it. **Test key** checks a saved key again.
+
+Under the key, Freetvarr shows how many shows Jev has labelled, and why the last run stopped when it stopped early. Press **Remove key** to stop the labeller. Jev's labels stop counting at once; Freetvarr keeps them, so they count again if you add a key later.
+
+TypeSafe bills the cost to your TypeSafe account, by the amount of text sent. TypeSafe is prepaid: you buy credit under **Billing** in the TypeSafe console, and you can turn on automatic recharge there so the credit never runs out. In November 2026, with the `jev-1.13.0` model at US$0.042 per million tokens of text sent, a test on `419` Australian guide titles cost about US$0.014 for each `100` titles. Check the [TypeSafe models page](https://docs.typesafe.ai/models) for the current price.
+
+When TypeSafe does not answer, Freetvarr tries again a few times, then waits `6` hours before it asks about that show again. After three failures in a row, it stops until the next run. When TypeSafe asks it to slow down, it asks about fewer shows at once and waits a few seconds (up to a minute), then speeds up again after a quiet minute. When TypeSafe asks it to slow down again and again within a few minutes, it waits an hour. When the TypeSafe account is out of credit, Freetvarr stops asking and tries one show again once a day; saving the key again tries at once, and categories from the other sources carry on meanwhile. When TypeSafe does not accept the key, Freetvarr stops asking, and [Health](/guide/doctor#guide-labeller) and the settings page say so. Pages, the guide, and For you never wait for the labeller.
 
 ## Seasonal rows
 

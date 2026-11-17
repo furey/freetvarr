@@ -92,6 +92,12 @@ It warns when fewer than `80%` of the titles have a picture. Check that Freetvar
 
 In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview.com.au/) for titles whose guide picture fails or is missing. It picks the Freeview region from your time zone (each state and territory capital, plus Broken Hill), and matches each programme by its channel and start time. Outside Australia this step is off. It also needs the Admin right in TVHeadend to read the channel lists; without it, this check warns that Freeview pictures are off and asks you to give the Freetvarr user in TVHeadend the Admin right.
 
+## Category labeller {#guide-labeller}
+
+Shows only when a TypeSafe key is saved for the [category labeller](/guide/for-you#category-labeller). It reads what Freetvarr already knows and sends no request of its own.
+
+It passes when TypeSafe accepted the key, and says how many shows Jev labelled. It warns when the last run stopped early because TypeSafe did not answer or asked Freetvarr to slow down; Freetvarr tries again after the next guide load. It also warns when the TypeSafe account is out of credit; add credit in the TypeSafe console, and Freetvarr tries again once a day. It fails when TypeSafe did not accept the key. Paste a new key under **SETTINGS → FILM AND TV INFO**, or remove the key.
+
 ## Guide sources {#guide-sources}
 
 Shows each guide source with the share of channels that have healthy listings, how many days ahead it goes, and when Freetvarr last read it ([Guide](/guide/settings#guide)). Before you confirm the merged guide, it passes and says where to turn it on.
