@@ -458,8 +458,8 @@ test('labellerCheck: hidden with no key, fails on a rejected key, warns when the
 test('labellerStatusLineOf describes the saved state for Settings', () => {
   assert.deepEqual(labellerStatusLineOf({ key_set: false }), { text: '', kind: 'info' })
   assert.equal(labellerStatusLineOf({ key_set: true, key_rejected: true }).kind, 'err')
-  assert.equal(labellerStatusLineOf({ key_set: true, labelled: 12 }).text, 'Jev has labelled 12 guide titles.')
-  assert.match(labellerStatusLineOf({ key_set: true, labelled: 1, last_error: 'Freetvarr could not reach TypeSafe.' }).text, /^Jev has labelled 1 guide title\. Last run: /)
+  assert.equal(labellerStatusLineOf({ key_set: true, labelled: 12 }).text, 'Jev categories for 12 guide titles.')
+  assert.match(labellerStatusLineOf({ key_set: true, labelled: 1, last_error: 'Freetvarr could not reach TypeSafe.' }).text, /^Jev categories for 1 guide title\. Last run: /)
 })
 
 test('askJev reports an empty TypeSafe balance as out of credit: 402, or a 400 whose body says so', async () => {

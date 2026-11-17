@@ -15,8 +15,8 @@ export const LabellerKeySetting = {
             <div class="settings-row"><span class="settings-toggle-text"><strong>2. Jev</strong><span class="settings-row-meta">With a TypeSafe key: format, topics, sport, country</span></span></div>
             <div class="settings-row"><span class="settings-toggle-text"><strong>3. Freetvarr's own sources</strong><span class="settings-row-meta">TVmaze, Wikidata, guide categories, and title words</span></span></div>
           </div>
-          <p><strong>What Jev gets.</strong> For each new guide show: the title, one guide description, one episode title, the guide genres, the channel names, and your country. Nothing about what you watch, record, or hide.</p>
-          <p><strong>Cost.</strong> TypeSafe takes it from your prepaid credit. A first guide of about 1,300 shows costs about US$0.20, and Freetvarr spends at most US$0.50 a day.</p>
+          <p><strong>What Freetvarr sends.</strong> For each new guide show: the title, one guide description, one episode title, the guide genres, the channel names, and your country. Nothing about what you watch, record, or hide.</p>
+          <p><strong>Cost.</strong> The cost comes out of your prepaid TypeSafe credit. A first guide of about 1,300 shows costs about US$0.20. After that, Freetvarr sends only shows that are new to the guide.</p>
         </info-button>
       </div>
       <div class="ui-group">
@@ -35,7 +35,7 @@ export const LabellerKeySetting = {
           <p v-if="statusText" :class="['status-readout', 'field-status', statusKind]" role="status">{{ statusText }}</p>
           <p v-else-if="saved.text" :class="['status-readout', 'field-status', saved.kind]" role="status">{{ saved.text }}<template v-if="saved.address"> <code>{{ saved.address }}</code>{{ saved.after }}</template></p>
           <p class="settings-hint">
-            Jev, a model from TypeSafe, picks the categories of new guide shows; your own changes always win. It gets each show's guide text and your country, never what you watch.
+            Optional. With a TypeSafe key, Freetvarr uses Jev, a classification model, for more accurate show categories.
             <a href="https://furey.github.io/freetvarr/guide/for-you#category-labeller" target="_blank" rel="noopener noreferrer">How to get a TypeSafe key</a>
           </p>
           <div class="field-action-more">
