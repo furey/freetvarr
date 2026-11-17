@@ -787,7 +787,7 @@ export const labellerCheck = (status) => {
       summary: 'TypeSafe did not accept the key.',
     }
   }
-  const labelled = `Jev labelled ${plural(status.labelled, 'guide title')}.`
+  const labelled = `Jev categories for ${plural(status.labelled, 'guide title')}.`
   if (status.noCredit) {
     return {
       status: 'warn',
