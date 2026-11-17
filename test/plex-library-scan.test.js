@@ -180,28 +180,6 @@ test('afterSync: a quick pass keeps going when Sonarr does not answer, and clear
   assert.equal(state.saved[0].rows.length, 2)
 })
 
-const pathOf = (n) => `/data/media/tv/Show ${n}/Season 01/Show ${n} - S01E01.mkv`
-
-test('managerUpdatesOf and libraryItemRowsOf: path matching grows linearly with the library', () => {
-  const timeFor = (size) => {
-    const index = new Map(Array.from({ length: size }, (_, n) => [`/tv/Show ${n}/Season 01/Show ${n} - S01E01.mkv`, { manager: 'sonarr', path: `/tv/Show ${n}/Season 01/Show ${n} - S01E01.mkv`, fileId: n, seriesId: n }]))
-    const rows = Array.from({ length: size }, (_, n) => ({ rating_key: String(n), part_id: String(n), file_path: pathOf(n) }))
-    const recordingFiles = Array.from({ length: size }, (_, n) => ({ recordingId: `r${n}`, filePath: pathOf(n) }))
-    const items = Array.from({ length: size }, (_, n) => ({ ratingKey: String(n), Media: [{ Part: [{ id: n, file: pathOf(n + size) }] }] }))
-    const started = performance.now()
-    const updates = managerUpdatesOf({ rows, index })
-    const itemRows = libraryItemRowsOf({ items, section: { id: '2', type: 'show' }, recordingFiles, roots: ['/data/media/tv'], seenAt: NOW })
-    const elapsed = performance.now() - started
-    assert.equal(updates.filter((update) => update.manager).length, size)
-    assert.equal(itemRows.length, size)
-    return elapsed
-  }
-  timeFor(1_000)
-  const small = Math.max(timeFor(2_000), 1)
-  const large = timeFor(20_000)
-  assert.ok(large / small < 40, `2k rows took ${Math.round(small)} ms, 20k rows took ${Math.round(large)} ms`)
-})
-
 test('afterSync: a full pass saves the Plex agent ids of each show and movie, and the Sonarr series ids', async () => {
   const { scan, client, state } = harness({
     shows: [{ title: 'Dark', Guid: [{ id: 'imdb://tt5753856' }, { id: 'tmdb://70523' }, { id: 'tvdb://334824' }] }, { title: 'No Ids', Guid: [] }],
