@@ -40,7 +40,7 @@ export const categoryMuteKeyOf = (group) => `category-${group}`
 
 export const groupOfMuteKey = (seriesKey) => String(seriesKey || '').replace(/^category-/, '')
 
-export const createCategoryIndex = ({ country = '', knownShows = KNOWN_SHOWS } = {}) => {
+export const createCategoryIndex = ({ country = '', knownShows = knownShowsFor(country) } = {}) => {
   const catalogue = categoryCatalogueOf({ country })
   const facets = new Map()
   const groups = new Map()
@@ -73,11 +73,11 @@ export const titleKindOf = ({ title = '', film = false, genreTags = [], tvmazeTy
 }
 
 export const sportCodeOf = ({ title = '', channelNames = [], guideGenres = [], country = '' }) => {
+  const guided = guideSportCodeOf({ guideGenres, country })
+  if (guided) return guided
   const text = [title, ...channelNames].filter(Boolean).join(' | ')
   const found = SPORT_KEYWORDS.find(([, pattern]) => pattern.test(text))
   if (found) return found[0]
-  const guided = guideSportCodeOf(guideGenres)
-  if (guided) return guided
   if (!PLAIN_FOOTBALL.test(title)) return null
   return PLAIN_FOOTBALL_CODES[country] === undefined ? 'soccer' : PLAIN_FOOTBALL_CODES[country]
 }
@@ -549,14 +549,14 @@ const SPORT_KEYWORDS = [
   ['cricket', /\b(cricket|big bash|bbl|wbbl|the ashes|ipl|t20|odis?|sheffield shield|test match)\b/i],
   ['soccer', /\b(soccer|a-league|premier league|champions league|europa league|fifa|uefa|la liga|bundesliga|serie a|mls|socceroos|matildas|fa cup|world cup|football \(soccer\))\b/i],
   ['tennis', /\b(tennis|wimbledon|roland garros|atp|wta|davis cup|billie jean king cup)\b/i],
-  ['motorsport', /\b(supercars|superbikes?|supercross|motocross|formula (1|one)|f1|motogp|moto ?gp|grand prix|bathurst|nascar|indycar|rally|speedway|motorsport|motor racing)\b/i],
+  ['motorsport', /\b(supercars|superbikes?|supercross|motocross|formula (1|one)|f1|motogp|moto ?gp|grand prix|bathurst|nascar|indycar|rally|speedway|motorsports?|motor racing|auto racing|drag racing|nhra|sprint cars?|world of outlaws)\b/i],
   ['greyhound-racing', /\b(greyhounds?|dogs racing)\b/i],
   ['rodeo', /\b(rodeos?|bull ?riding|pbr|campdraft(ing)?|barrel racing)\b/i],
   ['combat-sports', /\b(ufc|mma|boxing(?! day)|kickboxing|bare knuckle)\b/i],
   ['surfing', /\b(wsl surfing|world surf league|surfing|surf league)\b/i],
   ['swimming', /\b(swim gp|swimming|diving championships?)\b/i],
   ['cycling', /\b(cycling|tour de france|giro d'italia|vuelta)\b/i],
-  ['horse-racing', /\b(horse racing|giddy ?up|racing|races|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup)\b/i],
+  ['horse-racing', /\b(horse racing|giddy ?up|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup|sky racing|racing\.com|tab racing)\b/i],
   ['golf', /\b(golf|pga|lpga|liv golf)\b/i],
   ['netball', /\bnetball\b/i],
   ['basketball', /\b(basketball|nba|nbl|wnba|wnbl|euroleague)\b/i],
@@ -564,9 +564,17 @@ const SPORT_KEYWORDS = [
   ['ice-hockey', /\b(ice hockey|nhl)\b/i],
 ]
 
-const guideSportCodeOf = (guideGenres) => [...guideGenres]
-  .map((category) => GUIDE_SPORT_CODES[String(category).toLowerCase()])
+const guideSportCodeOf = ({ guideGenres, country }) => [...guideGenres]
+  .map((category) => guideSportCodeFor({ category: String(category).toLowerCase().trim(), country }))
   .find(Boolean) ?? null
+
+const guideSportCodeFor = ({ category, country }) => {
+  if (category === 'football') return PLAIN_FOOTBALL_CODES[country] === undefined ? 'soccer' : PLAIN_FOOTBALL_CODES[country]
+  if (category === 'hockey') return HOCKEY_MEANS_ICE.has(country) ? 'ice-hockey' : null
+  return GUIDE_SPORT_CODES[category] ?? null
+}
+
+const knownShowsFor = (country) => (KNOWN_SHOWS_COUNTRIES.has(String(country).toLowerCase()) ? KNOWN_SHOWS : NO_KNOWN_SHOWS)
 
 const PLAIN_FOOTBALL = /\bfootball\b/i
 const PLAIN_FOOTBALL_CODES = { au: null, us: 'american-football', ca: 'american-football' }
@@ -597,12 +605,27 @@ const GUIDE_SPORT_CODES = {
   baseball: 'baseball',
   'ice hockey': 'ice-hockey',
   cycling: 'cycling',
+  'auto racing': 'motorsport',
+  'drag racing': 'motorsport',
+  motorsport: 'motorsport',
+  motorsports: 'motorsport',
+  'pro wrestling': 'combat-sports',
+  wrestling: 'combat-sports',
+  'mixed martial arts': 'combat-sports',
+  boxing: 'combat-sports',
+  'american football': 'american-football',
+  'college football': 'american-football',
+  surfing: 'surfing',
+  swimming: 'swimming',
 }
-const SPORT_GUIDE = new Set(['sports', 'sport', 'australian rules football', 'golf', 'rugby league', 'sports other', 'other sport'])
+const HOCKEY_MEANS_ICE = new Set(['us', 'ca'])
+const KNOWN_SHOWS_COUNTRIES = new Set(['au', 'nz'])
+const NO_KNOWN_SHOWS = { shows: {} }
+const SPORT_GUIDE = new Set(['sports', 'sport', 'sports other', 'other sport', 'sports talk', 'sports event', 'sports non-event', 'classic sport event', 'hockey', 'football', ...Object.keys(GUIDE_SPORT_CODES)])
 const FACTUAL_GENRE_TAGS = new Set(['reality', 'documentary', 'lifestyle', 'food', 'home', 'travel', 'quiz', 'news'])
 const FICTION_GENRE_TAGS = new Set(['drama', 'comedy', 'crime', 'sci-fi'])
-const FACTUAL_GUIDE = new Set(['documentary', 'factual', 'reality', 'reality series', 'lifestyle', 'food & cooking', 'nature', 'true crime', 'news', 'news/current affairs', 'house & garden', 'unscripted competition', 'science', 'history', 'animals', 'documentary series', 'other documentary series', 'society documentary', 'other reality television'])
-const FICTION_GUIDE = new Set(['drama', 'comedy', 'movies', 'crime', 'action', 'horror', 'thriller', 'romance', 'drama serial', 'action & adventure', 'family drama series', 'crime/law & order series', 'mystery'])
+const FACTUAL_GUIDE = new Set(['documentary', 'factual', 'reality', 'reality series', 'lifestyle', 'food & cooking', 'nature', 'true crime', 'news', 'news/current affairs', 'house & garden', 'unscripted competition', 'science', 'history', 'animals', 'documentary series', 'other documentary series', 'society documentary', 'other reality television', 'competition reality', 'game show', 'public affairs', 'newsmagazine', 'interview', 'cooking', 'travel', 'educational', 'health', 'house/garden', 'paranormal', 'talk'])
+const FICTION_GUIDE = new Set(['drama', 'comedy', 'movies', 'crime', 'action', 'horror', 'thriller', 'romance', 'drama serial', 'action & adventure', 'family drama series', 'crime/law & order series', 'mystery', 'crime drama', 'sitcom', 'dark comedy', 'science fiction', 'fantasy', 'adventure', 'western', 'soap', 'soap opera'])
 const MAX_TEXTS_PER_TITLE = 6
 const DAY_MS = 24 * 60 * 60 * 1000
 

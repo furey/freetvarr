@@ -3,7 +3,7 @@ import { Worker } from 'node:worker_threads'
 
 import { db, getSetting, setSetting } from './db.js'
 import { getChannelPrefs, getGuideSnapshot, getRecordingState, onGuideLoaded } from './epg.js'
-import { createClassificationLookup, createClassificationStore } from './classification-labels.js'
+import { createClassificationLookup, createClassificationStore, guideCategoriesOf } from './classification-labels.js'
 import { pickableShowsOf } from './for-you-pickable.js'
 import {
   SETTINGS,
@@ -695,7 +695,7 @@ export const guideGenresOf = async ({ nowMs, database = db }) => {
   const byTitle = new Map()
   for (const row of rows) {
     if (!byTitle.has(row.title_key)) byTitle.set(row.title_key, [])
-    byTitle.get(row.title_key).push(row.category)
+    for (const category of guideCategoriesOf(row.category)) if (!byTitle.get(row.title_key).includes(category)) byTitle.get(row.title_key).push(category)
   }
   return byTitle
 }

@@ -129,6 +129,8 @@ export const tvmazeFactsOf = (record) => {
   return facts
 }
 
+export const lookupTitleOf = (title) => String(title ?? '').replace(BROADCAST_PREFIX, '').trim() || String(title ?? '')
+
 export const yearOf = ({ title, synopsis }) => {
   const match = `${title || ''} ${synopsis || ''}`.match(/\((19\d{2}|20\d{2})\)/)
   return match ? Number(match[1]) : null
@@ -240,11 +242,12 @@ export const createGenreEnrichment = ({
 } = {}) => {
   let running = null
 
-  const lookUp = async ({ title, movie, episodes, year }, { useWikidata }) => {
+  const lookUp = async ({ title: guideTitle, movie, episodes, year }, { useWikidata }) => {
+    const title = lookupTitleOf(guideTitle)
     if (movie && !episodes) return { record: await lookUpFilm({ title, year }) }
     await sleep(gapMs)
     const show = pickTvmazeShow({ results: await searchTvmaze(title), title, country: country() })
-    if (show) notify(() => onTvmazeShow({ title, show }))
+    if (show) notify(() => onTvmazeShow({ title: guideTitle, show }))
     const item = useWikidata ? await lookUpTvItem({ title }).catch(() => FAILED) : SKIPPED
     const wikidataFailed = item === FAILED
     if (item === FAILED || item === SKIPPED) return { record: show ? { ...showRecordOf({ show }), partial: true } : UNANSWERED, wikidataFailed }
@@ -401,6 +404,8 @@ const databaseCache = {
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const BROADCAST_PREFIX = /^\s*(?:all[- ]new|brand[- ]new|new|live|premiere|season premiere|series premiere|encore)\s*:\s*/i
 
 const TVMAZE_GENRES = {
   Drama: ['drama'],
