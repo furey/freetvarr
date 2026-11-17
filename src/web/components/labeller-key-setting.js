@@ -6,7 +6,19 @@ import { labellerStatusLineOf } from '/labeller-status.js'
 export const LabellerKeySetting = {
   template: `
     <div class="settings-group" data-setting="labeller-key">
-      <h3 class="ui-group-label">Category labeller</h3>
+      <div class="settings-group-head">
+        <h3 class="ui-group-label">Category labeller</h3>
+        <info-button title="Category labeller" doc="guide/for-you#category-labeller">
+          <p>Freetvarr takes the categories of a show from the first of these that has an answer:</p>
+          <div class="ui-group">
+            <div class="settings-row"><span class="settings-toggle-text"><strong>1. Your changes</strong><span class="settings-row-meta">Change categories on a show</span></span></div>
+            <div class="settings-row"><span class="settings-toggle-text"><strong>2. Jev</strong><span class="settings-row-meta">With a TypeSafe key: format, topics, sport, country</span></span></div>
+            <div class="settings-row"><span class="settings-toggle-text"><strong>3. Freetvarr's own sources</strong><span class="settings-row-meta">TVmaze, Wikidata, guide categories, and title words</span></span></div>
+          </div>
+          <p><strong>What Jev gets.</strong> For each new guide show: the title, one guide description, one episode title, the guide genres, the channel names, and your country. Nothing about what you watch, record, or hide.</p>
+          <p><strong>Cost.</strong> TypeSafe takes it from your prepaid credit. A first guide of about 1,300 shows costs about US$0.20, and Freetvarr spends at most US$0.50 a day.</p>
+        </info-button>
+      </div>
       <div class="ui-group">
         <div class="settings-row">
           <label class="field-label" for="settings-labeller-key">TypeSafe API key (optional)</label>
@@ -23,8 +35,8 @@ export const LabellerKeySetting = {
           <p v-if="statusText" :class="['status-readout', 'field-status', statusKind]" role="status">{{ statusText }}</p>
           <p v-else-if="saved.text" :class="['status-readout', 'field-status', saved.kind]" role="status">{{ saved.text }}<template v-if="saved.address"> <code>{{ saved.address }}</code>{{ saved.after }}</template></p>
           <p class="settings-hint">
-            Asks Jev, a classification model from TypeSafe, to pick the categories of each new show in the TV guide. Jev's answer comes first; Freetvarr's own sources fill in when Jev has none, and your own category changes always win. For each new title it sends the title, one guide description, an episode title, the guide genres, the channel name, and your country. Nothing about what you watch or record leaves this server.
-            <a href="https://furey.github.io/freetvarr/guide/for-you#category-labeller" target="_blank" rel="noopener noreferrer">How to get a TypeSafe key</a> covers the cost, which TypeSafe bills to your account.
+            Jev, a model from TypeSafe, picks the categories of new guide shows; your own changes always win. It gets each show's guide text and your country, never what you watch.
+            <a href="https://furey.github.io/freetvarr/guide/for-you#category-labeller" target="_blank" rel="noopener noreferrer">How to get a TypeSafe key</a>
           </p>
           <div class="field-action-more">
             <button type="button" :class="['ui-button', { 'is-pending': busy === 'save' }]" :disabled="busy || !typedKey" @click="saveKey">
