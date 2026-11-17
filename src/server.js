@@ -234,7 +234,7 @@ import { plexItemPlaybackRow, saveItemPosition } from './plex-library-store.js'
 import { artworkChoices } from './artwork-choices.js'
 import { createHeroPictureProof } from './hero-picture-proof.js'
 import { HERO_SNAPSHOT_SETTING, createHomeHero, createSnapshotSaver, isHomeHeroWrite, readFeedWith, readPoolsWith } from './home-hero-service.js'
-import { cachedForYouIds, forgetForYouCache, getForYou, isForYouEnabled, onForYouResult, titlesForKeys, warmForYou as rebuildForYou, getCurrentTaste } from './for-you-service.js'
+import { cachedForYouIds, forgetForYouCache, getForYou, isForYouEnabled, labelGuideTitles, onForYouResult, titlesForKeys, warmForYou as rebuildForYou, getCurrentTaste } from './for-you-service.js'
 import { NEW_RECORDINGS_LIMIT } from './web/home-feed.js'
 import { HERO_SLIDES_PER_KIND } from './web/home-hero.js'
 import { mountLibraryRoutes } from './library-routes.js'
@@ -1352,7 +1352,7 @@ mountArrRoutes({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onChange:
 mountWatchlist({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onSeriesCreated: async ({ title }) => (await getAddToLibraryDefault()) && ensureShowRule(title) })
 mountRecordingDefaults({ app, csrf: doubleCsrfProtection })
 mountTmdbKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
-mountLabellerKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter })
+mountLabellerKey({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, onKeySaved: () => labelGuideTitles().catch((err) => console.warn(`[labeller] run after key save failed: ${err.message}`)) })
 mountAllowedHosts({ app, csrf: doubleCsrfProtection, limiter: epgLimiter, allowedHosts, seenHosts, machineNames: MACHINE_NAMES })
 mountSearchRoutes({
   app,
