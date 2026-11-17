@@ -9,12 +9,12 @@ import {
   heroMetaOf,
   isSeriesShow,
   listedEpisodesOf,
+  pageTitleOf,
   playButtonLabel,
   ruleStatusOf,
   seasonLabel,
   showsSeasonChips,
   showTitleIn,
-  titleFromKey,
 } from '/show-page.js'
 import { firstEpisodeText, scheduledWhenOf } from '/library-shelves.js'
 import {
@@ -339,7 +339,7 @@ export const ShowView = {
     const { activeIds, artworkVersion } = actions
 
     const titleHint = computed(() => show.value?.title || titleHintFor(key.value))
-    const title = computed(() => titleHint.value || (loaded.value ? titleFromKey(key.value) : ''))
+    const title = computed(() => pageTitleOf({ titleHint: titleHint.value, loaded: loaded.value, key: key.value }))
     const heroStyle = computed(() => artFallbackStyle(titleHint.value))
     const artStyle = heroStyle
     const versionSuffix = computed(() => (artworkVersion.value ? `&v=${artworkVersion.value}` : ''))

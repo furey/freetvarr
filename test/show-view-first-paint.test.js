@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { showTitleIn, titleFromKey } from '../src/web/show-page.js'
+import { pageTitleOf, showTitleIn, titleFromKey } from '../src/web/show-page.js'
 
 const view = readFileSync(new URL('../src/web/views/show-view.js', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../src/web/styles/recordings.css', import.meta.url), 'utf8')
@@ -19,7 +19,13 @@ test('titleFromKey: readable fallback once loading has failed', () => {
 
 test('show page paints a known title or a skeleton, never the route key, before loading', () => {
   assert.match(view, /<h1 class="show-title"><template v-if="title">\{\{ title \}\}<\/template><span v-else class="ui-skeleton is-text show-title-skeleton"/)
-  assert.match(view, /titleHint\.value \|\| \(loaded\.value \? titleFromKey\(key\.value\) : ''\)/)
+})
+
+test('pageTitleOf: the known title, else nothing while loading, else the readable key once loading ends', () => {
+  assert.equal(pageTitleOf({ titleHint: 'The Block', loaded: false, key: 'the-block' }), 'The Block')
+  assert.equal(pageTitleOf({ titleHint: 'The Block', loaded: true, key: 'the-block' }), 'The Block')
+  assert.equal(pageTitleOf({ titleHint: '', loaded: false, key: 'the-block' }), '')
+  assert.equal(pageTitleOf({ titleHint: '', loaded: true, key: 'the-block' }), 'The block')
 })
 
 test('show hero reserves the meta line and the wide actions row from the first frame', () => {
