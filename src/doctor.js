@@ -27,6 +27,7 @@ import { activity, trackJob } from './activity.js'
 import { guideFeedUrl, isGuideFeedUrl, localAddressToward, serverPort } from './guide-feed.js'
 import { readAnchorFailures } from './autorec-anchor.js'
 import { syncRowOf } from './sync-history.js'
+import { labellerStatusOf } from './labeller.js'
 
 export const getDoctorReport = async ({ fresh = false, deps = {} } = {}) => {
   if (!fresh && reportCache && reportCache.expiresAt > Date.now()) return reportCache.value
@@ -85,7 +86,7 @@ export const runDoctor = async ({ now = Date.now(), timeoutMs = DEFAULT_TIMEOUT_
   ctx.tvhReady = isHealthy(reach) && isHealthy(auth)
   const rest = await Promise.all(LATER_CHECKS.map((spec) =>
     spec.needsTvh && !ctx.tvhReady ? skipped(spec) : runCheck({ spec, ctx })))
-  const checks = [reach, auth, ...rest]
+  const checks = [reach, auth, ...rest].filter((check) => check.status !== HIDDEN)
   return {
     ranAt: new Date(startedAt).toISOString(),
     durationMs: Date.now() - startedAt,
@@ -390,6 +391,13 @@ const LATER_CHECKS = [
       const grabber = view?.repoint?.state === 'confirmed' && ctx.tvhReady ? await readGrabberOf(ctx).catch(() => null) : null
       return guideSourcesCheck({ view, grabber, nowMs: ctx.now })
     },
+  },
+  {
+    id: 'guide.labeller',
+    group: 'guide',
+    title: 'Category labeller',
+    doc: 'guide/doctor#guide-labeller',
+    run: async (ctx) => labellerCheck(ctx.settings.labeller),
   },
   {
     id: 'paths.recordings',
@@ -766,6 +774,39 @@ export const guidePicturesCheck = ({
     action: OPEN_PICTURE_SETTINGS,
     summary: 'Many guide titles have no picture.',
   }
+}
+
+export const labellerCheck = (status) => {
+  if (!status?.keySet) return { status: HIDDEN }
+  if (status.keyRejected) {
+    return {
+      status: 'fail',
+      detail: 'TypeSafe did not accept the saved key, so Freetvarr stopped asking Jev for categories.',
+      fix: 'Paste a new TypeSafe key under SETTINGS → FILM AND TV INFO, or remove the key.',
+      action: OPEN_PICTURE_SETTINGS,
+      summary: 'TypeSafe did not accept the key.',
+    }
+  }
+  const labelled = `Jev labelled ${plural(status.labelled, 'title')} that had no category.`
+  if (status.noCredit) {
+    return {
+      status: 'warn',
+      detail: `The TypeSafe account is out of credit, so Freetvarr stopped asking Jev. Categories carry on from the other sources. ${labelled}`,
+      fix: 'Add credit under Billing in the TypeSafe console at console.typesafe.ai. Freetvarr tries again once a day, or at once when you save the key again under SETTINGS → FILM AND TV INFO.',
+      action: OPEN_PICTURE_SETTINGS,
+      summary: 'The TypeSafe account is out of credit.',
+    }
+  }
+  const lastRun = status.lastRun
+  if (lastRun?.stopped === 'rate' || lastRun?.stopped === 'failing') {
+    return {
+      status: 'warn',
+      detail: `${lastRun.error ?? 'The last run stopped early.'} ${labelled}`,
+      fix: 'Freetvarr tries again after the next guide load. If this stays, check the internet connection and the key in the TypeSafe console.',
+      summary: 'The last category labelling run stopped early.',
+    }
+  }
+  return { status: 'pass', detail: lastRun ? labelled : 'The key is saved. Jev labels titles with no category after the next guide load.' }
 }
 
 export const broadcastGuideCheck = ({ broadcast, suggestions = null }) => {
@@ -1174,6 +1215,7 @@ const readSettings = async () => {
     syncCron: syncCron || '',
     adRemovalEnabled: adRemoval === 'true',
     timeZone: (await getSetting('time_zone')) || '',
+    labeller: await labellerStatusOf(),
   }
 }
 
@@ -1344,6 +1386,7 @@ const PICTURE_HOST_MIN_TRIED = 10
 const PICTURE_HOST_FAIL_SHARE = 0.5
 const PICTURE_MIN_SHARE = 0.8
 const PICTURE_WINDOW_MS = 48 * HOUR_MS
+const HIDDEN = 'hidden'
 const NOTHING_AIRS_SOON = { status: 'skip', detail: 'The guide has no programmes in the next 48 h yet.' }
 const GB = 1e9
 const NO_CHANNELS_YET = 'No channels yet.'

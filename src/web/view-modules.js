@@ -11,6 +11,7 @@ const SETTINGS_COMPONENTS = {
   '/components/plex-library-setting.js': ['PlexLibrarySetting'],
   '/components/plex-watch-setting.js': ['PlexWatchSetting'],
   '/components/tmdb-key-setting.js': ['TmdbKeySetting'],
+  '/components/labeller-key-setting.js': ['LabellerKeySetting'],
   '/components/recording-drawer.js': ['RecordingStatus', 'RecordingDrawer'],
   '/components/summary-line.js': ['SummaryLine'],
   '/components/sync-detail.js': ['SyncDetail'],

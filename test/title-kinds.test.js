@@ -193,7 +193,7 @@ test('migration 0053 adds title_kinds, and its down() drops it', async () => {
   const [, pending] = await db.migrate.list()
   assert.deepEqual(pending, [])
   await db('title_kinds').insert({ show_key: 'zog', kind: 'series', source: 'guide', evidence_json: '{}', decided_at: 1 })
-  await db.migrate.down()
+  await db.migrate.down({ name: '0053_title_kinds.js' })
   assert.equal(await db.schema.hasTable('title_kinds'), false)
   await db.migrate.latest()
   assert.equal(await db.schema.hasTable('title_kinds'), true)
