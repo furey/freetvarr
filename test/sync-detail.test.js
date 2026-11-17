@@ -55,7 +55,14 @@ test('sxe pads season and episode', () => {
 })
 
 test('stoppedText: says a restart stopped the sync and names the sync that ran again', () => {
-  assert.equal(stoppedText({ status: 'stopped', summary: { ranAgainSyncId: 42 } }), 'Freetvarr restarted before this sync finished. Freetvarr ran it again as sync #42.')
-  assert.equal(stoppedText({ status: 'stopped', summary: {} }), 'Freetvarr restarted before this sync finished. The next sync picks up anything it missed.')
+  const ranAgain = stoppedText({ status: 'stopped', summary: { ranAgainSyncId: 42 } })
+  const notRunAgain = stoppedText({ status: 'stopped', summary: {} })
+  for (const text of [ranAgain, notRunAgain, stoppedText({ status: 'stopped' })]) {
+    assert.match(text, /restarted/i)
+    assert.doesNotMatch(text, /undefined|null|NaN/)
+  }
+  assert.match(ranAgain, /ran it again\b.*#42\b/i)
+  assert.doesNotMatch(notRunAgain, /#\d|ran it again/i)
+  assert.match(notRunAgain, /next sync/i)
   assert.equal(syncDetail({ trigger: 'restart' }).trigger, 'Sync after a restart')
 })

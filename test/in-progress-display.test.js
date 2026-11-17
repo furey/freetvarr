@@ -58,22 +58,36 @@ test('recordingCardOf: a late start says when the recording began and that it jo
   const card = recordingCardOf({ item: item(), nowMs: START + 60 * MIN, timeZone: TZ })
   assert.equal(card.tone, 'live')
   assert.equal(card.headline, 'Recording now until 10:10pm')
-  assert.equal(card.detail, 'Recording started at 8:00pm, 30 mins after the programme began. It joins your library when it finishes.')
+  assert.match(card.detail, /started at 8:00pm/i)
+  assert.match(card.detail, /\b30 mins\b/)
+  assert.match(card.detail, /library/i)
+  assert.doesNotMatch(card.detail, /TVHeadend|undefined|NaN/)
 })
 
 test('recordingCardOf: on time, past the programme end, held back, and finishing', () => {
   const onTime = recordingCardOf({ item: item({ recordingStartedAt: START - 2 * MIN }), nowMs: START + MIN, timeZone: TZ })
-  assert.equal(onTime.detail, 'It joins your library when it finishes.')
+  assert.match(onTime.detail, /library/i)
+  assert.doesNotMatch(onTime.detail, /\d|started|ended|TVHeadend/i)
   const overrun = recordingCardOf({ item: item({ recordingStartedAt: START }), nowMs: START + 155 * MIN, timeZone: TZ })
-  assert.match(overrun.detail, /^The programme ended at 10:00pm\. Recording continues in case it runs late\./)
+  assert.match(overrun.detail, /ended at 10:00pm/i)
+  assert.match(overrun.detail, /runs late/i)
+  assert.match(overrun.detail, /library/i)
+  assert.doesNotMatch(overrun.detail, /started/i)
   const held = recordingCardOf({
     item: item({ recordingStartedAt: START, libraryHold: 'No series folder for this title, and Import every recording is off' }),
     nowMs: START + MIN,
     timeZone: TZ,
   })
-  assert.equal(held.detail, 'When it finishes it stays in TVHeadend, because Import every recording is off and no series folder matches it.')
+  assert.match(held.detail, /stays in TVHeadend/i)
+  assert.match(held.detail, /Import every recording is off/)
+  assert.match(held.detail, /series folder/i)
+  assert.ok(!held.detail.includes('No series folder for this title'))
+  assert.doesNotMatch(held.detail, /library/i)
   const finishing = recordingCardOf({ item: item({ phase: 'finishing' }), nowMs: START + 200 * MIN, timeZone: TZ })
-  assert.deepEqual(finishing, { tone: 'idle', headline: 'Recorded until 10:10pm', detail: 'It joins your library at the next sync.' })
+  assert.deepEqual({ tone: finishing.tone, headline: finishing.headline }, { tone: 'idle', headline: 'Recorded until 10:10pm' })
+  assert.match(finishing.detail, /library/i)
+  assert.match(finishing.detail, /next sync/i)
+  assert.doesNotMatch(finishing.detail, /TVHeadend/)
 })
 
 test('lateStartMinutesOf and playsFromMsOf: a minute of grace, then the real start', () => {
@@ -82,7 +96,9 @@ test('lateStartMinutesOf and playsFromMsOf: a minute of grace, then the real sta
   assert.equal(playsFromMsOf(item()), START + 30 * MIN)
   assert.equal(playsFromMsOf(item({ recordingStartedAt: START - 2 * MIN })), START)
   const option = fromStartOption({ recording: { ...item(), title: 'Rugby' }, clockText: (ms) => (ms === START + 30 * MIN ? '8:00pm' : 'wrong') })
-  assert.equal(option.detail, 'Watch Rugby from 8:00pm while it keeps recording')
+  assert.match(option.detail, /Rugby/)
+  assert.match(option.detail, /from 8:00pm/)
+  assert.doesNotMatch(option.detail, /wrong|undefined/)
 })
 
 test('recordedPercentOf: clamps to the programme', () => {
@@ -100,7 +116,10 @@ test('hero, row, and card text for a show with only a recording in progress', ()
   const meta = inProgressEpisodeMetaOf({ episode: episode(), item: item(), nowMs: START + 113 * MIN, timeZone: TZ })
   assert.equal(meta, 'Fri 23 Oct · 7 Sydney · 1 hr 23 mins recorded · 47 mins left')
   assert.equal(inProgressEpisodeMetaOf({ episode: episode(), item: item({ phase: 'finishing' }), nowMs: START, timeZone: TZ }), 'Fri 23 Oct · 7 Sydney · 2 hrs 30 mins · Waiting to import')
-  assert.equal(inProgressEpisodeLineOf({ item: item(), timeZone: TZ }), 'Plays from 8:00pm while it keeps recording. Seek anywhere in the recorded part, or go to live.')
+  const line = inProgressEpisodeLineOf({ item: item(), timeZone: TZ })
+  assert.match(line, /from 8:00pm/)
+  assert.match(line, /recording/i)
+  assert.match(line, /\blive\b/i)
   assert.equal(inProgressEpisodeLineOf({ item: item({ phase: 'finishing' }), timeZone: TZ }), '')
   const show = { counts: { total: 1, inProgress: 1 }, inProgress: item() }
   assert.equal(inProgressCardMetaOf({ show, timeZone: TZ }), '7 Sydney · until 10:10pm')

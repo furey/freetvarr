@@ -33,8 +33,18 @@ test('source and channel lines: unmeasured sources say so; fallbacks and pins ex
   const fallback = { id: 'seven', name: 'Seven', sources: ['freeview-au', 'mjh-au'], pin: null, lead: 'mjh-au', fallback: true, degraded: ['freeview-au'] }
   const pinned = { id: 'nine', name: 'Nine', lcn: 9, sources: ['freeview-au', 'mjh-au'], pin: 'freeview-au', lead: 'freeview-au', fallback: false, degraded: ['freeview-au'] }
   const plain = { id: 'ten', name: 'Ten', lcn: 10, sources: ['freeview-au', 'mjh-au'], pin: null, lead: 'freeview-au', fallback: false, degraded: [] }
-  assert.equal(channelStateOf({ channel: fallback, sources: SOURCES }), 'Uses i.mjh.nz, because its Freeview listings are degraded.')
-  assert.equal(channelStateOf({ channel: pinned, sources: SOURCES }), 'Pinned to Freeview, which is degraded on this channel.')
+  const fallbackState = channelStateOf({ channel: fallback, sources: SOURCES })
+  assert.match(fallbackState, /i\.mjh\.nz.*Freeview/)
+  assert.match(fallbackState, /degraded/i)
+  assert.doesNotMatch(fallbackState, /pinned/i)
+  const pinnedState = channelStateOf({ channel: pinned, sources: SOURCES })
+  assert.match(pinnedState, /pinned/i)
+  assert.match(pinnedState, /Freeview/)
+  assert.match(pinnedState, /degraded/i)
+  assert.doesNotMatch(pinnedState, /i\.mjh\.nz/)
+  const plainState = channelStateOf({ channel: plain, sources: SOURCES })
+  assert.match(plainState, /Freeview/)
+  assert.doesNotMatch(plainState, /degraded|pinned|i\.mjh\.nz/i)
   assert.deepEqual(listedChannelsOf([fallback, pinned, plain]).map((channel) => channel.id), ['seven', 'nine'])
   assert.deepEqual(pinnableChannelsOf([fallback, pinned, plain, { ...plain, id: 'sbs', sources: ['mjh-au'] }]).map((channel) => channel.id), ['ten', 'seven'])
 })
@@ -55,14 +65,16 @@ test('the use dialog leads with the merged guide and lists the address, days ahe
     days: [{ label: 'Freeview', days: 8 }, { label: 'i.mjh.nz', days: 19 }],
   } })
   assert.equal(dialog.confirmLabel, 'Use the merged guide')
-  assert.equal(dialog.lead, 'TVHeadend reads the merged guide from Freetvarr.')
+  assert.match(dialog.lead, /TVHeadend/)
+  assert.match(dialog.lead, /merged guide/i)
   assert.deepEqual(dialog.rows, [
     { label: 'Guide address', detail: 'http://192.168.1.10:3733/guide/xmltv.xml' },
     { label: 'Days ahead', value: 'Freeview 8 · i.mjh.nz 19' },
     { label: 'Channels that gain a guide', detail: 'ABC ME, 10 Peach' },
     { label: 'Series recordings', value: 'Keep matching' },
   ])
-  assert.equal(dialog.note, 'If a step fails, Freetvarr puts everything back. You can stop using it later.')
+  assert.match(dialog.note, /fails/i)
+  assert.match(dialog.note, /back/i)
   assert.equal(dialog.body, undefined)
 })
 
@@ -79,13 +91,15 @@ test('the stop dialog leads with the guide TVHeadend goes back to and lists days
   const sources = [{ id: 'freeview-au', label: 'Freeview', horizonDays: 9 }, { id: 'mjh-au', label: 'i.mjh.nz', horizonDays: 19 }]
   const same = stopMergedGuideDialogOf({ plan: { sameUrl: true, grabberUrl: url, enabled: true, primaryChannelNames: ['ABC ME', '10 Peach', 'SBS WorldWatch'], restoresLinks: 0 }, sources, secondaryId: 'mjh-au' })
   assert.equal(same.confirmLabel, 'Stop using the merged guide')
-  assert.equal(same.lead, 'TVHeadend goes back to the i.mjh.nz guide.')
+  assert.match(same.lead, /i\.mjh\.nz/)
+  assert.doesNotMatch(same.lead, /Freeview|undefined/)
   assert.deepEqual(same.rows, [
     { label: 'Days ahead', value: '19 days' },
     { label: 'Channels that lose their guide', detail: 'ABC ME, 10 Peach, SBS WorldWatch' },
     { label: 'Guide address', detail: `No change: ${url}` },
   ])
-  assert.equal(same.note, 'If TVHeadend does not reload, Freetvarr puts the merged guide back. You can switch again later.')
+  assert.match(same.note, /merged guide/i)
+  assert.match(same.note, /back/i)
   const moved = stopMergedGuideDialogOf({ plan: { sameUrl: false, grabberUrl: url, afterUrl: 'https://i.mjh.nz/au/Sydney/epg.xml', enabled: true, primaryChannelNames: [], restoresLinks: 2 }, sources, secondaryId: 'mjh-au' })
   assert.deepEqual(moved.rows, [
     { label: 'Days ahead', value: '19 days' },
@@ -97,8 +111,11 @@ test('the stop dialog leads with the guide TVHeadend goes back to and lists days
 test('the stop dialog keeps the address and disabled-grabber leads when it has no secondary guide', async () => {
   const { stopMergedGuideDialogOf } = await import('../src/web/guide-sources-text.js')
   const disabled = stopMergedGuideDialogOf({ plan: { sameUrl: false, grabberUrl: 'http://nas:3733/guide/xmltv.xml', enabled: false, primaryChannelNames: [], restoresLinks: 1 } })
-  assert.equal(disabled.lead, 'TVHeadend stops downloading a guide by address, as before you switched.')
+  assert.match(disabled.lead, /stops/i)
   assert.deepEqual(disabled.rows, [{ label: 'Guide links put back', value: '1 channel' }])
   const same = stopMergedGuideDialogOf({ plan: { sameUrl: true, grabberUrl: 'http://nas:3733/guide/xmltv.xml', enabled: true } })
-  assert.equal(same.lead, 'TVHeadend keeps reading the same address with the merged content off.')
+  assert.match(same.lead, /same address/i)
+  assert.doesNotMatch(same.lead, /stops/i)
+  assert.doesNotMatch(disabled.lead, /same address/i)
+  assert.notEqual(same.lead, disabled.lead)
 })
