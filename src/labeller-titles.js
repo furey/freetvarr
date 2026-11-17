@@ -23,7 +23,7 @@ export const labellerTitlesOf = ({ programmes, channels = [], records, guideGenr
   })
   const byKey = programmesByKey(programmes)
   return [...titles.values()]
-    .filter((facts) => !facts.film && !facts.override && !facts.labeller)
+    .filter((facts) => !facts.film && !facts.override)
     .map((facts) => {
       const airingsOfTitle = byKey.get(facts.key) ?? []
       return {

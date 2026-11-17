@@ -148,12 +148,14 @@ test('Jev leads: its labels win over the tagger, origin included', () => {
   assert.equal(formatOfTags(withEvidence), 'news')
 })
 
-test('Jev leads over the known-shows list; owner overrides always win; an empty Jev answer falls back to the list and tagger', () => {
+test('Jev leads over the known-shows list; owner overrides always win; an empty Jev answer falls back to the tagger, not the list', () => {
   const labeller = { format: 'drama', topics: ['history'], origin: null, sport: null }
   assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block', labeller }) })), 'history')
   assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ override: { format: 'comedy', topics: [] }, labeller }) })), 'comedy')
   const empty = { format: null, topics: [], origin: 'au', sport: null }
-  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block', labeller: empty }) })), 'home')
+  const listOff = createCategoryIndex({ country: 'au', knownShows: { shows: {} } })
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block', labeller: empty }) })), mostSpecificCategoryOf(tagTitle({ index: listOff, facts: factsOf({ key: 'the-block', title: 'The Block' }) })))
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block' }) })), 'home')
   assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']), labeller: empty }) })), mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']) }) })))
 })
 
@@ -401,7 +403,9 @@ test('migration 0054 adds title_labels; stored labels count only while a key is 
   ])
   assert.deepEqual([...(await loadLabellerLabels()).keys()], [])
   await setSetting(LABELLER_KEY_SETTING, FAKE_KEY)
-  assert.deepEqual([...(await loadLabellerLabels()).keys()], ['zog'])
+  const loaded = await loadLabellerLabels()
+  assert.deepEqual([...loaded.keys()].sort(), ['blank', 'zog'])
+  assert.deepEqual(loaded.get('blank'), { format: null, topics: [], origin: null, sport: null })
   assert.equal((await labellerStatusOf()).labelled, 1)
   await setSetting(LABELLER_KEY_SETTING, '')
   await db.migrate.down()

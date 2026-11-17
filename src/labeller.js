@@ -235,7 +235,7 @@ export const loadLabellerLabels = async ({ readKey = storedLabellerKey, store = 
 
 export const labelledStampOf = async ({ readKey = storedLabellerKey, store = databaseStore } = {}) => {
   if (!(await readKey().catch(() => null))) return 0
-  return store.labelledCount({ version: currentLabellerVersion() })
+  return store.answeredCount({ version: currentLabellerVersion() })
 }
 
 export const withLabellerLabels = ({ records, labels }) => {
@@ -317,14 +317,15 @@ const databaseStore = {
     .insert({ show_key: key, labeller_version: version, status, labels_json: JSON.stringify(labels ?? {}), confidence, fetched_at: fetchedAt, retry_after: retryAfter })
     .onConflict(['show_key', 'labeller_version'])
     .merge(),
-  labels: async ({ version }) => new Map((await db(TABLE).where({ labeller_version: version, status: 'ok' }).select('show_key', 'labels_json').catch(() => []))
-    .map((row) => [row.show_key, labelsOfStored(parseJson(row.labels_json))])
-    .filter(([, labels]) => hasLabels(labels))),
+  labels: async ({ version }) => new Map((await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none']).select('show_key', 'labels_json').catch(() => []))
+    .map((row) => [row.show_key, { ...EMPTY_LABELS, ...labelsOfStored(parseJson(row.labels_json)) }])),
   prune: ({ keep }) => db(TABLE).whereNot({ labeller_version: keep }).delete(),
+  answeredCount: async ({ version }) => Number((await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none']).count({ count: '*' }).first())?.count) || 0,
   labelledCount: async ({ version }) => Number((await db(TABLE).where({ labeller_version: version, status: 'ok' }).count({ count: '*' }).first())?.count) || 0,
 }
 
 const TABLE = 'title_labels'
+const EMPTY_LABELS = { format: null, topics: [], origin: null, sport: null }
 const CONCURRENCY = 8
 const DAILY_SPEND_USD = 0.5
 const MAX_REQUESTS_PER_DAY = 20_000

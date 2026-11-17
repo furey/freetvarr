@@ -55,3 +55,22 @@ test('the known-shows list applies only to installs in Australia and New Zealand
   assert.deepEqual(createCategoryIndex({ country: 'us' }).knownShows, { shows: {} })
   assert.notEqual(mostSpecificCategoryOf(tagTitle({ index: createCategoryIndex({ country: 'us' }), facts: today })), 'local-life')
 })
+
+test('a long single sport airing is not a film: sport words, event words, a Live: prefix, or a sport guide category', async () => {
+  const { isMovieLike } = await import('../src/genre-enrichment.js')
+  const { titleFactsOf } = await import('../src/for-you-categories.js')
+  const long = (title) => ({ title, start: 0, end: 3 * 60 * 60 * 1000, genre: null })
+  assert.equal(isMovieLike(long('Australian Superbike Championship')), false)
+  assert.equal(isMovieLike(long('Live: Night Thunder')), false)
+  assert.equal(isMovieLike(long('Speedway Round 4')), false)
+  assert.equal(isMovieLike(long('The Quiet Girl')), true)
+  const facts = titleFactsOf({
+    programmes: [{ ...long('Night Thunder'), channel_id: '1' }],
+    keyOf: (title) => title.toLowerCase().replace(/\s+/g, '-'),
+    genreTagsOf: () => [],
+    guideGenresOf: () => ['sport'],
+    isFilm: () => true,
+    hourOf: () => 20,
+  })
+  assert.equal(facts.get('night-thunder').film, false)
+})

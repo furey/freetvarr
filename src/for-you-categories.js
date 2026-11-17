@@ -97,7 +97,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   const kind = titleKindOf(facts)
   const origin = facts.origin ?? null
   if (kind === 'film') return tagsOf({ kind, origin })
-  const known = knownShowOf({
+  const known = facts.labeller ? null : knownShowOf({
     keys: [...new Set([facts.key, showKeyOf(facts.title)].filter(Boolean))],
     tvmazeCountry: facts.origin,
     channelNames: [...(facts.channelNames || [])],
@@ -364,7 +364,7 @@ export const titleFactsOf = ({ programmes = [], recordings = [], keyOf, genreTag
     facts.kidsSlotsOnly = facts.airings > 0 && facts.kidsAirings === facts.airings
     const record = recordOf(facts.key)
     Object.assign(facts, recordFactsOf(record))
-    facts.film = facts.filmAirings && !facts.episodes && !isTvmazeRecord(record)
+    facts.film = facts.filmAirings && !facts.episodes && !isTvmazeRecord(record) && !isSportGuide(facts.guideGenres)
     for (const category of record?.genreTags || []) if (!category.startsWith('movie')) facts.genreTags.add(category)
   }
   return titles
@@ -582,6 +582,8 @@ const guideSportCodeFor = ({ category, country }) => {
   if (category === 'hockey') return HOCKEY_MEANS_ICE.has(country) ? 'ice-hockey' : null
   return GUIDE_SPORT_CODES[category] ?? null
 }
+
+const isSportGuide = (guideGenres) => [...guideGenres].some((category) => SPORT_GUIDE.has(String(category).toLowerCase().trim()))
 
 const knownShowsFor = (country) => (KNOWN_SHOWS_COUNTRIES.has(String(country).toLowerCase()) ? KNOWN_SHOWS : NO_KNOWN_SHOWS)
 

@@ -117,8 +117,8 @@ const hasEpisodeFields = (programme) => programme?.series_no != null
 
 const isLong = (programme) => Number(programme?.end) - Number(programme?.start) >= FILM_MIN_MS
 
-const isNewsOrSport = (programme) => [...genreTagsOfEtsi(programme?.genre), ...keywordGenreTagsOf(programme?.title)]
-  .some((category) => NEWS_OR_SPORT.has(category))
+const isNewsOrSport = (programme) => SPORT_EVENT.test(String(programme?.title ?? ''))
+  || [...genreTagsOfEtsi(programme?.genre), ...keywordGenreTagsOf(programme?.title)].some((category) => NEWS_OR_SPORT.has(category))
 
 export const tvmazeFactsOf = (record) => {
   const facts = { premiered: null, ended: false }
@@ -504,9 +504,10 @@ const ETSI_GROUPS = {
 }
 
 const NEWS_TITLE = /\bnews\b|^today\b|^weekend today|sunrise$|^sunrise\b|a current affair|^7\.30\b|^insiders$|^landline$|^the drum$|^the project$|^afternoon briefing|^business\b|^weather\b|^world this week/i
-const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|rugby|netball|racing|races|supercars|motogp|formula 1|f1|olympics?|basketball|nba|nfl|boxing|ufc|wwe|sports?|grand prix|world cup|a-league|surfing|cycling|tour de france|bathurst|grand final|wimbledon|test match|big bash|state of origin)\b/i
+const SPORT_TITLE = /\b(afl|aflw|nrl|nrlw|cricket|football|soccer|tennis|golf|rugby|netball|racing|races|supercars|superbikes?|supercross|motocross|motorsports?|nascar|indycar|speedway|motogp|formula 1|f1|olympics?|basketball|nba|nfl|boxing|ufc|wwe|sports?|grand prix|world cup|a-league|surfing|cycling|tour de france|bathurst|grand final|wimbledon|test match|big bash|state of origin)\b/i
 
 const NEWS_OR_SPORT = new Set(['news', 'sport'])
+const SPORT_EVENT = /^\s*live\s*:|\b(championships?|qualifying|round \d+|grand final|semi[- ]finals?)\b/i
 const FAILED = Symbol('failed')
 const LOOKUP_TOKEN = 'lookup:2'
 const PARTIAL_TOKEN = 'lookup:partial'
