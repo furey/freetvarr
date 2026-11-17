@@ -23,13 +23,14 @@ const {
   createPace,
   createSpendGuard,
   labellerInputOf,
+  labelsOfStored,
   labellerStatusOf,
   loadLabellerLabels,
   withLabellerLabels,
 } = await import('../src/labeller.js')
 const { labellerKeyFrom, mountLabellerKey } = await import('../src/labeller-key.js')
-const { createCategoryIndex, mostSpecificCategoryOf, tagTitle } = await import('../src/for-you-categories.js')
-const { uncategorisedTitlesOf, genreByteOf } = await import('../src/labeller-titles.js')
+const { createCategoryIndex, formatOfTags, mostSpecificCategoryOf, tagTitle } = await import('../src/for-you-categories.js')
+const { labellerTitlesOf, genreByteOf } = await import('../src/labeller-titles.js')
 const { labellerCheck } = await import('../src/doctor.js')
 const { labellerStatusLineOf } = await import('../src/web/labeller-status.js')
 
@@ -80,7 +81,9 @@ test('askJev sends the pinned model, the key as a bearer token, one Choice per s
   assert.equal(payload.questions.format.type, 'choice')
   assert.deepEqual(Object.keys(payload.questions.format.criteria), catalogue.formats.map((item) => item.key))
   assert.equal(Object.keys(payload.questions).filter((key) => key.startsWith('topic_')).length, catalogue.topics.length)
-  assert.deepEqual(answer.labels, { format: 'reality', topics: ['home'], origin: 'au', sport: null })
+  assert.deepEqual(answer.labels, { format: 'reality', topics: ['home'], origin: 'au', sport: null, sportP: null })
+  assert.equal(answer.raw.format.choice, 'reality')
+  assert.equal(answer.raw.topics.home, 0.9)
   assert.equal(answer.inputTokens, 3300)
 })
 
@@ -91,7 +94,7 @@ test('jevLabelsOf keeps only answers at or above the threshold, at most two topi
     sport: { choice: 'cricket', p: 0.4 },
     topics: { history: 0.95, travel: 0.8, nature: 0.75, cooking: 0.6 },
   }
-  assert.deepEqual(jevLabelsOf({ raw, threshold: 0.7 }), { format: 'sport-format', topics: ['history', 'travel'], origin: null, sport: 'cricket' })
+  assert.deepEqual(jevLabelsOf({ raw, threshold: 0.7 }), { format: 'sport-format', topics: ['history', 'travel'], origin: null, sport: 'cricket', sportP: 0.4 })
   assert.deepEqual(jevLabelsOf({ raw: { ...raw, format: { choice: 'drama', p: 0.5 } }, threshold: 0.7 }).format, null)
 })
 
@@ -134,49 +137,63 @@ const factsOf = (overrides = {}) => ({
   ...overrides,
 })
 
-test('A0: labeller labels fill a title only when the tagger finds no category at all', () => {
-  const labeller = { format: 'reality', topics: ['home'], origin: 'au', sport: null }
-  const empty = tagTitle({ index, facts: factsOf({ labeller }) })
-  assert.equal(mostSpecificCategoryOf(empty), 'home')
-  assert.equal(empty.origin, 'au')
-  assert.equal(empty.labelled, true)
-  const withEvidence = tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']), labeller }) })
-  assert.equal(mostSpecificCategoryOf(withEvidence), mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']) }) })))
-  assert.notEqual(withEvidence.labelled, true)
+test('Jev leads: its labels win over the tagger, origin included', () => {
+  const labeller = { format: 'reality', topics: ['home'], origin: 'gb', sport: null }
+  const plain = tagTitle({ index, facts: factsOf({ labeller }) })
+  assert.equal(mostSpecificCategoryOf(plain), 'home')
+  assert.equal(plain.origin, 'gb')
+  assert.equal(plain.labelled, true)
+  const withEvidence = tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']), labeller: { format: 'news', topics: ['politics'], origin: null, sport: null } }) })
+  assert.equal(mostSpecificCategoryOf(withEvidence), 'politics')
+  assert.equal(formatOfTags(withEvidence), 'news')
 })
 
-test('A0: the known-shows list and owner overrides always win over labeller labels', () => {
+test('Jev leads over the known-shows list; owner overrides always win; an empty Jev answer falls back to the list and tagger', () => {
   const labeller = { format: 'drama', topics: ['history'], origin: null, sport: null }
-  const listed = tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block', labeller }) })
-  assert.equal(mostSpecificCategoryOf(listed), 'home')
-  const overridden = tagTitle({ index, facts: factsOf({ override: { format: 'comedy', topics: [] }, labeller }) })
-  assert.equal(mostSpecificCategoryOf(overridden), 'comedy')
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block', labeller }) })), 'history')
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ override: { format: 'comedy', topics: [] }, labeller }) })), 'comedy')
+  const empty = { format: null, topics: [], origin: 'au', sport: null }
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ key: 'the-block', title: 'The Block', labeller: empty }) })), 'home')
+  assert.equal(mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']), labeller: empty }) })), mostSpecificCategoryOf(tagTitle({ index, facts: factsOf({ guideGenres: new Set(['comedy']) }) })))
 })
 
-test('A0: a labeller sport answer gives the sport code and the Sport format; a sport format with no code gives nothing', () => {
-  const sport = tagTitle({ index, facts: factsOf({ labeller: { format: 'sport-format', topics: [], origin: null, sport: 'cricket' } }) })
-  assert.equal(sport.sportCode, 'cricket')
-  assert.equal(sport.kind, 'sport')
-  const noCode = tagTitle({ index, facts: factsOf({ labeller: { format: 'sport-format', topics: [], origin: null, sport: null } }) })
-  assert.equal(noCode.entries.length, 0)
+test('a Jev sport answer needs 0.9 for its sport code, else the keyword code or Other sport; fishing stays Fishing', () => {
+  const sure = tagTitle({ index, facts: factsOf({ labeller: { format: 'sport-format', topics: [], origin: null, sport: 'cricket', sportP: 0.95 } }) })
+  assert.equal(sure.sportCode, 'cricket')
+  assert.equal(sure.kind, 'sport')
+  const unsure = tagTitle({ index, facts: factsOf({ labeller: { format: 'sport-format', topics: [], origin: null, sport: 'cricket', sportP: 0.5 } }) })
+  assert.equal(unsure.sportCode, 'other-sport')
+  const keyword = tagTitle({ index, facts: factsOf({ title: 'Big Bash Tonight', labeller: { format: 'sport-format', topics: [], origin: null, sport: 'tennis', sportP: 0.5 } }) })
+  assert.equal(keyword.sportCode, 'cricket')
+  const fishing = tagTitle({ index, facts: factsOf({ title: 'Fishing Australia', labeller: { format: 'sport-format', topics: [], origin: null, sport: 'other-sport', sportP: 1 } }) })
+  assert.equal(mostSpecificCategoryOf(fishing), 'fishing')
+  const fishingTopic = tagTitle({ index, facts: factsOf({ title: 'Hook Line', labeller: { format: 'sport-format', topics: ['fishing'], origin: null, sport: 'other-sport', sportP: 1 } }) })
+  assert.equal(mostSpecificCategoryOf(fishingTopic), 'fishing')
 })
 
-test('uncategorisedTitlesOf picks only settled titles with no category, and builds the input without viewer data', () => {
+test('labellerTitlesOf asks about every guide show except films and owner-overridden titles, without viewer data', () => {
   const programmes = [
     { title: 'Quorrel', channel_id: '1', start: 1, end: 2, synopsis: 'Two couples renovate a house.', episode_title: 'Week 2', genre: null },
     { title: 'The Block', channel_id: '1', start: 3, end: 4, synopsis: 'Renovation.', genre: null },
-    { title: 'Unsettled Show', channel_id: '1', start: 5, end: 6, synopsis: 'Something.', genre: null },
+    { title: 'Chosen Show', channel_id: '1', start: 5, end: 6, synopsis: 'Something.', genre: null },
+    { title: 'Some Film', channel_id: '1', start: 7, end: 8, synopsis: 'A film.', genre: null },
   ]
-  const titles = uncategorisedTitlesOf({
+  const titles = labellerTitlesOf({
     programmes,
     channels: [{ id: 1, name: 'Nine' }],
-    records: new Map(),
+    records: new Map([['chosen-show', { genreTags: [], genres: [], source: null, categoryOverride: { format: 'comedy', topics: [] } }]]),
     index,
-    isSettled: (key) => key !== 'unsettled-show',
+    kindOf: (programme) => (programme.title === 'Some Film' ? 'movie' : 'series'),
   })
-  assert.deepEqual(titles.map((title) => title.key), ['quorrel'])
+  assert.deepEqual(titles.map((title) => title.key), ['quorrel', 'the-block'])
   assert.deepEqual(titles[0].input, { title: 'Quorrel', description: 'Two couples renovate a house.', episodeTitle: 'Week 2', guideGenres: [], genreByte: null, channels: ['Nine'], country: 'AU' })
   assert.equal(genreByteOf({ genre: 0x14, country: 'au' }), '0x14 Comedy')
+})
+
+test('stored raw probabilities are read back through the current thresholds', () => {
+  const raw = { format: { choice: 'reality', p: 0.75 }, origin: { choice: 'au', p: 0.9 }, sport: { choice: 'other-sport', p: 1 }, topics: { home: 0.72, travel: 0.4 } }
+  assert.deepEqual(labelsOfStored({ format: 'reality', topics: [], raw }), { format: 'reality', topics: ['home'], origin: 'au', sport: null, sportP: null })
+  assert.deepEqual(labelsOfStored({ format: 'news', topics: [] }), { format: 'news', topics: [] })
 })
 
 test('labellerInputOf trims long descriptions and caps channels', () => {
@@ -193,7 +210,7 @@ const memoryStore = () => {
   return {
     rows,
     pruned,
-    settledKeys: async ({ version, nowMs }) => new Set([...rows.values()].filter((row) => row.version === version && (row.status !== 'failed' || row.retryAfter > nowMs)).map((row) => row.key)),
+    settledKeys: async ({ version, nowMs }) => new Set([...rows.values()].filter((row) => row.version === version && (row.status === 'ok' || row.retryAfter > nowMs)).map((row) => row.key)),
     write: async (row) => { rows.set(row.key, row) },
     prune: async ({ keep }) => {
       pruned.push(keep)
@@ -431,14 +448,14 @@ test('labellerCheck: hidden with no key, fails on a rejected key, warns when the
   assert.equal(labellerCheck({ keySet: false }).status, 'hidden')
   assert.equal(labellerCheck({ keySet: true, keyRejected: true }).status, 'fail')
   assert.equal(labellerCheck({ keySet: true, labelled: 3, lastRun: { stopped: 'rate', error: 'TypeSafe asked Freetvarr to slow down.' } }).status, 'warn')
-  assert.deepEqual(labellerCheck({ keySet: true, labelled: 1, lastRun: { at: 1 } }), { status: 'pass', detail: 'Jev labelled 1 title that had no category.' })
+  assert.deepEqual(labellerCheck({ keySet: true, labelled: 1, lastRun: { at: 1 } }), { status: 'pass', detail: 'Jev labelled 1 guide title.' })
 })
 
 test('labellerStatusLineOf describes the saved state for Settings', () => {
   assert.deepEqual(labellerStatusLineOf({ key_set: false }), { text: '', kind: 'info' })
   assert.equal(labellerStatusLineOf({ key_set: true, key_rejected: true }).kind, 'err')
-  assert.equal(labellerStatusLineOf({ key_set: true, labelled: 12 }).text, 'Jev has labelled 12 titles that had no category.')
-  assert.match(labellerStatusLineOf({ key_set: true, labelled: 1, last_error: 'Freetvarr could not reach TypeSafe.' }).text, /^Jev has labelled 1 title that had no category\. Last run: /)
+  assert.equal(labellerStatusLineOf({ key_set: true, labelled: 12 }).text, 'Jev has labelled 12 guide titles.')
+  assert.match(labellerStatusLineOf({ key_set: true, labelled: 1, last_error: 'Freetvarr could not reach TypeSafe.' }).text, /^Jev has labelled 1 guide title\. Last run: /)
 })
 
 test('askJev reports an empty TypeSafe balance as out of credit: 402, or a 400 whose body says so', async () => {
@@ -534,17 +551,6 @@ test('createLabeller saves the day spend after each answer, so a restart mid-run
   assert.deepEqual(seen, [0, 1, 2])
 })
 
-test('A0 is strict: a description-match topic wins over labeller labels, which fill only an empty result', () => {
-  const facet = [...index.facets.values()].find((item) => item.group === 'history' && item.kinds.includes('unknown'))
-  const prototypes = new Map([[facet.key, [[1, 0]]]])
-  const labeller = { format: 'reality', topics: ['home'], origin: null, sport: null }
-  const embedded = tagTitle({ index, facts: factsOf({ labeller }), titleVector: [1, 0], prototypes })
-  assert.equal(mostSpecificCategoryOf(embedded), 'history')
-  assert.notEqual(embedded.labelled, true)
-  const unmatched = tagTitle({ index, facts: factsOf({ labeller }), titleVector: [0, 1], prototypes })
-  assert.equal(mostSpecificCategoryOf(unmatched), 'home')
-})
-
 test('a failed credit probe keeps the pause and stops the run', async () => {
   const at = 10_000
   const settings = memorySettings({ [LABELLER_KEY_STATUS_SETTING]: NO_CREDIT, [LABELLER_PAUSE_SETTING]: String(at - 1) })
@@ -588,4 +594,23 @@ test('the labeller version names the country, so a new country asks again once a
   assert.equal(again.asked, 1)
   assert.equal(store.rows.get('a').version, labellerVersionOf('nz'))
   assert.deepEqual(store.pruned.at(-1), labellerVersionOf('nz'))
+})
+
+test('an empty Jev answer is asked again after 30 days, not before', async () => {
+  let at = 1_000
+  let asked = 0
+  const labeller = createLabeller({
+    readKey: async () => FAKE_KEY,
+    ask: async () => { asked += 1; return { labels: { format: null, topics: [], origin: null, sport: null }, confidence: 0.3, inputTokens: 3000 } },
+    store: memoryStore(),
+    settings: memorySettings(),
+    now: () => at,
+  })
+  await labeller.run({ titles: titlesOf('a'), catalogue })
+  at += 29 * 24 * 60 * 60 * 1000
+  await labeller.run({ titles: titlesOf('a'), catalogue })
+  assert.equal(asked, 1)
+  at += 2 * 24 * 60 * 60 * 1000
+  await labeller.run({ titles: titlesOf('a'), catalogue })
+  assert.equal(asked, 2)
 })

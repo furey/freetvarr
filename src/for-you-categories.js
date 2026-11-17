@@ -105,6 +105,8 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
     list: index.knownShows,
   })
   if (facts.override) return overrideTagsOf({ index, facts, kind, override: facts.override, origin: origin ?? known?.origin ?? null })
+  const labelled = facts.labeller ? labellerTagsOf({ index, facts, kind, origin, labels: facts.labeller }) : null
+  if (labelled?.entries.length) return labelled
   if (kind === 'sport') return sportTagsOf({ index, facts, known, origin })
   if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: origin ?? known.origin ?? null, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
   if (kind === 'kids') return labelTagsOf({ index, kind, origin, format: 'kids' })
@@ -112,9 +114,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   const embedded = evidence.topics.length || NO_EMBEDDING_TOPIC.has(evidence.format) || !titleVector || !prototypes.size
     ? []
     : embeddingTopicsOf({ index, kind, titleVector, prototypes })
-  const tags = labelTagsOf({ index, kind, origin, ...evidence, ...(embedded.length && { topics: embedded }) })
-  if (facts.labeller && isUncategorisedTags(tags)) return labellerTagsOf({ index, kind, origin, labels: facts.labeller })
-  return tags
+  return labelTagsOf({ index, kind, origin, ...evidence, ...(embedded.length && { topics: embedded }) })
 }
 
 export const isUncategorisedTags = (tags) => Boolean(tags) && tags.kind !== 'film' && !tags.sportCode && !tags.entries.length
@@ -445,14 +445,22 @@ const sportTagsOf = ({ index, facts, known, origin }) => {
   return labelTagsOf({ index, kind: 'sport', origin, topics: [OTHER_SPORT] })
 }
 
-const labellerTagsOf = ({ index, kind, origin, labels }) => {
-  const labelledOrigin = origin ?? labels.origin ?? null
-  if (labels.format === SPORT_FORMAT && index.groups.get(labels.sport)?.row === 'sport') {
-    return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: [labels.sport] }), sportCode: labels.sport, labelled: true }
+const labellerTagsOf = ({ index, facts, kind, origin, labels }) => {
+  const labelledOrigin = labels.origin ?? origin ?? null
+  if (labels.format === SPORT_FORMAT) {
+    if (isFishingTitle(facts.title) || labels.topics?.includes('fishing')) return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: ['fishing'] }), labelled: true }
+    const code = labellerSportCodeOf({ index, facts, labels })
+    return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: [code] }), sportCode: code, labelled: true }
   }
-  const format = labels.format === SPORT_FORMAT ? null : labels.format ?? null
-  const tags = labelTagsOf({ index, kind, origin: labelledOrigin, format, topics: labels.topics ?? [] })
+  const format = labels.format ?? null
+  const tags = labelTagsOf({ index, kind: kindOfKnown({ known: { format }, kind }), origin: labelledOrigin, format, formatFacet: format === 'reality' ? realityFacetOf(facts.title) : null, topics: labels.topics ?? [] })
   return tags.entries.length ? { ...tags, labelled: true } : tags
+}
+
+const labellerSportCodeOf = ({ index, facts, labels }) => {
+  const sure = index.groups.get(labels.sport)?.row === 'sport' && labels.sport !== OTHER_SPORT && (labels.sportP ?? 1) >= LABELLER_SPORT_FLOOR
+  if (sure) return labels.sport
+  return sportCodeOf({ title: facts.title, channelNames: [...(facts.channelNames || [])], guideGenres: [...(facts.guideGenres || [])], country: index.country }) ?? OTHER_SPORT
 }
 
 const overrideTagsOf = ({ index, facts, kind, override, origin }) => {
@@ -493,6 +501,7 @@ const rampOf = (score) => Math.max(0, Math.min(1, (score - CATEGORY_FLOOR) / (CA
 const isTvmazeRecord = (record) => String(record?.source || '').startsWith('tvmaze:')
 
 const OTHER_SPORT = 'other-sport'
+const LABELLER_SPORT_FLOOR = 0.9
 const FICTION_FORMATS = new Set(['comedy', 'drama', 'crime-drama', 'soaps', 'sci-fi-fantasy'])
 const EMBEDDING_NEVER = new Set(['fishing', 'shopping'])
 const NO_EMBEDDING_TOPIC = new Set(['quiz', 'panel-shows', 'news', 'kids'])

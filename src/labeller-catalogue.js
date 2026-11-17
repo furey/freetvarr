@@ -1,6 +1,6 @@
 import { CATEGORY_CATALOGUE_VERSION, countryNameOf } from './for-you-category-catalogue.js'
 
-export const LABELLER_PROMPT_VERSION = 1
+export const LABELLER_PROMPT_VERSION = 2
 
 export const LABELLER_ORIGINS = {
   au: 'Australia', nz: 'New Zealand', gb: 'United Kingdom', us: 'United States', ca: 'Canada', ie: 'Ireland',

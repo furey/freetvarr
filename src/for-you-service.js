@@ -15,7 +15,7 @@ import {
   runEmbeddings,
   vectorsVersion,
 } from './for-you-engine.js'
-import { GENRE_LOOKUP_KEY, createGenreEnrichment, genreLookupEnabledFrom, loadTitleGenres, yearOf } from './genre-enrichment.js'
+import { createGenreEnrichment, loadTitleGenres, yearOf } from './genre-enrichment.js'
 import { createDisplayKinds } from './display-kind.js'
 import { createEndedHistory } from './guide-history.js'
 import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
@@ -35,7 +35,7 @@ import { measureJob } from './event-loop-lag.js'
 import { currentJob } from './activity.js'
 import { createLabeller, labelledStampOf } from './labeller.js'
 import { labellerCatalogueOf } from './labeller-catalogue.js'
-import { uncategorisedTitlesOf } from './labeller-titles.js'
+import { labellerTitlesOf } from './labeller-titles.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -376,7 +376,7 @@ export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs =
 
 const labelAfterGuideLoad = async () => {
   if (!(await isForYouEnabled())) return { skipped: true }
-  return labelUncategorisedTitles()
+  return labelGuideTitles()
 }
 
 export const warmSeriesRatings = async ({ nowMs = Date.now() } = {}) => {
@@ -426,36 +426,24 @@ export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
   return genreEnrichment.run({ titles })
 }
 
-export const labelUncategorisedTitles = async ({ nowMs = Date.now() } = {}) => {
+export const labelGuideTitles = async ({ nowMs = Date.now() } = {}) => {
   if (!(await labeller.ready())) return { skipped: true }
-  const [guide, recordsByKey, guideGenres, settled, tier, embedder] = await Promise.all([
+  const [guide, recordsByKey, guideGenres] = await Promise.all([
     getGuideSnapshot(),
     loadTitleGenres().catch(() => new Map()),
     guideGenresOf({ nowMs }),
-    genreLookupSettledKeys(),
-    currentTier().catch(() => ({ tier: 'basic' })),
-    currentEmbedder().catch(() => null),
   ])
-  const vectorsByHash = tier.tier !== 'basic' && embedder ? await loadVectors(embedder.id).catch(() => null) : null
   const programmes = Object.values(guide?.programsByChannel || {}).flat().filter((programme) => programme.end > nowMs)
   const index = currentCategoryIndex()
-  const kindOf = createDisplayKinds({ programmes, recordsByKey })
-  const titles = uncategorisedTitlesOf({
+  const titles = labellerTitlesOf({
     programmes,
     channels: guide?.channels || [],
     records: recordsByKey,
     guideGenres,
     index,
-    vectorsByHash,
-    kindOf,
-    isSettled: (key) => !settled || settled.has(key),
+    kindOf: createDisplayKinds({ programmes, recordsByKey }),
   })
   return labeller.run({ titles, catalogue: labellerCatalogueOf(index) })
-}
-
-const genreLookupSettledKeys = async () => {
-  if (!genreLookupEnabledFrom(await getSetting(GENRE_LOOKUP_KEY))) return null
-  return new Set((await db('title_genres').select('title_key').catch(() => [])).map((row) => row.title_key))
 }
 
 export const refreshSeriesRatings = async ({ nowMs = Date.now() } = {}) => {
@@ -477,7 +465,7 @@ const upkeepNow = async ({ nowMs }) => {
   await setSetting(SETTINGS.upkeep, String(nowMs))
   const embeddings = await runEmbeddings({ nowMs }).catch((err) => ({ ok: false, error: err.message }))
   const genres = await enrichGenres({ nowMs }).catch((err) => ({ error: err.message }))
-  const labels = await labelUncategorisedTitles({ nowMs }).catch((err) => ({ error: err.message }))
+  const labels = await labelGuideTitles({ nowMs }).catch((err) => ({ error: err.message }))
   const ratings = await refreshSeriesRatings({ nowMs }).catch((err) => ({ error: err.message }))
   return { embeddings, genres, labels, ratings }
 }
