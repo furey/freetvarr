@@ -41,11 +41,15 @@ export const fallbackClassification = ({ rating, ratingLabel } = {}) =>
   normaliseClassification(ratingLabel) ?? classificationFromAgeRating(rating)
 
 export const categoryOfProgramme = (programmeXml) => {
-  const category = String(programmeXml).match(CATEGORY_ELEMENT)?.[1]
-  return category ? decodeEntities(category).trim().toLowerCase() || null : null
+  const categories = [...String(programmeXml).matchAll(CATEGORY_ELEMENTS)]
+    .map((match) => decodeEntities(match[1]).trim().toLowerCase().replaceAll(CATEGORY_SEPARATOR, ' '))
+    .filter(Boolean)
+  return categories.length ? [...new Set(categories)].join(CATEGORY_SEPARATOR) : null
 }
 
-export const isRatingsLikely = ({ kind, category }) => kind === FILM_KIND || RATED_CATEGORIES.has(category)
+export const guideCategoriesOf = (stored) => String(stored ?? '').split(CATEGORY_SEPARATOR).map((category) => category.trim()).filter(Boolean)
+
+export const isRatingsLikely = ({ kind, category }) => kind === FILM_KIND || guideCategoriesOf(category).some((each) => RATED_CATEGORIES.has(each))
 
 export const programmeClassificationEntry = ({ programmeXml, parseTime }) => {
   const label = programmeXml.includes('<rating') ? classificationOfProgramme(programmeXml) : null
@@ -194,7 +198,8 @@ const decodeEntities = (value) => value
   .replace(/&amp;/g, '&')
 
 const FILM_KIND = 'movie'
-const CATEGORY_ELEMENT = /<category\b[^>]*>([^<]*)<\/category>/
+const CATEGORY_ELEMENTS = /<category\b[^>]*>([^<]*)<\/category>/g
+const CATEGORY_SEPARATOR = '|'
 const RATED_CATEGORIES = new Set([
   'drama', 'comedy', 'crime', 'documentary', 'movies', 'movie', 'film', 'action & adventure', 'action', 'adventure',
   'horror', 'thriller', 'mystery', 'sci-fi', 'science fiction', 'fantasy', 'animation', 'romance', 'war', 'western',

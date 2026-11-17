@@ -76,7 +76,7 @@ test('programmeClassificationEntry keys a label by the plain title and start tim
   })
   assert.equal(programmeClassificationEntry({ programmeXml: rated(), parseTime: parseXmltvTime }), null)
   const categorised = rated().replace('</title>', '</title><category lang="en">Drama</category><category>Crime</category>')
-  assert.equal(programmeClassificationEntry({ programmeXml: categorised, parseTime: parseXmltvTime }).category, 'drama')
+  assert.equal(programmeClassificationEntry({ programmeXml: categorised, parseTime: parseXmltvTime }).category, 'drama|crime')
 })
 
 test('isRatingsLikely is true for films and story categories only', () => {

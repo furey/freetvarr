@@ -787,7 +787,7 @@ export const labellerCheck = (status) => {
       summary: 'TypeSafe did not accept the key.',
     }
   }
-  const labelled = `Jev labelled ${plural(status.labelled, 'title')} that had no category.`
+  const labelled = `Jev labelled ${plural(status.labelled, 'guide title')}.`
   if (status.noCredit) {
     return {
       status: 'warn',
@@ -806,7 +806,7 @@ export const labellerCheck = (status) => {
       summary: 'The last category labelling run stopped early.',
     }
   }
-  return { status: 'pass', detail: lastRun ? labelled : 'The key is saved. Jev labels titles with no category after the next guide load.' }
+  return { status: 'pass', detail: lastRun ? labelled : 'The key is saved. Jev labels the guide titles after the next guide load.' }
 }
 
 export const broadcastGuideCheck = ({ broadcast, suggestions = null }) => {

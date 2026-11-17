@@ -94,7 +94,7 @@ const ruleFormatOf = ({ kind, text, tags, guide, nibble }) => {
   if (kind === 'fiction') return fictionRuleFormatOf({ text, guide, nibble })
   if (TALK_SHOW.test(text) || guide.has('talk') || guide.has('talk show')) return 'talk-shows'
   if (guide.has('panel show') || guide.has('panel')) return 'panel-shows'
-  if (QUIZ.test(text) || tags.has('quiz')) return 'quiz'
+  if (QUIZ.test(text) || tags.has('quiz') || QUIZ_GUIDE.some((name) => guide.has(name))) return 'quiz'
   if (FACTUAL_COMEDY.test(text)) return 'comedy'
   if (DATING.test(text) || REALITY.test(text) || tags.has('reality') || REALITY_GUIDE.some((name) => guide.has(name))) return 'reality'
   if ((tags.has('news') || guide.has('news')) && !CURRENT_AFFAIRS.test(text)) return 'news'
@@ -102,9 +102,9 @@ const ruleFormatOf = ({ kind, text, tags, guide, nibble }) => {
 }
 
 const fictionRuleFormatOf = ({ text, guide, nibble }) => {
-  if (CRIME_TITLE.test(text)) return 'crime-drama'
+  if (CRIME_TITLE.test(text) || CRIME_DRAMA_GUIDE.some((name) => guide.has(name))) return 'crime-drama'
   if (SOAP_GUIDE.some((name) => guide.has(name))) return 'soaps'
-  if (nibble.format === 'comedy' || guide.has('comedy')) return 'comedy'
+  if (nibble.format === 'comedy' || COMEDY_GUIDE.some((name) => guide.has(name))) return 'comedy'
   if (SCI_FI_GUIDE.some((name) => guide.has(name))) return 'sci-fi-fantasy'
   if (nibble.format === 'drama' || FICTION_GUIDE.some((name) => guide.has(name))) return 'drama'
   return null
@@ -190,7 +190,7 @@ const TOPIC_KEYWORDS = [
 ]
 
 const GUIDE_TOPICS = [
-  [['house & garden', 'home & garden', 'property', 'home improvement'], 'home'],
+  [['house & garden', 'home & garden', 'property', 'home improvement', 'house'], 'home'],
   [['food & cooking', 'cooking', 'food'], 'cooking'],
   [['gardening'], 'gardening'],
   [['true crime'], 'true-crime'],
@@ -204,10 +204,11 @@ const GUIDE_TOPICS = [
   [['health', 'health & fitness', 'fitness'], 'health-and-lifestyle'],
   [['dating', 'romance reality'], 'dating'],
   [['business', 'finance', 'business & finance'], 'business-and-money'],
-  [['politics', 'current affairs'], 'politics'],
+  [['politics', 'current affairs', 'public affairs', 'newsmagazine'], 'politics'],
   [['religion', 'religious', 'faith'], 'religion'],
   [['shopping', 'infomercial', 'home shopping'], 'shopping'],
   [['motoring', 'motors', 'cars'], 'motoring'],
+  [['aviation'], 'engineering-and-machines'],
   [['paranormal'], 'mystery-and-paranormal'],
 ]
 
@@ -225,7 +226,10 @@ const AU_ONLY_GROUPS = {
 
 const ETSI_DOCUMENTARY = 0x23
 const DOCUMENTARY_GUIDE = new Set(['documentary', 'documentaries', 'documentary series', 'other documentary series', 'society documentary'])
-const REALITY_GUIDE = ['reality', 'reality series', 'unscripted competition', 'other reality television']
+const REALITY_GUIDE = ['reality', 'reality series', 'unscripted competition', 'other reality television', 'competition reality']
+const QUIZ_GUIDE = ['game show', 'quiz', 'game shows']
+const CRIME_DRAMA_GUIDE = ['crime drama']
+const COMEDY_GUIDE = ['comedy', 'sitcom', 'dark comedy']
 const REALITY = /\b(big brother|survivor|the amazing race|the voice|idol|got talent|dancing with the stars|i'm a celebrity|lego masters|real housewives|below deck|undercover boss)\b/i
 const QUIZ = /\b(quiz\w*|the chase|chasers|jeopardy|pointless|tipping point|millionaire|million dollar minute|lingo|scrabble|letters and numbers|mastermind|it's academic|bridge of lies|1% club|house of games|deal or no deal|wheel of fortune|family feud|countdown|spelling bee)\b/i
 const CRIME_TITLE = /\b(murders?|mysteries|detective|inspector|ncis|csi|fbi|crime|police)\b/i

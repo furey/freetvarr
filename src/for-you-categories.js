@@ -40,7 +40,7 @@ export const categoryMuteKeyOf = (group) => `category-${group}`
 
 export const groupOfMuteKey = (seriesKey) => String(seriesKey || '').replace(/^category-/, '')
 
-export const createCategoryIndex = ({ country = '', knownShows = KNOWN_SHOWS } = {}) => {
+export const createCategoryIndex = ({ country = '', knownShows = knownShowsFor(country) } = {}) => {
   const catalogue = categoryCatalogueOf({ country })
   const facets = new Map()
   const groups = new Map()
@@ -73,11 +73,11 @@ export const titleKindOf = ({ title = '', film = false, genreTags = [], tvmazeTy
 }
 
 export const sportCodeOf = ({ title = '', channelNames = [], guideGenres = [], country = '' }) => {
+  const guided = guideSportCodeOf({ guideGenres, country })
+  if (guided) return guided
   const text = [title, ...channelNames].filter(Boolean).join(' | ')
   const found = SPORT_KEYWORDS.find(([, pattern]) => pattern.test(text))
   if (found) return found[0]
-  const guided = guideSportCodeOf(guideGenres)
-  if (guided) return guided
   if (!PLAIN_FOOTBALL.test(title)) return null
   return PLAIN_FOOTBALL_CODES[country] === undefined ? 'soccer' : PLAIN_FOOTBALL_CODES[country]
 }
@@ -97,7 +97,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   const kind = titleKindOf(facts)
   const origin = facts.origin ?? null
   if (kind === 'film') return tagsOf({ kind, origin })
-  const known = knownShowOf({
+  const known = facts.labeller ? null : knownShowOf({
     keys: [...new Set([facts.key, showKeyOf(facts.title)].filter(Boolean))],
     tvmazeCountry: facts.origin,
     channelNames: [...(facts.channelNames || [])],
@@ -105,6 +105,8 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
     list: index.knownShows,
   })
   if (facts.override) return overrideTagsOf({ index, facts, kind, override: facts.override, origin: origin ?? known?.origin ?? null })
+  const labelled = facts.labeller ? labellerTagsOf({ index, facts, kind, origin, labels: facts.labeller }) : null
+  if (labelled?.entries.length) return labelled
   if (kind === 'sport') return sportTagsOf({ index, facts, known, origin })
   if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: origin ?? known.origin ?? null, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
   if (kind === 'kids') return labelTagsOf({ index, kind, origin, format: 'kids' })
@@ -112,9 +114,7 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   const embedded = evidence.topics.length || NO_EMBEDDING_TOPIC.has(evidence.format) || !titleVector || !prototypes.size
     ? []
     : embeddingTopicsOf({ index, kind, titleVector, prototypes })
-  const tags = labelTagsOf({ index, kind, origin, ...evidence, ...(embedded.length && { topics: embedded }) })
-  if (facts.labeller && isUncategorisedTags(tags)) return labellerTagsOf({ index, kind, origin, labels: facts.labeller })
-  return tags
+  return labelTagsOf({ index, kind, origin, ...evidence, ...(embedded.length && { topics: embedded }) })
 }
 
 export const isUncategorisedTags = (tags) => Boolean(tags) && tags.kind !== 'film' && !tags.sportCode && !tags.entries.length
@@ -364,7 +364,7 @@ export const titleFactsOf = ({ programmes = [], recordings = [], keyOf, genreTag
     facts.kidsSlotsOnly = facts.airings > 0 && facts.kidsAirings === facts.airings
     const record = recordOf(facts.key)
     Object.assign(facts, recordFactsOf(record))
-    facts.film = facts.filmAirings && !facts.episodes && !isTvmazeRecord(record)
+    facts.film = facts.filmAirings && !facts.episodes && !isTvmazeRecord(record) && !isSportGuide(facts.guideGenres)
     for (const category of record?.genreTags || []) if (!category.startsWith('movie')) facts.genreTags.add(category)
   }
   return titles
@@ -445,14 +445,22 @@ const sportTagsOf = ({ index, facts, known, origin }) => {
   return labelTagsOf({ index, kind: 'sport', origin, topics: [OTHER_SPORT] })
 }
 
-const labellerTagsOf = ({ index, kind, origin, labels }) => {
-  const labelledOrigin = origin ?? labels.origin ?? null
-  if (labels.format === SPORT_FORMAT && index.groups.get(labels.sport)?.row === 'sport') {
-    return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: [labels.sport] }), sportCode: labels.sport, labelled: true }
+const labellerTagsOf = ({ index, facts, kind, origin, labels }) => {
+  const labelledOrigin = labels.origin ?? origin ?? null
+  if (labels.format === SPORT_FORMAT) {
+    if (isFishingTitle(facts.title) || labels.topics?.includes('fishing')) return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: ['fishing'] }), labelled: true }
+    const code = labellerSportCodeOf({ index, facts, labels })
+    return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: [code] }), sportCode: code, labelled: true }
   }
-  const format = labels.format === SPORT_FORMAT ? null : labels.format ?? null
-  const tags = labelTagsOf({ index, kind, origin: labelledOrigin, format, topics: labels.topics ?? [] })
+  const format = labels.format ?? null
+  const tags = labelTagsOf({ index, kind: format ? kindOfKnown({ known: { format }, kind }) : kind, origin: labelledOrigin, format, formatFacet: format === 'reality' ? realityFacetOf(facts.title) : null, topics: labels.topics ?? [] })
   return tags.entries.length ? { ...tags, labelled: true } : tags
+}
+
+const labellerSportCodeOf = ({ index, facts, labels }) => {
+  const sure = index.groups.get(labels.sport)?.row === 'sport' && labels.sport !== OTHER_SPORT && (labels.sportP ?? 1) >= LABELLER_SPORT_FLOOR
+  if (sure) return labels.sport
+  return sportCodeOf({ title: facts.title, channelNames: [...(facts.channelNames || [])], guideGenres: [...(facts.guideGenres || [])], country: index.country }) ?? OTHER_SPORT
 }
 
 const overrideTagsOf = ({ index, facts, kind, override, origin }) => {
@@ -493,6 +501,7 @@ const rampOf = (score) => Math.max(0, Math.min(1, (score - CATEGORY_FLOOR) / (CA
 const isTvmazeRecord = (record) => String(record?.source || '').startsWith('tvmaze:')
 
 const OTHER_SPORT = 'other-sport'
+const LABELLER_SPORT_FLOOR = 0.9
 const FICTION_FORMATS = new Set(['comedy', 'drama', 'crime-drama', 'soaps', 'sci-fi-fantasy'])
 const EMBEDDING_NEVER = new Set(['fishing', 'shopping'])
 const NO_EMBEDDING_TOPIC = new Set(['quiz', 'panel-shows', 'news', 'kids'])
@@ -549,14 +558,14 @@ const SPORT_KEYWORDS = [
   ['cricket', /\b(cricket|big bash|bbl|wbbl|the ashes|ipl|t20|odis?|sheffield shield|test match)\b/i],
   ['soccer', /\b(soccer|a-league|premier league|champions league|europa league|fifa|uefa|la liga|bundesliga|serie a|mls|socceroos|matildas|fa cup|world cup|football \(soccer\))\b/i],
   ['tennis', /\b(tennis|wimbledon|roland garros|atp|wta|davis cup|billie jean king cup)\b/i],
-  ['motorsport', /\b(supercars|superbikes?|supercross|motocross|formula (1|one)|f1|motogp|moto ?gp|grand prix|bathurst|nascar|indycar|rally|speedway|motorsport|motor racing)\b/i],
+  ['motorsport', /\b(supercars|superbikes?|supercross|motocross|formula (1|one)|f1|motogp|moto ?gp|grand prix|bathurst|nascar|indycar|rally|speedway|motorsports?|motor racing|auto racing|drag racing|nhra|sprint cars?|world of outlaws)\b/i],
   ['greyhound-racing', /\b(greyhounds?|dogs racing)\b/i],
   ['rodeo', /\b(rodeos?|bull ?riding|pbr|campdraft(ing)?|barrel racing)\b/i],
   ['combat-sports', /\b(ufc|mma|boxing(?! day)|kickboxing|bare knuckle)\b/i],
   ['surfing', /\b(wsl surfing|world surf league|surfing|surf league)\b/i],
   ['swimming', /\b(swim gp|swimming|diving championships?)\b/i],
   ['cycling', /\b(cycling|tour de france|giro d'italia|vuelta)\b/i],
-  ['horse-racing', /\b(horse racing|giddy ?up|racing|races|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup)\b/i],
+  ['horse-racing', /\b(horse racing|giddy ?up|race ?day|racenight|melbourne cup|thoroughbreds?|harness|trots|pacing cup|sky racing|racing\.com|tab racing)\b/i],
   ['golf', /\b(golf|pga|lpga|liv golf)\b/i],
   ['netball', /\bnetball\b/i],
   ['basketball', /\b(basketball|nba|nbl|wnba|wnbl|euroleague)\b/i],
@@ -564,9 +573,22 @@ const SPORT_KEYWORDS = [
   ['ice-hockey', /\b(ice hockey|nhl)\b/i],
 ]
 
-const guideSportCodeOf = (guideGenres) => [...guideGenres]
-  .map((category) => GUIDE_SPORT_CODES[String(category).toLowerCase()])
+const guideSportCodeOf = ({ guideGenres, country }) => [...guideGenres]
+  .map((category) => guideSportCodeFor({ category: String(category).toLowerCase().trim(), country }))
   .find(Boolean) ?? null
+
+const guideSportCodeFor = ({ category, country }) => {
+  if (category === 'football') return PLAIN_FOOTBALL_CODES[country] === undefined ? 'soccer' : PLAIN_FOOTBALL_CODES[country]
+  if (category === 'hockey') return HOCKEY_MEANS_ICE.has(country) ? 'ice-hockey' : null
+  return GUIDE_SPORT_CODES[category] ?? null
+}
+
+const isSportGuide = (guideGenres) => {
+  const categories = [...guideGenres].map((category) => String(category).toLowerCase().trim())
+  return !categories.some((category) => FILM_GUIDE.has(category)) && categories.some((category) => SPORT_GUIDE.has(category))
+}
+
+const knownShowsFor = (country) => (KNOWN_SHOWS_COUNTRIES.has(String(country).toLowerCase()) ? KNOWN_SHOWS : NO_KNOWN_SHOWS)
 
 const PLAIN_FOOTBALL = /\bfootball\b/i
 const PLAIN_FOOTBALL_CODES = { au: null, us: 'american-football', ca: 'american-football' }
@@ -597,12 +619,28 @@ const GUIDE_SPORT_CODES = {
   baseball: 'baseball',
   'ice hockey': 'ice-hockey',
   cycling: 'cycling',
+  'auto racing': 'motorsport',
+  'drag racing': 'motorsport',
+  motorsport: 'motorsport',
+  motorsports: 'motorsport',
+  'pro wrestling': 'combat-sports',
+  wrestling: 'combat-sports',
+  'mixed martial arts': 'combat-sports',
+  boxing: 'combat-sports',
+  'american football': 'american-football',
+  'college football': 'american-football',
+  surfing: 'surfing',
+  swimming: 'swimming',
 }
-const SPORT_GUIDE = new Set(['sports', 'sport', 'australian rules football', 'golf', 'rugby league', 'sports other', 'other sport'])
+const FILM_GUIDE = new Set(['movie', 'movies', 'film'])
+const HOCKEY_MEANS_ICE = new Set(['us', 'ca'])
+const KNOWN_SHOWS_COUNTRIES = new Set(['au', 'nz'])
+const NO_KNOWN_SHOWS = { shows: {} }
+const SPORT_GUIDE = new Set(['sports', 'sport', 'sports other', 'other sport', 'sports talk', 'sports event', 'sports non-event', 'classic sport event', 'hockey', 'football', ...Object.keys(GUIDE_SPORT_CODES)])
 const FACTUAL_GENRE_TAGS = new Set(['reality', 'documentary', 'lifestyle', 'food', 'home', 'travel', 'quiz', 'news'])
 const FICTION_GENRE_TAGS = new Set(['drama', 'comedy', 'crime', 'sci-fi'])
-const FACTUAL_GUIDE = new Set(['documentary', 'factual', 'reality', 'reality series', 'lifestyle', 'food & cooking', 'nature', 'true crime', 'news', 'news/current affairs', 'house & garden', 'unscripted competition', 'science', 'history', 'animals', 'documentary series', 'other documentary series', 'society documentary', 'other reality television'])
-const FICTION_GUIDE = new Set(['drama', 'comedy', 'movies', 'crime', 'action', 'horror', 'thriller', 'romance', 'drama serial', 'action & adventure', 'family drama series', 'crime/law & order series', 'mystery'])
+const FACTUAL_GUIDE = new Set(['documentary', 'factual', 'reality', 'reality series', 'lifestyle', 'food & cooking', 'nature', 'true crime', 'news', 'news/current affairs', 'house & garden', 'unscripted competition', 'science', 'history', 'animals', 'documentary series', 'other documentary series', 'society documentary', 'other reality television', 'competition reality', 'game show', 'public affairs', 'newsmagazine', 'interview', 'cooking', 'travel', 'educational', 'health', 'house/garden', 'paranormal', 'talk'])
+const FICTION_GUIDE = new Set(['drama', 'comedy', 'movies', 'crime', 'action', 'horror', 'thriller', 'romance', 'drama serial', 'action & adventure', 'family drama series', 'crime/law & order series', 'mystery', 'crime drama', 'sitcom', 'dark comedy', 'science fiction', 'fantasy', 'adventure', 'western', 'soap', 'soap opera'])
 const MAX_TEXTS_PER_TITLE = 6
 const DAY_MS = 24 * 60 * 60 * 1000
 
