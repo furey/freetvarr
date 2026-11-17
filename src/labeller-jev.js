@@ -20,6 +20,7 @@ export const askJev = async ({ apiKey, input, catalogue, fetchImpl = fetch, time
   return {
     model: body.model ?? JEV_MODEL,
     labels: jevLabelsOf({ raw, threshold: JEV_THRESHOLD }),
+    raw: storedRawOf(raw),
     confidence: raw.format.p,
     inputTokens: Number(body.usage?.input_tokens) || 0,
   }
@@ -87,8 +88,15 @@ export const jevLabelsOf = ({ raw, threshold }) => {
   const topics = Object.entries(raw.topics).filter(([, p]) => p >= threshold).sort(([, a], [, b]) => b - a).slice(0, 2).map(([key]) => key)
   const origin = raw.origin.p >= threshold && raw.origin.choice !== 'other' ? raw.origin.choice : null
   const sport = format === 'sport-format' ? raw.sport.choice : null
-  return { format, topics, origin, sport }
+  return { format, topics, origin, sport, sportP: sport ? raw.sport.p : null }
 }
+
+export const storedRawOf = (raw) => ({
+  format: { choice: raw.format.choice, p: raw.format.p, probabilities: raw.format.probabilities },
+  origin: { choice: raw.origin.choice, p: raw.origin.p },
+  sport: { choice: raw.sport.choice, p: raw.sport.p },
+  topics: raw.topics,
+})
 
 export const labellerError = ({ kind, status = null, retryAfterMs = null }) => Object.assign(new Error(`Jev ${kind}${status ? ` (HTTP ${status})` : ''}`), { kind, status, retryAfterMs })
 

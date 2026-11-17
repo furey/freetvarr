@@ -96,7 +96,7 @@ In Australia, Freetvarr also takes pictures from [Freeview](https://www.freeview
 
 Shows only when a TypeSafe key is saved for the [category labeller](/guide/for-you#category-labeller). It reads what Freetvarr already knows and sends no request of its own.
 
-It passes when TypeSafe accepted the key, and says how many shows Jev labelled. It warns when the last run stopped early because TypeSafe did not answer or asked Freetvarr to slow down; Freetvarr tries again after the next guide load. It also warns when the TypeSafe account is out of credit; add credit in the TypeSafe console, and Freetvarr tries again once a day. It fails when TypeSafe did not accept the key. Paste a new key under **SETTINGS → FILM AND TV INFO**, or remove the key.
+It passes when TypeSafe accepted the key, and says how many guide titles Jev labelled. It warns when the last run stopped early because TypeSafe did not answer or asked Freetvarr to slow down; Freetvarr tries again after the next guide load. It also warns when the TypeSafe account is out of credit; add credit in the TypeSafe console, and Freetvarr tries again once a day. It fails when TypeSafe did not accept the key. Paste a new key under **SETTINGS → FILM AND TV INFO**, or remove the key.
 
 ## Guide sources {#guide-sources}
 

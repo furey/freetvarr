@@ -78,13 +78,13 @@ A category row collects programmes of one kind that you record and watch a lot, 
 Freetvarr takes each label from the first source that has one, in this order:
 
 1. Your own choice, from [Change categories](#change-categories).
-2. A list of known free-to-air shows that comes with Freetvarr. It names the categories of about 600 shows that air in Australia and New Zealand, and it applies in every country. It is rebuilt before each minor release.
-3. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key.
-4. Words in the title, the guide category, and the genre code the channel sends.
-5. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
-6. With a TypeSafe key, the [category labeller](#category-labeller), for shows that get no category from steps 1 to 5. It is off without a key.
+2. With a TypeSafe key, the [category labeller](#category-labeller). When its result for a show has any category, Freetvarr uses the whole result: the format, the topics, the sport, and the country. When the result has none, the steps below decide. It is off without a key.
+3. Without a TypeSafe key, in Australia and New Zealand only, a list of known free-to-air shows that comes with Freetvarr. It names the categories of about 600 shows that air in those countries. It is rebuilt before each minor release.
+4. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key. A lookup leaves out broadcast words at the start of a title, such as `Live:` or `New:`.
+5. Words in the title, every guide category of the programme, and the genre code the channel sends. A sport that the guide category names comes before a sport word in the title.
+6. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
 
-**Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough. The category labeller can choose **Documentaries** by itself, but only for a show that has no other category.
+**Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough. The category labeller can choose **Documentaries** by itself.
 
 These are the categories:
 
@@ -139,11 +139,11 @@ Press **Save** to keep your choice. Your choice comes before every automatic sou
 
 ## Category labeller
 
-The category labeller is optional. It asks [Jev](https://docs.typesafe.ai/introduction), a classification model from [TypeSafe](https://typesafe.ai), to choose categories for the shows that Freetvarr cannot sort by itself. Without a TypeSafe key, nothing changes: Freetvarr sends nothing to TypeSafe, and the categories come from the sources in [Category rows](#category-rows).
+The category labeller is optional. With a TypeSafe key, Freetvarr uses [Jev](https://docs.typesafe.ai/introduction), a classification model from [TypeSafe](https://typesafe.ai), for more accurate show categories. Without a TypeSafe key, nothing changes: Freetvarr sends nothing to TypeSafe, and the categories come from the sources in [Category rows](#category-rows).
 
-With a key, Freetvarr asks only about a show that gets no category at all from your own choice, the known-shows list, the genre lookups, the guide, or the description match. Jev can choose any format, up to two topics, a sport, and the country the show comes from. Your own choice and the known-shows list always come first, and Freetvarr never changes a category that another source gave.
+With a key, Freetvarr sends every show in the TV guide to Jev, except films and the shows whose categories you changed yourself. A Jev result can have any format, up to two topics, a sport, and the country the show comes from. With a key, Freetvarr does not use the known-shows list. Its own sources fill in only when a Jev result has no category, or before a show has a result. Your own choice in [Change categories](#change-categories) comes first. Freetvarr uses the sport in a Jev result only at a high probability; below it, the sport comes from the title, the channel, or the guide category, else the show goes under **Other sport**. A fishing show stays under **Fishing**.
 
-Freetvarr asks after each guide load and after the nightly update, and only about shows whose genre lookup is done. It asks about each show once, keeps the answer, and asks again only when a new Freetvarr version changes the categories or the questions, or when your country changes. It spends at most US$0.50 a day on TypeSafe, which covers about `3,500` shows, so the first run labels every waiting show in one go. The day runs from midnight to midnight in the server's time zone. When the day's limit is reached, it goes on after midnight.
+Freetvarr sends shows after each guide load and after the nightly update. It sends each show once and keeps the result. It sends the show again when a new Freetvarr version changes the categories or the questions, when your country changes, and 30 days after a result with no category. Version `2.35.0` sends every show once, because it now keeps the probability of each label. It spends at most US$0.50 a day on TypeSafe, which covers about `3,500` shows, so the first run labels the whole guide in one go (about `1,300` shows, or about US$0.20, in a typical Australian guide week). The day runs from midnight to midnight in the server's time zone. When the day's limit is reached, it goes on after midnight.
 
 For each show, Freetvarr sends:
 
@@ -163,7 +163,7 @@ To add a key:
 3. In Freetvarr, go to Settings → WATCHING → Film and TV info and paste it into **TypeSafe API key (optional)** under **CATEGORY LABELLER**.
 4. Press **Save key**. Freetvarr checks the key with TypeSafe before it saves it. **Test key** checks a saved key again.
 
-Under the key, Freetvarr shows how many shows Jev has labelled, and why the last run stopped when it stopped early. Press **Remove key** to stop the labeller. Jev's labels stop counting at once; Freetvarr keeps them, so they count again if you add a key later.
+Under the key, Freetvarr shows how many shows have a Jev result, and why the last run stopped when it stopped early. Press **Remove key** to stop the labeller. Jev's labels stop counting at once; Freetvarr keeps them, so they count again if you add a key later.
 
 TypeSafe bills the cost to your TypeSafe account, by the amount of text sent. TypeSafe is prepaid: you buy credit under **Billing** in the TypeSafe console, and you can turn on automatic recharge there so the credit never runs out. In November 2026, with the `jev-1.13.0` model at US$0.042 per million tokens of text sent, a test on `419` Australian guide titles cost about US$0.014 for each `100` titles. Check the [TypeSafe models page](https://docs.typesafe.ai/models) for the current price.
 

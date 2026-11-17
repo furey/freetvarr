@@ -3,7 +3,7 @@ import { CATEGORY_CATALOGUE_VERSION } from './for-you-category-catalogue.js'
 import { LABELLER_PROMPT_VERSION } from './labeller-catalogue.js'
 import { currentTimeZone } from './time-zone.js'
 import { countryForTimeZone } from './zone-countries.js'
-import { JEV_MODEL, JEV_PRICE_PER_MILLION_INPUT, askJev } from './labeller-jev.js'
+import { JEV_MODEL, JEV_PRICE_PER_MILLION_INPUT, JEV_THRESHOLD, askJev, jevLabelsOf } from './labeller-jev.js'
 
 export const LABELLER_KEY_SETTING = 'typesafe_api_key'
 export const LABELLER_KEY_STATUS_SETTING = 'labeller_key_status'
@@ -33,6 +33,7 @@ export const createLabeller = ({
   invalidBackoffMs = INVALID_BACKOFF_MS,
   pauseMs = RATE_PAUSE_MS,
   creditRecheckMs = CREDIT_RECHECK_MS,
+  noneRetryMs = NONE_RETRY_MS,
   maxFailuresInRow = MAX_FAILURES_IN_ROW,
 } = {}) => {
   let running = null
@@ -63,7 +64,7 @@ export const createLabeller = ({
 
     const settle = async ({ title, answer }) => {
       const labelled = hasLabels(answer.labels)
-      await store.write({ key: title.key, version, status: labelled ? 'ok' : 'none', labels: answer.labels, confidence: answer.confidence, fetchedAt: now(), retryAfter: null })
+      await store.write({ key: title.key, version, status: labelled ? 'ok' : 'none', labels: { ...answer.labels, ...(answer.raw && { raw: answer.raw }) }, confidence: answer.confidence, fetchedAt: now(), retryAfter: labelled ? null : now() + noneRetryMs })
       if (labelled) outcome.labelled += 1
     }
 
@@ -233,8 +234,8 @@ export const loadLabellerLabels = async ({ readKey = storedLabellerKey, store = 
 }
 
 export const labelledStampOf = async ({ readKey = storedLabellerKey, store = databaseStore } = {}) => {
-  if (!(await readKey().catch(() => null))) return 0
-  return store.labelledCount({ version: currentLabellerVersion() })
+  if (!(await readKey().catch(() => null))) return '0'
+  return store.answeredStamp({ version: currentLabellerVersion() })
 }
 
 export const withLabellerLabels = ({ records, labels }) => {
@@ -281,6 +282,8 @@ export const labellerInputOf = ({ title, programmes, channelNames, guideGenres, 
   }
 }
 
+export const labelsOfStored = (stored) => (stored?.raw ? jevLabelsOf({ raw: stored.raw, threshold: JEV_THRESHOLD }) : stored)
+
 export const hasLabels = (labels) => Boolean(labels?.format) || Boolean(labels?.topics?.length)
 
 const uniqueByKey = (titles) => [...new Map(titles.map((title) => [title.key, title])).values()]
@@ -308,20 +311,25 @@ const parseJson = (text) => {
 const databaseStore = {
   settledKeys: async ({ version, nowMs }) => new Set((await db(TABLE)
     .where({ labeller_version: version })
-    .andWhere((query) => query.whereIn('status', ['ok', 'none']).orWhere('retry_after', '>', nowMs))
+    .andWhere((query) => query.where('status', 'ok').orWhere('retry_after', '>', nowMs).orWhere((none) => none.where('status', 'none').whereNull('retry_after')))
     .select('show_key')).map((row) => row.show_key)),
   write: ({ key, version, status, labels, confidence, fetchedAt, retryAfter }) => db(TABLE)
     .insert({ show_key: key, labeller_version: version, status, labels_json: JSON.stringify(labels ?? {}), confidence, fetched_at: fetchedAt, retry_after: retryAfter })
     .onConflict(['show_key', 'labeller_version'])
     .merge(),
-  labels: async ({ version }) => new Map((await db(TABLE).where({ labeller_version: version, status: 'ok' }).select('show_key', 'labels_json').catch(() => []))
-    .map((row) => [row.show_key, parseJson(row.labels_json)])
-    .filter(([, labels]) => hasLabels(labels))),
+  labels: async ({ version }) => new Map((await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none']).select('show_key', 'labels_json').catch(() => []))
+    .map((row) => [row.show_key, { ...EMPTY_LABELS, ...labelsOfStored(parseJson(row.labels_json)) }])),
   prune: ({ keep }) => db(TABLE).whereNot({ labeller_version: keep }).delete(),
+  answeredStamp: async ({ version }) => {
+    const row = await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none'])
+      .first(db.raw('count(*) as count'), db.raw("sum(case when status = 'ok' then 1 else 0 end) as ok"), db.raw('max(fetched_at) as latest'))
+    return `${Number(row?.count) || 0}:${Number(row?.ok) || 0}:${Number(row?.latest) || 0}`
+  },
   labelledCount: async ({ version }) => Number((await db(TABLE).where({ labeller_version: version, status: 'ok' }).count({ count: '*' }).first())?.count) || 0,
 }
 
 const TABLE = 'title_labels'
+const EMPTY_LABELS = { format: null, topics: [], origin: null, sport: null }
 const CONCURRENCY = 8
 const DAILY_SPEND_USD = 0.5
 const MAX_REQUESTS_PER_DAY = 20_000
@@ -338,6 +346,7 @@ const FAILURE_BACKOFF_MS = 6 * 60 * 60 * 1000
 const INVALID_BACKOFF_MS = 7 * 24 * 60 * 60 * 1000
 const RATE_PAUSE_MS = 60 * 60 * 1000
 const CREDIT_RECHECK_MS = 24 * 60 * 60 * 1000
+const NONE_RETRY_MS = 30 * 24 * 60 * 60 * 1000
 const MAX_DESCRIPTION = 300
 const MAX_EPISODE_TITLE = 80
 const MAX_GUIDE_GENRES = 8

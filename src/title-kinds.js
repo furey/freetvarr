@@ -1,5 +1,6 @@
 import { db } from './db.js'
 import { hasEpisodeDetails } from './episode-details.js'
+import { guideCategoriesOf } from './classification-labels.js'
 import { KIND_OVERRIDES, MOVIE, NOT_MOVIE, ONE_OFF_KIND as ONE_OFF_OVERRIDE, SHOW_KIND } from './programme-kind.js'
 import { showKeyOf } from './web/show-key.js'
 
@@ -138,7 +139,7 @@ export const loadGuideCategories = async ({ fromMs, toMs, database = db }) => {
   const byTitle = new Map()
   for (const row of rows) {
     if (!byTitle.has(row.title_key)) byTitle.set(row.title_key, [])
-    byTitle.get(row.title_key).push(row.category)
+    for (const category of guideCategoriesOf(row.category)) if (!byTitle.get(row.title_key).includes(category)) byTitle.get(row.title_key).push(category)
   }
   return byTitle
 }

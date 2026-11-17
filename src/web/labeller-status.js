@@ -11,8 +11,8 @@ export const labellerStatusLineOf = (state) => {
   }
   const count = Number(state.labelled) || 0
   const labelled = count
-    ? `Jev has labelled ${count} ${count === 1 ? 'title' : 'titles'} that had no category.`
-    : 'Jev labels titles with no category after the next guide load.'
+    ? `Jev categories for ${count} guide ${count === 1 ? 'title' : 'titles'}.`
+    : 'Jev labels the guide titles after the next guide load.'
   if (state.last_error) return { text: `${labelled} Last run: ${state.last_error}`, kind: 'info' }
   return { text: labelled, kind: 'info' }
 }
