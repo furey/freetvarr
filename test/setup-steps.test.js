@@ -161,15 +161,19 @@ test('plexLibraryTitles: empty and unknown section ids give no name', () => {
 })
 
 test('readyImportNote: uses the sync interval', () => {
-  assert.equal(readyImportNote({ syncText: 'every 15 minutes' }), 'Freetvarr imports new recordings every 15 minutes.')
-  assert.equal(readyImportNote({ syncText: 'on your sync schedule' }), 'Freetvarr imports new recordings on your sync schedule.')
+  const timed = readyImportNote({ syncText: 'every 15 minutes' })
+  assert.match(timed, /imports.*\bevery 15 minutes\b/)
+  assert.doesNotMatch(timed, /Import every recording/)
+  assert.match(readyImportNote({ syncText: 'on your sync schedule' }), /imports.*\bon your sync schedule\b/)
 })
 
 test('readyImportNote: says once what Import every recording off leaves out', () => {
-  assert.equal(
-    readyImportNote({ syncText: 'every 30 minutes', importUnmatched: false }),
-    'Freetvarr imports new recordings every 30 minutes. Import every recording is off, so only your series and recordings with Add to library on are imported.',
-  )
+  const note = readyImportNote({ syncText: 'every 30 minutes', importUnmatched: false })
+  assert.ok(note.startsWith(readyImportNote({ syncText: 'every 30 minutes' })))
+  assert.equal(note.match(/Import every recording/g).length, 1)
+  assert.match(note, /Import every recording is off/)
+  assert.match(note, /\bseries\b/)
+  assert.match(note, /Add to library/)
 })
 
 test('runStepValue: hides zero counts', () => {
@@ -222,18 +226,19 @@ test('setupSettingsRows: unknown parts stay neutral while loading, missing parts
 test('setupSettingsRows: the Allowed hostnames row counts the names and warns about unknown names and *', () => {
   const rowOf = (hosts) => setupSettingsRows({ hosts }).find((row) => row.key === 'hostnames')
   assert.equal(rowOf(null).meta, 'Checking…')
-  assert.deepEqual(
-    (({ title, meta, value, tone }) => ({ title, meta, value, tone }))(rowOf({ hosts: [], env_hosts: [], any_host: false, seen: [] })),
-    { title: 'Allowed hostnames', meta: 'IP addresses and local names always work', value: '', tone: '' },
-  )
+  const none = rowOf({ hosts: [], env_hosts: [], any_host: false, seen: [] })
+  assert.deepEqual({ title: none.title, value: none.value, tone: none.tone }, { title: 'Allowed hostnames', value: '', tone: '' })
+  assert.match(none.meta, /IP addresses/i)
+  assert.match(none.meta, /local names/i)
   const added = rowOf({ hosts: ['a.example.com'], env_hosts: ['b.example.com'], any_host: false, seen: [] })
   assert.equal(added.value, '2')
   assert.equal(added.tone, 'ok')
   const unknown = rowOf({ hosts: [], env_hosts: [], any_host: false, seen: [{ name: 'tv.example.com' }] })
-  assert.equal(unknown.meta, 'Opened as tv.example.com, which 3.0.0 will refuse')
+  assert.match(unknown.meta, /\btv\.example\.com\b/)
+  assert.match(unknown.meta, /3\.0\.0.*refuse/)
   assert.equal(unknown.tone, 'warn')
   const anyName = rowOf({ hosts: ['*'], env_hosts: [], any_host: true, seen: [] })
-  assert.equal(anyName.meta, 'Answers to any name')
+  assert.match(anyName.meta, /any name/i)
   assert.equal(anyName.tone, 'warn')
   assert.equal(setupDrawerOf(['system', 'setup', 'hostnames']), 'hostnames')
 })

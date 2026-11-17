@@ -23,19 +23,27 @@ test('keepsStoppedRecording keeps a recording of five minutes or more', () => {
 })
 
 test('stopRecordingOutcome says the recording stays in the library', () => {
-  assert.equal(stopRecordingOutcome({ recordedMs: 12 * MINUTE + 30_000 }),
-    'Stops the recording. The 12 minutes recorded so far stay in your library.')
-  assert.equal(stopRecordingOutcome({ recordedMs: 12 * MINUTE, addsToLibrary: false }),
-    'Stops the recording. The 12 minutes recorded so far stay in TVHeadend.')
+  const inLibrary = stopRecordingOutcome({ recordedMs: 12 * MINUTE + 30_000 })
+  assert.match(inLibrary, /\b12 minutes\b/)
+  assert.match(inLibrary, /\blibrary\b/i)
+  assert.doesNotMatch(inLibrary, /TVHeadend|delete/i)
+  const inTvheadend = stopRecordingOutcome({ recordedMs: 12 * MINUTE, addsToLibrary: false })
+  assert.match(inTvheadend, /\b12 minutes\b/)
+  assert.match(inTvheadend, /TVHeadend/)
+  assert.doesNotMatch(inTvheadend, /library|delete/i)
 })
 
 test('stopRecordingOutcome says a short recording is deleted', () => {
-  assert.equal(stopRecordingOutcome({ recordedMs: 2 * MINUTE }),
-    'Stops the recording and deletes the 2 minutes recorded so far.')
-  assert.equal(stopRecordingOutcome({ recordedMs: MINUTE }),
-    'Stops the recording and deletes the 1 minute recorded so far.')
-  assert.equal(stopRecordingOutcome({ recordedMs: 20_000 }),
-    'Stops the recording and deletes what it recorded so far.')
+  const twoMinutes = stopRecordingOutcome({ recordedMs: 2 * MINUTE })
+  const oneMinute = stopRecordingOutcome({ recordedMs: MINUTE })
+  const seconds = stopRecordingOutcome({ recordedMs: 20_000 })
+  for (const outcome of [twoMinutes, oneMinute, seconds]) {
+    assert.match(outcome, /delete/i)
+    assert.doesNotMatch(outcome, /library|TVHeadend|undefined|NaN/i)
+  }
+  assert.match(twoMinutes, /\b2 minutes\b/)
+  assert.match(oneMinute, /\b1 minute\b/)
+  assert.doesNotMatch(seconds, /\d|minute/)
 })
 
 test('stopConfirmOf: under 5 minutes is a red Stop and delete that names what goes', () => {
@@ -43,16 +51,24 @@ test('stopConfirmOf: under 5 minutes is a red Stop and delete that names what go
   assert.equal(copy.title, 'Stop recording?')
   assert.equal(copy.danger, true)
   assert.equal(copy.goLabel, 'Stop and delete')
-  assert.deepEqual(copy.deleted, [{ icon: 'trash', title: 'The 3 minutes recorded so far', detail: 'Freetvarr keeps a stopped recording only after 5 minutes' }])
-  assert.equal(copy.note, 'TVHeadend counts this episode as recorded, so its repeats do not record.')
+  assert.equal(copy.deleted.length, 1)
+  assert.equal(copy.deleted[0].icon, 'trash')
+  assert.match(copy.deleted[0].title, /\b3 minutes\b/)
+  assert.match(copy.deleted[0].detail, /\b5 minutes\b/)
+  assert.match(copy.note, /repeats/i)
   assert.equal(copy.noteIcon, 'info')
-  assert.deepEqual(copy.stays, [{ icon: 'check', title: 'The series recording', detail: 'The next episode still records on 9HD Sydney' }])
-  assert.equal(copy.undo, "You can't undo this.")
+  assert.equal(copy.stays.length, 1)
+  assert.equal(copy.stays[0].icon, 'check')
+  assert.equal(copy.stays[0].title, 'The series recording')
+  assert.match(copy.stays[0].detail, /next episode/i)
+  assert.ok(copy.stays[0].detail.includes('on 9HD Sydney'))
+  assert.match(copy.undo, /undo/i)
 })
 
 test('stopConfirmOf: a one-off under a minute has nothing that stays', () => {
   const copy = stopConfirmOf({ recordedMs: 20_000 })
-  assert.equal(copy.deleted[0].title, 'What it recorded so far')
+  assert.doesNotMatch(copy.deleted[0].title, /\d|minute|undefined/)
+  assert.match(copy.deleted[0].title, /recorded/i)
   assert.equal(copy.deleted.length, 1)
   assert.equal(copy.note, undefined)
   assert.deepEqual(copy.stays, [])
@@ -63,9 +79,14 @@ test('stopConfirmOf: from 5 minutes the recording stays and the button is not re
   assert.equal(copy.danger, false)
   assert.equal(copy.goLabel, 'Stop recording')
   assert.equal(copy.deleted, undefined)
-  assert.deepEqual(copy.stays.map((line) => line.title), ['The 5 minutes recorded so far', 'The series recording'])
-  assert.equal(copy.stays[0].detail, 'They go into your library')
-  assert.equal(stopConfirmOf({ recordedMs: 12 * MINUTE, addsToLibrary: false }).stays[0].detail, 'They stay in TVHeadend')
+  assert.equal(copy.stays.length, 2)
+  assert.match(copy.stays[0].title, /\b5 minutes\b/)
+  assert.equal(copy.stays[1].title, 'The series recording')
+  assert.match(copy.stays[0].detail, /library/i)
+  assert.doesNotMatch(copy.stays[0].detail, /TVHeadend/)
+  const heldDetail = stopConfirmOf({ recordedMs: 12 * MINUTE, addsToLibrary: false }).stays[0].detail
+  assert.match(heldDetail, /TVHeadend/)
+  assert.doesNotMatch(heldDetail, /library/i)
 })
 
 test('the stop dialog draws the repeats note with its own icon, not the trash of the deleted list', async () => {

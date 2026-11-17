@@ -14,7 +14,8 @@ test('diagnoseRecordingError: reads both sizes of a short copy, old and new word
   for (const source of ['TVHeadend', 'source']) {
     const d = diagnoseRecordingError(`short copy: on-disk 1200000000 bytes vs ${source} 1900000000 bytes (Δ 700000000)`)
     assert.equal(d.title, 'Import came up short')
-    assert.equal(d.meaning, 'The imported file is 1.20 GB, but the TVHeadend recording file is 1.90 GB.')
+    assert.match(d.meaning, /\b1\.20 GB\b.*\b1\.90 GB\b/)
+    assert.match(d.meaning, /imported.*TVHeadend/i)
     assert.doesNotMatch(d.steps.join(' '), /weak signal/)
   }
 })

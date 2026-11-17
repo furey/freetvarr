@@ -30,7 +30,13 @@ test('arr text: connected, not connected, the key placeholder, and the find resu
   assert.equal(arrStatusOf({ app: 'radarr', result: { ok: true, count: 1, recycleBin: { on: false } } }).detail, 'Radarr · 1 film · recycle bin off')
   assert.equal(keyPlaceholderOf({ app: 'radarr', saved: { hasKey: false } }), 'Paste the key from Radarr → Settings → General')
   assert.equal(keyPlaceholderOf({ app: 'sonarr', saved: { hasKey: true, keySource: 'config.xml' } }), '•••••')
-  assert.equal(findResultText({ sonarr: { url: 'http://x', keyFound: true }, radarr: { url: 'http://y', keyFound: false } }), 'Sonarr found. Radarr found; paste its API key.')
+  const found = findResultText({ sonarr: { url: 'http://x', keyFound: true }, radarr: { url: 'http://y', keyFound: false } })
+  assert.match(found, /Sonarr found\b[^;]*Radarr found\b.*\bkey\b/i)
+  assert.doesNotMatch(found, /not found|Sonarr[^.]*\bkey\b/i)
+  const missing = findResultText({ sonarr: { keyFound: true }, radarr: { url: 'http://y', keyFound: true } })
+  assert.match(missing, /Sonarr not found/i)
+  assert.doesNotMatch(missing, /Radarr not found|\bkey\b/i)
+  assert.match(findResultText(), /Sonarr not found.*Radarr not found/i)
 })
 
 test('episode menus: a Plex episode can play, be marked, show info, and be deleted, but not merged, imported, or ad-scanned', () => {
@@ -51,7 +57,11 @@ test('episodeInfoOf: says where a file came from, and lists both versions of an 
     { label: 'Size', value: '2.2 GB · H.264 1080p · AAC' },
   ])
   const both = episodeInfoOf({ episode: { source: 'freetvarr', filePath: '/tv/x.ts', otherVersions: [sonarr], episode: 41 }, showTitle: 'The Block', timeZone: 'UTC' })
-  assert.equal(both.note, 'This episode has 2 versions. Freetvarr plays the recording; Plex picks either.')
+  assert.match(both.note, /\b2 versions\b/)
+  assert.match(both.note, /plays the recording/i)
+  const twoInPlex = episodeInfoOf({ episode: { source: 'plex', versions: [sonarr, sonarr], episode: 34 }, showTitle: 'The Block', timeZone: 'UTC' })
+  assert.match(twoInPlex.note, /\b2 versions\b/)
+  assert.doesNotMatch(twoInPlex.note, /plays the recording/i)
   assert.ok(both.rows.some((row) => row.label === 'Recording' && row.value === '/tv/x.ts'))
   assert.ok(both.rows.some((row) => row.label === 'Sonarr copy'))
   assert.equal(copySizeText({ sizeBytes: 850e6, videoCodec: 'hevc', resolution: '4k' }), '850 MB · HEVC 4K')

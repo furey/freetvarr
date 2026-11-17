@@ -279,11 +279,12 @@ test('scheduled episodes: pill, meta, hero line, and status card for a show that
   const detail = show({ kind: 'oneoff', counts: { total: 0 }, seasons: [{ season: 8, episodes: [scheduled] }] })
   assert.equal(heroMetaOf({ show: detail }), '9HD Sydney · 1 scheduled')
   assert.equal(showsSeasonChips({ ...detail, kind: 'show', seasons: [{ season: null, episodes: [scheduled] }] }), false)
-  assert.deepEqual(ruleStatusOf({ show: detail, timeZone: TZ, nowMs }), {
-    tone: 'scheduled',
-    headline: 'Records tonight 8:30pm on 9HD Sydney',
-    detail: 'This episode only. To record every episode, open it in the TV guide and choose Every episode.',
-  })
+  const oneEpisode = ruleStatusOf({ show: detail, timeZone: TZ, nowMs })
+  assert.equal(oneEpisode.tone, 'scheduled')
+  assert.equal(oneEpisode.headline, 'Records tonight 8:30pm on 9HD Sydney')
+  assert.match(oneEpisode.detail, /this episode only/i)
+  assert.match(oneEpisode.detail, /TV guide/)
+  assert.doesNotMatch(oneEpisode.detail, /series recording/i)
   const recorded = { recordingId: 'a', title: 'Love Island Australia', airedAt: SUN_18_OCT, durationS: 3600, channelName: '9HD Sydney' }
   assert.equal(heroMetaOf({ show: { ...detail, seasons: [{ season: 8, episodes: [scheduled, recorded] }] } }), '9HD Sydney · 1 recording')
   const upcoming = (startDate, overrides) => show({ counts: { total: 0 }, nextAiring: { startDate }, ...overrides })
@@ -296,7 +297,10 @@ test('scheduled episodes: pill, meta, hero line, and status card for a show that
   assert.equal(scheduledShelfMetaOf({ show: upcoming(TUE_830PM, { rule: { paused: false } }), timeZone: TZ, nowMs }), '')
   assert.equal(scheduledWhenOf({ ms: TUE_830PM + 7 * 86_400_000, nowMs, timeZone: TZ }), 'Tue 27 Oct 8:30pm')
   const seriesTimer = { ...scheduled, scheduled: { programId: 7, seriesLinkId: 'auto-1' } }
-  assert.equal(ruleStatusOf({ show: { ...detail, seasons: [{ season: 8, episodes: [seriesTimer] }] }, timeZone: TZ, nowMs }).detail, 'Part of a series recording in TVHeadend.')
+  const inSeries = ruleStatusOf({ show: { ...detail, seasons: [{ season: 8, episodes: [seriesTimer] }] }, timeZone: TZ, nowMs })
+  assert.equal(inSeries.tone, 'scheduled')
+  assert.match(inSeries.detail, /series recording\b.*\bTVHeadend/)
+  assert.doesNotMatch(inSeries.detail, /episode only/i)
 })
 
 

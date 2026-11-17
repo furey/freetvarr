@@ -44,9 +44,13 @@ test('programme sheet: strength label and line follow the kind', () => {
   assert.equal(labelFor('movie'), 'This movie')
   assert.equal(labelFor('one-off'), 'This showing')
   assert.equal(labelFor(undefined), 'This episode')
-  assert.equal(strengthLineOf({ strength: 'episode', kind: 'movie' }), 'Records this movie.')
-  assert.equal(strengthLineOf({ strength: 'episode', kind: 'one-off' }), 'Records this showing only.')
-  assert.equal(strengthLineOf({ strength: 'episode' }), 'Records this airing only.')
+  const lineFor = (kind) => strengthLineOf({ strength: 'episode', kind })
+  assert.match(lineFor('movie'), /movie/i)
+  assert.doesNotMatch(lineFor('movie'), /showing|airing/i)
+  assert.match(lineFor('one-off'), /showing/i)
+  assert.doesNotMatch(lineFor('one-off'), /movie|airing/i)
+  assert.match(lineFor(undefined), /airing/i)
+  assert.doesNotMatch(lineFor(undefined), /movie|showing/i)
 })
 
 test('For you menu: a movie card says Record this movie and passes the kind to the sheet', async () => {

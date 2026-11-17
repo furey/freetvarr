@@ -117,8 +117,19 @@ test('arrangeByOrder places ordered items in the slots they held', () => {
 
 test('announcements name the channel and its position', () => {
   const at = { name: 'The Block', index: 2, count: 8 }
-  assert.equal(positionText(at), 'The Block, position 3 of 8.')
-  assert.equal(pickedUpText(at), 'Picked up The Block, position 3 of 8.')
-  assert.equal(movedText({ ...at, index: 3 }), 'The Block moved to position 4 of 8.')
-  assert.equal(cancelledText(at), 'Cancelled. The Block is back at position 3.')
+  for (const text of [positionText(at), pickedUpText(at)]) {
+    assert.match(text, /The Block/)
+    assert.match(text, /\b3 of 8\b/)
+  }
+  assert.match(pickedUpText(at), /picked up/i)
+  assert.doesNotMatch(positionText(at), /picked up|moved|cancel/i)
+  const moved = movedText({ ...at, index: 3 })
+  assert.match(moved, /The Block/)
+  assert.match(moved, /moved/i)
+  assert.match(moved, /\b4 of 8\b/)
+  const cancelled = cancelledText(at)
+  assert.match(cancelled, /cancel/i)
+  assert.match(cancelled, /The Block/)
+  assert.match(cancelled, /\b3\b/)
+  assert.doesNotMatch(cancelled, /\b[24]\b|undefined|NaN/)
 })

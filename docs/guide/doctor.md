@@ -125,7 +125,7 @@ Checks that the media folder exists and that Freetvarr can write to it. When it 
 
 ## Library folders {#paths-mounted}
 
-Warns when the media root, the one-off folder, or the movies folder is empty while Freetvarr's imported recordings point into it. Hidden files such as `.freetvarr-keep` do not count. An empty folder on a new install passes. See [Empty library folder](/guide/troubleshooting#empty-library-folder).
+Warns when the media root, the one-off folder, or the movies folder is empty while Freetvarr's imported recordings point into it. Hidden files such as `.freetvarr-keep` do not count. An empty folder on a new install passes, and so does an empty folder on the same disk as another library folder that still holds recordings, because then the share is mounted and the files were deleted. See [Empty library folder](/guide/troubleshooting#empty-library-folder).
 
 ## Hardlinks {#paths-hardlink}
 
