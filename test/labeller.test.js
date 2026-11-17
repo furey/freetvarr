@@ -419,7 +419,9 @@ test('labeller key routes never return the key, validate before saving, and rese
   const app = Object.fromEntries(['get', 'post', 'put', 'delete'].map((method) => [method, (route, ...stack) => { handlers[`${method} ${route}`] = stack.at(-1) }]))
   const saved = []
   let resets = 0
+  let runs = 0
   mountLabellerKey({
+    onKeySaved: () => { runs += 1 },
     app,
     csrf: () => {},
     limiter: () => {},
@@ -443,6 +445,7 @@ test('labeller key routes never return the key, validate before saving, and rese
   assert.deepEqual(put.body, { ok: true, key_set: true, checked: true })
   assert.deepEqual(saved, [[LABELLER_KEY_SETTING, FAKE_KEY]])
   assert.equal(resets, 1)
+  assert.equal(runs, 1)
   assert.equal((await call('put /api/labeller', { key: 'has space' })).code, 400)
   assert.deepEqual((await call('delete /api/labeller')).body, { ok: true, key_set: false })
   assert.deepEqual(saved.at(-1), [LABELLER_KEY_SETTING, ''])
@@ -453,7 +456,7 @@ test('labellerCheck: hidden with no key, fails on a rejected key, warns when the
   assert.equal(labellerCheck({ keySet: false }).status, 'hidden')
   assert.equal(labellerCheck({ keySet: true, keyRejected: true }).status, 'fail')
   assert.equal(labellerCheck({ keySet: true, labelled: 3, lastRun: { stopped: 'rate', error: 'TypeSafe asked Freetvarr to slow down.' } }).status, 'warn')
-  assert.deepEqual(labellerCheck({ keySet: true, labelled: 1, lastRun: { at: 1 } }), { status: 'pass', detail: 'Jev labelled 1 guide title.' })
+  assert.deepEqual(labellerCheck({ keySet: true, labelled: 1, lastRun: { at: 1 } }), { status: 'pass', detail: 'Jev categories for 1 guide title.' })
 })
 
 test('labellerStatusLineOf describes the saved state for Settings', () => {
