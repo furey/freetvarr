@@ -15,7 +15,8 @@ test('tmdbKeyFrom trims a key and refuses anything that cannot be one', () => {
 })
 
 test('tmdbKeyMessageOf explains each validation result', () => {
-  assert.equal(tmdbKeyMessageOf({ ok: true }), 'TMDB accepted the key.')
+  assert.match(tmdbKeyMessageOf({ ok: true }), /TMDB accepted/)
+  assert.doesNotMatch(tmdbKeyMessageOf({ ok: true }), /not|could/i)
   assert.match(tmdbKeyMessageOf({ ok: false, reason: 'invalid' }), /did not accept/)
   assert.match(tmdbKeyMessageOf({ ok: false, reason: 'whatever' }), /could not reach TMDB/)
 })

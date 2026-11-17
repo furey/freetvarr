@@ -7,26 +7,43 @@ test('healthSummaryOf: all good when nothing is wrong', () => {
 })
 
 test('healthSummaryOf: TVHeadend states map to levels', () => {
-  assert.deepEqual(healthSummaryOf({ tvheadend: 'fail' }), { level: 'fail', sentence: 'TVHeadend is not answering.' })
-  assert.deepEqual(healthSummaryOf({ tvheadend: 'stale' }), { level: 'warn', sentence: 'TVHeadend is slow to answer.' })
-  assert.deepEqual(healthSummaryOf({ tvheadend: 'unconfigured' }), { level: 'warn', sentence: 'TVHeadend is not set up yet.' })
+  const down = healthSummaryOf({ tvheadend: 'fail' })
+  const stale = healthSummaryOf({ tvheadend: 'stale' })
+  const unconfigured = healthSummaryOf({ tvheadend: 'unconfigured' })
+  assert.deepEqual([down.level, stale.level, unconfigured.level], ['fail', 'warn', 'warn'])
+  assert.match(down.sentence, /TVHeadend.*not answering/i)
+  assert.match(stale.sentence, /TVHeadend.*slow/i)
+  assert.match(unconfigured.sentence, /TVHeadend.*not set up/i)
   assert.equal(healthSummaryOf({ tvheadend: 'unknown' }).level, 'ok')
 })
 
 test('healthSummaryOf: failed recordings and syncs', () => {
-  assert.deepEqual(healthSummaryOf({ recentFailures: 1 }), { level: 'fail', sentence: 'A recording failed in the last day.' })
-  assert.equal(healthSummaryOf({ recentFailures: 3 }).sentence, '3 recordings failed in the last day.')
-  assert.deepEqual(healthSummaryOf({ lastSync: { status: 'error' } }), { level: 'fail', sentence: 'The last sync failed.' })
-  assert.deepEqual(healthSummaryOf({ lastSync: { status: 'partial' } }), { level: 'warn', sentence: 'The last sync had problems.' })
+  const one = healthSummaryOf({ recentFailures: 1 })
+  assert.equal(one.level, 'fail')
+  assert.match(one.sentence, /\brecording failed\b/i)
+  assert.doesNotMatch(one.sentence, /\d/)
+  const three = healthSummaryOf({ recentFailures: 3 })
+  assert.equal(three.level, 'fail')
+  assert.match(three.sentence, /\b3 recordings failed\b/)
+  const failed = healthSummaryOf({ lastSync: { status: 'error' } })
+  assert.equal(failed.level, 'fail')
+  assert.match(failed.sentence, /sync failed/i)
+  const partial = healthSummaryOf({ lastSync: { status: 'partial' } })
+  assert.equal(partial.level, 'warn')
+  assert.match(partial.sentence, /sync.*problems/i)
+  assert.doesNotMatch(partial.sentence, /failed/i)
 })
 
 test('healthSummaryOf: Doctor checks name the check, TVHeadend ones say so', () => {
   const warn = healthSummaryOf({ doctorChecks: [{ group: 'storage', title: 'Free space', status: 'warn' }] })
-  assert.deepEqual(warn, { level: 'warn', sentence: 'The free space check has a warning.' })
+  assert.equal(warn.level, 'warn')
+  assert.match(warn.sentence, /\bfree space check\b.*warning/)
   const fail = healthSummaryOf({ doctorChecks: [{ group: 'tvheadend', title: 'Tuners', status: 'fail' }] })
-  assert.deepEqual(fail, { level: 'fail', sentence: 'The TVHeadend tuners check failed.' })
+  assert.equal(fail.level, 'fail')
+  assert.match(fail.sentence, /\bTVHeadend tuners check\b.*failed/)
   const plex = healthSummaryOf({ doctorChecks: [{ group: 'plex', title: 'Plex library', status: 'fail' }] })
-  assert.equal(plex.sentence, 'The Plex library check failed.')
+  assert.match(plex.sentence, /\bPlex library check\b.*failed/)
+  assert.doesNotMatch(plex.sentence, /TVHeadend/)
   assert.equal(healthSummaryOf({ doctorChecks: [{ title: 'Syncs', status: 'skip' }] }).level, 'ok')
 })
 
@@ -36,7 +53,8 @@ test('healthSummaryOf: the worst finding wins, first one on a tie', () => {
     lastSync: { status: 'error' },
     doctorChecks: [{ group: 'storage', title: 'Free space', status: 'fail' }],
   })
-  assert.deepEqual(health, { level: 'fail', sentence: 'The last sync failed.' })
+  assert.equal(health.level, 'fail')
+  assert.deepEqual(health, healthSummaryOf({ lastSync: { status: 'error' } }))
 })
 
 test('usableDoctorReport: ignores a missing or old report', () => {

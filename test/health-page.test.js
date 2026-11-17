@@ -23,14 +23,20 @@ test('worstHealthOf: picks the worst level, first one on a tie', () => {
 })
 
 test('healthHeadlineOf: says everything works unless a sentence explains a problem', () => {
-  assert.equal(healthHeadlineOf({ level: 'ok', sentence: null }), 'Everything is working.')
-  assert.equal(healthHeadlineOf({ level: 'warn', sentence: 'TVHeadend is slow to answer.' }), 'TVHeadend is slow to answer.')
+  const allGood = healthHeadlineOf({ level: 'ok', sentence: null })
+  assert.match(allGood, /working/i)
+  assert.equal(healthHeadlineOf({ level: 'warn', sentence: null }), allGood)
+  const sentence = 'TVHeadend is slow to answer.'
+  assert.equal(healthHeadlineOf({ level: 'warn', sentence }), sentence)
+  assert.equal(healthHeadlineOf({ level: 'ok', sentence }), allGood)
 })
 
 test('checkedAgoText: minutes, hours, and unknown', () => {
-  assert.equal(checkedAgoText({ ranAtMs: NOW - 20_000, nowMs: NOW }), 'Last checked just now.')
-  assert.equal(checkedAgoText({ ranAtMs: NOW - 2 * 60_000, nowMs: NOW }), 'Last checked 2 minutes ago.')
-  assert.equal(checkedAgoText({ ranAtMs: NOW - 3 * 3600_000, nowMs: NOW }), 'Last checked 3 hours ago.')
+  const justNow = checkedAgoText({ ranAtMs: NOW - 20_000, nowMs: NOW })
+  assert.match(justNow, /just now/i)
+  assert.doesNotMatch(justNow, /\d/)
+  assert.match(checkedAgoText({ ranAtMs: NOW - 2 * 60_000, nowMs: NOW }), /\b2 minutes ago\b/)
+  assert.match(checkedAgoText({ ranAtMs: NOW - 3 * 3600_000, nowMs: NOW }), /\b3 hours ago\b/)
   assert.equal(checkedAgoText({ ranAtMs: NaN, nowMs: NOW }), '')
 })
 

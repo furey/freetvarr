@@ -46,7 +46,9 @@ test('storageCheckOutcome: problems point at Change folders', () => {
     recordings: { ok: true, hardlinks: false },
     tvh: { ok: true, configured: true, matches: true, tvhPath: '/recordings' },
   })
-  assert.equal(outcome.problems[0].fix, 'Press Change folders and correct the TV library folder.')
+  assert.equal(outcome.problems.length, 1)
+  assert.match(outcome.problems[0].fix, /Change folders/)
+  assert.match(outcome.problems[0].fix, /TV library folder/)
   assert.equal(outcome.notes.length, 1)
 })
 

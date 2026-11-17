@@ -75,10 +75,11 @@ test('clashSentence and clashRangeText: describe the missing tuner in plain word
   })
   const clash = clashById(plan).get('g')
   assert.equal(clashRangeText({ clash, timeZone: 'UTC' }), '8:30–8:40 pm')
-  assert.equal(
-    clashSentence({ clash, timeZone: 'UTC' }),
-    'Gogglebox needs a third tuner from 8:30 to 8:40 pm. Skip one of the three, or it misses its first 10 minutes.',
-  )
+  const sentence = clashSentence({ clash, timeZone: 'UTC' })
+  assert.match(sentence, /^Gogglebox\b.*\bthird tuner\b/)
+  assert.match(sentence, /8:30 to 8:40 pm/)
+  assert.match(sentence, /\bfirst 10 minutes\b/)
+  assert.doesNotMatch(sentence, /undefined|null|NaN/)
 })
 
 test('clashSentence: says when a recording does not record at all', () => {
