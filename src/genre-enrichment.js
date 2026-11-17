@@ -10,6 +10,7 @@ import { isLiveEventTitle } from './for-you-label-rules.js'
 import { loadCategoryOverrides, withCategoryOverrides } from './for-you-category-overrides.js'
 import { hasEpisodeDetails } from './episode-details.js'
 import { MOVIE_KIND, loadTitleKinds, requestKindOf, withTitleKinds } from './title-kinds.js'
+import { loadLabellerLabels, withLabellerLabels } from './labeller.js'
 
 export const GENRE_LOOKUP_KEY = 'for_you_genre_lookup'
 
@@ -314,11 +315,12 @@ export const rememberTvmazeShow = async ({ title, show, nowMs = Date.now() }) =>
 }
 
 export const loadTitleGenres = async () => {
-  const [rows, overrides, categoryOverrides, titleKinds] = await Promise.all([
+  const [rows, overrides, categoryOverrides, titleKinds, labellerLabels] = await Promise.all([
     db('title_genres').select('title_key', 'categories_json', 'genres_json', 'source').catch(() => []),
     loadKindOverrides().catch(() => new Map()),
     loadCategoryOverrides().catch(() => new Map()),
     loadTitleKinds().catch(() => new Map()),
+    loadLabellerLabels().catch(() => new Map()),
   ])
   const records = new Map(rows.map((row) => [row.title_key, {
     genreTags: parseList(row.categories_json),
@@ -326,7 +328,7 @@ export const loadTitleGenres = async () => {
     source: row.source || null,
   }]))
   const withKinds = withTitleKinds({ records: withKindOverrides({ records, overrides }), titleKinds })
-  return withCategoryOverrides({ records: withKinds, overrides: categoryOverrides })
+  return withCategoryOverrides({ records: withLabellerLabels({ records: withKinds, labels: labellerLabels }), overrides: categoryOverrides })
 }
 
 const tvmazeRecordOf = (show) => ({

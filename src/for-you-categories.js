@@ -109,9 +109,12 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: origin ?? known.origin ?? null, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
   if (kind === 'kids') return labelTagsOf({ index, kind, origin, format: 'kids' })
   const evidence = evidenceLabelsOf({ index, facts, kind })
+  if (!evidence.format && !evidence.topics.length && facts.labeller) return labellerTagsOf({ index, kind, origin, labels: facts.labeller })
   if (evidence.topics.length || NO_EMBEDDING_TOPIC.has(evidence.format) || !titleVector || !prototypes.size) return labelTagsOf({ index, kind, origin, ...evidence })
   return labelTagsOf({ index, kind, origin, ...evidence, topics: embeddingTopicsOf({ index, kind, titleVector, prototypes }) })
 }
+
+export const isUncategorisedTags = (tags) => Boolean(tags) && tags.kind !== 'film' && !tags.sportCode && !tags.entries.length
 
 export const mostSpecificCategoryOf = (tags) => {
   if (tags?.sportCode) return tags.sportCode
@@ -373,6 +376,7 @@ export const recordFactsOf = (record) => {
     wikidataGenres: genres.filter((genre) => genre.startsWith('wd:')).map((genre) => genre.slice(3)),
     origin: tokenOf('country:')?.toLowerCase() ?? null,
     override: record?.categoryOverride ?? null,
+    labeller: record?.labellerLabels ?? null,
   }
 }
 
@@ -436,6 +440,16 @@ const sportTagsOf = ({ index, facts, known, origin }) => {
   if (code) return { ...labelTagsOf({ index, kind: 'sport', origin, topics: [code] }), sportCode: code }
   if (known) return labelTagsOf({ index, kind: 'sport', origin: origin ?? known.origin ?? null, format: known.format ?? null, topics: known.topics ?? [] })
   return labelTagsOf({ index, kind: 'sport', origin, topics: [OTHER_SPORT] })
+}
+
+const labellerTagsOf = ({ index, kind, origin, labels }) => {
+  const labelledOrigin = origin ?? labels.origin ?? null
+  if (labels.format === SPORT_FORMAT && index.groups.get(labels.sport)?.row === 'sport') {
+    return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: [labels.sport] }), sportCode: labels.sport, labelled: true }
+  }
+  const format = labels.format === SPORT_FORMAT ? null : labels.format ?? null
+  const tags = labelTagsOf({ index, kind, origin: labelledOrigin, format, topics: labels.topics ?? [] })
+  return tags.entries.length ? { ...tags, labelled: true } : tags
 }
 
 const overrideTagsOf = ({ index, facts, kind, override, origin }) => {
@@ -509,7 +523,7 @@ const memoFor = ({ vectorsByHash, index }) => {
 
 const signatureOf = (facts) => JSON.stringify([
   facts.key, facts.title, [...facts.hashes].sort(), [...facts.genreTags].sort(), facts.tvmazeType, facts.film, facts.genre, facts.kidsSlotsOnly,
-  facts.tvmazeGenres, facts.wikidataGenres, facts.origin, facts.override,
+  facts.tvmazeGenres, facts.wikidataGenres, facts.origin, facts.override, facts.labeller,
   [...facts.channelNames].sort(), [...facts.guideGenres].sort(),
 ])
 

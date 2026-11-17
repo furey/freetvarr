@@ -459,6 +459,7 @@ export const SettingsView = {
             <p class="settings-note">Off keeps every title on your network.</p>
           </div>
           <tmdb-key-setting @key-change="tmdbKeySet = $event" />
+          <labeller-key-setting />
           <div class="settings-group" data-setting="picture-cropping">
             <h3 class="ui-group-label">Picture cropping</h3>
             <div class="ui-group">

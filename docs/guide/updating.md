@@ -110,6 +110,12 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 2.34.0
+
+[Release notes for `2.34.0`](https://github.com/furey/freetvarr/releases/tag/2.34.0)
+
+- **Database**: the first start adds one database change (database change `0054`). `0054` adds an empty table for the answers of the optional [category labeller](/guide/for-you#category-labeller). Without a TypeSafe key the table stays empty. A version that is older than `0054` cannot open the database; to go back without a backup, see [Go back without a backup](#go-back-without-a-backup).
+
 ### 2.31.0
 
 [Release notes for `2.31.0`](https://github.com/furey/freetvarr/releases/tag/2.31.0)
@@ -302,6 +308,8 @@ Use this when you updated, did not make a backup, and want the older version. Th
 Run these steps on the version you want to leave, before you change the image. If you already changed the image and Freetvarr keeps restarting, change the image back to the newer version first.
 
 1. Find the database changes to undo. Each [version note](#version-notes) names the database change that its release adds:
+   - To go back from `2.34.0` to `2.31.0` or newer (up to `2.33.x`), undo `0054`. Only the category labeller answers are lost; Freetvarr asks TypeSafe again for them when you update again with a key saved.
+   - To go back from `2.34.0` to `2.28.0` or newer (up to `2.30.x`), undo `0054`, then `0053`.
    - To go back from `2.31.0` to `2.28.0` or newer (up to `2.30.x`), undo `0053`. Nothing is lost: `0053` only removes the title kind table, and Freetvarr works the kinds out again when you update again.
    - To go back from `2.31.0` to `2.24.0` or newer (up to `2.27.x`), undo `0053`, then `0052`.
    - To go back from `2.28.0` to `2.24.0` or newer (up to `2.27.x`), undo `0052`. The category hides and switches that `0052` deleted do not come back.

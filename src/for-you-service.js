@@ -15,7 +15,7 @@ import {
   runEmbeddings,
   vectorsVersion,
 } from './for-you-engine.js'
-import { createGenreEnrichment, loadTitleGenres, yearOf } from './genre-enrichment.js'
+import { GENRE_LOOKUP_KEY, createGenreEnrichment, genreLookupEnabledFrom, loadTitleGenres, yearOf } from './genre-enrichment.js'
 import { createDisplayKinds } from './display-kind.js'
 import { createEndedHistory } from './guide-history.js'
 import { rememberKnownAsFromTvmaze, rememberKnownAsFromWikidata } from './search-aliases.js'
@@ -33,6 +33,9 @@ import { eventRowOf } from './user-events.js'
 import { flushUserEvents } from './user-events-log.js'
 import { measureJob } from './event-loop-lag.js'
 import { currentJob } from './activity.js'
+import { createLabeller, labelledStampOf } from './labeller.js'
+import { labellerCatalogueOf } from './labeller-catalogue.js'
+import { uncategorisedTitlesOf } from './labeller-titles.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -183,7 +186,7 @@ export const resultFingerprintOf = (result) => {
 
 export const forYouSignatureOf = ({ stamps, nowMs }) => JSON.stringify({ ...stamps, bucket: Math.floor(nowMs / BUCKET_MS) })
 
-export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, guideGenres, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone(), categoriesOff = [] }) => {
+export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, guideGenres, embedderId, vectors, pinned, tier, filmRatings = null, seriesRatings = null, otherLanguageFilms = 'few', channelPrefs = null, timeZone = currentZone(), categoriesOff = [], labels = 0 }) => {
   const autorecs = (state?.seriesTags || []).map(({ seriesLinkId, channelId, enabled, match }) => ({ seriesLinkId, channelId, enabled, match }))
   const ruleKeys = new Set([
     ...(state?.seriesTags || []).filter((tag) => tag.enabled !== false).map((tag) => showKeyOf(tag.name)),
@@ -217,6 +220,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       otherLanguageFilms,
       timeZone,
       categoriesOff: [...categoriesOff].sort().join(','),
+      labels: Number(labels) || 0,
       scoring: SCORING_VERSION,
     },
   }
@@ -353,6 +357,7 @@ const insertUnmutes = ({ index, keys, nowMs, source }) => db('user_events').inse
 
 export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs = WARM_DELAY_MS, ratingsDelayMs = RATINGS_WARM_DELAY_MS }) => {
   onGuideLoaded(() => warmForYou().catch((err) => console.warn(`[for-you] guide warm-up failed: ${err.message}`)))
+  onGuideLoaded(() => labelAfterGuideLoad().catch((err) => console.warn(`[for-you] category labelling failed: ${err.message}`)))
   const warm = setTimeout(() => {
     isForYouEnabled()
       .then((enabled) => enabled && getForYou())
@@ -367,6 +372,11 @@ export const startForYou = ({ version, delayMs = STARTUP_DELAY_MS, warmDelayMs =
     warmSeriesRatings().catch((err) => console.warn(`[for-you] series scores warm-up failed: ${err.message}`))
   }, ratingsDelayMs)
   ratings.unref?.()
+}
+
+const labelAfterGuideLoad = async () => {
+  if (!(await isForYouEnabled())) return { skipped: true }
+  return labelUncategorisedTitles()
 }
 
 export const warmSeriesRatings = async ({ nowMs = Date.now() } = {}) => {
@@ -416,6 +426,33 @@ export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
   return genreEnrichment.run({ titles })
 }
 
+export const labelUncategorisedTitles = async ({ nowMs = Date.now() } = {}) => {
+  const [guide, recordsByKey, guideGenres, settled] = await Promise.all([
+    getGuideSnapshot(),
+    loadTitleGenres().catch(() => new Map()),
+    guideGenresOf({ nowMs }),
+    genreLookupSettledKeys(),
+  ])
+  const programmes = Object.values(guide?.programsByChannel || {}).flat().filter((programme) => programme.end > nowMs)
+  const index = currentCategoryIndex()
+  const kindOf = createDisplayKinds({ programmes, recordsByKey })
+  const titles = uncategorisedTitlesOf({
+    programmes,
+    channels: guide?.channels || [],
+    records: recordsByKey,
+    guideGenres,
+    index,
+    kindOf,
+    isSettled: (key) => !settled || settled.has(key),
+  })
+  return labeller.run({ titles, catalogue: labellerCatalogueOf(index) })
+}
+
+const genreLookupSettledKeys = async () => {
+  if (!genreLookupEnabledFrom(await getSetting(GENRE_LOOKUP_KEY))) return null
+  return new Set((await db('title_genres').select('title_key').catch(() => [])).map((row) => row.title_key))
+}
+
 export const refreshSeriesRatings = async ({ nowMs = Date.now() } = {}) => {
   const [guide, recordsByKey] = await Promise.all([getGuideSnapshot(), loadTitleGenres().catch(() => new Map())])
   const titles = Object.values(guide?.programsByChannel || {}).flat()
@@ -435,12 +472,13 @@ const upkeepNow = async ({ nowMs }) => {
   await setSetting(SETTINGS.upkeep, String(nowMs))
   const embeddings = await runEmbeddings({ nowMs }).catch((err) => ({ ok: false, error: err.message }))
   const genres = await enrichGenres({ nowMs }).catch((err) => ({ error: err.message }))
+  const labels = await labelUncategorisedTitles({ nowMs }).catch((err) => ({ error: err.message }))
   const ratings = await refreshSeriesRatings({ nowMs }).catch((err) => ({ error: err.message }))
-  return { embeddings, genres, ratings }
+  return { embeddings, genres, labels, ratings }
 }
 
 const loadSnapshot = async () => {
-  const [guide, state, watchlist, events, recordings, guideGenres, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, categoriesOff] = await Promise.all([
+  const [guide, state, watchlist, events, recordings, guideGenres, tier, embedder, pinned, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, categoriesOff, labels] = await Promise.all([
     getGuideSnapshot(),
     getRecordingState().catch(() => null),
     db('watchlist').select('title', 'mode'),
@@ -455,6 +493,7 @@ const loadSnapshot = async () => {
     currentOtherLanguageFilms(),
     getChannelPrefs().catch(() => null),
     categoriesOffSetting(),
+    labelledStampOf().catch(() => 0),
   ])
   const vectors = vectorsVersion()
   return {
@@ -465,7 +504,7 @@ const loadSnapshot = async () => {
     vectors,
     otherLanguageFilms,
     categoriesOff,
-    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, guideGenres, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, categoriesOff }),
+    ...snapshotStampsOf({ guide, state, watchlist, events, recordings, guideGenres, embedderId: embedder?.id, vectors, pinned, tier: tier.tier, filmRatings, seriesRatings, otherLanguageFilms, channelPrefs, categoriesOff, labels }),
   }
 }
 
@@ -694,6 +733,7 @@ const genreEnrichment = createGenreEnrichment({
   country: () => countryForTimeZone(currentTimeZone()),
 })
 const seriesRatingLookups = createSeriesRatings()
+const labeller = createLabeller()
 
 const CACHED_LIMIT = 20
 const WORKER_URL = new URL('./for-you-worker.js', import.meta.url)
