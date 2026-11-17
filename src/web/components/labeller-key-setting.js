@@ -23,7 +23,7 @@ export const LabellerKeySetting = {
           <p v-if="statusText" :class="['status-readout', 'field-status', statusKind]" role="status">{{ statusText }}</p>
           <p v-else-if="saved.text" :class="['status-readout', 'field-status', saved.kind]" role="status">{{ saved.text }}<template v-if="saved.address"> <code>{{ saved.address }}</code>{{ saved.after }}</template></p>
           <p class="settings-hint">
-            Asks Jev, a classification model from TypeSafe, to pick categories for shows that Freetvarr cannot sort by itself. Only titles with no category are sent: the title, one guide description, an episode title, the guide genres, the channel name, and your country. Nothing about what you watch or record leaves this server.
+            Asks Jev, a classification model from TypeSafe, to pick the categories of each new show in the TV guide. Jev's answer comes first; Freetvarr's own sources fill in when Jev has none, and your own category changes always win. For each new title it sends the title, one guide description, an episode title, the guide genres, the channel name, and your country. Nothing about what you watch or record leaves this server.
             <a href="https://furey.github.io/freetvarr/guide/for-you#category-labeller" target="_blank" rel="noopener noreferrer">How to get a TypeSafe key</a> covers the cost, which TypeSafe bills to your account.
           </p>
           <div class="field-action-more">
