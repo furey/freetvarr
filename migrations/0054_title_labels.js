@@ -8,6 +8,7 @@ export const up = async (knex) => {
     t.bigInteger('fetched_at').notNullable()
     t.bigInteger('retry_after')
     t.primary(['show_key', 'labeller_version'])
+    t.index(['labeller_version'])
   })
 }
 

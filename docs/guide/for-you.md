@@ -81,8 +81,8 @@ Freetvarr takes each label from the first source that has one, in this order:
 2. A list of known free-to-air shows that comes with Freetvarr. It names the categories of about 600 shows that air in Australia and New Zealand, and it applies in every country. It is rebuilt before each minor release.
 3. Genres from [TVmaze](https://www.tvmaze.com) and [Wikidata](https://www.wikidata.org). Freetvarr looks these up in the background. The lookups need no account or key.
 4. Words in the title, the guide category, and the genre code the channel sends.
-5. With a TypeSafe key, the [category labeller](#category-labeller), for shows that get no category from steps 1 to 4. It is off without a key.
-6. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
+5. At the Standard and Plus [suggestion levels](#suggestion-level), a match of the show's description to each topic. This gives a topic only, never a format, a sport, **Fishing**, or **Shopping**.
+6. With a TypeSafe key, the [category labeller](#category-labeller), for shows that get no category from steps 1 to 5. It is off without a key.
 
 **Documentaries** needs a strong source: the known-shows list, a Wikidata documentary genre, or a guide category or genre code that says documentary. A TVmaze type of documentary alone is not enough. The category labeller can choose **Documentaries** by itself, but only for a show that has no other category.
 
@@ -141,9 +141,9 @@ Press **Save** to keep your choice. Your choice comes before every automatic sou
 
 The category labeller is optional. It asks [Jev](https://docs.typesafe.ai/introduction), a classification model from [TypeSafe](https://typesafe.ai), to choose categories for the shows that Freetvarr cannot sort by itself. Without a TypeSafe key, nothing changes: Freetvarr sends nothing to TypeSafe, and the categories come from the sources in [Category rows](#category-rows).
 
-With a key, Freetvarr asks only about a show that gets no category at all from your own choice, the known-shows list, the genre lookups, or the guide. Jev can choose any format, up to two topics, a sport, and the country the show comes from. Your own choice and the known-shows list always come first, and Freetvarr never changes a category that another source gave.
+With a key, Freetvarr asks only about a show that gets no category at all from your own choice, the known-shows list, the genre lookups, the guide, or the description match. Jev can choose any format, up to two topics, a sport, and the country the show comes from. Your own choice and the known-shows list always come first, and Freetvarr never changes a category that another source gave.
 
-Freetvarr asks after each guide load and after the nightly update, and only about shows whose genre lookup is done. It asks about each show once, keeps the answer, and asks again only when a new Freetvarr version changes the categories or the questions. It spends at most US$0.50 a day on TypeSafe, which covers about `3,500` shows, so the first run labels every waiting show in one go. When the day's limit is reached, it goes on the next day.
+Freetvarr asks after each guide load and after the nightly update, and only about shows whose genre lookup is done. It asks about each show once, keeps the answer, and asks again only when a new Freetvarr version changes the categories or the questions, or when your country changes. It spends at most US$0.50 a day on TypeSafe, which covers about `3,500` shows, so the first run labels every waiting show in one go. The day runs from midnight to midnight in the server's time zone. When the day's limit is reached, it goes on after midnight.
 
 For each show, Freetvarr sends:
 

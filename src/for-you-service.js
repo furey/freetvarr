@@ -427,12 +427,16 @@ export const enrichGenres = async ({ nowMs = Date.now() } = {}) => {
 }
 
 export const labelUncategorisedTitles = async ({ nowMs = Date.now() } = {}) => {
-  const [guide, recordsByKey, guideGenres, settled] = await Promise.all([
+  if (!(await labeller.ready())) return { skipped: true }
+  const [guide, recordsByKey, guideGenres, settled, tier, embedder] = await Promise.all([
     getGuideSnapshot(),
     loadTitleGenres().catch(() => new Map()),
     guideGenresOf({ nowMs }),
     genreLookupSettledKeys(),
+    currentTier().catch(() => ({ tier: 'basic' })),
+    currentEmbedder().catch(() => null),
   ])
+  const vectorsByHash = tier.tier !== 'basic' && embedder ? await loadVectors(embedder.id).catch(() => null) : null
   const programmes = Object.values(guide?.programsByChannel || {}).flat().filter((programme) => programme.end > nowMs)
   const index = currentCategoryIndex()
   const kindOf = createDisplayKinds({ programmes, recordsByKey })
@@ -442,6 +446,7 @@ export const labelUncategorisedTitles = async ({ nowMs = Date.now() } = {}) => {
     records: recordsByKey,
     guideGenres,
     index,
+    vectorsByHash,
     kindOf,
     isSettled: (key) => !settled || settled.has(key),
   })

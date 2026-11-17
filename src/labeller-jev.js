@@ -129,7 +129,7 @@ const errorOfResult = ({ status, retryAfterMs, detail = '' }) => {
 }
 
 const isOutOfCredit = ({ status, detail }) => status === 402
-  || (typeof status === 'number' && status >= 400 && status < 500 && status !== 401 && CREDIT_TEXT.test(detail))
+  || ((status === 400 || status === 422) && CREDIT_TEXT.test(detail))
 
 const retryAfterMsOf = (header) => {
   const seconds = Number(header)

@@ -13,6 +13,7 @@ export const labellerCatalogueOf = (index) => {
   const describe = (info) => ({ key: info.group, title: info.title, scope: SCOPES[info.group] ?? info.title })
   return {
     version: `catalogue-${CATEGORY_CATALOGUE_VERSION}/prompt-${LABELLER_PROMPT_VERSION}`,
+    country: index.country,
     countryName: countryNameOf(index.country) || 'your country',
     formats: groups.filter((info) => info.slot === 'format').map(describe),
     topics: groups.filter((info) => info.slot === 'topic' && info.row !== 'sport').map(describe),

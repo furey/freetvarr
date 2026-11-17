@@ -12,10 +12,12 @@ const { JEV_MODEL, askJev, checkJevKey, jevLabelsOf } = await import('../src/lab
 const { labellerCatalogueOf } = await import('../src/labeller-catalogue.js')
 const {
   KEY_REJECTED,
+  LABELLER_DAY_SETTING,
   LABELLER_KEY_SETTING,
   LABELLER_KEY_STATUS_SETTING,
   LABELLER_PAUSE_SETTING,
-  LABELLER_VERSION,
+  currentLabellerVersion,
+  labellerVersionOf,
   NO_CREDIT,
   createLabeller,
   createPace,
@@ -187,10 +189,16 @@ test('labellerInputOf trims long descriptions and caps channels', () => {
 
 const memoryStore = () => {
   const rows = new Map()
+  const pruned = []
   return {
     rows,
-    settledKeys: async ({ nowMs }) => new Set([...rows.values()].filter((row) => row.status !== 'failed' || row.retryAfter > nowMs).map((row) => row.key)),
+    pruned,
+    settledKeys: async ({ version, nowMs }) => new Set([...rows.values()].filter((row) => row.version === version && (row.status !== 'failed' || row.retryAfter > nowMs)).map((row) => row.key)),
     write: async (row) => { rows.set(row.key, row) },
+    prune: async ({ keep }) => {
+      pruned.push(keep)
+      for (const [key, row] of rows) if (row.version !== keep) rows.delete(key)
+    },
   }
 }
 
@@ -220,7 +228,7 @@ test('createLabeller asks each title once per labeller version, and caches empty
   assert.equal(first.asked, 2)
   assert.equal(first.labelled, 1)
   assert.equal(store.rows.get('b').status, 'none')
-  assert.equal(store.rows.get('a').version, LABELLER_VERSION)
+  assert.equal(store.rows.get('a').version, labellerVersionOf('au'))
   await labeller.run({ titles: titlesOf('a', 'b'), catalogue })
   assert.deepEqual(asked.sort(), ['a', 'b'])
 })
@@ -370,9 +378,9 @@ test('migration 0054 adds title_labels; stored labels count only while a key is 
   await db.migrate.latest()
   assert.equal(await db.schema.hasTable('title_labels'), true)
   await db('title_labels').insert([
-    { show_key: 'zog', labeller_version: LABELLER_VERSION, status: 'ok', labels_json: JSON.stringify({ format: 'reality', topics: [] }), confidence: 0.9, fetched_at: 1 },
+    { show_key: 'zog', labeller_version: currentLabellerVersion(), status: 'ok', labels_json: JSON.stringify({ format: 'reality', topics: [] }), confidence: 0.9, fetched_at: 1 },
     { show_key: 'old', labeller_version: 'jev-0/catalogue-1/prompt-0', status: 'ok', labels_json: JSON.stringify({ format: 'news', topics: [] }), confidence: 0.9, fetched_at: 1 },
-    { show_key: 'blank', labeller_version: LABELLER_VERSION, status: 'none', labels_json: '{}', confidence: 0.2, fetched_at: 1 },
+    { show_key: 'blank', labeller_version: currentLabellerVersion(), status: 'none', labels_json: '{}', confidence: 0.2, fetched_at: 1 },
   ])
   assert.deepEqual([...(await loadLabellerLabels()).keys()], [])
   await setSetting(LABELLER_KEY_SETTING, FAKE_KEY)
@@ -433,11 +441,11 @@ test('labellerStatusLineOf describes the saved state for Settings', () => {
   assert.match(labellerStatusLineOf({ key_set: true, labelled: 1, last_error: 'Freetvarr could not reach TypeSafe.' }).text, /^Jev has labelled 1 title that had no category\. Last run: /)
 })
 
-test('askJev reports an empty TypeSafe balance as out of credit: 402, or another 4xx whose body says so', async () => {
+test('askJev reports an empty TypeSafe balance as out of credit: 402, or a 400 whose body says so', async () => {
   const payment = fakeFetch([{ status: 402, body: { detail: 'Payment required' } }])
   await assert.rejects(askJev({ apiKey: FAKE_KEY, input, catalogue, fetchImpl: payment.fetchImpl, sleep: async () => {} }), (error) => error.kind === 'credit')
   assert.equal(payment.calls.length, 1)
-  const billing = fakeFetch([{ status: 403, body: { detail: 'Insufficient credit balance. Add credits in Billing.' } }])
+  const billing = fakeFetch([{ status: 400, body: { detail: 'Insufficient credit balance. Add credits in Billing.' } }])
   await assert.rejects(askJev({ apiKey: FAKE_KEY, input, catalogue, fetchImpl: billing.fetchImpl, sleep: async () => {} }), (error) => error.kind === 'credit')
   const plain403 = fakeFetch([{ status: 403, body: { detail: 'Forbidden' } }])
   await assert.rejects(askJev({ apiKey: FAKE_KEY, input, catalogue, fetchImpl: plain403.fetchImpl, sleep: async () => {} }), (error) => error.kind === 'auth')
@@ -486,4 +494,98 @@ test('out of credit: Settings names the console address, and Health warns while 
   const check = labellerCheck({ keySet: true, noCredit: true, labelled: 5 })
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /Categories carry on from the other sources/)
+})
+
+test('ready() is false without a key, with a rejected key, and while paused, and reads nothing else', async () => {
+  let reads = 0
+  const store = { settledKeys: async () => { reads += 1; return new Set() } }
+  const noKey = createLabeller({ readKey: async () => null, store, settings: memorySettings() })
+  assert.equal(await noKey.ready(), false)
+  assert.equal(await createLabeller({ readKey: async () => FAKE_KEY, store, settings: memorySettings({ [LABELLER_KEY_STATUS_SETTING]: KEY_REJECTED }) }).ready(), false)
+  assert.equal(await createLabeller({ readKey: async () => FAKE_KEY, store, settings: memorySettings({ [LABELLER_PAUSE_SETTING]: String(Date.now() + 60_000) }) }).ready(), false)
+  assert.equal(await createLabeller({ readKey: async () => FAKE_KEY, store, settings: memorySettings() }).ready(), true)
+  assert.equal(reads, 0)
+})
+
+test('out of credit is only a 402, or a 400 or 422 that names billing; a 429 or 403 with billing words is not', async () => {
+  const kindFor = async (reply) => askJev({ apiKey: FAKE_KEY, input, catalogue, fetchImpl: fakeFetch([reply]).fetchImpl, sleep: async () => {} }).catch((error) => error.kind)
+  assert.equal(await kindFor({ status: 400, body: { detail: 'insufficient credit balance' } }), 'credit')
+  assert.equal(await kindFor({ status: 422, body: { detail: 'billing: payment required' } }), 'credit')
+  assert.equal(await kindFor({ status: 429, body: { detail: 'Upgrade your billing plan for higher limits' } }), 'rate')
+  assert.equal(await kindFor({ status: 529, body: { detail: 'billing system busy' } }), 'rate')
+  assert.equal(await kindFor({ status: 403, body: { detail: 'Billing account suspended' } }), 'auth')
+  assert.equal(await kindFor({ status: 400, body: { detail: 'state too large' } }), 'invalid')
+})
+
+test('createLabeller saves the day spend after each answer, so a restart mid-run keeps it', async () => {
+  const settings = memorySettings()
+  const seen = []
+  const labeller = createLabeller({
+    readKey: async () => FAKE_KEY,
+    ask: async () => {
+      seen.push(JSON.parse(settings.values.get(LABELLER_DAY_SETTING) ?? '{"requests":0}').requests)
+      return { labels: { format: 'news', topics: [], origin: null, sport: null }, confidence: 1, inputTokens: 3000 }
+    },
+    store: memoryStore(),
+    settings,
+    concurrency: 1,
+  })
+  await labeller.run({ titles: titlesOf('a', 'b', 'c'), catalogue })
+  assert.deepEqual(seen, [0, 1, 2])
+})
+
+test('A0 is strict: a description-match topic wins over labeller labels, which fill only an empty result', () => {
+  const facet = [...index.facets.values()].find((item) => item.group === 'history' && item.kinds.includes('unknown'))
+  const prototypes = new Map([[facet.key, [[1, 0]]]])
+  const labeller = { format: 'reality', topics: ['home'], origin: null, sport: null }
+  const embedded = tagTitle({ index, facts: factsOf({ labeller }), titleVector: [1, 0], prototypes })
+  assert.equal(mostSpecificCategoryOf(embedded), 'history')
+  assert.notEqual(embedded.labelled, true)
+  const unmatched = tagTitle({ index, facts: factsOf({ labeller }), titleVector: [0, 1], prototypes })
+  assert.equal(mostSpecificCategoryOf(unmatched), 'home')
+})
+
+test('a failed credit probe keeps the pause and stops the run', async () => {
+  const at = 10_000
+  const settings = memorySettings({ [LABELLER_KEY_STATUS_SETTING]: NO_CREDIT, [LABELLER_PAUSE_SETTING]: String(at - 1) })
+  let calls = 0
+  const labeller = createLabeller({
+    readKey: async () => FAKE_KEY,
+    ask: async () => { calls += 1; throw Object.assign(new Error('Jev network'), { kind: 'network' }) },
+    store: memoryStore(),
+    settings,
+    now: () => at,
+  })
+  const outcome = await labeller.run({ titles: titlesOf('a', 'b', 'c'), catalogue })
+  assert.equal(calls, 1)
+  assert.equal(outcome.stopped, 'credit')
+  assert.equal(settings.values.get(LABELLER_KEY_STATUS_SETTING), NO_CREDIT)
+  assert.equal(settings.values.get(LABELLER_PAUSE_SETTING), String(at + 24 * 60 * 60 * 1000))
+})
+
+test('the daily spend resets at midnight in the server time zone', async () => {
+  const settings = memorySettings()
+  const labeller = createLabeller({
+    readKey: async () => FAKE_KEY,
+    ask: async () => ({ labels: { format: 'news', topics: [], origin: null, sport: null }, confidence: 1, inputTokens: 3000 }),
+    store: memoryStore(),
+    settings,
+    now: () => Date.UTC(2026, 10, 18, 14, 0),
+    timeZone: () => 'Australia/Sydney',
+  })
+  await labeller.run({ titles: titlesOf('a'), catalogue })
+  assert.equal(JSON.parse(settings.values.get(LABELLER_DAY_SETTING)).day, '2026-11-19')
+})
+
+test('the labeller version names the country, so a new country asks again once and prunes the old answers', async () => {
+  assert.notEqual(labellerVersionOf('au'), labellerVersionOf('nz'))
+  const store = memoryStore()
+  const ask = async () => ({ labels: { format: 'news', topics: [], origin: null, sport: null }, confidence: 1, inputTokens: 3000 })
+  const labeller = createLabeller({ readKey: async () => FAKE_KEY, ask, store, settings: memorySettings() })
+  await labeller.run({ titles: titlesOf('a'), catalogue })
+  const nz = labellerCatalogueOf(createCategoryIndex({ country: 'nz' }))
+  const again = await labeller.run({ titles: titlesOf('a'), catalogue: nz })
+  assert.equal(again.asked, 1)
+  assert.equal(store.rows.get('a').version, labellerVersionOf('nz'))
+  assert.deepEqual(store.pruned.at(-1), labellerVersionOf('nz'))
 })

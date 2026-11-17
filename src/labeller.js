@@ -1,6 +1,8 @@
 import { db, getSetting, setSetting } from './db.js'
 import { CATEGORY_CATALOGUE_VERSION } from './for-you-category-catalogue.js'
 import { LABELLER_PROMPT_VERSION } from './labeller-catalogue.js'
+import { currentTimeZone } from './time-zone.js'
+import { countryForTimeZone } from './zone-countries.js'
 import { JEV_MODEL, JEV_PRICE_PER_MILLION_INPUT, askJev } from './labeller-jev.js'
 
 export const LABELLER_KEY_SETTING = 'typesafe_api_key'
@@ -8,7 +10,9 @@ export const LABELLER_KEY_STATUS_SETTING = 'labeller_key_status'
 export const LABELLER_LAST_RUN_SETTING = 'labeller_last_run'
 export const LABELLER_DAY_SETTING = 'labeller_day'
 export const LABELLER_PAUSE_SETTING = 'labeller_paused_until'
-export const LABELLER_VERSION = `${JEV_MODEL}/catalogue-${CATEGORY_CATALOGUE_VERSION}/prompt-${LABELLER_PROMPT_VERSION}`
+export const labellerVersionOf = (country) => `${JEV_MODEL}/catalogue-${CATEGORY_CATALOGUE_VERSION}/prompt-${LABELLER_PROMPT_VERSION}/${String(country || 'none').toLowerCase()}`
+
+export const currentLabellerVersion = () => labellerVersionOf(countryForTimeZone(currentTimeZone()))
 export const KEY_REJECTED = 'rejected'
 export const NO_CREDIT = 'no-credit'
 
@@ -21,6 +25,7 @@ export const createLabeller = ({
   settings = { get: getSetting, set: setSetting },
   now = Date.now,
   sleep = wait,
+  timeZone = currentTimeZone,
   concurrency = CONCURRENCY,
   dailySpendUsd = DAILY_SPEND_USD,
   maxRequestsPerDay = MAX_REQUESTS_PER_DAY,
@@ -32,17 +37,25 @@ export const createLabeller = ({
 } = {}) => {
   let running = null
 
-  const label = async ({ titles = [], catalogue }) => {
+  const blocked = async () => {
     const apiKey = await readKey()
     if (!apiKey) return { skipped: 'no-key' }
     const keyStatus = await settings.get(LABELLER_KEY_STATUS_SETTING)
     if (keyStatus === KEY_REJECTED) return { skipped: 'key-rejected' }
-    const paused = Number(await settings.get(LABELLER_PAUSE_SETTING)) > now()
-    if (paused) return { skipped: keyStatus === NO_CREDIT ? 'no-credit' : 'paused' }
-    const known = await store.settledKeys({ version: LABELLER_VERSION, nowMs: now() })
+    if (Number(await settings.get(LABELLER_PAUSE_SETTING)) > now()) return { skipped: keyStatus === NO_CREDIT ? 'no-credit' : 'paused' }
+    return { apiKey, keyStatus }
+  }
+
+  const label = async ({ titles = [], catalogue }) => {
+    const gate = await blocked()
+    if (gate.skipped) return gate
+    const { apiKey, keyStatus } = gate
+    const version = labellerVersionOf(catalogue.country)
+    const known = await store.settledKeys({ version, nowMs: now() })
     const queue = uniqueByKey(titles).filter((title) => !known.has(title.key))
     if (!queue.length) return { asked: 0, labelled: 0, failed: 0 }
-    const spend = createSpendGuard({ stored: await settings.get(LABELLER_DAY_SETTING), day: dayOf(now()), dailySpendUsd, maxRequestsPerDay })
+    const spend = createSpendGuard({ stored: await settings.get(LABELLER_DAY_SETTING), day: dayOf({ ms: now(), timeZone: timeZone() }), dailySpendUsd, maxRequestsPerDay })
+    const saveSpend = () => settings.set(LABELLER_DAY_SETTING, JSON.stringify(spend.state())).catch(() => {})
     const pace = createPace({ now, max: concurrency })
     const outcome = { asked: 0, labelled: 0, failed: 0, rateLimited: 0, spentUsd: 0, stopped: null, error: null }
     let failuresInRow = 0
@@ -50,7 +63,7 @@ export const createLabeller = ({
 
     const settle = async ({ title, answer }) => {
       const labelled = hasLabels(answer.labels)
-      await store.write({ key: title.key, version: LABELLER_VERSION, status: labelled ? 'ok' : 'none', labels: answer.labels, confidence: answer.confidence, fetchedAt: now(), retryAfter: null })
+      await store.write({ key: title.key, version, status: labelled ? 'ok' : 'none', labels: answer.labels, confidence: answer.confidence, fetchedAt: now(), retryAfter: null })
       if (labelled) outcome.labelled += 1
     }
 
@@ -70,7 +83,7 @@ export const createLabeller = ({
         return
       }
       const backoff = error.kind === 'invalid' ? invalidBackoffMs : failureBackoffMs
-      await store.write({ key: title.key, version: LABELLER_VERSION, status: 'failed', labels: {}, confidence: null, fetchedAt: now(), retryAfter: now() + backoff })
+      await store.write({ key: title.key, version, status: 'failed', labels: {}, confidence: null, fetchedAt: now(), retryAfter: now() + backoff })
       if (failuresInRow >= maxFailuresInRow) outcome.stopped = 'failing'
     }
 
@@ -89,12 +102,15 @@ export const createLabeller = ({
         const answer = await ask({ apiKey, input: title.input, catalogue })
         const usd = spend.add(answer.inputTokens)
         outcome.spentUsd += usd
+        await saveSpend()
         pace.noteSuccess()
         failuresInRow = 0
         await settle({ title, answer })
       } catch (error) {
-        if (error.kind === 'invalid') outcome.spentUsd += spend.add(null)
-        else spend.add(0)
+        if (error.kind === 'invalid') {
+          outcome.spentUsd += spend.add(null)
+          await saveSpend()
+        } else spend.add(0)
         if (error.kind === 'rate') return slowDown({ title, error })
         await fail({ title, error })
       }
@@ -124,16 +140,29 @@ export const createLabeller = ({
       }
     }
 
+    const finish = async () => {
+      await saveSpend()
+      await settings.set(LABELLER_LAST_RUN_SETTING, JSON.stringify({ at: now(), ...outcome }))
+      if (outcome.asked > outcome.failed + outcome.rateLimited) await store.prune({ keep: version }).catch(() => {})
+      return outcome
+    }
+
     if (keyStatus === NO_CREDIT) {
       const probe = queue.shift()
       active += 1
       await askOne(probe).finally(() => { active -= 1 })
-      if (!outcome.stopped && outcome.failed === 0) await settings.set(LABELLER_KEY_STATUS_SETTING, '')
+      const answered = !outcome.stopped && !outcome.failed && !outcome.rateLimited
+      if (!answered) {
+        if (!outcome.stopped) {
+          outcome.stopped = 'credit'
+          await settings.set(LABELLER_PAUSE_SETTING, String(now() + creditRecheckMs))
+        }
+        return finish()
+      }
+      await settings.set(LABELLER_KEY_STATUS_SETTING, '')
     }
     await Promise.all(Array.from({ length: concurrency }, worker))
-    await settings.set(LABELLER_DAY_SETTING, JSON.stringify(spend.state()))
-    await settings.set(LABELLER_LAST_RUN_SETTING, JSON.stringify({ at: now(), ...outcome }))
-    return outcome
+    return finish()
   }
 
   const run = (options) => {
@@ -141,7 +170,9 @@ export const createLabeller = ({
     return running
   }
 
-  return { run, isRunning: () => Boolean(running) }
+  const ready = async () => !(await blocked().catch(() => ({ skipped: 'error' }))).skipped
+
+  return { run, ready, isRunning: () => Boolean(running) }
 }
 
 export const createSpendGuard = ({ stored, day, dailySpendUsd, maxRequestsPerDay, estimatedTokens = ESTIMATED_INPUT_TOKENS }) => {
@@ -198,12 +229,12 @@ export const createPace = ({ now, max, minDelayMs = MIN_RATE_DELAY_MS, maxDelayM
 
 export const loadLabellerLabels = async ({ readKey = storedLabellerKey, store = databaseStore } = {}) => {
   if (!(await readKey().catch(() => null))) return new Map()
-  return store.labels({ version: LABELLER_VERSION })
+  return store.labels({ version: currentLabellerVersion() })
 }
 
 export const labelledStampOf = async ({ readKey = storedLabellerKey, store = databaseStore } = {}) => {
   if (!(await readKey().catch(() => null))) return 0
-  return store.labelledCount({ version: LABELLER_VERSION })
+  return store.labelledCount({ version: currentLabellerVersion() })
 }
 
 export const withLabellerLabels = ({ records, labels }) => {
@@ -220,7 +251,7 @@ export const labellerStatusOf = async ({ readKey = storedLabellerKey, store = da
     readKey().catch(() => null),
     Promise.resolve().then(() => settings.get(LABELLER_KEY_STATUS_SETTING)).catch(() => null),
     Promise.resolve().then(() => settings.get(LABELLER_LAST_RUN_SETTING)).catch(() => null),
-    store.labelledCount({ version: LABELLER_VERSION }).catch(() => 0),
+    store.labelledCount({ version: currentLabellerVersion() }).catch(() => 0),
   ])
   return {
     keySet: Boolean(apiKey),
@@ -264,7 +295,7 @@ const errorTextOf = (error) => {
   return 'Freetvarr could not reach TypeSafe.'
 }
 
-const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10)
+const dayOf = ({ ms, timeZone }) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
 
 const parseJson = (text) => {
   try {
@@ -286,6 +317,7 @@ const databaseStore = {
   labels: async ({ version }) => new Map((await db(TABLE).where({ labeller_version: version, status: 'ok' }).select('show_key', 'labels_json').catch(() => []))
     .map((row) => [row.show_key, parseJson(row.labels_json)])
     .filter(([, labels]) => hasLabels(labels))),
+  prune: ({ keep }) => db(TABLE).whereNot({ labeller_version: keep }).delete(),
   labelledCount: async ({ version }) => Number((await db(TABLE).where({ labeller_version: version, status: 'ok' }).count({ count: '*' }).first())?.count) || 0,
 }
 

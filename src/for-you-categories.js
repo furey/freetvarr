@@ -109,9 +109,12 @@ export const tagTitle = ({ index, facts, titleVector = null, prototypes = new Ma
   if (known) return labelTagsOf({ index, kind: kindOfKnown({ known, kind }), origin: origin ?? known.origin ?? null, format: known.format ?? null, formatFacet: known.format === 'reality' ? realityFacetOf(facts.title) : null, topics: known.topics ?? [] })
   if (kind === 'kids') return labelTagsOf({ index, kind, origin, format: 'kids' })
   const evidence = evidenceLabelsOf({ index, facts, kind })
-  if (!evidence.format && !evidence.topics.length && facts.labeller) return labellerTagsOf({ index, kind, origin, labels: facts.labeller })
-  if (evidence.topics.length || NO_EMBEDDING_TOPIC.has(evidence.format) || !titleVector || !prototypes.size) return labelTagsOf({ index, kind, origin, ...evidence })
-  return labelTagsOf({ index, kind, origin, ...evidence, topics: embeddingTopicsOf({ index, kind, titleVector, prototypes }) })
+  const embedded = evidence.topics.length || NO_EMBEDDING_TOPIC.has(evidence.format) || !titleVector || !prototypes.size
+    ? []
+    : embeddingTopicsOf({ index, kind, titleVector, prototypes })
+  const tags = labelTagsOf({ index, kind, origin, ...evidence, ...(embedded.length && { topics: embedded }) })
+  if (facts.labeller && isUncategorisedTags(tags)) return labellerTagsOf({ index, kind, origin, labels: facts.labeller })
+  return tags
 }
 
 export const isUncategorisedTags = (tags) => Boolean(tags) && tags.kind !== 'film' && !tags.sportCode && !tags.entries.length
