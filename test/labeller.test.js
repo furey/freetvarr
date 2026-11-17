@@ -23,6 +23,7 @@ const {
   createPace,
   createSpendGuard,
   labellerInputOf,
+  labelledStampOf,
   labelsOfStored,
   labellerStatusOf,
   loadLabellerLabels,
@@ -617,4 +618,23 @@ test('an empty Jev answer is asked again after 30 days, not before', async () =>
   at += 2 * 24 * 60 * 60 * 1000
   await labeller.run({ titles: titlesOf('a'), catalogue })
   assert.equal(asked, 2)
+})
+
+test('Jev topics with no format keep the title kind, so a kids title stays kids', () => {
+  const kids = tagTitle({ index, facts: factsOf({ channelNames: new Set(['ABC Kids']), kidsSlotsOnly: true, labeller: { format: null, topics: ['nature'], origin: null, sport: null } }) })
+  assert.equal(kids.kind, 'kids')
+  assert.equal(mostSpecificCategoryOf(kids), 'nature')
+})
+
+test('the For you stamp changes when an empty answer later gets labels', async () => {
+  await db.migrate.latest()
+  await db('title_labels').delete()
+  await setSetting(LABELLER_KEY_SETTING, FAKE_KEY)
+  const version = currentLabellerVersion()
+  await db('title_labels').insert({ show_key: 'zog', labeller_version: version, status: 'none', labels_json: '{}', confidence: 0.2, fetched_at: 1, retry_after: 2 })
+  const before = await labelledStampOf()
+  await db('title_labels').where({ show_key: 'zog' }).update({ status: 'ok', labels_json: JSON.stringify({ format: 'reality', topics: [] }), fetched_at: 3, retry_after: null })
+  assert.notEqual(await labelledStampOf(), before)
+  await setSetting(LABELLER_KEY_SETTING, '')
+  assert.equal(await labelledStampOf(), '0')
 })

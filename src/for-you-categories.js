@@ -453,7 +453,7 @@ const labellerTagsOf = ({ index, facts, kind, origin, labels }) => {
     return { ...labelTagsOf({ index, kind: 'sport', origin: labelledOrigin, topics: [code] }), sportCode: code, labelled: true }
   }
   const format = labels.format ?? null
-  const tags = labelTagsOf({ index, kind: kindOfKnown({ known: { format }, kind }), origin: labelledOrigin, format, formatFacet: format === 'reality' ? realityFacetOf(facts.title) : null, topics: labels.topics ?? [] })
+  const tags = labelTagsOf({ index, kind: format ? kindOfKnown({ known: { format }, kind }) : kind, origin: labelledOrigin, format, formatFacet: format === 'reality' ? realityFacetOf(facts.title) : null, topics: labels.topics ?? [] })
   return tags.entries.length ? { ...tags, labelled: true } : tags
 }
 
@@ -583,7 +583,10 @@ const guideSportCodeFor = ({ category, country }) => {
   return GUIDE_SPORT_CODES[category] ?? null
 }
 
-const isSportGuide = (guideGenres) => [...guideGenres].some((category) => SPORT_GUIDE.has(String(category).toLowerCase().trim()))
+const isSportGuide = (guideGenres) => {
+  const categories = [...guideGenres].map((category) => String(category).toLowerCase().trim())
+  return !categories.some((category) => FILM_GUIDE.has(category)) && categories.some((category) => SPORT_GUIDE.has(category))
+}
 
 const knownShowsFor = (country) => (KNOWN_SHOWS_COUNTRIES.has(String(country).toLowerCase()) ? KNOWN_SHOWS : NO_KNOWN_SHOWS)
 
@@ -629,6 +632,7 @@ const GUIDE_SPORT_CODES = {
   surfing: 'surfing',
   swimming: 'swimming',
 }
+const FILM_GUIDE = new Set(['movie', 'movies', 'film'])
 const HOCKEY_MEANS_ICE = new Set(['us', 'ca'])
 const KNOWN_SHOWS_COUNTRIES = new Set(['au', 'nz'])
 const NO_KNOWN_SHOWS = { shows: {} }

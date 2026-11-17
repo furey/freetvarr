@@ -234,8 +234,8 @@ export const loadLabellerLabels = async ({ readKey = storedLabellerKey, store = 
 }
 
 export const labelledStampOf = async ({ readKey = storedLabellerKey, store = databaseStore } = {}) => {
-  if (!(await readKey().catch(() => null))) return 0
-  return store.answeredCount({ version: currentLabellerVersion() })
+  if (!(await readKey().catch(() => null))) return '0'
+  return store.answeredStamp({ version: currentLabellerVersion() })
 }
 
 export const withLabellerLabels = ({ records, labels }) => {
@@ -320,7 +320,11 @@ const databaseStore = {
   labels: async ({ version }) => new Map((await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none']).select('show_key', 'labels_json').catch(() => []))
     .map((row) => [row.show_key, { ...EMPTY_LABELS, ...labelsOfStored(parseJson(row.labels_json)) }])),
   prune: ({ keep }) => db(TABLE).whereNot({ labeller_version: keep }).delete(),
-  answeredCount: async ({ version }) => Number((await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none']).count({ count: '*' }).first())?.count) || 0,
+  answeredStamp: async ({ version }) => {
+    const row = await db(TABLE).where({ labeller_version: version }).whereIn('status', ['ok', 'none'])
+      .first(db.raw('count(*) as count'), db.raw("sum(case when status = 'ok' then 1 else 0 end) as ok"), db.raw('max(fetched_at) as latest'))
+    return `${Number(row?.count) || 0}:${Number(row?.ok) || 0}:${Number(row?.latest) || 0}`
+  },
   labelledCount: async ({ version }) => Number((await db(TABLE).where({ labeller_version: version, status: 'ok' }).count({ count: '*' }).first())?.count) || 0,
 }
 

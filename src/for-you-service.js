@@ -220,7 +220,7 @@ export const snapshotStampsOf = ({ guide, state, watchlist, events, recordings, 
       otherLanguageFilms,
       timeZone,
       categoriesOff: [...categoriesOff].sort().join(','),
-      labels: Number(labels) || 0,
+      labels: String(labels ?? 0),
       scoring: SCORING_VERSION,
     },
   }
@@ -486,7 +486,7 @@ const loadSnapshot = async () => {
     currentOtherLanguageFilms(),
     getChannelPrefs().catch(() => null),
     categoriesOffSetting(),
-    labelledStampOf().catch(() => 0),
+    labelledStampOf().catch(() => '0'),
   ])
   const vectors = vectorsVersion()
   return {

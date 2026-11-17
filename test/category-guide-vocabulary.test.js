@@ -74,3 +74,20 @@ test('a long single sport airing is not a film: sport words, event words, a Live
   })
   assert.equal(facts.get('night-thunder').film, false)
 })
+
+test('a guide film category keeps a sport-themed film a film, while a sport airing with no film category is not one', async () => {
+  const { titleFactsOf } = await import('../src/for-you-categories.js')
+  const filmFor = (title, categories) => titleFactsOf({
+    programmes: [{ title, channel_id: '1', start: 0, end: 2 * 60 * 60 * 1000, genre: null }],
+    keyOf: (name) => name.toLowerCase().replace(/\s+/g, '-'),
+    genreTagsOf: () => [],
+    guideGenresOf: () => categories,
+    isFilm: () => true,
+    hourOf: () => 20,
+  }).get(title.toLowerCase().replace(/\s+/g, '-')).film
+  assert.equal(filmFor('Rocky', ['movie', 'sports', 'drama']), true)
+  assert.equal(filmFor('Ford v Ferrari', ['movie', 'auto racing']), true)
+  assert.equal(filmFor('Moneyball', ['movies', 'baseball']), true)
+  assert.equal(filmFor('Rush', ['film', 'motorsport']), true)
+  assert.equal(filmFor('Australian Superbike Championship', ['sport']), false)
+})
