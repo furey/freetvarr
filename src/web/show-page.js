@@ -172,6 +172,8 @@ export const showTitleIn = ({ key, shows = [] }) => shows.find((show) => show.ke
 
 export const titleFromKey = (key) => key.replace(/-/g, ' ').replace(/^\w/, (letter) => letter.toUpperCase())
 
+export const pageTitleOf = ({ titleHint, loaded, key }) => titleHint || (loaded ? titleFromKey(key) : '')
+
 export const episodeActionsOf = (episode) => [
   { key: episode.watched ? 'unwatched' : 'watched', label: episode.watched ? 'Mark unwatched' : 'Mark watched' },
   ...(canImport(episode) ? [{ key: 'import', label: importLabelOf(episode) }] : []),

@@ -61,26 +61,55 @@ const fakeRoot = (images = []) => {
   }
 }
 
-const delay = (ms) => new Promise((resolve) => { setTimeout(resolve, ms) })
+const deferred = () => {
+  let resolve = null
+  const promise = new Promise((done) => { resolve = done })
+  return { promise, resolve }
+}
 
-test('focus that arrives after the wait cap still places the shown image', async () => {
+const focusFor = (keys) => ({ enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) })
+
+const heldFetch = () => {
+  const asked = []
+  const answers = []
+  const fetchFocus = (keys) => {
+    asked.push(keys)
+    const answer = deferred()
+    answers.push(() => answer.resolve(focusFor(keys)))
+    return answer.promise
+  }
+  return { asked, fetchFocus, answerAll: () => answers.splice(0).forEach((answer) => answer()) }
+}
+
+const settle = async () => {
+  for (let i = 0; i < 20; i += 1) await Promise.resolve()
+}
+
+const advance = async (t, ms) => {
+  t.mock.timers.tick(ms)
+  await settle()
+}
+
+test('focus that arrives after the wait cap still places the shown image', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   const root = fakeRoot()
   const img = fakeImage('/api/recordings/slow/image')
-  const fetchFocus = async (keys) => {
-    await delay(40)
-    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
-  }
+  const { asked, fetchFocus, answerAll } = heldFetch()
   const uninstall = installImageFocus({ root, fetchFocus, waitCapMs: 5 })
   root.load(img)
-  await delay(20)
+  assert.ok(!img.classList.contains('is-focus-ready'))
+  await advance(t, 20)
+  assert.equal(asked.length, 1)
   assert.equal(img.style.objectPosition, '')
   assert.ok(img.classList.contains('is-focus-ready'))
-  await delay(60)
+  answerAll()
+  await advance(t, 0)
   assert.equal(img.style.objectPosition, '0% 50%')
   uninstall()
 })
 
-test('supplied focus places the image on load without asking the server', async () => {
+test('supplied focus places the image on load without asking the server', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   const root = fakeRoot()
   const img = fakeImage('/api/recordings/supplied/image')
   const asked = []
@@ -88,7 +117,7 @@ test('supplied focus places the image on load without asking the server', async 
   rememberImageFocus([{ url: '/api/recordings/supplied/image?w=768', focus: FACE_LEFT }])
   root.load(img)
   assert.equal(img.style.objectPosition, '0% 50%')
-  await delay(30)
+  await advance(t, 1000)
   assert.deepEqual(asked, [])
   uninstall()
 })
@@ -101,34 +130,34 @@ test('an image already loaded when focus is installed is placed without a load e
   uninstall()
 })
 
-test('an image already loaded at mount shows at once and glides to focus that arrives later', async () => {
+test('an image already loaded at mount shows at once and glides to focus that arrives later', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   const root = fakeRoot()
   const img = fakeImage('/api/recordings/cached/image')
-  const fetchFocus = async (keys) => {
-    await delay(30)
-    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
-  }
+  const { fetchFocus, answerAll } = heldFetch()
   const uninstall = installImageFocus({ root, fetchFocus })
   showLoadedImage(img)
   assert.ok(img.classList.contains('is-focus-ready'))
   assert.ok(!img.classList.contains('is-focus-fading'))
   root.load(img)
-  await delay(60)
+  await advance(t, 20)
+  assert.equal(img.style.objectPosition, '')
+  answerAll()
+  await advance(t, 0)
   assert.equal(img.style.objectPosition, '0% 50%')
   uninstall()
 })
 
-test('primed focus is asked once in a batch and lets a later load show without waiting', async () => {
+test('primed focus is asked once in a batch and lets a later load show without waiting', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   const root = fakeRoot()
-  const asked = []
-  const fetchFocus = async (keys) => {
-    asked.push(keys)
-    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
-  }
+  const { asked, fetchFocus, answerAll } = heldFetch()
   const uninstall = installImageFocus({ root, fetchFocus })
   primeImageFocus(['/api/recordings/a/image?w=384', '/api/recordings/b/image?w=384'])
   primeImageFocus('/api/recordings/a/image?w=768')
-  await delay(30)
+  await advance(t, 20)
+  answerAll()
+  await advance(t, 0)
   assert.deepEqual(asked, [['/api/recordings/a/image', '/api/recordings/b/image']])
   const img = fakeImage('/api/recordings/b/image')
   root.load(img)
@@ -137,21 +166,20 @@ test('primed focus is asked once in a batch and lets a later load show without w
   uninstall()
 })
 
-test('a load while the primed request is out waits for it instead of asking again', async () => {
+test('a load while the primed request is out waits for it instead of asking again', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   const root = fakeRoot()
-  const asked = []
-  const fetchFocus = async (keys) => {
-    asked.push(keys)
-    await delay(30)
-    return { enabled: true, items: Object.fromEntries(keys.map((key) => [key, FACE_LEFT])) }
-  }
+  const { asked, fetchFocus, answerAll } = heldFetch()
   const uninstall = installImageFocus({ root, fetchFocus, waitCapMs: 200 })
   primeImageFocus('/api/recordings/out/image')
-  await delay(20)
+  await advance(t, 20)
   const img = fakeImage('/api/recordings/out/image')
   root.load(img)
   assert.ok(!img.classList.contains('is-focus-ready'))
-  await delay(40)
+  await advance(t, 20)
+  assert.ok(!img.classList.contains('is-focus-ready'))
+  answerAll()
+  await advance(t, 40)
   assert.equal(asked.length, 1)
   assert.equal(img.style.objectPosition, '0% 50%')
   assert.ok(img.classList.contains('is-focus-ready'))

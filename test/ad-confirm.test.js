@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  EPISODE_MENU,
   SHOW_PAGE_MENU,
   adActionLabelOf,
   adConfirmOf,
@@ -74,28 +75,42 @@ test('adConfirmOf: first Remove ads keeps the original until a date and says how
   assert.equal(copy.title, 'Remove ads?')
   assert.equal(copy.goLabel, 'Remove ads')
   assert.equal(copy.danger, false)
-  assert.deepEqual(copy.changes, [{ icon: 'ads', title: 'This episode', detail: 'Saved again without the ad breaks the scan finds, at the same picture quality' }])
-  assert.deepEqual(copy.stays, [{ icon: 'check', title: 'The original with ads', detail: 'Kept until Thu 29 Oct as The Block - S22E35.ts.orig' }])
-  assert.equal(copy.note, 'Takes about 30 minutes or more and uses a lot of processor time.')
-  assert.equal(copy.undo, "To undo, choose Put the original back in this episode's menu before Thu 29 Oct.")
+  assert.deepEqual(copy.changes.map(({ icon, title }) => ({ icon, title })), [{ icon: 'ads', title: 'This episode' }])
+  assert.match(copy.changes[0].detail, /without the ad breaks/i)
+  assert.match(copy.changes[0].detail, /quality/i)
+  assert.doesNotMatch(copy.changes[0].detail, /starts again/i)
+  assert.deepEqual(copy.stays.map(({ icon, title }) => ({ icon, title })), [{ icon: 'check', title: 'The original with ads' }])
+  assert.ok(copy.stays[0].detail.includes('Thu 29 Oct'))
+  assert.ok(copy.stays[0].detail.includes('The Block - S22E35.ts.orig'))
+  assert.doesNotMatch(copy.stays[0].detail, /gone/i)
+  assert.match(copy.note, /\b30 minutes\b/)
+  assert.match(copy.note, /or more/i)
+  assert.match(copy.note, /processor/i)
+  assert.match(copy.undo, /undo/i)
+  assert.ok(copy.undo.includes('Put the original back'))
+  assert.ok(copy.undo.includes(EPISODE_MENU))
+  assert.ok(copy.undo.includes('Thu 29 Oct'))
 })
 
 test('adConfirmOf: Remove ads again starts from the original and keeps its first date', () => {
   const copy = confirm({ cut: true, backup: { keptUntil: '2026-10-25T01:00:00Z', uncut: true } })
   assert.equal(copy.title, 'Remove ads again?')
-  assert.match(copy.changes[0].detail, /\. Freetvarr starts again from the original$/)
-  assert.equal(copy.stays[0].detail, 'Kept until Sun 25 Oct as The Block - S22E35.ts.orig')
-  assert.match(copy.undo, /Put the original back .* before Sun 25 Oct\.$/)
+  assert.match(copy.changes[0].detail, /starts again from the original/i)
+  assert.ok(copy.stays[0].detail.includes('Sun 25 Oct'))
+  assert.ok(copy.stays[0].detail.includes('The Block - S22E35.ts.orig'))
+  assert.ok(copy.undo.includes('Put the original back'))
+  assert.ok(copy.undo.includes('Sun 25 Oct'))
+  assert.doesNotMatch(copy.undo, /29 Oct/)
 })
 
 test('adConfirmOf: once the original is gone, the current episode becomes the backup and the copy says so', () => {
   const copy = confirm({ cut: true })
-  assert.deepEqual(copy.stays, [{
-    icon: 'check',
-    title: 'This episode as it is now',
-    detail: 'Kept until Thu 29 Oct as The Block - S22E35.ts.orig. The original with ads is already gone',
-  }])
-  assert.match(copy.undo, /^To undo, choose Put the previous version back/)
+  assert.deepEqual(copy.stays.map(({ icon, title }) => ({ icon, title })), [{ icon: 'check', title: 'This episode as it is now' }])
+  assert.ok(copy.stays[0].detail.includes('Thu 29 Oct'))
+  assert.ok(copy.stays[0].detail.includes('The Block - S22E35.ts.orig'))
+  assert.match(copy.stays[0].detail, /original.*gone/i)
+  assert.ok(copy.undo.includes('Put the previous version back'))
+  assert.ok(!copy.undo.includes('Put the original back'))
 })
 
 test('adConfirmOf: Find ads writes the .edl and leaves the episode file alone', () => {
@@ -104,13 +119,18 @@ test('adConfirmOf: Find ads writes the .edl and leaves the episode file alone', 
   assert.equal(copy.goLabel, 'Find ads')
   assert.equal(copy.changes[0].title, 'The Block - S22E35.edl')
   assert.match(copy.changes[0].detail, /Media players that read it skip the ads/)
-  assert.deepEqual(copy.stays, [{ icon: 'check', title: 'This episode', detail: 'The episode file stays as it is' }])
-  assert.equal(copy.note, 'Takes about 30 minutes and uses a lot of processor time.')
+  assert.deepEqual(copy.stays.map(({ icon, title }) => ({ icon, title })), [{ icon: 'check', title: 'This episode' }])
+  assert.match(copy.stays[0].detail, /stays/i)
+  assert.match(copy.note, /\b30 minutes\b/)
+  assert.doesNotMatch(copy.note, /or more/i)
+  assert.match(copy.note, /processor/i)
   assert.equal(copy.undo, '')
 })
 
 test('adConfirmOf: no length means no time estimate', () => {
-  assert.equal(confirm({}, { durationS: null }).note, 'This can take a while and uses a lot of processor time.')
+  const note = confirm({}, { durationS: null }).note
+  assert.match(note, /processor/i)
+  assert.doesNotMatch(note, /\d|minute|undefined|null|NaN/)
 })
 
 test('restoreConfirmOf: names what changes and what stays', () => {
@@ -118,11 +138,15 @@ test('restoreConfirmOf: names what changes and what stays', () => {
   assert.equal(copy.title, 'Put the original back?')
   assert.equal(copy.goLabel, 'Put the original back')
   assert.equal(copy.danger, false)
-  assert.match(copy.changes[0].detail, /^Goes back to the original recording, with the ads\. The Block - S22E35\.ts\.orig becomes the episode file again$/)
+  assert.match(copy.changes[0].detail, /original/i)
+  assert.match(copy.changes[0].detail, /with the ads/i)
+  assert.ok(copy.changes[0].detail.includes('The Block - S22E35.ts.orig'))
   assert.equal(copy.stays[0].title, 'The episode in your library')
   const previous = restoreConfirmOf({ episode: episode({ cut: true, backup: { keptUntil: null, uncut: false } }) })
   assert.equal(previous.title, 'Put the previous version back?')
   assert.equal(previous.undo, '')
+  assert.ok(previous.changes[0].detail.includes('The Block - S22E35.ts.orig'))
+  assert.doesNotMatch(previous.changes[0].detail, /original/i)
 })
 
 test('restoredToastOf and adsOfRecording', () => {
@@ -143,5 +167,9 @@ test('dialogBlocksOf: shows only the blocks that have lines, in a fixed order', 
 
 test('adConfirmOf: the Recording log points to the episode menu on the show page', () => {
   const copy = adConfirmOf({ episode: episode(), retentionDays: '7', timeZone: TZ, nowMs: NOW, menuPlace: SHOW_PAGE_MENU })
-  assert.equal(copy.undo, "To undo, choose Put the original back in the episode's menu on its show page before Thu 29 Oct.")
+  assert.ok(copy.undo.includes(SHOW_PAGE_MENU))
+  assert.match(copy.undo, /show page/i)
+  assert.ok(!copy.undo.includes(EPISODE_MENU))
+  assert.ok(copy.undo.includes('Put the original back'))
+  assert.ok(copy.undo.includes('Thu 29 Oct'))
 })

@@ -61,12 +61,14 @@ test('initialStrengthOf: an unoffered focus falls back to the first', () => {
 })
 
 test('strengthLineOf: one line that says what each strength does', () => {
-  assert.equal(strengthLineOf({ strength: 'episode' }), 'Records this airing only.')
+  assert.match(strengthLineOf({ strength: 'episode' }), /airing/i)
+  assert.doesNotMatch(strengthLineOf({ strength: 'episode' }), /until|every|undefined/i)
   assert.match(strengthLineOf({ strength: 'episode', onAirUntil: '9:12pm' }), /from now until 9:12pm/)
-  assert.equal(
-    strengthLineOf({ strength: 'series', title: 'The Rookie', channelLabel: 'on 7 Sydney' }),
-    'Records every new episode of The Rookie on 7 Sydney.',
-  )
+  const seriesLine = strengthLineOf({ strength: 'series', title: 'The Rookie', channelLabel: 'on 7 Sydney' })
+  assert.match(seriesLine, /every/i)
+  assert.match(seriesLine, /The Rookie/)
+  assert.match(seriesLine, /on 7 Sydney/)
+  assert.doesNotMatch(strengthLineOf({ strength: 'series', title: 'The Rookie' }), / \.|undefined/)
   assert.match(strengthLineOf({ strength: 'notify', title: 'The Rookie' }), /Nothing records\.$/)
   assert.match(strengthLineOf({ strength: 'notify', title: 'The Rookie', recordWhenSeen: true }), /any channel/)
 })
@@ -132,6 +134,15 @@ test('a failed sheet action reloads the recording state, so the sheet shows what
 })
 
 test('scheduledMessageOf: says when TVHeadend did not save the padding', () => {
-  assert.equal(scheduledMessageOf({ title: 'The Chase' }), 'Scheduled "The Chase".')
-  assert.equal(scheduledMessageOf({ title: 'The Chase', paddingSaved: false }), 'Scheduled "The Chase", but TVHeadend did not save Start early and Finish late.')
+  const saved = scheduledMessageOf({ title: 'The Chase' })
+  assert.match(saved, /scheduled/i)
+  assert.match(saved, /"The Chase"/)
+  assert.doesNotMatch(saved, /TVHeadend|Start early|Finish late/)
+  const unsaved = scheduledMessageOf({ title: 'The Chase', paddingSaved: false })
+  assert.match(unsaved, /scheduled/i)
+  assert.match(unsaved, /"The Chase"/)
+  assert.match(unsaved, /TVHeadend/)
+  assert.match(unsaved, /Start early/)
+  assert.match(unsaved, /Finish late/)
+  assert.doesNotMatch(scheduledMessageOf({ title: 'The Chase', paddingSaved: true }), /Start early/)
 })

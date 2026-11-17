@@ -5,23 +5,25 @@ import { clearedSecretToastOf, reenterLineOf, rootFieldErrorOf, savedNoticeOf } 
 
 test('savedNoticeOf: says which secret to enter again after a save clears it', () => {
   assert.equal(savedNoticeOf([]), 'Saved.')
-  assert.equal(savedNoticeOf(['tvh_password']), 'Saved. Enter the TVHeadend password again for the new address.')
-  assert.equal(
-    savedNoticeOf(['radarr_api_key', 'plex_token', 'sonarr_api_key']),
-    'Saved. Enter the Plex token again for the new address. Enter the Sonarr API key again for the new address. Enter the Radarr API key again for the new address.',
-  )
-  assert.equal(reenterLineOf('plex_token'), 'Enter the Plex token again for the new address.')
+  const one = savedNoticeOf(['tvh_password'])
+  assert.match(one, /^Saved\b/)
+  assert.match(one, /TVHeadend password/)
+  assert.doesNotMatch(one, /Plex|Sonarr|Radarr|undefined/)
+  const three = savedNoticeOf(['radarr_api_key', 'plex_token', 'sonarr_api_key'])
+  assert.match(three, /^Saved\b.*Plex token.*Sonarr API key.*Radarr API key/)
+  assert.doesNotMatch(three, /TVHeadend|undefined/)
+  assert.match(reenterLineOf('plex_token'), /Plex token/)
+  assert.ok(three.includes(reenterLineOf('plex_token')))
 })
 
 const apiError = (message, data) => Object.assign(new Error(message), { data })
 
 test('clearedSecretToastOf: keeps the cleared-secret notice until the user closes it', () => {
   assert.equal(clearedSecretToastOf([]), null)
-  assert.deepEqual(clearedSecretToastOf(['tvh_password']), {
-    text: 'Saved. Enter the TVHeadend password again for the new address.',
-    kind: 'info',
-    persist: true,
-  })
+  const toast = clearedSecretToastOf(['tvh_password'])
+  assert.deepEqual({ kind: toast.kind, persist: toast.persist }, { kind: 'info', persist: true })
+  assert.equal(toast.text, savedNoticeOf(['tvh_password']))
+  assert.match(toast.text, /TVHeadend password/)
 })
 
 test('rootFieldErrorOf: names the root field a refused save points at', () => {

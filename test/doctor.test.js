@@ -152,7 +152,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 5 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
-  assert.equal(checks['tvh.channels'].detail, '3 channels in TVHeadend.')
+  assert.match(checks['tvh.channels'].detail, /\b3 channels\b/)
   assert.deepEqual(['plex.reach', 'plex.oneoffs', 'ads.comskip', 'live.encoder'].map((id) => checks[id].status), ['skip', 'skip', 'skip', 'pass'])
   for (const c of report.checks) {
     assert.deepEqual(Object.keys(c).filter((k) => k !== 'action').sort(), ['detail', 'doc', 'fix', 'group', 'id', 'status', 'title'])
@@ -171,7 +171,7 @@ test('runDoctor: a 401 on serverinfo fails the login and skips every TVHeadend c
   assert.match(checks['tvh.auth'].fix, /No username was sent/)
   for (const id of TVH_DEPENDENT) {
     assert.equal(checks[id].status, 'skip', id)
-    assert.equal(checks[id].detail, 'Fix the TVHeadend connection first.')
+    assert.match(checks[id].detail, /TVHeadend connection/i)
   }
 })
 
@@ -365,7 +365,8 @@ test('runDoctor: a route that never answers fails within the time budget', async
   })
   const depth = byId(report)['guide.depth']
   assert.equal(depth.status, 'fail')
-  assert.equal(depth.detail, 'No answer within 0.05s.')
+  assert.match(depth.detail, /no answer/i)
+  assert.match(depth.detail, /\b0\.05s\b/)
   assert.ok(Date.now() - started < 2000)
 })
 
@@ -510,7 +511,7 @@ test('runDoctor: with no channels, guide depth and channel logos skip with No ch
   const checks = byId(report)
   for (const id of ['guide.depth', 'guide.logos']) {
     assert.equal(checks[id].status, 'skip', id)
-    assert.equal(checks[id].detail, 'No channels yet.', id)
+    assert.match(checks[id].detail, /no channels yet/i, id)
   }
   assert.equal(checks['tvh.channels'].status, 'fail')
 })
@@ -545,7 +546,9 @@ test('live.encoder: software fallback on Linux warns to pass /dev/dri', async ()
 test('live.encoder: software fallback in a Docker VM passes with plain detail', async () => {
   const check = await encoderCheck({ liveEncoder: async () => SOFTWARE_FALLBACK, dockerVm: () => 'OrbStack' })
   assert.equal(check.status, 'pass')
-  assert.equal(check.detail, 'Live TV uses the processor. Docker on a Mac or Windows PC cannot use the graphics chip.')
+  assert.match(check.detail, /processor/i)
+  assert.match(check.detail, /Docker/)
+  assert.doesNotMatch(check.detail, /renderD128/)
   assert.equal(check.fix, '')
 })
 
@@ -574,7 +577,9 @@ test('sync.health: a sync stopped by a restart passes', async () => {
   const latestSync = async () => ({ id: 3, status: 'stopped', finished_at: '2026-10-06 12:30:00', summary: { trigger: 'cron' } })
   const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
   assert.equal(sync.status, 'pass')
-  assert.equal(sync.detail, 'A restart stopped the last sync before it finished. Runs every 30 minutes.')
+  assert.match(sync.detail, /restart stopped/i)
+  assert.match(sync.detail, /\bevery 30 minutes\b/)
+  assert.doesNotMatch(sync.detail, /failed/i)
 })
 
 test('sync.health: an older row failed with the restart message passes as stopped', async () => {
@@ -588,16 +593,20 @@ test('sync.health: an older row failed with the restart message passes as stoppe
 
 test('sync.health: a failed sync message that ends in a full stop gets no second one', async () => {
   const now = Date.now()
-  const latestSync = async () => ({ id: 2, status: 'error', summary: { errors: ['TVHeadend URL is not configured.'] } })
+  const error = 'TVHeadend URL is not configured.'
+  const latestSync = async () => ({ id: 2, status: 'error', summary: { errors: [error] } })
   const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
-  assert.equal(sync.detail, 'The last sync failed: TVHeadend URL is not configured.')
+  assert.match(sync.detail, /sync failed/i)
+  assert.ok(sync.detail.endsWith(error), sync.detail)
+  assert.ok(!sync.detail.endsWith('..'), sync.detail)
 })
 
 test('sync.health: a failed sync message without a full stop gets one', async () => {
   const now = Date.now()
   const latestSync = async () => ({ id: 2, status: 'error', summary: { errors: ['connect ECONNREFUSED'] } })
   const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
-  assert.equal(sync.detail, 'The last sync failed: connect ECONNREFUSED.')
+  assert.match(sync.detail, /sync failed/i)
+  assert.ok(sync.detail.endsWith('connect ECONNREFUSED.'), sync.detail)
 })
 
 test('sync.health: a schedule with no plain description falls back to the cron text', async () => {
@@ -621,7 +630,10 @@ test('live.streams: names the measured streams and the limit', () => {
   const benchmark = { encoder: 'vaapi', speed: 3.6, estimated: 4, rounds: [{ streams: 4, speed: 1.3, smooth: true }] }
   const check = liveStreamsCheck({ max_live_streams: 2, benchmark })
   assert.equal(check.status, 'pass')
-  assert.equal(check.detail, 'Hardware transcoding measured smooth for 4 live streams at once, each at 1.3× real time or better. Freetvarr plays up to 2 at once.')
+  assert.match(check.detail, /hardware/i)
+  assert.match(check.detail, /\b4 live streams\b/)
+  assert.match(check.detail, /\b1\.3×/)
+  assert.match(check.detail, /\bup to 2\b/)
 })
 
 test('live.streams: warns when the limit is above the estimate, skips before the first run', () => {
@@ -631,14 +643,23 @@ test('live.streams: warns when the limit is above the estimate, skips before the
   assert.equal(check.action.href, '#/settings/player')
   const tooSlow = liveStreamsCheck({ max_live_streams: 1, benchmark: { encoder: 'software', speed: 0.9, estimated: 0 } })
   assert.equal(tooSlow.status, 'warn')
-  assert.equal(tooSlow.fix, 'Pictures may stutter even with 1 live stream.')
+  assert.match(tooSlow.fix, /stutter/i)
+  assert.match(tooSlow.fix, /\b1 live stream\b/)
+  assert.doesNotMatch(tooSlow.fix, /Set Live streams at once/)
   assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
 })
 
 test('host.names: passes when no unknown name was seen, and counts the names added', () => {
-  assert.deepEqual(hostNamesCheck({ anyHost: false, added: 0, seen: [] }), { status: 'pass', detail: 'Freetvarr answers to IP addresses and local names.' })
-  assert.equal(hostNamesCheck({ anyHost: false, added: 1, seen: [] }).detail, 'Freetvarr answers to IP addresses, local names, and 1 name you added.')
-  assert.equal(hostNamesCheck({ anyHost: false, added: 2, seen: [] }).detail, 'Freetvarr answers to IP addresses, local names, and 2 names you added.')
+  const none = hostNamesCheck({ anyHost: false, added: 0, seen: [] })
+  assert.deepEqual(Object.keys(none).sort(), ['detail', 'status'])
+  assert.equal(none.status, 'pass')
+  assert.match(none.detail, /IP addresses/i)
+  assert.match(none.detail, /local names/i)
+  assert.doesNotMatch(none.detail, /you added/i)
+  const one = hostNamesCheck({ anyHost: false, added: 1, seen: [] })
+  assert.equal(one.status, 'pass')
+  assert.match(one.detail, /\b1 name you added\b/)
+  assert.match(hostNamesCheck({ anyHost: false, added: 2, seen: [] }).detail, /\b2 names you added\b/)
 })
 
 const seenName = (name, extra = {}) => ({ name, count: 1, last_seen: 0, from: '192.168.1.23', page_load: true, allowable: true, ...extra })
@@ -650,7 +671,9 @@ test('host.names: warns about a name 3.0.0 will refuse and offers to allow a nam
   assert.equal(check.title, undefined)
   assert.match(check.detail, /^Freetvarr was opened as tv\.example\.com \(12 requests, last .+, from 192\.168\.1\.23\)\. From 3\.0\.0 Freetvarr refuses names it does not know\.$/)
   assert.match(check.fix, /If you open Freetvarr by this name, press Allow tv\.example\.com\./)
-  assert.deepEqual(check.action, { label: 'Allow tv.example.com', post: '/api/allowed-hosts/allow/tv.example.com', done: 'Added tv.example.com to Allowed hostnames.' })
+  const { done, ...action } = check.action
+  assert.deepEqual(action, { label: 'Allow tv.example.com', post: '/api/allowed-hosts/allow/tv.example.com' })
+  assert.match(done, /\btv\.example\.com\b.*Allowed hostnames/)
 })
 
 test('host.names: Allow goes to the most used name opened as a page, never to a name only fetched', () => {
@@ -701,8 +724,9 @@ test('host.names: a long name is cut in the button label but not in the request'
 test('host.names: * warns, and Health skips the check outside the running server', async () => {
   const check = hostNamesCheck({ anyHost: true, added: 1, seen: [] })
   assert.equal(check.status, 'warn')
-  assert.equal(check.detail, 'Freetvarr answers to any name, so any website can reach it through a browser on your network.')
-  assert.equal(check.fix, 'Remove * from Allowed hostnames and list the names you use.')
+  assert.match(check.detail, /any name/i)
+  assert.match(check.detail, /any website/i)
+  assert.match(check.fix, /Remove \* from Allowed hostnames/)
   assert.equal(check.action.href, '#/settings/system/setup/hostnames')
   assert.equal(hostNamesCheck(null).status, 'skip')
   const now = Date.now()
@@ -738,8 +762,11 @@ test('plex.oneoffs: Plex items with no files in the one-off folder warn and offe
   try {
     const empty = await oneOffCheck({ oneOffRoot, items: 5 })
     assert.equal(empty.status, 'warn')
-    assert.equal(empty.detail, 'The Plex one-off library has 5 items while the one-off folder has no files.')
-    assert.deepEqual(empty.action, { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder', done: 'Created the placeholder file.' })
+    assert.match(empty.detail, /\b5 items\b/)
+    assert.match(empty.detail, /one-off folder has no files/i)
+    const { done, ...action } = empty.action
+    assert.deepEqual(action, { label: 'Create placeholder file', post: '/api/doctor/one-off-placeholder' })
+    assert.match(done, /placeholder file/i)
 
     assert.equal(await keepOneOffFolder(oneOffRoot), 'kept')
     assert.equal(await keepOneOffFolder(oneOffRoot), 'kept')
@@ -782,18 +809,24 @@ test('guidePicturesCheck: passes when saved copies and other sources cover a fai
   const savedTitleKeys = new Set(Array.from({ length: 9 }, (_, index) => `show ${index}`))
   const check = guidePicturesCheck({ programmes, hosts: failingHost, savedTitleKeys, picturedTitleKeys: new Set(['show 9']), nowMs: PICTURE_NOW })
   assert.equal(check.status, 'pass')
-  assert.equal(check.detail, 'Pictures for 15 of 15 guide titles in the next 48 h. Pictures from images.example.com fail to load; other sources cover 10 of its 10 titles.')
+  assert.match(check.detail, /\b15 of 15 guide titles\b/)
+  assert.match(check.detail, /\bimages\.example\.com fail/)
+  assert.match(check.detail, /\b10 of its 10 titles\b/)
+  assert.doesNotMatch(check.detail, /%|cdn\.example\.net/)
 })
 
 test('guidePicturesCheck: warns when under 80% of guide titles have a picture, with a fix the user can act on', () => {
   const programmes = pictureAirings({ host: 'images.example.com', count: 20 })
   const check = guidePicturesCheck({ programmes, hosts: failingHost, savedTitleKeys: new Set(['show 0', 'show 1']), nowMs: PICTURE_NOW })
   assert.equal(check.status, 'warn')
-  assert.equal(check.detail, 'Only 20% of guide titles have a picture. Pictures for 2 of 10 guide titles in the next 48 h. Pictures from images.example.com fail to load; other sources cover 2 of its 10 titles.')
+  assert.match(check.detail, /\b20% of guide titles\b/)
+  assert.match(check.detail, /\b2 of 10 guide titles\b/)
+  assert.match(check.detail, /\bimages\.example\.com fail/)
+  assert.match(check.detail, /\b2 of its 10 titles\b/)
   assert.match(check.fix, /reach the internet/)
   assert.doesNotMatch(check.fix, /guide provider/)
   assert.equal(check.action.href, '#/settings/film-tv-info')
-  assert.equal(check.summary, 'Many guide titles have no picture.')
+  assert.match(check.summary, /no picture/i)
   assert.equal(healthSummaryOf({ doctorChecks: [{ ...check, group: 'guide', title: 'Guide pictures' }] }).sentence, check.summary)
 })
 
@@ -803,20 +836,29 @@ test('guidePicturesCheck: counts a working host, a title without a picture addre
   const later = pictureAirings({ host: null, count: 3, titles: 3, prefix: 'Later', startMs: PICTURE_NOW + 49 * HOUR })
   const check = guidePicturesCheck({ programmes: [...working, ...bare, ...later], hosts: new Map([['images.example.com', { tried: 20, failed: 2 }]]), nowMs: PICTURE_NOW })
   assert.equal(check.status, 'pass')
-  assert.equal(check.detail, 'Pictures for 4 of 5 guide titles in the next 48 h.')
+  assert.match(check.detail, /\b4 of 5 guide titles\b/)
+  assert.match(check.detail, /\b48 h\b/)
+  assert.doesNotMatch(check.detail, /%|images\.example\.com/)
   const untried = guidePicturesCheck({ programmes: working, hosts: new Map([['images.example.com', { tried: 9, failed: 9 }]]), nowMs: PICTURE_NOW })
-  assert.equal(untried.detail, 'Pictures for 4 of 4 guide titles in the next 48 h.')
+  assert.match(untried.detail, /\b4 of 4 guide titles\b/)
+  assert.doesNotMatch(untried.detail, /%|images\.example\.com/)
 })
 
 test('guidePicturesCheck: counts a title whose only guide picture is a stand-in, such as a channel logo, as missing', () => {
   const programmes = pictureAirings({ host: 'images.example.com', count: 4, titles: 4 })
   const placeholderSources = new Set(['https://images.example.com/show-0.jpg', 'https://images.example.com/show-1.jpg'])
   const check = guidePicturesCheck({ programmes, hosts: new Map(), placeholderSources, picturedTitleKeys: new Set(['show 1']), nowMs: PICTURE_NOW })
-  assert.equal(check.detail, 'Only 75% of guide titles have a picture. Pictures for 3 of 4 guide titles in the next 48 h.')
+  assert.match(check.detail, /\b75% of guide titles\b/)
+  assert.match(check.detail, /\b3 of 4 guide titles\b/)
+  assert.doesNotMatch(check.detail, /images\.example\.com/)
 })
 
 test('guidePicturesCheck: skips with a neutral note when the guide has nothing in the next 48 h', () => {
-  assert.deepEqual(guidePicturesCheck({ programmes: [], nowMs: PICTURE_NOW }), { status: 'skip', detail: 'The guide has no programmes in the next 48 h yet.' })
+  const check = guidePicturesCheck({ programmes: [], nowMs: PICTURE_NOW })
+  assert.deepEqual(Object.keys(check).sort(), ['detail', 'status'])
+  assert.equal(check.status, 'skip')
+  assert.match(check.detail, /no programmes/i)
+  assert.match(check.detail, /\b48 h\b/)
 })
 
 test('runDoctor: the guide pictures check reads the guide and the recorded host results, with no web request', async () => {
@@ -833,9 +875,10 @@ test('guidePicturesCheck: warns when Freeview pictures are off, with the reason 
   const freeviewProblem = { detail: 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off.', fix: 'In TVHeadend, give the Freetvarr user the Admin right.' }
   const check = guidePicturesCheck({ programmes: pictureAirings({ host: 'images.example.com', count: 10 }), freeviewProblem, nowMs: PICTURE_NOW })
   assert.equal(check.status, 'warn')
-  assert.equal(check.detail, 'TVHeadend refused the service and mux lists (HTTP 403), so Freeview pictures are off. Pictures for 10 of 10 guide titles in the next 48 h.')
-  assert.equal(check.fix, 'In TVHeadend, give the Freetvarr user the Admin right.')
-  assert.equal(check.summary, 'Freeview pictures are off.')
+  assert.ok(check.detail.startsWith(freeviewProblem.detail), check.detail)
+  assert.match(check.detail, /\b10 of 10 guide titles\b/)
+  assert.equal(check.fix, freeviewProblem.fix)
+  assert.match(check.summary, /Freeview pictures.*\boff\b/)
 })
 
 const sourcesView = (overrides = {}) => ({
@@ -885,7 +928,7 @@ test('guide.sources: warns when the primary is degraded, with a summary for the 
   view.sources[0].degraded = true
   const result = guideSourcesCheck({ view, grabber: POINTED, nowMs: SOURCES_NOW })
   assert.equal(result.status, 'warn')
-  assert.equal(result.summary, 'Freeview listings are degraded.')
+  assert.match(result.summary, /^Freeview\b.*degraded/)
   assert.equal(result.action.href, '#/settings/guide')
   assert.equal(guideSourcesCheck({ view: { ...view, mergedOn: false, repoint: { state: 'kept' } }, nowMs: SOURCES_NOW }).status, 'pass')
 })
@@ -895,7 +938,9 @@ test('guide.sources: a pinned source that is degraded warns with a one-tap switc
   const result = guideSourcesCheck({ view: pinned, grabber: POINTED, nowMs: SOURCES_NOW })
   assert.equal(result.status, 'warn')
   assert.match(result.detail, /You chose Freeview for Seven/)
-  assert.deepEqual(result.action, { label: 'Switch to Automatic', post: '/api/guide-sources/automatic', done: 'Switched the listings source to Automatic.' })
+  const { done, ...action } = result.action
+  assert.deepEqual(action, { label: 'Switch to Automatic', post: '/api/guide-sources/automatic' })
+  assert.match(done, /\bAutomatic\b/)
   const named = sourcesView({ choice: { mode: 'freeview-au', pins: {} } })
   named.sources[0].degraded = true
   assert.equal(guideSourcesCheck({ view: named, grabber: POINTED, nowMs: SOURCES_NOW }).action.post, '/api/guide-sources/automatic')

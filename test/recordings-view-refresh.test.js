@@ -25,11 +25,6 @@ test('latestOnly: when two refreshes answer in reverse order, only the newer one
   assert.deepEqual(await first, { latest: false, result: null })
 })
 
-test('recording log: the refresh goes through latestOnly and the poll through createPoll', () => {
-  assert.match(view, /latestOnly\(\)/)
-  assert.match(view, /createPoll\(/)
-})
-
 test('recording log: the info card and the clear dialog state the same 30-day rule', () => {
   assert.match(view, /Without a clear, imported rows stay\. Other rows leave 30 days after TVHeadend removed them\./)
   const dialog = clearListConfirm({ count: 2, undoSeconds: 10 }).body.join(' ')

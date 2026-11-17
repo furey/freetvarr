@@ -319,9 +319,17 @@ test('settings copy: level summary, hardware reason, clear-history line, and hid
   assert.equal(tierReasonOf({ tierReason: 'About 64 s a day for 510 new texts', probe: {} }), 'About 64 s a day for 510 new texts')
   assert.equal(tierReasonOf({ probe: { cores: 2, memory: { totalMb: 6144 }, arch: 'x64' } }), '2 cores, 6 GB memory, x64')
   assert.match(tierReasonOf({}), /not checked/)
-  assert.equal(historyClearCopyOf(214), 'Removes 214 history entries, including your thumbs up and down and your hidden shows. Suggestions start again from new.')
-  assert.equal(historyClearCopyOf(0), 'Removes your viewing history, your thumbs up and down, and your hidden shows. Suggestions start again from new.')
-  assert.equal(programmeHiddenToastOf('series'), 'This show is hidden for 90 days')
+  assert.match(historyClearCopyOf(214), /\b214 history entries\b/)
+  assert.match(historyClearCopyOf(1), /\b1 history entry\b/)
+  assert.doesNotMatch(historyClearCopyOf(1), /entries/)
+  assert.match(historyClearCopyOf(0), /viewing history/i)
+  assert.doesNotMatch(historyClearCopyOf(0), /\d|undefined|null/)
+  for (const count of [214, 1, 0]) {
+    assert.match(historyClearCopyOf(count), /thumbs/i)
+    assert.match(historyClearCopyOf(count), /hidden shows/i)
+  }
+  assert.match(programmeHiddenToastOf('series'), /\bshow is hidden\b.*\b90 days\b/i)
+  assert.match(programmeHiddenToastOf('movie'), /\bfilm is hidden\b.*\b90 days\b/i)
 })
 
 test('whyRowsOf: strongest reason first, bars relative to it, and an icon by meaning', () => {
@@ -354,13 +362,19 @@ test('menuOf: the movie row sits between Change categories and Why this, labelle
 })
 
 test('movieKindToastOf: says whether the show is now listed as a movie', () => {
-  assert.equal(movieKindToastOf({ title: 'Heron', kind: 'movie' }), 'Heron is now listed as a movie')
-  assert.equal(movieKindToastOf({ title: 'Heron', kind: 'not-movie' }), 'Heron is no longer listed as a movie')
+  const nowMovie = movieKindToastOf({ title: 'Heron', kind: 'movie' })
+  const notMovie = movieKindToastOf({ title: 'Heron', kind: 'not-movie' })
+  assert.match(nowMovie, /^Heron\b.*\bmovie\b/)
+  assert.doesNotMatch(nowMovie, /no longer|\bnot\b/i)
+  assert.match(notMovie, /^Heron\b.*\bno longer\b.*\bmovie\b/)
 })
 
 test('undoneMovieKindToastOf: says where the show stands after Undo', () => {
-  assert.equal(undoneMovieKindToastOf({ title: 'Heron', kind: 'not-movie' }), 'Heron is listed as a movie again')
-  assert.equal(undoneMovieKindToastOf({ title: 'Heron', kind: 'movie' }), 'Heron is no longer listed as a movie')
+  const movieAgain = undoneMovieKindToastOf({ title: 'Heron', kind: 'not-movie' })
+  const notMovieAgain = undoneMovieKindToastOf({ title: 'Heron', kind: 'movie' })
+  assert.match(movieAgain, /^Heron\b.*\bmovie again\b/)
+  assert.doesNotMatch(movieAgain, /no longer|\bnot\b/i)
+  assert.match(notMovieAgain, /^Heron\b.*\bno longer\b.*\bmovie\b/)
 })
 
 test('programOf: carries the movie choice so the programme sheet can offer it', () => {

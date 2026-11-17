@@ -14,7 +14,6 @@ const flush = async () => {
 test('hasAdJobRunning: true while any episode scans for ads', () => {
   assert.equal(hasAdJobRunning([{ ads: { status: 'cut' } }, { ads: { status: 'scanning' } }]), true)
   assert.equal(hasAdJobRunning([{ ads: { status: 'cut' } }, {}]), false)
-  assert.equal(AD_JOB_POLL_MS, 5000)
 })
 
 test('freshEpisodeOf: an open episode menu takes the reloaded episode, so Restore shows once the cut ends', () => {

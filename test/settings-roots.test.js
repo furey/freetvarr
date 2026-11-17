@@ -52,11 +52,26 @@ test('rootSettingsProblem: refuses a local root that is /, relative, missing, a 
 
 test('rootSettingsProblem: names each problem with the Settings label and plain words', async () => {
   const errorFor = async (value) => (await problemFor({ media_root: value })).error
-  assert.equal(await errorFor('relative/x'), 'Media root must be a full path that starts with /.')
-  assert.equal(await errorFor('/proc'), 'Media root cannot be /proc, a system folder.')
-  assert.equal(await errorFor(configDir), 'Media root cannot be the Freetvarr config folder, a folder inside it, or a folder that holds it.')
-  assert.equal(await errorFor(path.join(tmpDir, 'missing')), `Media root ${path.join(tmpDir, 'missing')} does not exist inside the Freetvarr container.`)
-  assert.equal(await errorFor(path.join(tmpDir, 'file.txt')), `Media root ${path.join(tmpDir, 'file.txt')} is not a folder.`)
+  const missing = path.join(tmpDir, 'missing')
+  const file = path.join(tmpDir, 'file.txt')
+  const errors = {
+    relative: await errorFor('relative/x'),
+    system: await errorFor('/proc'),
+    config: await errorFor(configDir),
+    missing: await errorFor(missing),
+    file: await errorFor(file),
+  }
+  for (const error of Object.values(errors)) assert.ok(error.startsWith('Media root '), error)
+  assert.equal(new Set(Object.values(errors)).size, 5)
+  assert.match(errors.relative, /full path/i)
+  assert.match(errors.relative, /starts with \//)
+  assert.ok(errors.system.includes('/proc'), errors.system)
+  assert.match(errors.system, /system folder/i)
+  assert.match(errors.config, /config folder/i)
+  assert.ok(errors.missing.includes(missing), errors.missing)
+  assert.match(errors.missing, /does not exist/i)
+  assert.ok(errors.file.includes(file), errors.file)
+  assert.match(errors.file, /not a folder/i)
 })
 
 test('rootSettingsProblem: refuses the config folder, a folder inside it, and a parent of it', async () => {
@@ -83,12 +98,14 @@ test('settings save: checks root paths before the nested-folder check, so a bad 
 
 test('rootSettingsProblem: checks the TVHeadend recordings path as a container path only', async () => {
   assert.equal(await problemFor({ tvh_recordings_path: '/tvh-recordings-not-on-this-machine' }), null)
-  assert.deepEqual(await problemFor({ tvh_recordings_path: '/' }), {
-    field: 'tvh_recordings_path',
-    error: 'Recordings folder (as TVHeadend sees it) cannot be /.',
-  })
-  assert.deepEqual(await problemFor({ tvh_recordings_path: 'recordings' }), {
-    field: 'tvh_recordings_path',
-    error: 'Recordings folder (as TVHeadend sees it) must be a full path that starts with /.',
-  })
+  const slash = await problemFor({ tvh_recordings_path: '/' })
+  const relative = await problemFor({ tvh_recordings_path: 'recordings' })
+  for (const problem of [slash, relative]) {
+    assert.deepEqual(Object.keys(problem).sort(), ['error', 'field'])
+    assert.equal(problem.field, 'tvh_recordings_path')
+    assert.ok(problem.error.startsWith('Recordings folder (as TVHeadend sees it) '), problem.error)
+  }
+  assert.match(slash.error, /cannot be \/\.?$/)
+  assert.match(relative.error, /full path/i)
+  assert.match(relative.error, /starts with \//)
 })

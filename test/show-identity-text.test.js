@@ -9,14 +9,18 @@ const OFFICE_US = { tvmazeId: '526', name: 'The Office', country: 'US', network:
 test('identityRowOf: asks the owner to pick when there is no clear winner', () => {
   const row = identityRowOf({ status: { state: 'choose', current: null, candidates: [OFFICE_US, OFFICE_UK] }, title: 'The Office' })
   assert.equal(row.title, 'Check which show this is')
-  assert.match(row.meta, /more than one show called The Office/)
+  assert.match(row.meta, /more than one/i)
+  assert.match(row.meta, /The Office/)
 })
 
 test('identityRowOf: asks the owner to check a borrowed match', () => {
   const current = { tvmazeId: '87106', name: 'Big Brother (AU)' }
   const candidate = { tvmazeId: '87106', name: 'Big Brother', country: 'AU', network: 'Network 10', years: '2025–' }
   const row = identityRowOf({ status: { state: 'confirm', current, candidates: [candidate] }, title: 'Big Brother' })
-  assert.equal(row.meta, 'Freetvarr thinks this is Big Brother (AU), AU · Network 10 · 2025–. Press to check or change it.')
+  assert.ok(row.meta.includes('Big Brother (AU)'))
+  assert.ok(row.meta.includes('AU · Network 10 · 2025–'))
+  assert.match(row.meta, /check/i)
+  assert.doesNotMatch(row.meta, /more than one|undefined/i)
 })
 
 test('identityRowOf: names a matched show with its details', () => {
@@ -26,7 +30,10 @@ test('identityRowOf: names a matched show with its details', () => {
 
 test('identityRowOf: says why there is no show, so the row keeps its place', () => {
   const rowFor = (lookup) => identityRowOf({ status: { state: 'none', current: null, candidates: [], lookup }, title: 'Gruen' })
-  assert.deepEqual(rowFor('none'), { title: 'No show found', meta: 'TVmaze has no show called Gruen, so the folder keeps the plain name.' })
+  assert.equal(rowFor('none').title, 'No show found')
+  assert.match(rowFor('none').meta, /TVmaze/)
+  assert.match(rowFor('none').meta, /Gruen/)
+  assert.match(rowFor('none').meta, /plain name/i)
   assert.equal(rowFor('unreachable').title, 'TVmaze not reachable')
   assert.equal(rowFor('pending').title, 'Still looking')
   assert.equal(rowFor('off').title, 'No show lookups')
@@ -35,23 +42,36 @@ test('identityRowOf: says why there is no show, so the row keeps its place', () 
 })
 
 test('folderFixNoteOf: says in one line why Rename folder is not offered', () => {
-  assert.equal(folderFixNoteOf({ state: 'managed', manager: 'Sonarr' }), 'Sonarr also saves episodes in this folder, so rename the series in Sonarr instead of here.')
-  assert.equal(folderFixNoteOf({ state: 'target-exists', to: 'Gruen {tvdb-83281}' }), 'A folder called Gruen {tvdb-83281} is already in your TV library, so Freetvarr cannot rename this folder to it.')
+  const managed = folderFixNoteOf({ state: 'managed', manager: 'Sonarr' })
+  assert.match(managed, /Sonarr/)
+  assert.match(managed, /rename/i)
+  assert.doesNotMatch(managed, /already|undefined/i)
+  const targetExists = folderFixNoteOf({ state: 'target-exists', to: 'Gruen {tvdb-83281}' })
+  assert.ok(targetExists.includes('Gruen {tvdb-83281}'))
+  assert.match(targetExists, /already/i)
+  assert.doesNotMatch(targetExists, /Sonarr|undefined/)
   assert.equal(folderFixNoteOf({ state: 'ready' }), '')
   assert.equal(folderFixNoteOf(null), '')
 })
 
 test('identityRowOf: None of these keeps the plain name and offers the picker again', () => {
   const row = identityRowOf({ status: { state: 'declined', current: null, candidates: [OFFICE_US, OFFICE_UK] }, title: 'The Office' })
-  assert.deepEqual(row, { title: 'None of these', meta: 'The folder keeps the plain name. Press to pick a show.' })
+  assert.equal(row.title, 'None of these')
+  assert.match(row.meta, /plain name/i)
+  assert.match(row.meta, /pick/i)
 })
 
 test('folderFixOutcomeOf: says how many videos Freetvarr did not record move with the folder', () => {
-  assert.equal(
-    folderFixOutcomeOf({ folderExists: true, recordings: 2, otherVideos: 3 }),
-    'Freetvarr updates the 2 recordings in it, and new episodes save to the new folder. The folder also holds 3 videos that Freetvarr did not record, such as copies you added yourself. They move with the folder. Plex then rescans your TV library.',
-  )
-  assert.equal(folderFixOutcomeOf({ folderExists: true, recordings: 1, otherVideos: 0 }), 'Freetvarr updates the 1 recording in it, and new episodes save to the new folder. Plex then rescans your TV library.')
+  const withOthers = folderFixOutcomeOf({ folderExists: true, recordings: 2, otherVideos: 3 })
+  assert.match(withOthers, /\b2 recordings\b/)
+  assert.match(withOthers, /\b3 videos\b/)
+  assert.match(withOthers, /\bmove/i)
+  assert.match(withOthers, /Plex/)
+  const recordingsOnly = folderFixOutcomeOf({ folderExists: true, recordings: 1, otherVideos: 0 })
+  assert.match(recordingsOnly, /\b1 recording\b/)
+  assert.doesNotMatch(recordingsOnly, /video|undefined|NaN/i)
+  assert.match(recordingsOnly, /Plex/)
+  assert.match(folderFixOutcomeOf({ folderExists: true, recordings: 2, otherVideos: 1 }), /\b1 video\b/)
 })
 
 test('candidateMetaOf: marks the current show', () => {
