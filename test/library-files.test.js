@@ -137,3 +137,18 @@ test('libraryRootReadyFor: a path under an empty library folder with imported ro
   assert.equal(await libraryRootReadyFor(filePath), false)
   assert.equal(await libraryRootReadyFor('/elsewhere/file.ts'), true)
 })
+
+test('libraryRootReadyFor: an emptied folder on the same disk as a filled library folder is mounted, so deleted recordings do not block it', async () => {
+  const tv = path.join(tmpDir, 'disk-tv')
+  const oneOffs = path.join(tmpDir, 'disk-one-offs')
+  await fs.mkdir(path.join(tv, 'Bluey'), { recursive: true })
+  await fs.mkdir(oneOffs)
+  await fs.writeFile(path.join(oneOffs, '.freetvarr-keep'), '')
+  await setSetting('media_root', tv)
+  await setSetting('oneoff_root', oneOffs)
+  const filePath = path.join(oneOffs, 'Rugby League World Cup 2026', 'Final.ts')
+  await db('recordings').insert({ recording_id: 'disk-1', title: 'Rugby League World Cup 2026', status: 'done', file_path: filePath })
+  assert.equal(await libraryRootReadyFor(filePath), true)
+  await fs.rm(path.join(tv, 'Bluey'), { recursive: true })
+  assert.equal(await libraryRootReadyFor(filePath), false)
+})

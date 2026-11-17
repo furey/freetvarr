@@ -34,11 +34,12 @@ export const loadLibraryRoots = async () => ({
   moviesRoot: await getMoviesRoot(),
 })
 
-export const libraryRootProblemOf = async (root, { countRowsUnder = countImportedRowsUnder } = {}) => {
+export const libraryRootProblemOf = async (root, { countRowsUnder = countImportedRowsUnder, loadRoots = loadLibraryRoots } = {}) => {
   const entries = await fs.readdir(root).catch(() => null)
   if (!entries) return ROOT_MISSING
   if (entries.some(isContentEntry)) return null
-  return (await countRowsUnder(root)) > 0 ? ROOT_EMPTY : null
+  if (!((await countRowsUnder(root)) > 0)) return null
+  return (await sharesDiskWithFilledRoot({ root, loadRoots })) ? null : ROOT_EMPTY
 }
 
 export const libraryRootReady = async (root, options) => !(await libraryRootProblemOf(root, options))
@@ -102,6 +103,20 @@ export const countImportedRowsUnder = async (root) => {
     .first()
   return Number(row?.n ?? 0)
 }
+
+const sharesDiskWithFilledRoot = async ({ root, loadRoots }) => {
+  const device = await deviceOf(root)
+  if (device == null) return false
+  const others = Object.values(await loadRoots()).filter((other) => other && withoutTrailingSlash(other) !== withoutTrailingSlash(root))
+  for (const other of others) {
+    if (await deviceOf(other) === device && await hasContent(other)) return true
+  }
+  return false
+}
+
+const deviceOf = (folder) => fs.stat(folder).then((stat) => stat.dev, () => null)
+
+const hasContent = async (folder) => (await fs.readdir(folder).catch(() => [])).some(isContentEntry)
 
 const withoutTrailingSlash = (root) => String(root).replace(/\/+$/, '')
 
