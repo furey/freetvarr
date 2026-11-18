@@ -573,6 +573,10 @@
   --field-fill: var(--color-well);
 }
 
+.setup-settings-row + .setup-drawer {
+  margin-top: 16px;
+}
+
 .setup-drawer .setup-fields,
 .setup-drawer .ui-group {
   background: var(--color-surface-1);
