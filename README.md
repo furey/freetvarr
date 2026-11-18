@@ -136,9 +136,14 @@ The setup wizard, from the time zone to the ready step.
 
 ## Prerequisites
 
+Before you start, get the hardware and install Docker:
+
 - A **TVHeadend-compatible tuner**. The [Hardware requirements](https://furey.github.io/freetvarr/guide/hardware-requirements) page covers the choice. A USB tuner needs DVB drivers on the host, and most NAS operating systems do not have them.
-- **[Docker with Compose v2](https://docs.docker.com/compose/)** on a host that stays on. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS or mini PC). [Docker Desktop](https://docs.docker.com/desktop/) and [OrbStack](https://orbstack.dev) on a Mac cannot find a network tuner on their own; enter the tuner's IP address in the Channels step of setup instead. Freetvarr is untested on Windows, and the install script does not run there.
+- A **computer that stays on**, such as a NAS (a small storage box with hard drives) or a mini PC. [The computer](https://furey.github.io/freetvarr/guide/hardware-requirements#the-computer) gives minimum and recommended specs.
+- **[Docker with Compose v2](https://docs.docker.com/compose/)** on that computer. For a network tuner such as an HDHomeRun, run Docker on Linux (a NAS or mini PC). [Docker Desktop](https://docs.docker.com/desktop/) and [OrbStack](https://orbstack.dev) on a Mac cannot find a network tuner on their own; enter the tuner's IP address in the Channels step of setup instead. Freetvarr is untested on Windows, and the install script does not run there.
 - **Plex Media Server** is optional. [Sonarr](https://sonarr.tv) and [Radarr](https://radarr.video) are optional too.
+
+The author uses an HDHomeRun Flex Quatro and a Synology NAS. The [shopping list](https://furey.github.io/freetvarr/guide/leaving-fetch#shopping-list) gives these models, the alternatives, Australian prices, and where to buy them.
 
 ## Quick start
 
