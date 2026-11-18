@@ -96,6 +96,8 @@ services:
     restart: unless-stopped
     network_mode: host
     user: "${PUID:-1000}:${PGID:-1000}"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     environment:
       - NODE_ENV=production
       - PORT=${FREETVARR_PORT:-3733}
@@ -127,7 +129,9 @@ services:
       - IMAGE_CACHE_MAX_MB=${IMAGE_CACHE_MAX_MB:-100}
       - CSRF_SECRET
       # Extra names Freetvarr answers to, e.g. freetvarr.example.com. IP
-      # addresses, localhost, and .local, .lan, and one-word names always work.
+      # addresses, one-word names, this computer's name, and names under
+      # .localhost, .local, .lan, .home, .home.arpa, .internal, .localdomain,
+      # and .corp always work. Freetvarr refuses any other name with 403.
       - FREETVARR_ALLOWED_HOSTS=${FREETVARR_ALLOWED_HOSTS:-}
       # Where the "Auto-detect token" button reads Plex's Preferences.xml. Empty
       # unless PLEX_PREFS_PATH is set, which makes Freetvarr read the plex

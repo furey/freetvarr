@@ -58,6 +58,15 @@ export const checkMediaRoot = async (mediaRoot) => {
   return { ok: true, path: probePath, ownerUid: stat.uid }
 }
 
+export const folderWriteAccess = async (folder) => {
+  try {
+    await fs.access(folder, fs.constants.W_OK)
+    return true
+  } catch (err) {
+    return err.code === 'ENOENT' ? null : false
+  }
+}
+
 export const ROOT_SETTING_KEYS = ['media_root', 'oneoff_root', 'movies_root', 'recordings_root', 'tvh_recordings_path']
 
 export const rootSettingsProblem = async ({ body, current, configDir }) => {

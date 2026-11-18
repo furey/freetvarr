@@ -8,10 +8,12 @@ import express from 'express'
 
 import {
   ALLOWED_HOSTS_KEY,
+  HOST_NOT_ALLOWED,
   SEEN_HOSTS_KEY,
   createAllowedHosts,
   createHostGate,
   createSeenHosts,
+  directUrlOfRequest,
   hostCheckReport,
   isAllowedHost,
   machineNamesOf,
@@ -152,7 +154,7 @@ test('createSeenHosts: keeps the newest 50 names with counts, and logs each name
   seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23' })
   seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.23' })
   assert.equal(lines.length, 1)
-  assert.match(lines[0], /^\[host-check\] opened as tv\.example\.com from 192\.168\.1\.23;/)
+  assert.match(lines[0], /^\[host-check\] refused tv\.example\.com from 192\.168\.1\.23; add it to Allowed hostnames if you use it$/)
   clock += 25 * 60 * 60 * 1000
   seenHosts.note({ hostname: 'tv.example.com', from: '192.168.1.24' })
   assert.equal(lines.length, 2)
@@ -173,14 +175,14 @@ test('createSeenHosts: at most 10 log lines an hour across all names, then one l
   const seenHosts = createSeenHosts({ now: () => clock, log: (line) => lines.push(line), readSetting: async () => null, writeSetting: async () => {} })
   for (let i = 0; i < 200; i += 1) seenHosts.note({ hostname: `r${i}.attacker.example`, from: '192.168.1.66' })
   assert.equal(lines.length, 11)
-  assert.equal(lines[10], '[host-check] more unknown names this hour; see Health')
+  assert.equal(lines[10], '[host-check] more refused names this hour; see Health')
   clock += 30 * 60 * 1000
   seenHosts.note({ hostname: 'late.attacker.example', from: '192.168.1.66' })
   assert.equal(lines.length, 11)
   clock += 31 * 60 * 1000
   seenHosts.note({ hostname: 'next-hour.example', from: '192.168.1.66' })
   assert.equal(lines.length, 12)
-  assert.match(lines[11], /opened as next-hour\.example/)
+  assert.match(lines[11], /refused next-hour\.example/)
 })
 
 test('createSeenHosts: a page load marks the name, and a later fetch does not clear the mark', () => {
@@ -274,14 +276,15 @@ const send = ({ server, method = 'GET', path = '/', headers = {} }) => new Promi
   req.end()
 })
 
-const gateApp = async ({ trustProxy = 'loopback', extra = [] } = {}) => {
+const gateApp = async ({ trustProxy = 'loopback', extra = [], directUrlOf } = {}) => {
   const allowedHosts = createAllowedHosts({ readSetting: async () => extra.join('\n'), writeSetting: async () => {}, envText: '' })
   await allowedHosts.load()
   const seenHosts = createSeenHosts({ log: () => {}, readSetting: async () => null, writeSetting: async () => {} })
   const app = express()
   app.set('trust proxy', trustProxy)
-  app.use(createHostGate({ allowedHosts, seenHosts, machineNames: [] }))
+  app.use(createHostGate({ allowedHosts, seenHosts, machineNames: [], ...(directUrlOf && { directUrlOf }) }))
   app.use(cookieParser())
+  app.get('/', (req, res) => res.type('html').send('<p>app</p>'))
   app.get('/healthz', (req, res) => res.json({ ok: true }))
   app.get('/guide/xmltv.xml', (req, res) => res.type('xml').send('<tv/>'))
   app.post('/guide/xmltv.xml', (req, res) => res.status(405).end())
@@ -290,15 +293,47 @@ const gateApp = async ({ trustProxy = 'loopback', extra = [] } = {}) => {
   return { app, seenHosts, server: await listen(app) }
 }
 
-test('createHostGate: report mode never refuses an unknown name, and records it', async () => {
+test('createHostGate: refuses an unknown name with 403 before cookies and routes, and records it', async () => {
   const { server, seenHosts } = await gateApp()
   try {
     const token = await send({ server, path: '/api/csrf-token', headers: { Host: 'rebind.attacker.example:3733' } })
-    assert.equal(token.status, 200)
-    assert.match(token.headers['set-cookie'][0], /^freetvarr\.x-csrf=/)
+    assert.equal(token.status, 403)
+    assert.equal(token.headers['set-cookie'], undefined)
+    assert.equal(token.headers['cache-control'], 'no-store')
+    assert.deepEqual(JSON.parse(token.body), { error: 'rebind.attacker.example is not on Allowed hostnames. Open Freetvarr by its IP address to add it.', code: HOST_NOT_ALLOWED })
     const save = await send({ server, method: 'POST', path: '/api/settings', headers: { Host: 'rebind.attacker.example:3733' } })
-    assert.equal(save.status, 200)
+    assert.equal(save.status, 403)
     assert.deepEqual(seenHosts.list().map(({ name, count }) => ({ name, count })), [{ name: 'rebind.attacker.example', count: 2 }])
+  } finally {
+    server.close()
+  }
+})
+
+test('createHostGate: a refused page load gets a static HTML page with the escaped name and the IP address link', async () => {
+  const { server } = await gateApp({ directUrlOf: () => 'http://192.168.1.10:3733/' })
+  try {
+    const page = await send({ server, path: '/', headers: { Host: 'a<b>.example.com', Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' } })
+    assert.equal(page.status, 403)
+    assert.match(page.headers['content-type'], /^text\/html/)
+    assert.equal(page.headers['cache-control'], 'no-store')
+    assert.match(page.body, /<code>a&lt;b&gt;\.example\.com<\/code>/)
+    assert.doesNotMatch(page.body, /a<b>/)
+    assert.doesNotMatch(page.body, /<script/i)
+    assert.match(page.body, /<a class="button" href="http:\/\/192\.168\.1\.10:3733\/">Open 192\.168\.1\.10:3733<\/a>/)
+    assert.match(page.body, /Settings → SYSTEM → Setup → <strong>Allowed hostnames<\/strong>/)
+    assert.match(page.body, /Home Screen/)
+  } finally {
+    server.close()
+  }
+})
+
+test('createHostGate: the page leaves out the IP address link when the request reached a loopback address', async () => {
+  const { server } = await gateApp()
+  try {
+    const page = await send({ server, path: '/', headers: { Host: 'tv.example.com', Accept: 'text/html' } })
+    assert.equal(page.status, 403)
+    assert.doesNotMatch(page.body, /class="button"/)
+    assert.match(page.body, /<code>tv\.example\.com<\/code>/)
   } finally {
     server.close()
   }
@@ -323,7 +358,7 @@ test('createHostGate: GET /healthz and GET /guide/xmltv.xml skip the check; POST
     assert.equal((await send({ server, method: 'HEAD', path: '/healthz', headers: { Host: 'attacker.example' } })).status, 200)
     assert.equal((await send({ server, path: '/guide/xmltv.xml', headers: { Host: 'attacker.example' } })).status, 200)
     assert.deepEqual(seenHosts.list(), [])
-    await send({ server, method: 'POST', path: '/guide/xmltv.xml', headers: { Host: 'attacker.example' } })
+    assert.equal((await send({ server, method: 'POST', path: '/guide/xmltv.xml', headers: { Host: 'attacker.example' } })).status, 403)
     assert.deepEqual(seenHosts.list().map((seen) => seen.name), ['attacker.example'])
   } finally {
     server.close()
@@ -333,17 +368,39 @@ test('createHostGate: GET /healthz and GET /guide/xmltv.xml skip the check; POST
 test('createHostGate: X-Forwarded-Host from a loopback proxy is checked; from an untrusted client it is ignored', async () => {
   const trusted = await gateApp()
   try {
-    await send({ server: trusted.server, path: '/api/csrf-token', headers: { Host: '127.0.0.1:3733', 'X-Forwarded-Host': 'proxy.example.com' } })
+    const refused = await send({ server: trusted.server, path: '/api/csrf-token', headers: { Host: '127.0.0.1:3733', 'X-Forwarded-Host': 'proxy.example.com' } })
+    assert.equal(refused.status, 403)
     assert.deepEqual(trusted.seenHosts.list().map((seen) => seen.name), ['proxy.example.com'])
+    const local = await send({ server: trusted.server, path: '/api/csrf-token', headers: { Host: '127.0.0.1:3733', 'X-Forwarded-Host': 'freetvarr.lan' } })
+    assert.equal(local.status, 200)
   } finally {
     trusted.server.close()
   }
   const untrusted = await gateApp({ trustProxy: () => false })
   try {
-    await send({ server: untrusted.server, path: '/api/csrf-token', headers: { Host: '192.168.1.10:3733', 'X-Forwarded-Host': 'proxy.example.com' } })
+    const ignored = await send({ server: untrusted.server, path: '/api/csrf-token', headers: { Host: '192.168.1.10:3733', 'X-Forwarded-Host': 'proxy.example.com' } })
+    assert.equal(ignored.status, 200)
     assert.deepEqual(untrusted.seenHosts.list(), [])
   } finally {
     untrusted.server.close()
+  }
+})
+
+test('createHostGate: a forged X-Forwarded-Host cannot hide an unknown Host, and an empty forwarded name is refused', async () => {
+  const { server, seenHosts } = await gateApp()
+  try {
+    const forged = await send({ server, method: 'POST', path: '/api/settings', headers: { Host: 'rebind.attacker.example:3733', 'X-Forwarded-Host': 'localhost' } })
+    assert.equal(forged.status, 403)
+    assert.deepEqual(seenHosts.list().map((seen) => seen.name), ['rebind.attacker.example'])
+    for (const empty of [',', ':3733']) {
+      const blank = await send({ server, path: '/api/csrf-token', headers: { Host: '127.0.0.1:3733', 'X-Forwarded-Host': empty } })
+      assert.equal(blank.status, 403, empty)
+    }
+    assert.equal(seenHosts.list().length, 1)
+    const noHost = await send({ server, path: '/api/csrf-token', headers: { Host: '' } })
+    assert.equal(noHost.status, 200)
+  } finally {
+    server.close()
   }
 })
 
@@ -386,7 +443,7 @@ test('server: the host gate runs after X-Robots-Tag and before cookies, CSRF, an
   assert.ok(gate < at("app.use('/api', (req, res, next) => {\n  res.setHeader(BUILD_HEADER"))
 })
 
-test('hostCheckReport: lists recent names the 3.0.0 check would refuse, newest first, without names allowed since', async () => {
+test('hostCheckReport: lists recent refused names, newest first, without names allowed since', async () => {
   const now = Date.parse('2026-11-20T08:00:00Z')
   let clock = now - 20 * 24 * 60 * 60 * 1000
   const settings = memorySettings({ [ALLOWED_HOSTS_KEY]: 'added.example.com' })
@@ -436,15 +493,15 @@ const sendJson = ({ server, method, path, body, host = '192.168.1.10:3733' }) =>
   req.end(payload)
 })
 
-test('GET /api/allowed-hosts: the saved names, the .env names, the name in use, and the names seen', async () => {
+test('GET /api/allowed-hosts: the saved names, the .env names, and the names refused, read by IP address', async () => {
   const { server } = await routeApp()
   try {
-    await sendJson({ server, method: 'GET', path: '/api/allowed-hosts', host: 'tv.example.com' })
-    const { body } = await sendJson({ server, method: 'GET', path: '/api/allowed-hosts', host: 'tv.example.com' })
+    assert.equal((await sendJson({ server, method: 'GET', path: '/api/allowed-hosts', host: 'tv.example.com' })).status, 403)
+    const { body } = await sendJson({ server, method: 'GET', path: '/api/allowed-hosts' })
     assert.deepEqual(body.hosts, ['saved.example.com'])
     assert.deepEqual(body.env_hosts, ['env.example.com'])
     assert.equal(body.any_host, false)
-    assert.deepEqual(body.current, { name: 'tv.example.com', allowed: false })
+    assert.equal(body.current, undefined)
     assert.deepEqual(body.seen.map((seen) => seen.name), ['tv.example.com'])
   } finally {
     server.close()
@@ -482,12 +539,12 @@ test('POST /api/allowed-hosts/allow/:name: the Health action adds one name and k
   }
 })
 
-test('PUT /api/allowed-hosts and the allow route refuse a request opened by a name that is not allowed', async () => {
+test('PUT /api/allowed-hosts and the allow route: the gate refuses a change from a name that is not allowed', async () => {
   const { server, allowedHosts } = await routeApp()
   try {
     const put = await sendJson({ server, method: 'PUT', path: '/api/allowed-hosts', body: { hosts: ['rebind.attacker.example'] }, host: 'rebind.attacker.example:3733' })
     assert.equal(put.status, 403)
-    assert.equal(put.body.code, 'host-not-allowed')
+    assert.equal(put.body.code, HOST_NOT_ALLOWED)
     assert.doesNotMatch(put.body.error, /csrf/i)
     const allow = await sendJson({ server, method: 'POST', path: '/api/allowed-hosts/allow/rebind.attacker.example', host: 'rebind.attacker.example:3733' })
     assert.equal(allow.status, 403)
@@ -497,4 +554,16 @@ test('PUT /api/allowed-hosts and the allow route refuse a request opened by a na
   } finally {
     server.close()
   }
+})
+
+test('directUrlOfRequest links to a LAN address and leaves out loopback and Docker bridge addresses', () => {
+  const urlFor = (localAddress) => directUrlOfRequest({ socket: { localAddress, localPort: 3733 } })
+  assert.equal(urlFor('192.168.1.10'), 'http://192.168.1.10:3733/')
+  assert.equal(urlFor('::ffff:192.168.1.10'), 'http://192.168.1.10:3733/')
+  assert.equal(urlFor('fe80::1'), 'http://[fe80::1]:3733/')
+  assert.equal(urlFor('127.0.0.1'), null)
+  assert.equal(urlFor('::1'), null)
+  assert.equal(urlFor('172.17.0.2'), null)
+  assert.equal(urlFor('172.31.255.1'), null)
+  assert.equal(urlFor('172.32.0.1'), 'http://172.32.0.1:3733/')
 })

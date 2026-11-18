@@ -1,7 +1,7 @@
 import { ref, computed } from '/vendor/vue.esm-browser.prod.js'
 import { isStaleBuild } from '/stale-build.js'
 import { sharedCsrfToken, withCsrfRetry } from '/shared/csrf-retry.js'
-import { reachServer, responseErrorOf } from '/shared/request-errors.js'
+import { isHostRefusal, reachServer, responseErrorOf } from '/shared/request-errors.js'
 
 export let csrfToken = null
 
@@ -36,7 +36,10 @@ export const staleBuild = computed(() => isStaleBuild({
 
 const fetchCsrf = async () => {
   const res = noteBuild(await reachServer(() => fetch('/api/csrf-token')))
-  if (!res.ok) throw new Error(`csrf-token HTTP ${res.status}`)
+  if (!res.ok) {
+    reloadWhenHostRefused({ status: res.status, data: await res.json().catch(() => ({})) })
+    throw new Error(`csrf-token HTTP ${res.status}`)
+  }
   const data = await res.json().catch(() => {
     throw new Error(`csrf-token returned non-JSON (HTTP ${res.status})`)
   })
@@ -56,8 +59,15 @@ const apiCall = async (method, url, body, headersExtra = {}) => {
     body: isFile ? body : body ? JSON.stringify(body) : undefined,
   })))
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw responseErrorOf({ status: res.status, data })
+  if (!res.ok) {
+    reloadWhenHostRefused({ status: res.status, data })
+    throw responseErrorOf({ status: res.status, data })
+  }
   return data
+}
+
+const reloadWhenHostRefused = (response) => {
+  if (isHostRefusal(response)) location.reload()
 }
 
 export const VIEW_HEADER = 'X-Freetvarr-View'

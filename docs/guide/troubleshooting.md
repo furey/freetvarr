@@ -376,7 +376,7 @@ Freetvarr's own captions show inside the picture. Press the **Captions** button 
 
 ## Allowed hostnames
 
-A hostname is the name in the web address, such as `nas` in `http://nas:3733` or `tv.example.com` in `https://tv.example.com`. Freetvarr checks the hostname of each browser request. In `2.8.0` it notes each name it does not know. From `3.0.0` the check blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
+A hostname is the name in the web address, such as `nas` in `http://nas:3733` or `tv.example.com` in `https://tv.example.com`. Freetvarr checks the hostname of each browser request and refuses a name that is not on the list with `403`. The check blocks a trick called DNS rebinding, where a website you visit gives its own name the address of Freetvarr, so that your browser sends changes to Freetvarr for it.
 
 These names always work, with no setup:
 
@@ -388,11 +388,15 @@ These names always work, with no setup:
 Any other name needs to be on the list, for example a reverse proxy name such as `freetvarr.example.com`, a full Tailscale name such as `nas.tail1234.ts.net`, or a router name such as `nas.fritz.box`.
 
 > [!IMPORTANT]<br>
-> Until `3.0.0`, Freetvarr only reports a name that is not on the list: the [Health](/guide/doctor#host-names) check **Allowed hostnames** warns and names it. From `3.0.0`, Freetvarr refuses those names. The IP address always works.
+> A page opened by a name that is not on the list shows **Hostname not allowed**, with a link to Freetvarr by its IP address. The IP address always works. The [Health](/guide/doctor#host-names) check **Allowed hostnames** names each refused name.
+
+A reverse proxy on the same computer as Freetvarr must pass the original `Host` header or set `X-Forwarded-Host`, so that Freetvarr checks the name you typed. nginx sends `Host: 127.0.0.1:3733` by default, which hides the name from the check. Without this, the check is off for requests through the proxy. Add `proxy_set_header Host $host;`, then add the proxy name to the list.
+
+A Home Screen app has no address bar. Add its name from another device, or remove the icon and add Freetvarr to the Home Screen again from the IP address.
 
 To add a name:
 
-1. Open Freetvarr by its IP address, or by a name that already works. Freetvarr does not change the list for a page opened by a name that is not on it.
+1. Open Freetvarr by its IP address, or by a name that already works.
 2. Open Settings → SYSTEM → Setup → **Allowed hostnames**.
 3. Type the name.
 4. Press **Add**.

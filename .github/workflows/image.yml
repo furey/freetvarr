@@ -3,7 +3,8 @@ name: Image
 # Build the Docker image natively for amd64 and arm64 and boot each one.
 # Triggers: a release tag (X.Y.Z, no v prefix) builds, tests, and publishes
 # ghcr.io/furey/freetvarr:X.Y.Z and :latest; a push to develop that touches the
-# image inputs, or a manual run, builds and tests without publishing.
+# image inputs, a pull request that changes the Dockerfile, or a manual run,
+# builds and tests without publishing.
 
 on:
   push:
@@ -17,6 +18,9 @@ on:
       - package.json
       - package-lock.json
       - .github/workflows/image.yml
+  pull_request:
+    paths:
+      - Dockerfile
   workflow_dispatch:
 
 permissions: {}
@@ -74,16 +78,49 @@ jobs:
 
       - name: Boot the image
         run: |
-          docker run -d --name smoke -p 3733:3733 -e DB_PATH=/config/state.db freetvarr:test
+          docker run -d --name smoke -p 3733:3733 freetvarr:test
           for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3733/healthz; then
               docker logs smoke
+              docker exec smoke test -f /config/state.db
+              docker rm -f smoke
               exit 0
             fi
             sleep 2
           done
           docker logs smoke
           exit 1
+
+      - name: Boot as another user with no capabilities
+        run: |
+          mkdir -p /tmp/smoke-config
+          sudo chown 1026:100 /tmp/smoke-config
+          docker run -d --name smoke-hardened -p 3734:3733 \
+            --user 1026:100 --cap-drop ALL --security-opt no-new-privileges \
+            -v /tmp/smoke-config:/config freetvarr:test
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3734/healthz; then
+              docker logs smoke-hardened
+              test -f /tmp/smoke-config/state.db
+              docker rm -f smoke-hardened
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs smoke-hardened
+          exit 1
+
+      - name: Refuse a config folder the user cannot write
+        run: |
+          mkdir -p /tmp/smoke-root-config
+          sudo touch /tmp/smoke-root-config/state.db
+          sudo chown -R 0:0 /tmp/smoke-root-config
+          status=0
+          docker run --name smoke-root -v /tmp/smoke-root-config:/config freetvarr:test > /tmp/smoke-root.log 2>&1 || status=$?
+          cat /tmp/smoke-root.log
+          docker rm -f smoke-root
+          test "$status" -eq 1
+          grep -q 'sudo chown -R 1000:1000' /tmp/smoke-root.log
 
       - name: Log in to GHCR
         if: env.PUBLISH == 'true'

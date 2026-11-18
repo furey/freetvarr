@@ -847,6 +847,7 @@ const doctorReport = (simNow) => {
     doctorCheck('paths.recordings', 'storage', 'Recordings folder', `${SANITISED_SETTINGS.recordings_root} is readable.`),
     doctorCheck('paths.match', 'storage', 'TVHeadend recording path', `TVHeadend and Freetvarr both use ${SANITISED_SETTINGS.tvh_recordings_path}.`),
     doctorCheck('paths.media', 'storage', 'Media folder', `${SANITISED_SETTINGS.media_root} is writable.`),
+    doctorCheck('paths.write', 'storage', 'Write access', `Freetvarr can write to ${SANITISED_SETTINGS.recordings_root} and ${SANITISED_SETTINGS.oneoff_root}.`),
     doctorCheck('paths.hardlink', 'storage', 'Hardlinks', `Imports from ${SANITISED_SETTINGS.recordings_root} into ${SANITISED_SETTINGS.media_root} and ${SANITISED_SETTINGS.oneoff_root} and ${SANITISED_SETTINGS.movies_root} hardlink.`),
     doctorCheck('disk.free', 'storage', 'Free space', `2.1TB free on ${SANITISED_SETTINGS.recordings_root} (54% of the disk); 2.1TB free on ${SANITISED_SETTINGS.media_root} (54% of the disk).`),
     doctorCheck('plex.reach', 'plex', 'Plex library', `Section TV Shows reads ${SANITISED_SETTINGS.media_root}.`),
