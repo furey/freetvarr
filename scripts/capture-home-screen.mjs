@@ -11,7 +11,7 @@ const SERVER_URL = (process.env.FREETVARR_URL || 'http://localhost:3733').replac
 const FRAMES_DIR = process.env.HOME_SCREEN_FRAMES || `${REPO_ROOT}scripts/.cache/frames/home-screen`
 const DEVICE_SCALE = 2
 const STAGE = { width: 1114, height: 918 }
-const PAGE_BACKGROUND = '#1a1611'
+const PAGE_BACKGROUND = '#0b1117'
 const IPAD = {
   name: 'ipad',
   screen: { width: 1024, height: 768 },
@@ -190,7 +190,7 @@ const tile = (glyph) => {
   return `<span class="tile" style="background:${shade}">${GLYPHS[glyph % GLYPHS.length]}</span>`
 }
 
-const TILE_SHADES = ['#4a453f', '#56514a', '#3f3b35', '#5d5750', '#4f4a43', '#615b53']
+const TILE_SHADES = ['#3a4652', '#45515d', '#34404c', '#4c5864', '#404c58', '#53606c']
 
 const svg = (body) => `<svg viewBox="0 0 60 60" aria-hidden="true">${body}</svg>`
 
@@ -219,26 +219,26 @@ const styles = () => `
 html, body { margin: 0; background: ${PAGE_BACKGROUND}; overflow: hidden; }
 body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
 .stage { position: relative; width: ${STAGE.width}px; height: ${STAGE.height}px; }
-.device { position: absolute; background: #0e0c09; box-shadow: 0 0 0 1.5px #3d3829, 0 0 0 3px #0e0c09; }
-.ipad { z-index: 1; left: 23px; top: 23px; padding: 22px; border-radius: 46px; box-shadow: 0 0 0 1.5px #3d3829, 0 0 0 3px #0e0c09, 0 22px 50px rgba(0,0,0,0.35); }
-.iphone { z-index: 2; left: 564px; top: 175px; padding: 12px; border-radius: 52px; box-shadow: 0 0 0 1.5px #4a4434, 0 0 0 3px #0e0c09, -18px 34px 60px rgba(0,0,0,0.6), -6px 12px 22px rgba(0,0,0,0.45); }
-.camera { position: absolute; top: 50%; left: 9px; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #23201b; box-shadow: inset 0 0 0 1.5px #2e2a24; }
-.screen { position: relative; overflow: hidden; color: #fffcfb;
+.device { position: absolute; background: #070b0f; box-shadow: 0 0 0 1.5px #26323e, 0 0 0 3px #070b0f; }
+.ipad { z-index: 1; left: 23px; top: 23px; padding: 22px; border-radius: 46px; box-shadow: 0 0 0 1.5px #26323e, 0 0 0 3px #070b0f, 0 22px 50px rgba(0,0,0,0.35); }
+.iphone { z-index: 2; left: 564px; top: 175px; padding: 12px; border-radius: 52px; box-shadow: 0 0 0 1.5px #303d4a, 0 0 0 3px #070b0f, -18px 34px 60px rgba(0,0,0,0.6), -6px 12px 22px rgba(0,0,0,0.45); }
+.camera { position: absolute; top: 50%; left: 9px; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #141c24; box-shadow: inset 0 0 0 1.5px #1c2630; }
+.screen { position: relative; overflow: hidden; color: #f2f5f7;
   background:
     radial-gradient(120% 90% at 85% 110%, rgba(255,138,0,0.16), transparent 55%),
     radial-gradient(110% 80% at 10% -10%, rgba(30,182,255,0.14), transparent 55%),
-    linear-gradient(160deg, #332d24 0%, #28231b 45%, #1a1611 100%); }
+    linear-gradient(160deg, #26323e 0%, #18212a 45%, #0b1117 100%); }
 .ipad .screen { --icon: 95px; width: ${IPAD.screen.width}px; height: ${IPAD.screen.height}px; border-radius: ${IPAD.screenRadius}px; }
 .iphone .screen { --icon: 54px; width: ${IPHONE.screen.width}px; height: ${IPHONE.screen.height}px; border-radius: ${IPHONE.screenRadius}px; }
 .home { position: absolute; inset: 0; transform-origin: 50% 60%; }
-.launch { display: none; position: absolute; z-index: 2; overflow: hidden; background: #1a1611; }
+.launch { display: none; position: absolute; z-index: 2; overflow: hidden; background: #0b1117; }
 .launch img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.app-layer { position: absolute; inset: 0; z-index: 3; opacity: 0; background: #1a1611; }
+.app-layer { position: absolute; inset: 0; z-index: 3; opacity: 0; background: #0b1117; }
 .ipad .app-layer { padding-top: ${IPAD.statusBarHeight}px; }
 .iphone .app-layer { padding-top: ${IPHONE.statusBarHeight}px; }
 .app-layer img { display: block; width: 100%; }
-.notch { position: absolute; z-index: 5; top: 0; left: 50%; width: 118px; height: 26px; margin-left: -59px; border-radius: 0 0 16px 16px; background: #0e0c09; }
-.touch { position: absolute; z-index: 10; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(255,252,251,0.35); box-shadow: 0 0 0 1.5px rgba(255,252,251,0.5); opacity: 0; pointer-events: none; }
+.notch { position: absolute; z-index: 5; top: 0; left: 50%; width: 118px; height: 26px; margin-left: -59px; border-radius: 0 0 16px 16px; background: #070b0f; }
+.touch { position: absolute; z-index: 10; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(242,245,247,0.35); box-shadow: 0 0 0 1.5px rgba(242,245,247,0.5); opacity: 0; pointer-events: none; }
 .iphone-touch { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
 .status { position: relative; z-index: 4; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; font-weight: 600; letter-spacing: 0.01em; }
 .ipad .status { height: ${IPAD.statusBarHeight}px; padding: 0 26px; font-size: 14px; }
@@ -248,10 +248,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica
 .ipad .grid { row-gap: 42px; padding: 82px 150px 0; }
 .iphone .grid { row-gap: 24px; padding: 70px 18px 0; }
 .app { display: flex; flex-direction: column; align-items: center; gap: calc(var(--icon) * 0.095); }
-.tile { box-sizing: border-box; display: grid; place-items: center; width: var(--icon); height: var(--icon); border-radius: calc(var(--icon) * 0.232); color: #8b837e; box-shadow: inset 0 0 0 1px rgba(255,252,251,0.06); }
+.tile { box-sizing: border-box; display: grid; place-items: center; width: var(--icon); height: var(--icon); border-radius: calc(var(--icon) * 0.232); color: #8d9aa7; box-shadow: inset 0 0 0 1px rgba(242,245,247,0.06); }
 .tile svg { width: 64%; height: 64%; }
-.label-bar { display: block; height: calc(var(--icon) * 0.095); margin: calc(var(--icon) * 0.05) 0 3px; border-radius: 4px; background: rgba(176,168,158,0.32); }
-.label { display: flex; align-items: center; gap: 5px; font-weight: 500; color: #fffcfb; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.label-bar { display: block; height: calc(var(--icon) * 0.095); margin: calc(var(--icon) * 0.05) 0 3px; border-radius: 4px; background: rgba(169,180,190,0.32); }
+.label { display: flex; align-items: center; gap: 5px; font-weight: 500; color: #f2f5f7; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 .ipad .label { height: 18px; font-size: 16px; }
 .iphone .label { height: 13px; font-size: 11px; gap: 3px; }
 img.tile.real { display: block; box-shadow: 0 0 0 1.5px rgba(30,182,255,0.55), 0 0 22px 2px rgba(30,182,255,0.28), 0 2px 6px rgba(0,0,0,0.3); }
@@ -261,14 +261,14 @@ img.tile.real { display: block; box-shadow: 0 0 0 1.5px rgba(30,182,255,0.55), 0
 .dots { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 9px; }
 .ipad .dots { bottom: 146px; }
 .iphone .dots { bottom: 108px; gap: 7px; }
-.dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,252,251,0.3); }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(242,245,247,0.3); }
 .iphone .dots i { width: 6px; height: 6px; }
-.dots i.on { background: rgba(255,252,251,0.85); }
-.dock { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; background: rgba(255,252,251,0.1); box-shadow: inset 0 0 0 1px rgba(255,252,251,0.06); }
+.dots i.on { background: rgba(242,245,247,0.85); }
+.dock { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; background: rgba(242,245,247,0.1); box-shadow: inset 0 0 0 1px rgba(242,245,247,0.06); }
 .ipad .dock { bottom: 16px; gap: 20px; padding: 14px 20px; border-radius: 34px; --icon: 85px; }
 .iphone .dock { bottom: 10px; width: 296px; justify-content: space-around; padding: 12px 0; border-radius: 32px; }
 .dock .tile { opacity: 0.85; }
-.dock-split { width: 1px; height: 64px; background: rgba(255,252,251,0.18); }`
+.dock-split { width: 1px; height: 64px; background: rgba(242,245,247,0.18); }`
 
 run().catch((err) => {
   console.error(err)
