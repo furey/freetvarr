@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 
 LABEL org.opencontainers.image.source=https://github.com/furey/freetvarr
 LABEL dev.orbstack.icon=https://raw.githubusercontent.com/furey/freetvarr/main/src/web/icon-512.png
@@ -53,10 +53,14 @@ COPY . .
 # serves Express development-mode stack traces. Compose sets the same value;
 # this is the safe default when it doesn't.
 ENV NODE_ENV=production
+ENV DB_PATH=/config/state.db
 
 # /config is bind-mounted at runtime. Create it so the container can boot even
 # if the host directory is empty on first run.
-RUN mkdir -p /config
+RUN mkdir -p /config \
+ && chown node:node /config
+
+USER node
 
 EXPOSE 3733
 

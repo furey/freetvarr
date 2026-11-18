@@ -110,6 +110,23 @@ Watchtower updates without a [backup](#back-up) and without reading the [version
 
 These releases change something on your install when you update to them. Read each one between your version and the newest. Other releases need nothing beyond the update; [Releases on GitHub](https://github.com/furey/freetvarr/releases) lists what each release changes.
 
+### 3.0.0
+
+[Release notes for `3.0.0`](https://github.com/furey/freetvarr/releases/tag/3.0.0)
+
+- **Hostnames not on the list get `403`**: Freetvarr now refuses a hostname that is not on [Allowed hostnames](/guide/troubleshooting#allowed-hostnames). Before you update, open [Health](/guide/doctor#host-names) and check **Allowed hostnames**. If it names a hostname you use, such as a reverse proxy name, press **Allow `<name>`** or add the name in Settings. After the update, the IP address always works, such as `http://192.168.1.10:3733`, so you can add a name then too.
+- **Away from home**: if you reach Freetvarr through Tailscale or a tunnel, put that name in `FREETVARR_ALLOWED_HOSTS` in your `.env` before you update. It works with no browser.
+- **Reverse proxy on the same computer**: the proxy must pass the original `Host` header or set `X-Forwarded-Host`. nginx sends `Host: 127.0.0.1:3733` by default, which hides the name from the check. Without this, the check is off for requests through the proxy. Add `proxy_set_header Host $host;`, then add the proxy name to Allowed hostnames.
+- **The container runs as a user that is not root**: an install with a `user:` line on the `freetvarr` service, as in [`docker-compose.example.yml`](https://github.com/furey/freetvarr/blob/main/docker-compose.example.yml), sees no change. With no `user:` line, Freetvarr now runs as uid `1000`. Add `user: "PUID:PGID"` with the `PUID` and `PGID` of TVHeadend, such as `user: "1026:100"`. Do not `chown` the folders to `1000`, because TVHeadend then cannot write its recordings. When Freetvarr cannot write to its config folder, it stops at start, and the log gives the `user:` line and the `chown` command.
+- **Optional compose lines**: `install.sh` keeps an existing `docker-compose.yml`. To drop the Linux capabilities that Freetvarr does not use, add these two lines under `user:` of the `freetvarr` service. They need a `user:` line that is not root.
+
+  ```yaml
+      cap_drop: [ALL]
+      security_opt: ["no-new-privileges:true"]
+  ```
+
+- **Go back to `2.35.4`**: `3.0.0` makes no database change, so `2.35.4` opens the database. If you added `cap_drop` but have no `user:` line, remove `cap_drop` too, because `2.35.4` then runs as root and needs its capabilities.
+
 ### 2.34.0
 
 [Release notes for `2.34.0`](https://github.com/furey/freetvarr/releases/tag/2.34.0)

@@ -43,3 +43,11 @@ test('compose: optional passthroughs default to empty', () => {
     assert.equal(values[name], `\${${name}:-}`)
   }
 })
+
+test('compose: freetvarr drops every capability and blocks new privileges; init keeps root for chown', () => {
+  const services = composeText().split(/\n  (?=[a-z]+:\n)/)
+  const serviceOf = (name) => services.find((text) => text.startsWith(`${name}:\n`))
+  assert.match(serviceOf('freetvarr'), /\n    cap_drop: \[ALL\]\n/)
+  assert.match(serviceOf('freetvarr'), /\n    security_opt: \["no-new-privileges:true"\]\n/)
+  for (const name of ['init', 'tvheadend', 'plex']) assert.doesNotMatch(serviceOf(name), /cap_drop|security_opt/, name)
+})

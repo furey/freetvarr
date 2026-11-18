@@ -235,7 +235,7 @@ test('setupSettingsRows: the Allowed hostnames row counts the names and warns ab
   assert.equal(added.tone, 'ok')
   const unknown = rowOf({ hosts: [], env_hosts: [], any_host: false, seen: [{ name: 'tv.example.com' }] })
   assert.match(unknown.meta, /\btv\.example\.com\b/)
-  assert.match(unknown.meta, /3\.0\.0.*refuse/)
+  assert.match(unknown.meta, /^Refused /)
   assert.equal(unknown.tone, 'warn')
   const anyName = rowOf({ hosts: ['*'], env_hosts: [], any_host: true, seen: [] })
   assert.match(anyName.meta, /any name/i)

@@ -15,6 +15,8 @@ export const failureText = ({ action, err }) => {
   return `${action}: ${message}`
 }
 
+export const isHostRefusal = ({ status, data }) => status === 403 && data?.code === HOST_NOT_ALLOWED
+
 export const responseErrorOf = ({ status, data = {} }) => Object.assign(new Error(messageOf({ status, data })), {
   code: data.code || (status === 429 ? 'rate-limited' : null),
   stage: data.stage || null,
@@ -23,5 +25,6 @@ export const responseErrorOf = ({ status, data = {} }) => Object.assign(new Erro
 })
 
 const STANDALONE_CODES = ['offline', 'rate-limited']
+const HOST_NOT_ALLOWED = 'host-not-allowed'
 
 const messageOf = ({ status, data }) => data.error || data.reason || (status === 429 ? RATE_LIMITED_MESSAGE : `HTTP ${status}`)
