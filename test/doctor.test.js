@@ -15,7 +15,6 @@ import {
   guideCoverage,
   liveStreamsCheck,
   hostNamesCheck,
-  withHostNamesCheck,
   guidePicturesCheck,
   guideSourcesCheck,
 } from '../src/doctor.js'
@@ -149,7 +148,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now })
   const checks = byId(report)
-  assert.deepEqual(report.summary, { pass: 20, warn: 0, fail: 0, skip: 5 })
+  assert.deepEqual(report.summary, { pass: 21, warn: 0, fail: 0, skip: 5 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
   assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
   assert.match(checks['tvh.channels'].detail, /\b3 channels\b/)
@@ -386,6 +385,21 @@ test('runDoctor: imports that copy across separate mounts on one disk warn and n
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /copy each file/)
   assert.match(check.fix, /separate mounts/)
+})
+
+test('runDoctor: a recordings or one-off folder Freetvarr cannot write to warns, and the server keeps running', async () => {
+  const now = Date.now()
+  const writable = byId(await runAgainst({ routes: healthyRoutes({ now }), now }))['paths.write']
+  assert.equal(writable.status, 'pass')
+  assert.match(writable.detail, /^Freetvarr can write to .+recordings\.$/)
+  const folderWriteAccess = async (folder) => (folder.endsWith('one-offs') ? false : true)
+  const settings = async () => ({ ...(await (await doctorDeps()).settings()), oneOffRoot: '/data/media/one-offs' })
+  const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, folderWriteAccess, settings }))['paths.write']
+  assert.equal(check.status, 'warn')
+  assert.equal(check.detail, 'Freetvarr cannot write to /data/media/one-offs.')
+  assert.match(check.fix, /twice the space\. Freetvarr runs as uid 1000\. Set the same PUID and PGID/)
+  const missing = byId(await runAgainst({ routes: healthyRoutes({ now }), now, folderWriteAccess: async () => null }))['paths.write']
+  assert.equal(missing.status, 'skip')
 })
 
 test('runDoctor: an empty library folder that imported recordings point into warns', async () => {
@@ -664,12 +678,12 @@ test('host.names: passes when no unknown name was seen, and counts the names add
 
 const seenName = (name, extra = {}) => ({ name, count: 1, last_seen: 0, from: '192.168.1.23', page_load: true, allowable: true, ...extra })
 
-test('host.names: warns about a name 3.0.0 will refuse and offers to allow a name opened as a page', () => {
+test('host.names: warns about a refused name and offers to allow a name opened as a page', () => {
   const seen = [seenName('tv.example.com', { count: 12, last_seen: Date.parse('2026-11-20T08:04:00Z') })]
   const check = hostNamesCheck({ anyHost: false, added: 0, seen })
   assert.equal(check.status, 'warn')
   assert.equal(check.title, undefined)
-  assert.match(check.detail, /^Freetvarr was opened as tv\.example\.com \(12 requests, last .+, from 192\.168\.1\.23\)\. From 3\.0\.0 Freetvarr refuses names it does not know\.$/)
+  assert.match(check.detail, /^Freetvarr refused requests that opened it as tv\.example\.com \(12 requests, last .+, from 192\.168\.1\.23\)\.$/)
   assert.match(check.fix, /If you open Freetvarr by this name, press Allow tv\.example\.com\./)
   const { done, ...action } = check.action
   assert.deepEqual(action, { label: 'Allow tv.example.com', post: '/api/allowed-hosts/allow/tv.example.com' })
@@ -684,7 +698,7 @@ test('host.names: Allow goes to the most used name opened as a page, never to a 
     seenName('d.example.com'),
   ]
   const check = hostNamesCheck({ anyHost: false, added: 0, seen })
-  assert.match(check.detail, /^Freetvarr was opened as a\.example\.com \(1 request, .+\), rebind\.attacker\.example \(900 requests, .+\), b\.example\.com \(.+\), and 1 more name\./)
+  assert.match(check.detail, /^Freetvarr refused requests that opened it as a\.example\.com \(1 request, .+\), rebind\.attacker\.example \(900 requests, .+\), b\.example\.com \(.+\), and 1 more name\./)
   assert.match(check.fix, /If you open Freetvarr by these names, allow each one/)
   assert.equal(check.action.label, 'Allow b.example.com')
 })
@@ -695,23 +709,6 @@ test('host.names: with no name opened as a page, or none that can be saved, the 
   assert.match(fetched.fix, /^If you open Freetvarr by this name, add it in Allowed hostnames\./)
   const unsaveable = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName('user@attacker.example', { allowable: false })] })
   assert.equal(unsaveable.action.href, '#/settings/system/setup/hostnames')
-})
-
-test('host.names: on a page opened by a name that is not allowed, Allow is dropped and the fix says to open the IP address first', () => {
-  const seen = [seenName('nas.tail1234.ts.net', { count: 12 })]
-  const check = hostNamesCheck({ anyHost: false, added: 0, seen }, { hostAllowed: false })
-  assert.equal(check.status, 'warn')
-  assert.equal(check.action, undefined)
-  assert.match(check.fix, /^Open Freetvarr by its IP address, then press Allow nas\.tail1234\.ts\.net here\. /)
-  const allowed = hostNamesCheck({ anyHost: false, added: 0, seen })
-  const report = { summary: {}, checks: [{ id: 'tvh.reach', status: 'pass' }, { id: 'host.names', group: 'host', title: 'Allowed hostnames', ...allowed }] }
-  const swapped = withHostNamesCheck({ report, check })
-  const hostNames = swapped.checks.find((entry) => entry.id === 'host.names')
-  assert.equal(hostNames.action, undefined)
-  assert.equal(hostNames.title, 'Allowed hostnames')
-  assert.equal(hostNames.fix, check.fix)
-  assert.deepEqual(swapped.checks[0], report.checks[0])
-  assert.ok(report.checks[1].action.post)
 })
 
 test('host.names: a long name is cut in the button label but not in the request', () => {

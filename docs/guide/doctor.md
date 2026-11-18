@@ -123,6 +123,10 @@ Compares **Recording system path** on TVHeadend's default DVR profile with **As 
 
 Checks that the media folder exists and that Freetvarr can write to it. When it cannot, the row names the folder's owner and the user Freetvarr runs as. See [Permission errors](/guide/troubleshooting#permission-errors).
 
+## Write access {#paths-write}
+
+Checks that Freetvarr can write to the recordings folder and the one-off folder. When it cannot, imports can copy each recording instead of hardlinking it, which uses twice the space. The row names the user Freetvarr runs as. Set the same `PUID` and `PGID` on Freetvarr and TVHeadend, or give the folder to that user. It only warns, and Freetvarr keeps running. See [Permission errors](/guide/troubleshooting#permission-errors).
+
 ## Library folders {#paths-mounted}
 
 Warns when the media root, the one-off folder, or the movies folder is empty while Freetvarr's imported recordings point into it. Hidden files such as `.freetvarr-keep` do not count. An empty folder on a new install passes, and so does an empty folder on the same disk as another library folder that still holds recordings, because then the share is mounted and the files were deleted. See [Empty library folder](/guide/troubleshooting#empty-library-folder).
@@ -165,4 +169,4 @@ Warns when no time zone is chosen and the system runs on `UTC`, or when `TZ` or 
 
 ## Allowed hostnames {#host-names}
 
-Lists the names Freetvarr was opened by in the last 14 days that are not on [Allowed hostnames](/guide/troubleshooting#allowed-hostnames), with the number of requests, the last time, and the address of the device. From `3.0.0`, Freetvarr refuses these names. **Allow `<name>`** adds the most used name that you opened from the address bar, a bookmark, or the Home Screen. Names seen only in background requests get **Open setup** instead, so a website cannot put its own name on the button. When you opened Health by a name that is not on the list, the button is left out and the row says to open Freetvarr by its IP address, then press **Allow `<name>`** there. Add only names you use yourself: a name you do not know can be a website that tried to reach Freetvarr through a browser on your network. It passes when there are no such names, and warns while the list holds `*`, because Freetvarr then answers to any name.
+Lists the names that Freetvarr refused in the last 14 days because they are not on [Allowed hostnames](/guide/troubleshooting#allowed-hostnames), with the number of requests, the last time, and the address of the device. Freetvarr refused these names with `403`. **Allow `<name>`** adds the most used name that you opened from the address bar, a bookmark, or the Home Screen. Names seen only in background requests get **Open setup** instead, so a website cannot put its own name on the button. Add only names you use yourself: a name you do not know can be a website that tried to reach Freetvarr through a browser on your network. It passes when there are no such names, and warns while the list holds `*`, because Freetvarr then answers to any name.

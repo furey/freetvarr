@@ -233,7 +233,7 @@ const hostnamesRow = (hosts) => {
 const hostnamesLine = (hosts) => {
   if (!hosts) return 'Checking…'
   if (hosts.any_host) return 'Answers to any name'
-  if (hosts.seen.length) return `Opened as ${hosts.seen[0].name}, which 3.0.0 will refuse`
+  if (hosts.seen.length) return `Refused ${hosts.seen[0].name}`
   return 'IP addresses and local names always work'
 }
 

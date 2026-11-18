@@ -8,7 +8,7 @@ import { tvhRead, walkTuners, resolveConnection } from './tvheadend.js'
 import { findOpenAdminEntries } from './tvheadend-bootstrap.js'
 import { countPlexSectionItems, listPlexSections, storedPlexToken } from './plex.js'
 import { hasOneOffPlaceholder, hasRecordingFiles } from './one-off-placeholder.js'
-import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, probeHardlink } from './path-check.js'
+import { checkRecordingsFolder, checkMediaRoot, compareRecordingPaths, folderWriteAccess, probeHardlink } from './path-check.js'
 import { describeBenchmark } from './live-benchmark.js'
 import { getMediaRoot, getMoviesRoot, getOneOffRoot, getRecordingsRoot, getTvhRecordingsPath } from './sync.js'
 import { ROOT_EMPTY, libraryRootProblemOf } from './library-roots.js'
@@ -459,6 +459,26 @@ const LATER_CHECKS = [
         status: 'fail',
         detail: withFullStop(result.error),
         fix: mediaFolderFix({ result, mediaRoot: ctx.settings.mediaRoot, uid: ctx.deps.uid() }),
+        action: SETTINGS_STORAGE,
+      }
+    },
+  },
+  {
+    id: 'paths.write',
+    group: 'storage',
+    title: 'Write access',
+    doc: 'guide/doctor#paths-write',
+    run: async (ctx) => {
+      const folders = [...new Set([ctx.settings.recordingsRoot, ctx.settings.oneOffRoot].filter(Boolean))]
+      const results = await Promise.all(folders.map(async (folder) => ({ folder, access: await ctx.deps.folderWriteAccess(folder) })))
+      const known = results.filter(({ access }) => access !== null)
+      if (!known.length) return { status: 'skip', detail: 'Fix the recordings and one-off folders first.' }
+      const locked = known.filter(({ access }) => !access).map(({ folder }) => folder)
+      if (!locked.length) return { status: 'pass', detail: `Freetvarr can write to ${joinAnd(known.map(({ folder }) => folder))}.` }
+      return {
+        status: 'warn',
+        detail: `Freetvarr cannot write to ${joinAnd(locked)}.`,
+        fix: writeAccessFix(ctx.deps.uid()),
         action: SETTINGS_STORAGE,
       }
     },
@@ -948,7 +968,7 @@ const readPicturedTitleKeys = async (placeholderSources) => new Set((await db('a
   .filter((row) => !placeholderSources.has(row.origin))
   .map((row) => row.title_key))
 
-export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {
+export const hostNamesCheck = (report) => {
   if (!report) return { status: 'skip', detail: 'Only the running server knows the names it was opened as.' }
   if (report.anyHost) {
     return {
@@ -966,26 +986,15 @@ export const hostNamesCheck = (report, { hostAllowed = true } = {}) => {
   const one = report.seen.length === 1
   return {
     status: 'warn',
-    detail: `Freetvarr was opened as ${joinAnd(names)}. From 3.0.0 Freetvarr refuses names it does not know.`,
-    fix: `${addLineOf({ one, target, hostAllowed })} ${unknownNameNote(one ? 'the name' : 'a name')}`,
-    action: actionFor({ target, hostAllowed }),
+    detail: `Freetvarr refused requests that opened it as ${joinAnd(names)}.`,
+    fix: `${addLineOf({ one, target })} ${unknownNameNote(one ? 'the name' : 'a name')}`,
+    action: target ? allowActionOf(target.name) : SETTINGS_HOSTNAMES,
   }
-}
-
-export const withHostNamesCheck = ({ report, check }) => ({
-  ...report,
-  checks: report.checks.map((entry) => (entry.id === 'host.names' && entry.status !== 'skip' ? { ...entry, action: undefined, ...check } : entry)),
-})
-
-const actionFor = ({ target, hostAllowed }) => {
-  if (!target) return SETTINGS_HOSTNAMES
-  return hostAllowed ? allowActionOf(target.name) : undefined
 }
 
 const mostUsedOf = (entries) => (entries.length ? entries.reduce((a, b) => (b.count > a.count ? b : a)) : null)
 
-const addLineOf = ({ one, target, hostAllowed }) => {
-  if (target && !hostAllowed) return `Open Freetvarr by its IP address, then press ${allowLabelOf(target.name)} here.`
+const addLineOf = ({ one, target }) => {
   if (!one) return 'If you open Freetvarr by these names, allow each one in Allowed hostnames.'
   return target
     ? `If you open Freetvarr by this name, press ${allowLabelOf(target.name)}.`
@@ -1103,6 +1112,11 @@ const mediaFolderFix = ({ result, mediaRoot, uid }) => {
     return `${mediaRoot} is owned by uid ${result.ownerUid}; Freetvarr runs as ${uid}. Set the same PUID and PGID on both services.`
   }
   return 'Make the folder writable by the user Freetvarr runs as.'
+}
+
+const writeAccessFix = (uid) => {
+  const runsAs = uid == null ? '' : ` Freetvarr runs as uid ${uid}.`
+  return `Imports can then copy each recording instead of hardlinking it, which uses twice the space.${runsAs} Set the same PUID and PGID on Freetvarr and TVHeadend, or give the folder to that user.`
 }
 
 const recordingsFolder = (ctx) => {
@@ -1243,6 +1257,7 @@ const defaultDeps = () => ({
   oneOffFolder: readOneOffFolder,
   checkRecordingsFolder,
   checkMediaRoot,
+  folderWriteAccess,
   libraryRootProblem: (root) => libraryRootProblemOf(root),
   probeHardlink,
   statfs: (folder) => fs.statfs(folder),

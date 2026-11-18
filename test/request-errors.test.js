@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import { OFFLINE_MESSAGE, RATE_LIMITED_MESSAGE, failureText, reachServer, responseErrorOf } from '../src/web/shared/request-errors.js'
+import { OFFLINE_MESSAGE, RATE_LIMITED_MESSAGE, failureText, isHostRefusal, reachServer, responseErrorOf } from '../src/web/shared/request-errors.js'
+import { HOST_NOT_ALLOWED } from '../src/host-gate.js'
 import { RATE_LIMITED_MESSAGE as SERVER_RATE_LIMITED_MESSAGE } from '../src/rate-limits.js'
 import { isCsrfRejection } from '../src/web/shared/csrf-retry.js'
 
@@ -46,4 +47,11 @@ test('failureText: an offline, 429, or "Could not" message shows alone, other er
 test('api: requests and the csrf token fetch use reachServer, and failures use responseErrorOf', () => {
   assert.equal(api.match(/reachServer\(/g)?.length, 2)
   assert.match(api, /responseErrorOf\(/)
+})
+
+test('isHostRefusal: only a 403 with the host gate code reloads the page', () => {
+  assert.equal(isHostRefusal({ status: 403, data: { code: HOST_NOT_ALLOWED } }), true)
+  assert.equal(isHostRefusal({ status: 409, data: { code: HOST_NOT_ALLOWED } }), false)
+  assert.equal(isHostRefusal({ status: 403, data: { code: 'csrf' } }), false)
+  assert.equal(isHostRefusal({ status: 403, data: {} }), false)
 })

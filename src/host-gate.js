@@ -2,17 +2,20 @@ import net from 'net'
 import os from 'os'
 
 import { GUIDE_FEED_PATH } from './guide-feed.js'
+import { hostRefusedPage } from './host-refused-page.js'
 
 export const ALLOWED_HOSTS_KEY = 'allowed_hosts'
 export const SEEN_HOSTS_KEY = 'host_check_seen'
 export const ANY_HOST = '*'
+export const HOST_NOT_ALLOWED = 'host-not-allowed'
 
-export const createHostGate = ({ allowedHosts, seenHosts, exempt = isExemptRequest, machineNames = machineNamesOf() }) =>
+export const createHostGate = ({ allowedHosts, seenHosts, exempt = isExemptRequest, machineNames = machineNamesOf(), directUrlOf = directUrlOfRequest }) =>
   (req, res, next) => {
     if (exempt(req)) return next()
-    const hostname = normaliseHostname(req.hostname)
-    if (!isAllowedHost({ hostname, extra: allowedHosts.current(), machineNames })) seenHosts.note({ hostname, from: req.ip, pageLoad: isUserPageLoad(req) })
-    next()
+    const refusal = refusalOf({ req, extra: allowedHosts.current(), machineNames })
+    if (!refusal) return next()
+    if (refusal.name) seenHosts.note({ hostname: refusal.name, from: req.ip, pageLoad: isUserPageLoad(req) })
+    refuse({ req, res, name: refusal.name, directUrl: directUrlOf(req) })
   }
 
 export const isAllowedHost = ({ hostname, extra = [], machineNames = [] }) => {
@@ -37,8 +40,21 @@ export const isUserPageLoad = (req) => req.get('sec-fetch-mode') === 'navigate'
   && req.get('sec-fetch-dest') === 'document'
   && req.get('sec-fetch-site') === 'none'
 
-export const isRequestHostAllowed = ({ req, allowedHosts, machineNames = machineNamesOf() }) =>
-  isAllowedHost({ hostname: normaliseHostname(req.hostname), extra: allowedHosts.current(), machineNames })
+const refusalOf = ({ req, extra, machineNames }) => {
+  const forwarded = isForwardedHostTrusted(req) ? normaliseHostname(req.hostname) : null
+  if (forwarded === '') return { name: '' }
+  const name = [forwarded, normaliseHostname(req.get('host'))]
+    .filter((candidate) => candidate !== null)
+    .find((candidate) => !isAllowedHost({ hostname: candidate, extra, machineNames }))
+  return name === undefined ? null : { name }
+}
+
+export const directUrlOfRequest = (req) => {
+  const address = String(req.socket?.localAddress || '').replace(/^::ffff:/, '')
+  if (!net.isIP(address) || isLoopback(address) || isDockerBridge(address)) return null
+  const host = net.isIPv6(address) ? `[${address}]` : address
+  return `http://${host}:${req.socket.localPort}/`
+}
 
 export const isExemptRequest = (req) => (req.method === 'GET' || req.method === 'HEAD') && EXEMPT_PATHS.includes(req.path)
 
@@ -130,7 +146,7 @@ export const createSeenHosts = ({ max = MAX_SEEN_HOSTS, now = Date.now, log = co
       page_load: Boolean(before?.page_load || pageLoad),
       logged_at: before?.logged_at ?? null,
     }
-    if ((entry.logged_at == null || at - entry.logged_at >= DAY_MS) && logBudget.spend(`[host-check] opened as ${name} from ${entry.from}; add it to Allowed hostnames if you use it (3.0.0 refuses names it does not know)`)) {
+    if ((entry.logged_at == null || at - entry.logged_at >= DAY_MS) && logBudget.spend(`[host-check] refused ${name} from ${entry.from}; add it to Allowed hostnames if you use it`)) {
       entry.logged_at = at
     }
     seen.delete(name)
@@ -172,43 +188,49 @@ export const hostCheckReport = ({ allowedHosts, seenHosts, machineNames = machin
 }
 
 export const mountAllowedHosts = ({ app, csrf, limiter, allowedHosts, seenHosts, machineNames = machineNamesOf() }) => {
-  const stateFor = (req) => {
-    const name = normaliseHostname(req.hostname)
-    return {
-      hosts: allowedHosts.saved(),
-      env_hosts: allowedHosts.fromEnv(),
-      any_host: allowedHosts.allowsAnyHost(),
-      current: { name, allowed: isAllowedHost({ hostname: name, extra: allowedHosts.current(), machineNames }) },
-      seen: hostCheckReport({ allowedHosts, seenHosts, machineNames }).seen.map(({ name: seenName, count, last_seen: lastSeen, from }) => ({ name: seenName, count, last_seen: lastSeen, from })),
-    }
-  }
+  const state = () => ({
+    hosts: allowedHosts.saved(),
+    env_hosts: allowedHosts.fromEnv(),
+    any_host: allowedHosts.allowsAnyHost(),
+    seen: hostCheckReport({ allowedHosts, seenHosts, machineNames }).seen.map(({ name, count, last_seen: lastSeen, from }) => ({ name, count, last_seen: lastSeen, from })),
+  })
 
   app.get('/api/allowed-hosts', (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    res.json(stateFor(req))
+    res.json(state())
   })
 
-  const fromAllowedHost = (req, res, next) => {
-    if (isRequestHostAllowed({ req, allowedHosts, machineNames })) return next()
-    res.status(403).json({ error: LOCKED_LIST_MESSAGE, code: 'host-not-allowed' })
-  }
-
-  app.put('/api/allowed-hosts', limiter, fromAllowedHost, csrf, async (req, res) => {
+  app.put('/api/allowed-hosts', limiter, csrf, async (req, res) => {
     const { hosts, invalid } = parseAllowedHosts(req.body?.hosts)
     if (invalid.length) return res.status(400).json({ error: allowedHostsErrorOf(invalid) })
     if (hosts.length > MAX_ALLOWED_HOSTS) return res.status(400).json({ error: `Add up to ${MAX_ALLOWED_HOSTS} names.` })
     await allowedHosts.save(hosts)
-    res.json(stateFor(req))
+    res.json(state())
   })
 
-  app.post('/api/allowed-hosts/allow/:name', limiter, fromAllowedHost, csrf, async (req, res) => {
+  app.post('/api/allowed-hosts/allow/:name', limiter, csrf, async (req, res) => {
     const { hosts: [host] = [], invalid } = parseAllowedHosts([req.params.name])
     if (!host || invalid.length || host.includes(ANY_HOST)) return res.status(400).json({ error: allowedHostsErrorOf([req.params.name]) })
     const saved = allowedHosts.saved()
     if (!saved.includes(host)) await allowedHosts.save([...saved, host])
-    res.json(stateFor(req))
+    res.json(state())
   })
 }
+
+const isForwardedHostTrusted = (req) => req.get('x-forwarded-host') !== undefined
+  && Boolean(req.app?.get('trust proxy fn')?.(req.socket?.remoteAddress, 0))
+
+const isLoopback = (address) => address === '::1' || address.startsWith('127.')
+
+const isDockerBridge = (address) => /^172\.(1[6-9]|2\d|3[01])\./.test(address)
+
+const refuse = ({ req, res, name, directUrl }) => {
+  res.status(403).setHeader('Cache-Control', 'no-store')
+  if (req.accepts(['json', 'html']) === 'html') return res.type('html').send(hostRefusedPage({ name, directUrl }))
+  res.json({ error: refusedMessageOf(name), code: HOST_NOT_ALLOWED })
+}
+
+const refusedMessageOf = (name) => `${name || 'This hostname'} is not on Allowed hostnames. Open Freetvarr by its IP address to add it.`
 
 const allowedHostOf = (entry) => {
   if (entry === ANY_HOST) return ANY_HOST
@@ -273,5 +295,4 @@ const SEEN_WINDOW_MS = 14 * DAY_MS
 const NEW_NAME_SAVE_GAP_MS = 60_000
 const KNOWN_NAME_SAVE_DELAY_MS = HOUR_MS
 const LOG_LINES_PER_HOUR = 10
-const LOG_BUDGET_SPENT = '[host-check] more unknown names this hour; see Health'
-const LOCKED_LIST_MESSAGE = 'Open Freetvarr by its IP address to change Allowed hostnames.'
+const LOG_BUDGET_SPENT = '[host-check] more refused names this hour; see Health'
