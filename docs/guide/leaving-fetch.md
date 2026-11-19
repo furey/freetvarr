@@ -84,7 +84,7 @@ Fetch's own offer is a new Fetch box, which needs a Fetch Access subscription at
 </div>
 
 > [!WARNING]<br>
-> Save your recordings before you cancel and before Fetch suspends the box. Once the box is cancelled or suspended, you cannot play or copy them. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel.
+> Save your recordings before you cancel and before Fetch suspends the box. While the box is suspended, you cannot play or copy them until Fetch restores it. Once you cancel, they are out of reach for good, even though they stay on the drive. [Saving your Fetch recordings](#saving-your-fetch-recordings) takes an afternoon; do it before you cancel.
 
 ## Two paths
 
@@ -195,7 +195,7 @@ An hour of HD free-to-air takes about `3–6GB` on disk, and SD about half that.
 
 ## Saving your Fetch recordings
 
-Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them.
+Save your recordings before you cancel and before Fetch suspends the box. After that, you cannot reach them; see [Switching over](#switching-over) for what the author tested on a cancelled Mighty.
 
 <!-- markdownlint-disable-next-line MD033 -->
 <YouTubeVideo id="cCP5A1czJes" title="Fetch My Recordings: Save your Fetch TV recordings from your Fetch TV box" duration="2:40" />
@@ -523,7 +523,13 @@ Do these in order. The times are for someone doing it the first time.
 
 After you cancel, signing in to the Fetch account shows "User is disabled". The box itself restarts at Fetch's setup screen ("System is ready. Please continue to setup your Fetch Box.") and lists no recordings on the network, so Fetch My Recordings and `fetchtv` find none. **Continue** leads to "Enter your Activation Code", which a cancelled account cannot supply.
 
-Cancelling does not wipe a Mighty. On the author's cancelled Mighty, the hard drive still held all 241 recordings. The recordings are still out of reach, because the box encrypts each one on its drive. A copy taken straight from the drive does not play anywhere else: the author's test of a free-to-air recording showed only green blocks. Only the box can decrypt the recordings, and a cancelled box does not show them.
+Cancelling does not wipe a Mighty. On the author's cancelled Mighty, the hard drive still held all 241 recordings, but they are out of reach. The box encrypts each recording on its drive, free-to-air included. It decrypts a recording only while it plays it or sends it over the network.
+
+Some advice online says to take the drive out and copy the recordings off it. That does not work for a Mighty: the files copy, but the author's free-to-air copies showed only green blocks in a player.
+
+The author also tested the box with no internet connection, so it could not check with Fetch, and with its drive back in place. It still listed no recordings. The author found no way through the service port on the circuit board to stop the box starting Fetch's software. So the author could not run other software on the box, or reuse it as a tuner or recorder.
+
+If Fetch has only suspended your box, ask Fetch to restore it, then save your recordings straight away. After you cancel, the author knows of no supported way to get them back, so do not open the box expecting to.
 
 The cancelled box also keeps your Wi-Fi network name and password, and joins your Wi-Fi each time it starts. Its drive also holds your recording history. If the box leaves your home, change your Wi-Fi password, and keep or destroy the Mighty's hard drive.
 
