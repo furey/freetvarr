@@ -192,7 +192,7 @@ test('runDoctor: a 403 on status/inputs alone fails the rights check naming Admi
   const checks = byId(report)
   assert.equal(checks['tvh.auth'].status, 'pass')
   assert.equal(checks['tvh.rights'].status, 'fail')
-  assert.match(checks['tvh.rights'].fix, /\bAdmin\b/)
+  assert.match(checks['tvh.rights'].fix, /tick Admin/)
   assert.doesNotMatch(checks['tvh.rights'].fix, /Video recorder/)
   assert.equal(checks['tvh.tuners'].status, 'skip')
 })
@@ -251,7 +251,7 @@ test('runDoctor: no tuner on bridge networking asks for network_mode: host', asy
     interfaces: () => ({ eth0: [{ family: 'IPv4', address: '172.18.0.3', internal: false }] }),
     now,
   })
-  assert.match(byId(report)['tvh.tuners'].fix, /network_mode: host/)
+  assert.match(byId(report)['tvh.tuners'].fix, /^Set network_mode: host/)
 })
 
 test('runDoctor: no tuner in a Docker VM says a Mac or Windows PC cannot find a network tuner', async () => {
@@ -419,8 +419,8 @@ test('runDoctor: an empty library folder that imported recordings point into war
   assert.match(check.detail, /imported recordings/)
   assert.match(check.detail, /skip imports/)
   assert.match(check.fix, /mounted/)
-  assert.match(check.fix, /emptied the folder yourself|moved the media root/)
-  assert.match(check.fix, /\bdelete\b/)
+  assert.match(check.fix, /emptied the folder yourself.*delete those recordings/)
+  assert.match(check.fix, /moved the media root.*delete those recordings/)
 })
 
 test('runDoctor: a real link between the test folders passes the hardlink check', async () => {
@@ -696,6 +696,7 @@ test('host.names: warns about a refused name and offers to allow a name opened a
   assert.equal(check.status, 'warn')
   assert.equal(check.title, undefined)
   assert.match(check.detail, /tv\.example\.com/)
+  assert.match(check.detail, /refused/)
   assert.match(check.detail, /\b12 requests\b/)
   assert.match(check.detail, /192\.168\.1\.23/)
   assert.match(check.fix, /Allow tv\.example\.com/)
@@ -713,7 +714,7 @@ test('host.names: Allow goes to the most used name opened as a page, never to a 
   ]
   const check = hostNamesCheck({ anyHost: false, added: 0, seen })
   assert.match(check.detail, /a\.example\.com \(1 request\b.*rebind\.attacker\.example \(900 requests\b.*b\.example\.com.*\b1 more name\b/)
-  assert.match(check.fix, /\ballow\b/i)
+  assert.match(check.fix, /allow each one/)
   assert.equal(check.action.label, 'Allow b.example.com')
 })
 

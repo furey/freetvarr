@@ -55,8 +55,10 @@ test('removeFromTvhConfirm: library copy stays, history kept, cannot undo', () =
   assert.match(dialog.body[0], /TVHeadend deletes its copy/)
   assert.ok(dialog.body[1].includes(FILE))
   assert.match(dialog.body[1], /stays/)
+  assert.match(dialog.body[1], /media player/)
   assert.match(dialog.body[2], /does not record it again/)
   assert.match(dialog.body[2], /deletes any re-record/)
+  assert.match(dialog.body[3], /few seconds/)
   assert.match(dialog.body[3], /cannot undo/)
 })
 
@@ -89,7 +91,9 @@ test('clearListConfirm: plural wording', () => {
   assert.equal(dialog.body.length, 3)
   assert.match(dialog.body[0], /these recordings.*rows leave/)
   assert.match(dialog.body[1], /files stay in your library/)
+  assert.match(dialog.body[1], /delete them.*media player/)
   assert.match(dialog.body[2], /\b10 seconds\b.*Undo puts the rows back/)
+  assert.match(dialog.body[2], /30 days/)
 })
 
 test('clearListConfirm: singular wording', () => {

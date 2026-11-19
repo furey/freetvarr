@@ -33,6 +33,8 @@ test('deleteSyncConfirm: names the sync and keeps the recordings', () => {
 
 test('clearSyncHistoryConfirm: says the running sync stays', () => {
   assert.match(clearSyncHistoryConfirm({ syncRunning: true }).body[0], /except the sync running now/)
+  assert.match(clearSyncHistoryConfirm({ syncRunning: true }).body[0], /^Every sync row leaves the history/)
+  assert.match(clearSyncHistoryConfirm({ syncRunning: false }).body[0], /^Every sync row leaves the history/)
   assert.doesNotMatch(clearSyncHistoryConfirm({ syncRunning: false }).body[0], /running/)
 })
 

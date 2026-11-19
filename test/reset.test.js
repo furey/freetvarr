@@ -41,6 +41,7 @@ test('reset route: uses resetFreetvarrData, and the dialog says the TV login and
   assert.match(route, /await resetFreetvarrData\(db\)/)
   const body = resetConfirm({ mediaRoot: '' }).body
   const loginLine = body.find((text) => /keeps the TV login/.test(text))
+  assert.match(loginLine, /delete it/)
   assert.match(loginLine, /open access/)
   const hostsLine = body.find((text) => /keeps the Allowed hostnames/.test(text))
   assert.ok(hostsLine)
