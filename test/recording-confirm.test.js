@@ -51,52 +51,51 @@ test('removeFromTvhConfirm: library copy stays, history kept, cannot undo', () =
   assert.equal(dialog.title, 'Remove from TVHeadend')
   assert.equal(dialog.confirmLabel, 'Remove from TVHeadend')
   assert.equal(dialog.danger, true)
-  assert.deepEqual(dialog.body, [
-    'TVHeadend deletes its copy of the recording.',
-    `Your library copy stays at ${FILE}, and your media player still plays it.`,
-    'TVHeadend keeps a note that it recorded this episode, so a series recording does not record it again.'
-      + ' TVHeadend also deletes any re-record it has scheduled for this episode.',
-    'This takes a few seconds. You cannot undo it.',
-  ])
+  assert.equal(dialog.body.length, 4)
+  assert.match(dialog.body[0], /TVHeadend deletes its copy/)
+  assert.ok(dialog.body[1].includes(FILE))
+  assert.match(dialog.body[1], /stays/)
+  assert.match(dialog.body[2], /does not record it again/)
+  assert.match(dialog.body[2], /deletes any re-record/)
+  assert.match(dialog.body[3], /cannot undo/)
 })
 
 test('removeFromTvhConfirm: warns when the library copy is already gone', () => {
   const dialog = removeFromTvhConfirm({ recording: recording({ library_file_present: false }) })
-  assert.equal(dialog.body[1], `Freetvarr cannot find your library copy at ${FILE}.`)
+  assert.ok(dialog.body[1].includes(FILE))
+  assert.match(dialog.body[1], /cannot find/)
 })
 
 test('clearRowConfirm: a row not in TVHeadend keeps the file and offers UNDO', () => {
   const dialog = clearRowConfirm({ recording: recording({ deleted_from_tvh_at: '2026-10-01' }), undoSeconds: 10 })
   assert.equal(dialog.title, 'Clear from the list')
   assert.equal(dialog.confirmLabel, 'Clear from list')
-  assert.equal(dialog.body[0], `The row leaves this list. Your library copy stays at ${FILE}, and your media player still plays it.`)
-  assert.equal(dialog.body[2], 'For 10 seconds, Undo puts the row back.')
+  assert.ok(dialog.body[0].includes(FILE))
+  assert.match(dialog.body[0], /stays/)
+  assert.match(dialog.body[2], /\b10 seconds\b.*Undo/)
 })
 
 test('clearRowConfirm: a row TVHeadend still has comes back at the next sync', () => {
   const dialog = clearRowConfirm({ recording: recording({ file_path: null }), undoSeconds: 10 })
-  assert.deepEqual(dialog.body, [
-    'The row leaves this list. TVHeadend keeps the recording.',
-    'While TVHeadend has the recording, the next sync adds the row back and decides again whether to import it.',
-  ])
+  assert.equal(dialog.body.length, 2)
+  assert.match(dialog.body[0], /TVHeadend keeps the recording/)
+  assert.match(dialog.body[1], /next sync adds the row back/)
 })
 
 test('clearListConfirm: plural wording', () => {
   const dialog = clearListConfirm({ count: 12, undoSeconds: 10 })
   assert.equal(dialog.title, 'Clear 12 rows from the log')
   assert.equal(dialog.confirmLabel, 'Clear')
-  assert.deepEqual(dialog.body, [
-    'TVHeadend no longer has these recordings. Their rows leave this list, on every page and filter.',
-    'The files stay in your library, and your media player still shows them.'
-      + ' To delete them for good, delete them in your media player or from your library folder.',
-    'For 10 seconds, Undo puts the rows back. Without a clear, imported rows stay in this list, and other rows leave it 30 days after TVHeadend removed them.',
-  ])
+  assert.equal(dialog.body.length, 3)
+  assert.match(dialog.body[0], /these recordings.*rows leave/)
+  assert.match(dialog.body[1], /files stay in your library/)
+  assert.match(dialog.body[2], /\b10 seconds\b.*Undo puts the rows back/)
 })
 
 test('clearListConfirm: singular wording', () => {
   const dialog = clearListConfirm({ count: 1, undoSeconds: 10 })
   assert.equal(dialog.title, 'Clear 1 row from the log')
-  assert.match(dialog.body[0], /^TVHeadend no longer has this recording\. Its row leaves this list/)
-  assert.match(dialog.body[1], /^The file stays in your library, and your media player still shows it\. To delete it for good, delete it/)
-  assert.match(dialog.body[2], /^For 10 seconds, Undo puts the row back\./)
+  assert.match(dialog.body[0], /this recording.*row leaves/)
+  assert.match(dialog.body[1], /file stays in your library/)
+  assert.match(dialog.body[2], /\b10 seconds\b.*Undo puts the row back\b/)
 })

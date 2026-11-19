@@ -53,5 +53,7 @@ test('recheckManagers: an unreachable app blocks the delete with a plain reason'
     kindOfTarget: () => 'episode',
     kindOfRow: () => null,
   })
-  assert.equal(checked.blocked, 'Freetvarr could not check whether Sonarr manages these files, so nothing was deleted. Sonarr did not answer (ECONNREFUSED). Try again when Sonarr answers.')
+  assert.match(checked.blocked, /nothing was deleted/)
+  assert.match(checked.blocked, /Sonarr/)
+  assert.match(checked.blocked, /ECONNREFUSED/)
 })

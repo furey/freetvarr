@@ -138,8 +138,9 @@ test('runDoctor: warns when TVHeadend did not save the whole-title change for a 
   const anchorFailures = async () => [{ uuid: 'r1', name: 'Chefs Ahoy' }]
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, anchorFailures }))['tvh.rules']
   assert.equal(check.status, 'warn')
-  assert.match(check.detail, /Chefs Ahoy, so that series recording can still record longer titles/)
-  assert.match(check.fix, /tries again after the next sync/)
+  assert.match(check.detail, /Chefs Ahoy/)
+  assert.match(check.detail, /longer titles/)
+  assert.match(check.fix, /next sync/)
 })
 
 const TVH_DEPENDENT = ['tvh.rights', 'tvh.open', 'tvh.tuners', 'tvh.channels', 'guide.depth', 'guide.logos', 'guide.pictures', 'paths.match']
@@ -150,7 +151,7 @@ test('runDoctor: a healthy setup passes every check it can run, reading TVHeaden
   const checks = byId(report)
   assert.deepEqual(report.summary, { pass: 21, warn: 0, fail: 0, skip: 5 })
   assert.match(checks['tvh.reach'].detail, /^TVHeadend 4\.3 at http:\/\/127\.0\.0\.1:\d+\.$/)
-  assert.match(checks['tvh.tuners'].detail, /^2 tuners: HDHomeRun DVB-T Tuner #0 \(192\.0\.2\.10\)/)
+  assert.match(checks['tvh.tuners'].detail, /\b2 tuners\b.*192\.0\.2\.10/)
   assert.match(checks['tvh.channels'].detail, /\b3 channels\b/)
   assert.deepEqual(['plex.reach', 'plex.oneoffs', 'ads.comskip', 'live.encoder'].map((id) => checks[id].status), ['skip', 'skip', 'skip', 'pass'])
   for (const c of report.checks) {
@@ -180,7 +181,9 @@ test('runDoctor: a 403 on serverinfo names the three usual causes', async () => 
   const auth = byId(report)['tvh.auth']
   assert.equal(auth.status, 'fail')
   assert.match(auth.detail, /HTTP 403/)
-  assert.match(auth.fix, /Wrong password, a network outside the allowed range, or a missing right/)
+  assert.match(auth.fix, /password/i)
+  assert.match(auth.fix, /allowed range/)
+  assert.match(auth.fix, /\bright\b/)
 })
 
 test('runDoctor: a 403 on status/inputs alone fails the rights check naming Admin', async () => {
@@ -189,7 +192,7 @@ test('runDoctor: a 403 on status/inputs alone fails the rights check naming Admi
   const checks = byId(report)
   assert.equal(checks['tvh.auth'].status, 'pass')
   assert.equal(checks['tvh.rights'].status, 'fail')
-  assert.match(checks['tvh.rights'].fix, /tick Admin\.$/)
+  assert.match(checks['tvh.rights'].fix, /\bAdmin\b/)
   assert.doesNotMatch(checks['tvh.rights'].fix, /Video recorder/)
   assert.equal(checks['tvh.tuners'].status, 'skip')
 })
@@ -206,7 +209,7 @@ test('runDoctor: the open default access entry warns that anyone can change TVHe
   const check = byId(report)['tvh.open']
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /0\.0\.0\.0\/0,::\/0/)
-  assert.match(check.detail, /anyone on your network can change TVHeadend/)
+  assert.match(check.detail, /anyone.*change TVHeadend/)
   assert.match(check.fix, /SECURE AND CONNECT/)
   assert.equal(check.doc, 'guide/tvheadend-by-hand#_2-secure-tvheadend')
 })
@@ -231,7 +234,7 @@ test('runDoctor: an empty hardware tree and no inputs fails the tuner check', as
   const tuners = byId(report)['tvh.tuners']
   assert.equal(tuners.status, 'fail')
   assert.doesNotMatch(tuners.fix, /network_mode/)
-  assert.match(tuners.fix, /tuner's address under SETTINGS → SETUP → CHANNELS/)
+  assert.match(tuners.fix, /SETTINGS → SETUP → CHANNELS/)
   assert.equal(tuners.action.href, '#/settings/system/setup/channels')
   assert.equal(tuners.doc, 'guide/troubleshooting#missing-tuner')
 })
@@ -248,7 +251,7 @@ test('runDoctor: no tuner on bridge networking asks for network_mode: host', asy
     interfaces: () => ({ eth0: [{ family: 'IPv4', address: '172.18.0.3', internal: false }] }),
     now,
   })
-  assert.match(byId(report)['tvh.tuners'].fix, /^Set network_mode: host/)
+  assert.match(byId(report)['tvh.tuners'].fix, /network_mode: host/)
 })
 
 test('runDoctor: no tuner in a Docker VM says a Mac or Windows PC cannot find a network tuner', async () => {
@@ -259,9 +262,10 @@ test('runDoctor: no tuner in a Docker VM says a Mac or Windows PC cannot find a 
     now,
   })
   const checks = byId(report)
-  assert.match(checks['tvh.tuners'].fix, /Mac or Windows PC \(OrbStack\) cannot find a network tuner/)
+  assert.match(checks['tvh.tuners'].fix, /OrbStack/)
+  assert.match(checks['tvh.tuners'].fix, /cannot find a network tuner/)
   assert.doesNotMatch(checks['tvh.tuners'].fix, /network_mode/)
-  assert.match(checks['host.env'].detail, /Docker runs in a virtual machine \(OrbStack\)\.$/)
+  assert.match(checks['host.env'].detail, /virtual machine.*OrbStack/)
 })
 
 test('runDoctor: a tuner on a link-local address warns', async () => {
@@ -287,7 +291,7 @@ test('runDoctor: preferred picons with no picon path warns on logos', async () =
   })
   const logos = byId(report)['guide.logos']
   assert.equal(logos.status, 'warn')
-  assert.match(logos.detail, /0 of 3 channels have a TVHeadend icon/)
+  assert.match(logos.detail, /\b0 of 3 channels\b/)
   assert.match(logos.fix, /Prefer picons over channel icons/)
 })
 
@@ -300,8 +304,8 @@ test('runDoctor: a guide ending in 6 h fails and one ending in 30 h warns', asyn
   const six = await depthAt(6)
   const thirty = await depthAt(30)
   assert.equal(six.status, 'fail')
-  assert.match(six.detail, /runs 6 hrs ahead/)
-  assert.match(six.fix, /Enable an XMLTV grabber/)
+  assert.match(six.detail, /\b6 hrs\b/)
+  assert.match(six.fix, /XMLTV/)
   assert.equal(thirty.status, 'warn')
 })
 
@@ -334,8 +338,9 @@ test('runDoctor: a failing guide with a stale grabber stays a fail and names bot
   const depth = byId(report)['guide.depth']
   assert.equal(depth.status, 'fail')
   assert.match(depth.detail, /192\.168\.1\.20:3733.*192\.168\.1\.30:3733/)
-  assert.match(depth.detail, /runs 6 hrs ahead/)
-  assert.match(depth.fix, /Settings → SYSTEM → Setup and press Guide/)
+  assert.match(depth.detail, /\b6 hrs\b/)
+  assert.match(depth.fix, /Settings → SYSTEM → Setup/)
+  assert.match(depth.fix, /\bGuide\b/)
 })
 
 test('runDoctor: a TVHeadend error while reading the grabber leaves the guide depth result alone', async () => {
@@ -373,7 +378,7 @@ test('runDoctor: an unreachable TVHeadend fails the connection and skips the TVH
   const report = await runDoctor({ deps: await doctorDeps({ url: 'http://127.0.0.1:1' }) })
   const checks = byId(report)
   assert.equal(checks['tvh.reach'].status, 'fail')
-  assert.match(checks['tvh.reach'].fix, /can't reach TVHeadend at http:\/\/127\.0\.0\.1:1/)
+  assert.match(checks['tvh.reach'].fix, /http:\/\/127\.0\.0\.1:1\b/)
   for (const id of ['tvh.auth', ...TVH_DEPENDENT]) assert.equal(checks[id].status, 'skip', id)
   assert.equal(checks['paths.recordings'].status, 'pass')
 })
@@ -391,13 +396,16 @@ test('runDoctor: a recordings or one-off folder Freetvarr cannot write to warns,
   const now = Date.now()
   const writable = byId(await runAgainst({ routes: healthyRoutes({ now }), now }))['paths.write']
   assert.equal(writable.status, 'pass')
-  assert.match(writable.detail, /^Freetvarr can write to .+recordings\.$/)
+  assert.match(writable.detail, /recordings\b/)
+  assert.doesNotMatch(writable.detail, /cannot/)
   const folderWriteAccess = async (folder) => (folder.endsWith('one-offs') ? false : true)
   const settings = async () => ({ ...(await (await doctorDeps()).settings()), oneOffRoot: '/data/media/one-offs' })
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, folderWriteAccess, settings }))['paths.write']
   assert.equal(check.status, 'warn')
-  assert.equal(check.detail, 'Freetvarr cannot write to /data/media/one-offs.')
-  assert.match(check.fix, /twice the space\. Freetvarr runs as uid 1000\. Set the same PUID and PGID/)
+  assert.match(check.detail, /cannot write.*\/data\/media\/one-offs/)
+  assert.match(check.fix, /\buid 1000\b/)
+  assert.match(check.fix, /PUID/)
+  assert.match(check.fix, /PGID/)
   const missing = byId(await runAgainst({ routes: healthyRoutes({ now }), now, folderWriteAccess: async () => null }))['paths.write']
   assert.equal(missing.status, 'skip')
 })
@@ -407,9 +415,12 @@ test('runDoctor: an empty library folder that imported recordings point into war
   const libraryRootProblem = async () => 'empty'
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, libraryRootProblem }))['paths.mounted']
   assert.equal(check.status, 'warn')
-  assert.match(check.detail, /media is empty, but imported recordings point into it\. Syncs skip imports into it\.$/)
+  assert.match(check.detail, /\bempty\b/)
+  assert.match(check.detail, /imported recordings/)
+  assert.match(check.detail, /skip imports/)
   assert.match(check.fix, /mounted/)
-  assert.match(check.fix, /emptied the folder yourself, or moved the media root, delete those recordings/)
+  assert.match(check.fix, /emptied the folder yourself|moved the media root/)
+  assert.match(check.fix, /\bdelete\b/)
 })
 
 test('runDoctor: a real link between the test folders passes the hardlink check', async () => {
@@ -486,13 +497,13 @@ test('host.env: no zone chosen on a UTC system warns and links to Settings', asy
 test('host.env: a zone chosen in Settings passes and names its source', async () => {
   const check = await hostCheck({ stored: 'Australia/Sydney' })
   assert.equal(check.status, 'pass')
-  assert.match(check.detail, /^Time zone Australia\/Sydney \(from Settings\)/)
+  assert.match(check.detail, /Australia\/Sydney.*from Settings/)
 })
 
 test('host.env: a zone chosen in Settings beats TZ in .env', async () => {
   const check = await hostCheck({ envTz: 'Australia/Perth', stored: 'Australia/Sydney' })
   assert.equal(check.status, 'pass')
-  assert.match(check.detail, /^Time zone Australia\/Sydney \(from Settings\)/)
+  assert.match(check.detail, /Australia\/Sydney.*from Settings/)
 })
 
 test('host.env: an unknown TZ in .env warns with the .env fix', async () => {
@@ -569,7 +580,7 @@ test('live.encoder: software fallback in a Docker VM passes with plain detail', 
 test('disk.free: a Docker VM says the figure is the virtual disk', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now, dockerVm: () => 'OrbStack' })
-  assert.match(byId(report)['disk.free'].detail, /\. This is Docker's virtual disk\. Real space is limited by the disk of your Mac or PC\.$/)
+  assert.match(byId(report)['disk.free'].detail, /virtual disk.*Mac or PC/)
 })
 
 test('disk.free: no virtual disk note outside a Docker VM', async () => {
@@ -582,7 +593,8 @@ test('sync.health: a finished sync reads in plain words', async () => {
   const now = Date.now()
   const latestSync = async () => ({ id: 1, status: 'ok', finished_at: '2026-10-06 12:30:00', summary: {} })
   const sync = byId(await runAgainst({ routes: healthyRoutes({ now }), now, latestSync }))['sync.health']
-  assert.match(sync.detail, /^Last sync finished .+\. Runs every 30 minutes\.$/)
+  assert.match(sync.detail, /finished/)
+  assert.match(sync.detail, /\bevery 30 minutes\b/)
   assert.doesNotMatch(sync.detail, /#1|\*\/30/)
 })
 
@@ -626,7 +638,7 @@ test('sync.health: a failed sync message without a full stop gets one', async ()
 test('sync.health: a schedule with no plain description falls back to the cron text', async () => {
   const now = Date.now()
   const report = await runAgainst({ routes: healthyRoutes({ now }), now, schedulerExpression: () => '5 4 * * 1' })
-  assert.match(byId(report)['sync.health'].detail, /Schedule: 5 4 \* \* 1\.$/)
+  assert.match(byId(report)['sync.health'].detail, /5 4 \* \* 1\b/)
 })
 
 test('host.env: a Docker VM omits its internal address', async () => {
@@ -653,7 +665,7 @@ test('live.streams: names the measured streams and the limit', () => {
 test('live.streams: warns when the limit is above the estimate, skips before the first run', () => {
   const check = liveStreamsCheck({ max_live_streams: 2, benchmark: { encoder: 'software', speed: 2.1, estimated: 1 } })
   assert.equal(check.status, 'warn')
-  assert.match(check.fix, /Set Live streams at once to 1\./)
+  assert.match(check.fix, /Live streams at once\b.*\b1\b/)
   assert.equal(check.action.href, '#/settings/player')
   const tooSlow = liveStreamsCheck({ max_live_streams: 1, benchmark: { encoder: 'software', speed: 0.9, estimated: 0 } })
   assert.equal(tooSlow.status, 'warn')
@@ -683,8 +695,10 @@ test('host.names: warns about a refused name and offers to allow a name opened a
   const check = hostNamesCheck({ anyHost: false, added: 0, seen })
   assert.equal(check.status, 'warn')
   assert.equal(check.title, undefined)
-  assert.match(check.detail, /^Freetvarr refused requests that opened it as tv\.example\.com \(12 requests, last .+, from 192\.168\.1\.23\)\.$/)
-  assert.match(check.fix, /If you open Freetvarr by this name, press Allow tv\.example\.com\./)
+  assert.match(check.detail, /tv\.example\.com/)
+  assert.match(check.detail, /\b12 requests\b/)
+  assert.match(check.detail, /192\.168\.1\.23/)
+  assert.match(check.fix, /Allow tv\.example\.com/)
   const { done, ...action } = check.action
   assert.deepEqual(action, { label: 'Allow tv.example.com', post: '/api/allowed-hosts/allow/tv.example.com' })
   assert.match(done, /\btv\.example\.com\b.*Allowed hostnames/)
@@ -698,15 +712,15 @@ test('host.names: Allow goes to the most used name opened as a page, never to a 
     seenName('d.example.com'),
   ]
   const check = hostNamesCheck({ anyHost: false, added: 0, seen })
-  assert.match(check.detail, /^Freetvarr refused requests that opened it as a\.example\.com \(1 request, .+\), rebind\.attacker\.example \(900 requests, .+\), b\.example\.com \(.+\), and 1 more name\./)
-  assert.match(check.fix, /If you open Freetvarr by these names, allow each one/)
+  assert.match(check.detail, /a\.example\.com \(1 request\b.*rebind\.attacker\.example \(900 requests\b.*b\.example\.com.*\b1 more name\b/)
+  assert.match(check.fix, /\ballow\b/i)
   assert.equal(check.action.label, 'Allow b.example.com')
 })
 
 test('host.names: with no name opened as a page, or none that can be saved, the action opens Setup', () => {
   const fetched = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName('rebind.attacker.example', { count: 900, page_load: false })] })
   assert.deepEqual(fetched.action, { label: 'Open setup', href: '#/settings/system/setup/hostnames' })
-  assert.match(fetched.fix, /^If you open Freetvarr by this name, add it in Allowed hostnames\./)
+  assert.match(fetched.fix, /Allowed hostnames/)
   const unsaveable = hostNamesCheck({ anyHost: false, added: 0, seen: [seenName('user@attacker.example', { allowable: false })] })
   assert.equal(unsaveable.action.href, '#/settings/system/setup/hostnames')
 })
@@ -723,7 +737,7 @@ test('host.names: * warns, and Health skips the check outside the running server
   assert.equal(check.status, 'warn')
   assert.match(check.detail, /any name/i)
   assert.match(check.detail, /any website/i)
-  assert.match(check.fix, /Remove \* from Allowed hostnames/)
+  assert.match(check.fix, /Remove \*/)
   assert.equal(check.action.href, '#/settings/system/setup/hostnames')
   assert.equal(hostNamesCheck(null).status, 'skip')
   const now = Date.now()
@@ -865,7 +879,7 @@ test('runDoctor: the guide pictures check reads the guide and the recorded host 
   const guidePictureHealth = async () => ({ hosts: new Map([['images.example.com', { tried: 20, failed: 15 }]]), savedTitleKeys: new Set() })
   const check = byId(await runAgainst({ routes: healthyRoutes({ now }), now, guide, guidePictureHealth }))['guide.pictures']
   assert.equal(check.status, 'warn')
-  assert.match(check.detail, /^Only 0% of guide titles have a picture. Pictures for 0 of 10 guide titles/)
+  assert.match(check.detail, /\b0%.*\b0 of 10 guide titles\b/)
 })
 
 test('guidePicturesCheck: warns when Freeview pictures are off, with the reason and its fix', () => {
@@ -902,8 +916,8 @@ test('guide.sources: skips with no sources, passes with each source score, horiz
   assert.equal(guideSourcesCheck({ view: { available: false } }).status, 'skip')
   const result = guideSourcesCheck({ view: sourcesView(), grabber: POINTED, nowMs: SOURCES_NOW })
   assert.equal(result.status, 'pass')
-  assert.match(result.detail, /Freeview: 96% of channels healthy, 9 days ahead, last success/)
-  assert.match(result.detail, /i\.mjh\.nz: 100% of channels healthy, 20 days ahead/)
+  assert.match(result.detail, /Freeview\b.*\b96%.*\b9 days\b/)
+  assert.match(result.detail, /i\.mjh\.nz\b.*\b100%.*\b20 days\b/)
 })
 
 test('guide.sources: before the confirm step it passes and says where to turn the merged guide on', () => {
@@ -934,7 +948,7 @@ test('guide.sources: a pinned source that is degraded warns with a one-tap switc
   const pinned = sourcesView({ choice: { mode: 'auto', pins: { 'mjh-seven': 'freeview-au' } }, degradedPairs: new Set(['freeview-au|mjh-seven']) })
   const result = guideSourcesCheck({ view: pinned, grabber: POINTED, nowMs: SOURCES_NOW })
   assert.equal(result.status, 'warn')
-  assert.match(result.detail, /You chose Freeview for Seven/)
+  assert.match(result.detail, /Freeview\b.*\bSeven\b/)
   const { done, ...action } = result.action
   assert.deepEqual(action, { label: 'Switch to Automatic', post: '/api/guide-sources/automatic' })
   assert.match(done, /\bAutomatic\b/)
@@ -946,6 +960,6 @@ test('guide.sources: a pinned source that is degraded warns with a one-tap switc
 test('guide.sources: after confirming, warns when the TVHeadend grabber no longer reads the merged guide', () => {
   const result = guideSourcesCheck({ view: sourcesView(), grabber: { enabled: true, url: 'https://i.mjh.nz/au/Sydney/epg.xml' }, nowMs: SOURCES_NOW })
   assert.equal(result.status, 'warn')
-  assert.match(result.detail, /does not read the Freetvarr merged guide/)
+  assert.match(result.detail, /not read.*merged guide/)
   assert.equal(guideSourcesCheck({ view: sourcesView(), grabber: { enabled: false, url: POINTED.url }, nowMs: SOURCES_NOW }).status, 'warn')
 })

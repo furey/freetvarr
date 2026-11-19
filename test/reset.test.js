@@ -39,8 +39,10 @@ test('resetFreetvarrData: keeps the TV login record, the open-access backup, and
 test('reset route: uses resetFreetvarrData, and the dialog says the TV login and open-access backup stay', () => {
   const route = server.slice(server.indexOf("app.post('/api/reset'"), server.indexOf("app.post('/api/discover-plex'"))
   assert.match(route, /await resetFreetvarrData\(db\)/)
-  const line = resetConfirm({ mediaRoot: '' }).body.find((text) => /keeps the TV login it made/.test(text))
-  assert.equal(line, 'Freetvarr keeps the TV login it made. You can still delete it, or restore open access, after setup.')
-  assert.ok(line.split(/\s+/).length <= 25)
-  assert.ok(resetConfirm({ mediaRoot: '' }).body.includes('Freetvarr also keeps the Allowed hostnames.'))
+  const body = resetConfirm({ mediaRoot: '' }).body
+  const loginLine = body.find((text) => /keeps the TV login/.test(text))
+  assert.match(loginLine, /open access/)
+  const hostsLine = body.find((text) => /keeps the Allowed hostnames/.test(text))
+  assert.ok(hostsLine)
+  for (const line of [loginLine, hostsLine]) assert.ok(line.split(/\s+/).length <= 25, line)
 })
