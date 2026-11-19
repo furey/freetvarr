@@ -1,6 +1,6 @@
 {
   "name": "freetvarr",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "author": "James Furey (https://about.me/jamesfurey)",
   "description": "A self-hosted companion for TVHeadend and compatible tuners: watch live TV in the browser, browse the guide, schedule recordings, and sync them into your media library.",
   "license": "GPL-3.0-or-later",
@@ -65,7 +65,7 @@
     "csrf-csrf": "^3.0.6",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
-    "fast-xml-parser": "5.11.1",
+    "fast-xml-parser": "5.12.0",
     "fuse.js": "^7.0.0",
     "helmet": "^8.0.0",
     "hls.js": "1.7.3",
