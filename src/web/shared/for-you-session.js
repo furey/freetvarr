@@ -309,7 +309,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
 
 const playReady = async (item) => {
   const episode = await api('GET', `/api/library/shows/${encodeURIComponent(showKeyOf(item.title))}`)
-    .then((show) => episodeById({ show, recordingId: item.recordingId }))
+    .then((show) => ({ ...episodeById({ show, recordingId: item.recordingId }), kind: show?.kind }))
     .catch(() => null)
   if (episode?.playable) return playRecording(recordingRowOf(episode))
   window.location.hash = showHrefOf(item.title)

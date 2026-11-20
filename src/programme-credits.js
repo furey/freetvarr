@@ -6,6 +6,7 @@ import { artworkKindOf, TMDB_FIRST_SAVED_AFTER_MS } from './artwork-match.js'
 import { linkHealth } from './link-health.js'
 import { lookupAllowed } from './lookup-gate.js'
 import { externalIdsOf, idKeyedCacheKeyOf } from './external-ids.js'
+import { createWikidataFilmCredits } from './wikidata-film-credits.js'
 import {
   lookupCacheKeyOf,
   createBackgroundLookups,
@@ -44,14 +45,13 @@ export const createProgrammeCredits = ({
   isAllowed = lookupAllowed,
   missesBeforeMs = 0,
 } = {}) => {
-  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, staleBeforeMs, isAllowed, missesBeforeMs })
+  const lookups = createBackgroundLookups({ lookUp, cache, hintsFor, now, hitTtlMs, missTtlMs, failureBackoffMs, lookupLimiter, waitMs, isOutdated: lacksDetails, staleBeforeMs, isAllowed, missesBeforeMs })
 
   const settingsFor = async ({ title, kind, year }) => {
     const key = showTitleKey(title)
-    if (!key || !(await creditsEnabled())) return null
+    if (!key) return null
     const apiKey = await tmdbKey()
     const creditsKind = artworkKindOf(kind)
-    if (creditsKind && !apiKey) return null
     const ids = await externalIdsOf({ externalIdsFor, title, kind: creditsKind })
     const filmYear = creditsKind && !ids ? year : null
     const cacheKey = idKeyedCacheKeyOf({ cacheKey: lookupCacheKeyOf({ mode: apiKey ? 'tmdb' : 'open', kind: creditsKind, key, year: filmYear }), ids })
@@ -59,6 +59,7 @@ export const createProgrammeCredits = ({
   }
 
   const creditsFor = async (title, { kind = null, year = null } = {}) => {
+    if (!(await creditsEnabled())) return CREDITS_OFF
     const settings = await settingsFor({ title, kind, year })
     if (!settings) return NO_CREDITS
     const { status, found } = await lookups.foundFor({ title, ...settings })
@@ -77,8 +78,9 @@ export const createProgrammeCredits = ({
   return { creditsFor, forget }
 }
 
-export const createCreditsLookup = ({ matcher = createTitleMatcher() } = {}) => {
+export const createCreditsLookup = ({ matcher = createTitleMatcher(), wikidataFilm = createWikidataFilmCredits() } = {}) => {
   const filmCredits = async ({ title, hints, apiKey, year, ids }) => {
+    if (!apiKey) return wikidataCreditsShownOf(await wikidataFilm({ title, hints, year }))
     const details = await matcher.matchedFilm({ title, hints, apiKey, year, ids })
     return details ? filmCreditsOf(details) : null
   }
@@ -95,7 +97,7 @@ export const createCreditsLookup = ({ matcher = createTitleMatcher() } = {}) => 
     const crew = await matcher.tvmazeGet(`/shows/${encodeURIComponent(show.id)}/crew`)
     const details = fromTmdb || (apiKey ? await matcher.tmdbShow({ title, show, apiKey, ids }) : null)
     const overview = plainTextOf(show.summary) || plainTextOf(details?.overview)
-    return seriesCreditsOf({ show, cast, crew, overview, currentCast: details?.credits?.cast })
+    return seriesCreditsOf({ show, cast, crew, overview, currentCast: details?.credits?.cast, tmdbDetails: details })
   }
 
   return async ({ title, kind, hints, apiKey, year = null, ids = null }) => (artworkKindOf(kind)
@@ -109,6 +111,13 @@ export const filmCreditsOf = (details) => creditsOrNull({
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
     .map(tmdbCastMemberOf),
   crew: crewOf({ people: (details.credits?.crew || []).map(tmdbCrewMemberOf), roles: FILM_CREW_ROLES }),
+  details: detailsOf({
+    company: details.production_companies?.[0]?.name,
+    date: details.release_date,
+    genres: details.genres,
+    minutes: details.runtime,
+    language: languageNameOf(details.original_language),
+  }),
   source: 'tmdb',
   url: `${TMDB_WEB}/movie/${details.id}`,
 })
@@ -125,6 +134,7 @@ export const tmdbSeriesCreditsOf = (details) => creditsOrNull({
     ],
     roles: SERIES_CREW_ROLES,
   }),
+  details: tmdbSeriesDetailsOf(details),
   source: 'tmdb',
   url: `${TMDB_WEB}/tv/${details.id}`,
 })
@@ -149,12 +159,13 @@ export const isPersonImageSource = (source) => {
   }
 }
 
-export const seriesCreditsOf = ({ show, cast, crew, overview = null, currentCast = null }) => creditsOrNull({
+export const seriesCreditsOf = ({ show, cast, crew, overview = null, currentCast = null, tmdbDetails = null }) => creditsOrNull({
   overview: overview || null,
   cast: currentCast?.length
     ? [...currentCast].sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity)).map(tmdbCastMemberOf)
     : (Array.isArray(cast) ? cast : []).map(tvmazeCastMemberOf),
   crew: crewOf({ people: (Array.isArray(crew) ? crew : []).map(tvmazeCrewMemberOf), roles: SERIES_CREW_ROLES }),
+  details: tvmazeDetailsOf({ show, tmdbDetails }),
   source: 'tvmaze',
   url: show.url || null,
 })
@@ -174,10 +185,62 @@ export const httpsImageOf = (url) => {
   return text.startsWith('http://') ? `https://${text.slice('http://'.length)}` : null
 }
 
-const creditsOrNull = ({ overview, cast, crew, source, url }) => {
+const wikidataCreditsShownOf = (found) => (found
+  ? creditsOrNull({ ...found, details: found.details ? detailsOf({ ...found.details, date: String(found.details.year || '') }) : null })
+  : null)
+
+export const lacksDetails = (found) => Boolean(found) && !('details' in found)
+
+export const detailsOf = ({ company = null, date = null, genres = [], minutes = null, language = null }) => {
+  const year = Number(String(date || '').slice(0, 4))
+  const named = (Array.isArray(genres) ? genres : [])
+    .map((genre) => String(typeof genre === 'string' ? genre : genre?.name || '').trim())
+    .filter(Boolean)
+    .slice(0, MAX_GENRES)
+  const shown = {
+    company: String(company || '').trim() || null,
+    year: year > 1800 ? year : null,
+    genres: named,
+    minutes: Number(minutes) > 0 ? Math.round(Number(minutes)) : null,
+    language: String(language || '').trim() || null,
+  }
+  return shown.company || shown.year || shown.genres.length || shown.minutes || shown.language ? shown : null
+}
+
+export const languageNameOf = (code) => {
+  const text = String(code || '').trim()
+  if (!/^[a-z]{2,3}$/i.test(text)) return null
+  try {
+    const name = LANGUAGE_NAMES.of(text.toLowerCase())
+    return name && name.toLowerCase() !== text.toLowerCase() ? name : null
+  } catch {
+    return null
+  }
+}
+
+const tmdbSeriesDetailsOf = (details) => detailsOf({
+  company: details.networks?.[0]?.name,
+  date: details.first_air_date,
+  genres: details.genres,
+  minutes: details.episode_run_time?.[0],
+  language: languageNameOf(details.original_language),
+})
+
+const tvmazeDetailsOf = ({ show, tmdbDetails }) => {
+  const fromTvmaze = detailsOf({
+    company: show.network?.name || show.webChannel?.name,
+    date: show.premiered,
+    genres: show.genres,
+    minutes: show.averageRuntime || show.runtime,
+    language: show.language,
+  })
+  return fromTvmaze || (tmdbDetails ? tmdbSeriesDetailsOf(tmdbDetails) : null)
+}
+
+const creditsOrNull = ({ overview, cast, crew, details = null, source, url }) => {
   const billed = uniqueBy(cast.filter((person) => person.name), (person) => person.url || person.name).slice(0, MAX_CAST)
   if (!overview && !billed.length && !crew.length) return null
-  return { overview, cast: billed, crew, source, url }
+  return { overview, cast: billed, crew, details: details || null, source, url }
 }
 
 const crewOf = ({ people, roles }) => roles.flatMap(({ job, matches, limit }) =>
@@ -213,9 +276,12 @@ const uniqueBy = (items, keyOf) => {
   })
 }
 
-const NO_CREDITS = { status: 'none', overview: null, cast: [], crew: [], source: null, url: null }
+const NO_CREDITS = { status: 'none', overview: null, cast: [], crew: [], details: null, source: null, url: null }
 const PENDING_CREDITS = { ...NO_CREDITS, status: 'pending' }
+const CREDITS_OFF = { ...NO_CREDITS, off: true }
 const MAX_CAST = 12
+const MAX_GENRES = 3
+const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' })
 const PERSON_IMAGE_PATHS = [
   { host: 'image.tmdb.org', prefix: '/t/p/w185/' },
   { host: 'static.tvmaze.com', prefix: '/uploads/images/' },

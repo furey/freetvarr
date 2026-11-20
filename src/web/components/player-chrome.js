@@ -3,6 +3,7 @@ import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { soundToggleOf, playerMenuItemsOf, baseRowButtonsOf, NO_CAPTIONS_ON_CHANNEL } from '/player-mute.js'
 import { marqueePlanOf, marqueeKeepsGoing, marqueeTextChangeOf } from '/marquee.js'
 import { scrubPillShownOf } from '/player-labels.js'
+import { MoreInfo } from '/components/more-info.js'
 import {
   topBarActionsOf,
   topBarLayoutOf,
@@ -481,4 +482,5 @@ export const PLAYER_CHROME_COMPONENTS = {
   'player-scrubber': PlayerScrubber,
   'player-base-row': PlayerBaseRow,
   'marquee-text': MarqueeText,
+  'more-info': MoreInfo,
 }

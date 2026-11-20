@@ -72,6 +72,7 @@ Press the **Programme info** button, at the bottom right of the player, to show 
 - The start and end times, and how much of the programme has played.
 - The genre, the classification, and the start of the description.
 - The programme that is on next, and when it starts.
+- **More info**: the cast, crew, and details of the programme, as in the [programme sheet](/guide/tv-guide#recording-a-programme). Scroll the panel to see them all.
 
 On a wide screen, the panel also shows the programme picture. While you watch from the [rewind buffer](#pause-and-rewind), the panel describes what you are watching, not what is on air, and reads `FROM BUFFER`. The title at the top of the player changes when a new programme starts. If the guide has nothing for the channel, the panel says so.
 

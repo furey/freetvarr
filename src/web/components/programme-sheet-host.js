@@ -20,6 +20,8 @@ import { holdAtLeast } from '/pending.js'
 import { findHdSimulcast } from '/simulcast.js'
 import { recordedMsOf, stopConfirmOf, stopRecordingOutcome } from '/stop-recording.js'
 import { ActionConfirm, MenuIcon } from '/components/library-menus.js'
+import { MoreInfo } from '/components/more-info.js'
+import { guideDetailsOf } from '/more-info.js'
 import { movieChoiceIconOf, movieChoiceLabelOf } from '/movie-choice.js'
 import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { useForYouActions } from '/shared/for-you-session.js'
@@ -63,7 +65,7 @@ import { showInGuide } from '/shared/store.js'
 import { dateFormat, fmtClockTz, now, tz } from '/shared/time.js'
 
 export const ProgrammeSheetHost = {
-  components: { ActionConfirm, MenuIcon },
+  components: { ActionConfirm, MenuIcon, MoreInfo },
   template: `
     <teleport to="body">
     <transition name="ui-sheet">
@@ -84,6 +86,8 @@ export const ProgrammeSheetHost = {
         </div>
         <p v-if="selected.program.synopsis" class="programme-sheet-synopsis">{{ selected.program.synopsis }}</p>
         <programme-review-card v-if="ratingReview" :key="selected.program.title" :review="ratingReview" />
+        <more-info :key="[selected.program.program_id, selected.program.title, selected.program.start].join('|')" :title="selected.program.title" :kind="selected.program.kind" :year="selected.program.year ?? null"
+          :guide="guideDetailsOf(selected.program)" />
         <div :class="['programme-sheet-actions', { 'is-ready': sheetReady }]" :aria-busy="String(!sheetReady)">
         <p v-if="selectedRepeatNotice" class="ui-banner is-warning" role="status">{{ selectedRepeatNotice }}</p>
         <p v-else-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
@@ -875,7 +879,7 @@ export const ProgrammeSheetHost = {
     })
 
     return {
-      pendingActionLabelOf, ANY_CHANNEL_HINT,
+      pendingActionLabelOf, ANY_CHANNEL_HINT, guideDetailsOf,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
       canWatchLive, watchSelected, fromStartRecording, fromStartLine, watchSelectedFromStart, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind, dislikeItems, chooseDislike,
       modalStatusText, modalStatusKind,
