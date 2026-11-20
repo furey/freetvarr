@@ -454,7 +454,7 @@ After a successful apply, the server clears the guide cache now and again after 
 
 `createGuideMerge` in `src/guide-merge.js` builds `guide/merged.xml.gz` in the config folder `3` min after start, every `6` h, and after a successful `POST /api/tvh-guide/apply`. One build runs at a time; a request during a build runs one more build after it. `firstBuild()` gives a promise that settles when the first build ends, also when it fails or there is no plan.
 
-Each build writes the file in up to two passes:
+When `merged.json` names the regions of the current plan (`matchesPlan`), a build reads every window and writes the file once, so a complete file is never replaced by a partial one. Otherwise (no file yet, or a file for another region) the build writes the file in up to two passes:
 
 1. The near pass reads the primary windows that start in the next `2` days (`NEAR_BUILD_MS`) and takes each later window from memory, also when it expired (up to `3` days after its fetch). It writes the file. A later window that is missing or expired counts as pending.
 2. When the near pass has pending windows, the full pass reads them, then writes the file again. Only this pass saves the [source health](#source-health) and the fallback items, so a near pass with a short horizon never marks a source as below.

@@ -293,7 +293,6 @@ test('last good file: a build where every source fails keeps the earlier merged 
   const sources = sydneySources()
   const first = await writeMergedGuide({ dir, ...sources, tvChannels: SEVEN_SD_UNLINKED, now: () => NOW })
   assert.equal(first.programmes, 4)
-  const before = await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))
   const down = new Error('HTTP 503')
   const failing = {
     primary: { ...sources.primary, source: { ...sources.primary.source, channels: async () => { throw down } } },
@@ -390,7 +389,7 @@ const nearFirstMerge = async ({ primary, health = null }) => {
   return { merge, dir, lines }
 }
 
-test('near first: a build writes the next two days first, then reads the later windows in time order and writes again; only the full build saves health', async () => {
+test('near first: with no merged file yet, a build writes the next two days first, then reads the later windows in time order and writes again; only the full build saves health', async () => {
   const reads = []
   const saved = []
   const health = { history: async () => new Map(), save: async ({ rows }) => saved.push(rows) }
@@ -412,6 +411,28 @@ test('near first: with every later window already fresh, one build writes once',
   const { merge } = await nearFirstMerge({ primary: nearFirstPrimary({ reads, pendingUntilFull: false }) })
   await merge.requestBuild()
   assert.deepEqual(reads.filter((read) => read.channel).map((read) => read.fetchUntil), [NOW + 2 * DAY])
+})
+
+test('near first: with a merged file for this plan already written, the build skips the near pass and writes once in full', async () => {
+  const reads = []
+  const { merge, dir } = await nearFirstMerge({ primary: nearFirstPrimary({ reads }) })
+  await merge.requestBuild()
+  const before = await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))
+  const laterReads = []
+  const sources = sydneySources()
+  const restarted = createGuideMerge({
+    dir,
+    sources: { forCountry: (country) => (country === 'au' ? [nearFirstPrimary({ reads: laterReads }), sources.secondary.source] : []) },
+    timeZone: () => 'Australia/Sydney',
+    channelTriplets: async () => ({ linked: new Map(), tvChannels: null }),
+    now: () => NOW,
+    log: { log: () => {}, warn: () => {} },
+  })
+  await restarted.requestBuild()
+  assert.deepEqual(laterReads.filter((read) => read.channel).map((read) => read.fetchUntil), [Infinity])
+  assert.deepEqual(laterReads.filter((read) => read.to !== undefined).map((read) => read.to), [NOW + 9 * DAY])
+  const xml = zlib.gunzipSync(await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))).toString('utf8')
+  assert.ok(programmesOf(xml).some((programme) => programme.title === 'Late Film'), 'the complete file is never replaced by a near-only one')
 })
 
 test('first build: the promise settles once the first build after start ends, also when it fails or there is no plan', async () => {

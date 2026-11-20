@@ -64,7 +64,7 @@ export const createGuideMerge = ({
     const startedAt = now()
     const writeUpTo = (fetchUntil) => writeMergedGuide({ dir, ...plan, channelTriplets: triplets.linked, tvChannels: triplets.tvChannels, aliases, history, choice, now, fetchUntil })
     try {
-      const near = await writeUpTo(now() + nearMs)
+      const near = await writeUpTo((await matchesPlan()) ? Infinity : now() + nearMs)
       if (near.primaryPendingWindows) log.log(`[guide-merge] wrote the next ${Math.round(nearMs / HOUR_MS)} h first; reading ${near.primaryPendingWindows} later windows now`)
       const final = near.primaryPendingWindows ? withPassCounts({ near, full: await writeUpTo(Infinity) }) : near
       const { fallbacks, healthRows, ...stats } = final
