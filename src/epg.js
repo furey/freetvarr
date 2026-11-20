@@ -58,6 +58,7 @@ import {
   WEAK_STAGE,
 } from './art-resolver.js'
 import { PROGRAMME_STAMP_KIND, createProgrammeStamps } from './programme-stamps.js'
+import { createAiringMemory, forgetAiringsOnArtChanges } from './airing-memory.js'
 import { UNKNOWN_AD_PLAN, adPlanOf, createFrameGrabs, downloadAdPlanOf, frameOriginOf, framePreferenceOrderOf, retryFileOf } from './frame-grabs.js'
 import { isAdJobRunning, onAdScanResult } from './commercials.js'
 import { artFeed } from './art-feed.js'
@@ -887,16 +888,34 @@ export const getProgrammeThumbnail = async (options) => (await findProgrammeThum
 export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, width } = {}) => {
   const programme = await programmeImageSources({ eventId, fallbackSource })
   if (!programme.title && !programme.own) return NO_IMAGE
-  const resolution = await artResolver.resolve({
+  const resolveAiring = () => artResolver.resolve({
     title: programme.title,
     kind: programme.kind,
     eventId,
     ownSource: programme.own,
     sameTitleSources: programme.sameTitle,
     freeviewFirst: freeviewAu.isOn(),
+    load: thumbnailFirstLoad(width),
   })
-  return imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE })
+  return airingImageOf({
+    resolve: resolveAiring,
+    render: (resolution) => imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE }),
+    forget: () => artResolver.forgetAiring(eventId),
+  })
 }
+
+export const airingImageOf = async ({ resolve, render, forget }) => {
+  const resolution = await resolve()
+  const found = await render(resolution)
+  if (found.image || found.pending || !resolution.remembered) return found
+  forget()
+  return render(await resolve())
+}
+
+const thumbnailFirstLoad = (width) => (origin) => pictureGate.loadUnlessCached({
+  origin,
+  isCached: () => thumbnailStore.has({ key: resolvedThumbnailKeyOf({ origin, transform: 'none', shape: LANDSCAPE_SHAPE }), width }),
+})
 
 export const findEpisodeThumbnail = async ({ recordingId, width, loadRow = recordingRowOf, episodeOrder = episodePictureOrder } = {}) => {
   const row = await Promise.resolve().then(() => loadRow(recordingId)).catch(() => null)
@@ -1009,7 +1028,7 @@ export const isEpisodeArtWarm = async ({ recordingId, width, loadRow = recording
   return true
 }
 
-export const isArtSourceWarm = ({ source, width }) => thumbnailStore.has({ key: showThumbnailKeyOf(source), width })
+export const isArtOriginWarm = ({ origin, width }) => thumbnailStore.has({ key: showThumbnailKeyOf(origin), width })
 
 const titleArtStateOf = async ({ title, width }) => {
   const peeked = await artResolver.peek({ title, shape: LANDSCAPE_SHAPE })
@@ -1037,7 +1056,16 @@ const shapeOf = (shape) => (shape === POSTER_SHAPE ? POSTER_SHAPE : LANDSCAPE_SH
 
 const resolvedThumbnailKeyOf = ({ origin, transform, shape }) => `art:${shape}:${transform}:${origin}`
 
-export const findArtSourceThumbnail = ({ source, width }) => showThumbnailLoader(width)(source)
+export const findArtOriginThumbnail = ({ origin, width, sourceOf, thumbnails = thumbnailStore }) => pictureGate.servedThumbnail({
+  origin,
+  thumbnails,
+  key: showThumbnailKeyOf(origin),
+  width,
+  loadOriginal: async () => {
+    const source = await sourceOf()
+    return source ? showArtOriginal(source) : null
+  },
+})
 
 export const artworkOriginImage = ({ origin, kind, width }) => thumbnailStore.thumbnailFor({
   key: `chosen-1080:${kind}:${origin}`,
@@ -1416,15 +1444,7 @@ const artworkHintsFor = async (title) => {
   return library ? { ...guide, inLibrary: true } : guide
 }
 
-const showThumbnailKeyOf = (source) => `show-1080:${source}`
-
-const showThumbnailLoader = (width) => (source) => pictureGate.servedThumbnail({
-  origin: source,
-  thumbnails: thumbnailStore,
-  key: showThumbnailKeyOf(source),
-  width,
-  loadOriginal: () => showArtOriginal(source),
-})
+const showThumbnailKeyOf = (origin) => `show-1080:${origin}`
 
 const resolveWithin = (promise, ms) => Promise.race([
   promise,
@@ -1847,6 +1867,8 @@ const displayKindsByGuide = new WeakMap()
 const overridesCache = { value: new Map(), expiresAt: 0 }
 const titleKindStore = createTitleKindStore({ onChange: (changes) => markKindChangesDue(changes) })
 onAdScanResult((result) => refreshFrameAfterAdScan(result))
+const airingMemory = createAiringMemory()
+forgetAiringsOnArtChanges({ feed: artFeed, memory: airingMemory })
 const artResolver = createArtResolver({
   stages: {
     choice: async (ctx) => ({ sources: [await chosenOriginOf(ctx)].filter(Boolean) }),
@@ -1871,6 +1893,8 @@ const artResolver = createArtResolver({
   settingsKeyOf: onlineSettingsKey,
   onResolved: announceResolvedArt,
   onMarkedDue: (changes) => announcePictureChanges({ changes }),
+  airingMemory,
+  verdictOf: (origin) => pictureGate.knownVerdict(origin),
 })
 export const resolvedArtStamps = async () => {
   const [titles, programme] = await Promise.all([
