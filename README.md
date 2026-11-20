@@ -70,7 +70,7 @@ Freetvarr runs in [Docker](https://docs.docker.com/) on a computer that stays on
 
 A walkthrough of the app: Home, Live TV, the TV guide, and Recordings.
 
-<https://github.com/user-attachments/assets/a571ba9b-0077-4004-8f97-b73ad2d8b0a9>
+<https://github.com/user-attachments/assets/4b70e1ca-fcbd-4f7e-8742-bb8f6e8a877d>
 
 The one-line install, from the `curl` command to the address of the setup wizard.
 
@@ -399,6 +399,7 @@ This project:
 
 - Is licensed under the [GNU GPLv3 License](./LICENSE).
 - Is not affiliated with or endorsed by [SiliconDust](https://www.silicondust.com/), TVHeadend, Plex, Sonarr, Radarr, or Fetch TV.
+- Shows titles and artwork in its screenshots and videos that belong to their owners and appear for demonstration only. It is not affiliated with any broadcaster, studio, or Fetch TV. This product uses the [TMDB](https://www.themoviedb.org) API but is not endorsed or certified by TMDB.
 - Began as a fork of [Fetcharr](https://github.com/furey/fetcharr), with the Fetch TV backend replaced by TVHeadend.
 - Is written with the assistance of AI and may contain errors.
 - Is intended for educational and experimental purposes only.

@@ -1,10 +1,18 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { loopbackRouterOf } from './capture-loopback.mjs'
 
 export const TIMEZONE = process.env.TZ || 'Australia/Sydney'
+
+export const requiredEnv = (name) => {
+  const value = process.env[name]
+  if (!value) throw new Error(`set ${name}; source scripts/demo-pack/pack-env.sh`)
+  return value
+}
+
+export const OFFLINE_BROWSER_ARGS = ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost']
 
 export const simulatedNow = () => {
   const offset = Number(process.env.CAPTURE_CLOCK_OFFSET_MS)
@@ -20,7 +28,7 @@ export const simulatedNow = () => {
 
 export const prepareDemoContext = async ({ context, base, simNow }) => {
   loopbackRouterOf(base)?.reset()
-  const guide = withoutPlaceholderPictures(withLiveDemoSlot(simNow)(await fetchJson({ request: context.request, url: `${base}/api/epg/guide?day=0` })))
+  const guide = withLiveDemoSlot(simNow)(await fetchJson({ request: context.request, url: `${base}/api/epg/guide?day=0` }))
   const picks = await pickShowcase({ request: context.request, base, guide, simNow })
   const state = await fetchJson({ request: context.request, url: `${base}/api/epg/state` })
   const fixtures = demoFixtures({ simNow, picks })
@@ -379,25 +387,11 @@ const LIVE_DEMO_PROGRAMME = {
   has_image: true,
   classification: 'PG',
 }
-const PLACEHOLDERS_FILE = process.env.CAPTURE_PLACEHOLDERS_FILE
-  || join(import.meta.dirname, '.cache/capture-server/placeholder-pictures.txt')
-const placeholderTitles = existsSync(PLACEHOLDERS_FILE)
-  ? new Map(readFileSync(PLACEHOLDERS_FILE, 'utf8').split('\n').filter(Boolean).map((line) => {
-    const [id, title, swap] = line.split('\t')
-    return [id, { title, hasShowPicture: swap === 'show' }]
-  }))
-  : new Map()
-const PROGRAMME_IMAGES = /\/api\/epg\/image\/([^/?\s",]+)(\?[^\s",]*)?/g
-const HERO_SHOWCASE = (process.env.HERO_SHOWCASE ?? 'Big Brother|The Witches Of Eastwick|Civil War|Seven|Vera')
+const HERO_SHOWCASE = (process.env.HERO_SHOWCASE ?? '')
   .split('|')
   .map((title) => title.trim())
   .filter(Boolean)
 const GUIDE_PICK_TYPES = ['for-you', 'top-rated']
-const HIDDEN_TITLES = new Set((process.env.HIDDEN_TITLES ?? 'Manuka Honey Spring Renewal|Pawn Stars|Summer In The Isles Of Scilly|Millionaire Hot Seat|Millionaire Hot Seat Encore|Rugby League World Cup 2026|Jeopardy!|Anthony Bourdain: A Cook\'s Tour|Bargain Hunt|Bargain Block|Bargain Mansions|Flower & Flour|Go!|Scrapper|Interview With The Vampire|Bring Her Home')
-  .split('|')
-  .map((title) => title.trim().toLowerCase())
-  .filter(Boolean))
-const KEEPS_EVERY_TITLE = /^\/api\/(epg\/guide|epg\/state|home\/hero)/
 const HERO_ORDER_SOURCE = 'export const hourlyOrderOf = ('
 const HERO_ORDER_KEPT = 'export const hourlyOrderOf = ({ candidates = [] }) => candidates\nconst remixedOrderOf = ('
 const DEMO_PREFS = {
@@ -451,16 +445,16 @@ const pickShowcase = async ({ request, base, guide, simNow }) => {
 const isFilmChoice = (p) => p.kind === 'movie' && p.movieChoice
 
 const upNextAll = ({ guide, simNow, fits, windowMs = 3 * HOUR_MS }) => {
-  const channels = visibleChannels(guide)
+  const channels = visibleChannels(guide).filter((channel) => !isLiveDemoChannel(channel))
   return [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
     .flatMap((channel) => programsOf(guide, channel)
-      .filter((p) => p.start > simNow && p.start < simNow + windowMs && hasRealPicture(p) && !isHiddenEntry(p) && fits(p))
+      .filter((p) => p.start > simNow && p.start < simNow + windowMs && p.has_image && fits(p))
       .slice(0, 1)
       .map((program) => ({ channel, program })))
 }
 
 const onAirWithImage = ({ guide, simNow }) => visibleChannels(guide).flatMap((channel) => {
-  const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && hasRealPicture(p) && p.kind !== 'movie')
+  const program = programsOf(guide, channel).find((p) => airsAt(p, simNow) && p.has_image && p.kind !== 'movie')
   return program ? [{ channel, program }] : []
 })
 
@@ -477,7 +471,7 @@ const upNextTitle = ({ guide, simNow }) => {
   const ranked = [...channels.filter((c) => c.pinned), ...channels.filter((c) => !c.pinned)]
   const titles = ranked
     .map((channel) => nowAndNext(programsOf(guide, channel), simNow).next)
-    .filter((p) => p?.has_image && !isHiddenEntry(p) && (p.title || '').length <= SEARCH_TITLE_MAX)
+    .filter((p) => p?.has_image && (p.title || '').length <= SEARCH_TITLE_MAX)
     .map((p) => p.title)
   return titles[0] ?? null
 }
@@ -507,28 +501,7 @@ const liveDemoPoster = async (route) => {
   const programId = decodeURIComponent(url.pathname.split('/').at(-1))
   const isLiveDemo = liveDemoProgramIds.has(programId) || url.searchParams.get('title') === LIVE_DEMO_PROGRAMME.title
   if (isLiveDemo && existsSync(LIVE_DEMO_POSTER)) return route.fulfill({ path: LIVE_DEMO_POSTER, contentType: 'image/jpeg' })
-  const placeholder = placeholderTitles.get(programId)
-  if (!placeholder) return route.fallback()
-  if (!placeholder.hasShowPicture) return route.fulfill({ status: 404, headers: { 'cache-control': 'no-store', 'x-art-state': 'final' }, body: '' })
-  const showImage = withShowImages(`${url.pathname}${url.search}`)
-  return route.fulfill({ response: await route.fetch({ url: new URL(showImage, url).href }) })
-}
-
-const hasRealPicture = (programme) => programme.has_image && !placeholderTitles.has(String(programme.program_id))
-
-const withShowImages = (text) => text.replace(PROGRAMME_IMAGES, (path, id, query = '') => {
-  const { title, hasShowPicture } = placeholderTitles.get(decodeURIComponent(id)) ?? {}
-  return hasShowPicture ? `/api/epg/show-image?title=${encodeURIComponent(title)}${query.replace(/^\?/, '&')}` : path
-})
-
-const withoutPlaceholderPictures = (value) => {
-  if (!placeholderTitles.size) return value
-  if (typeof value === 'string') return withShowImages(value)
-  if (Array.isArray(value)) return value.map(withoutPlaceholderPictures)
-  if (!value || typeof value !== 'object') return value
-  const swapped = Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, withoutPlaceholderPictures(entry)]))
-  const placeholder = value.has_image && placeholderTitles.get(String(value.program_id))
-  return placeholder && !placeholder.hasShowPicture ? { ...swapped, has_image: false } : swapped
+  return route.fallback()
 }
 
 const prepareLiveDemoPoster = () => {
@@ -911,7 +884,7 @@ const passThroughRead = ignoreClosed(async (route) => {
   if (!type.includes('application/json')) return route.fulfill({ response })
   const text = maskPaths(await response.text())
   if (!response.ok()) return route.fulfill({ response, body: text })
-  return route.fulfill({ response, body: JSON.stringify(withoutPlaceholderPictures(withoutHiddenTitles(JSON.parse(text), new URL(request.url())))) })
+  return route.fulfill({ response, body: text })
 })
 
 const rememberImage = ({ url, response, body }) => {
@@ -931,12 +904,12 @@ const epgImagePathsOf = (value) => {
 const FOR_YOU_MIN_ROW = 5
 
 const withoutArtlessItems = ({ base }) => async (served) => {
-  const data = withoutPlaceholderPictures(served)
+  const data = served
   const paths = [...new Set(epgImagePathsOf(data))]
   const statuses = await Promise.all(paths.map(async (path) => [path, (await fetch(`${base}${path}`)).ok]))
   const missing = new Set(statuses.filter(([, ok]) => !ok).map(([path]) => path))
   const prune = (value) => {
-    if (Array.isArray(value)) return value.filter((entry) => !missing.has(entry?.image) && !isHiddenEntry(entry)).map(prune)
+    if (Array.isArray(value)) return value.filter((entry) => !missing.has(entry?.image)).map(prune)
     if (!value || typeof value !== 'object') return value
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, prune(entry)]))
   }
@@ -949,22 +922,6 @@ const withoutArtlessItems = ({ base }) => async (served) => {
   return { ...pruned, sections, topPick }
 }
 
-const withoutHiddenTitles = (data, url) => {
-  if (!HIDDEN_TITLES.size || KEEPS_EVERY_TITLE.test(url.pathname)) return data
-  const prune = (value) => {
-    if (Array.isArray(value)) return value.filter((entry) => !isHiddenEntry(entry)).map(prune)
-    if (!value || typeof value !== 'object') return value
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, prune(entry)]))
-  }
-  return prune(data)
-}
-
-const isHiddenEntry = (entry) => {
-  if (!entry || typeof entry !== 'object') return false
-  const titles = [entry.title, entry.name, entry.showTitle, entry.show_title, entry.now?.title, entry.item?.title, entry.program?.title, entry.episode?.showTitle]
-  return titles.some((title) => typeof title === 'string' && HIDDEN_TITLES.has(title.toLowerCase()))
-}
-
 const rewriteJson = (transform) => ignoreClosed(async (route) => {
   const url = new URL(route.request().url())
   const response = await route.fetch()
@@ -975,7 +932,7 @@ const rewriteJson = (transform) => ignoreClosed(async (route) => {
   } catch {
     return route.fulfill({ response })
   }
-  return fulfillJson(route, withoutPlaceholderPictures(withoutHiddenTitles(await transform(data, url), url)))
+  return fulfillJson(route, await transform(data, url))
 })
 
 const withHeroShowcase = ({ guide, upcoming, simNow }) => (data) => {
@@ -997,6 +954,8 @@ const withHeroShowcase = ({ guide, upcoming, simNow }) => (data) => {
   const chosenTitles = new Set(chosen.map((c) => c.art?.title))
   const rest = settled.filter((c) => !chosenTitles.has(c.art?.title))
   console.log(`  hero showcase: ${chosen.map((c) => `${c.art?.title} (${c.type})`).join(', ') || 'none found'}`)
+  const missing = HERO_SHOWCASE.filter((title) => !chosenTitles.has(title))
+  if (missing.length) throw new Error(`hero showcase titles missing from the guide: ${missing.join(', ')}`)
   return { ...data, candidates: [...chosen, ...rest] }
 }
 

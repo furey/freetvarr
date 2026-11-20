@@ -8,16 +8,15 @@ Chrome renders each frame on demand (`HeadlessExperimental.beginFrame`) with vir
 
 - Docker, with the `mcr.microsoft.com/playwright:v1.60.0-jammy` image (it supplies `chrome-headless-shell`)
 - Host `node`, `ffmpeg`, and `curl`
-- A TVHeadend to read the TV guide from (read-only)
+- The demo pack cache (`scripts/demo-pack/fetch-demo-pack.mjs` fills it; the server start runs it)
 - `gh`, signed in, to upload the result
 
 ## Run
 
-1. Start the capture server with the curated library, and leave it running:
+1. Start the capture server from the demo pack, and leave it running:
 
    ```bash
-   TVH_UPSTREAM=http://192.168.1.50:9981 TVH_CREDENTIALS_FILE=tvh-credentials.txt \
-     ./scripts/capture-demo-beginframe/start-server.sh
+   ./scripts/capture-demo-beginframe/start-server.sh
    ```
 
 2. In a second terminal, record and encode the demo:
@@ -47,20 +46,19 @@ ffmpeg -y -i scripts/.cache/hero/hero.mp4 -vf "fps=12,scale=800:-1:flags=lanczos
 
 ## Settings
 
-| Variable                   | Default                        | Effect                                                                           |
-| -------------------------- | ------------------------------ | -------------------------------------------------------------------------------- |
-| `DEMO_SHOWS`, `DEMO_FILMS` | in `start-server.sh`           | Titles the library can hold, in order, joined by `\|`                            |
-| `HERO_SHOWCASE`            | in `capture.sh`                | Home hero slides, in order                                                       |
-| `HIDDEN_TITLES`            | in `capture.sh`                | Guide titles the demo never shows                                                |
-| `FILM_TITLE`               | `Die Hard`                     | Film recorded from the TV guide                                                  |
-| `SERIES_TITLE`             | `NCIS`                         | Series set to record every episode                                               |
-| `SHOW_TITLE`               | `Home and Away`                | Show page opened from Recordings                                                 |
-| `CAPTURE_PORT`             | `3801`                         | Port of the capture server                                                       |
-| `TOUR`                     | `demo`                         | `demo` for the docs demo, `hero` for `hero.webp`, `record` for `record-demo.mp4` |
-| `RECORD_SERIES_TITLE`      | the next series with a picture | Series set to Every episode in the `record` tour                                 |
-| `HERO_FPS`, `HERO_QUALITY` | `12`, `45`                     | Frame rate and WebP quality of `hero.webp`                                       |
-| `EXTRA_HIDDEN_TITLES`      | none                           | More titles to hide outside the guide grid, joined by `\|`                       |
-| `LIVE_TUNING_MS`           | `1500`, `900` for `hero`       | Time the live channel takes to tune                                              |
+| Variable                   | Default                             | Effect                                                                           |
+| -------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| `DEMO_SHOWS`, `DEMO_FILMS` | `library` in the pack manifest      | Titles the library holds, in order, joined by `\|`                               |
+| `HERO_SHOWCASE`            | `tours.hero` in the pack manifest   | Home hero slides, in order; a missing title stops the capture                    |
+| `FILM_TITLE`               | `tours.film` in the pack manifest   | Film recorded from the TV guide                                                  |
+| `SERIES_TITLE`             | `tours.series` in the pack manifest | Series set to record every episode                                               |
+| `SHOW_TITLE`               | `tours.show` in the pack manifest   | Show page opened from Recordings                                                 |
+| `CAPTURE_PORT`             | `3801`                              | Port of the capture server                                                       |
+| `TOUR`                     | `demo`                              | `demo` for the docs demo, `hero` for `hero.webp`, `record` for `record-demo.mp4` |
+| `RECORD_SERIES_TITLE`      | the next series with a picture      | Series set to Every episode in the `record` tour                                 |
+| `HERO_FPS`, `HERO_QUALITY` | `12`, `45`                          | Frame rate and WebP quality of `hero.webp`                                       |
+| `EXTRA_HIDDEN_TITLES`      | none                                | More titles to hide outside the guide grid, joined by `\|`                       |
+| `LIVE_TUNING_MS`           | `1500`, `900` for `hero`            | Time the live channel takes to tune                                              |
 
 The film, series, and show must air in the guide that night. The seed keeps a curated title only when its poster and backdrop both load, and fails when fewer than six shows or six films pass.
 

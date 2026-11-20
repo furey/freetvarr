@@ -121,7 +121,7 @@ The same show under a longer name does not match: a series recording of `House o
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/settings/system/series">
-  <img src="../img/screenshot-series-drawer.png" alt="The open Big Brother series with Other titles in the guide, listing Big Brother Australia with a switch that is off" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-series-drawer.png" alt="The open Survivor series with Other titles in the guide, listing Survivor Australia with a switch that is off" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

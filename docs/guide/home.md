@@ -116,7 +116,7 @@ Press **Search** in any page header, then type at least two letters. Search cove
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/home">
-  <img src="../img/screenshot-search.png" alt="The Search overlay with young typed in, showing the Recordings, For you, and TV guide groups and a Show all row" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-search.png" alt="The Search overlay with NCIS typed in, showing the Recordings, For you, and TV guide groups and a Show all row" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
