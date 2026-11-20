@@ -897,11 +897,19 @@ export const findProgrammeThumbnail = async ({ eventId, fallbackSource = null, w
     freeviewFirst: freeviewAu.isOn(),
     load: thumbnailFirstLoad(width),
   })
-  const resolution = await resolveAiring()
-  const found = await imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE })
+  return airingImageOf({
+    resolve: resolveAiring,
+    render: (resolution) => imageOfResolution({ resolution, title: programme.title, width, shape: LANDSCAPE_SHAPE }),
+    forget: () => artResolver.forgetAiring(eventId),
+  })
+}
+
+export const airingImageOf = async ({ resolve, render, forget }) => {
+  const resolution = await resolve()
+  const found = await render(resolution)
   if (found.image || found.pending || !resolution.remembered) return found
-  artResolver.forgetAiring(eventId)
-  return imageOfResolution({ resolution: await resolveAiring(), title: programme.title, width, shape: LANDSCAPE_SHAPE })
+  forget()
+  return render(await resolve())
 }
 
 const thumbnailFirstLoad = (width) => (origin) => pictureGate.loadUnlessCached({
@@ -1048,9 +1056,9 @@ const shapeOf = (shape) => (shape === POSTER_SHAPE ? POSTER_SHAPE : LANDSCAPE_SH
 
 const resolvedThumbnailKeyOf = ({ origin, transform, shape }) => `art:${shape}:${transform}:${origin}`
 
-export const findArtOriginThumbnail = ({ origin, width, sourceOf }) => pictureGate.servedThumbnail({
+export const findArtOriginThumbnail = ({ origin, width, sourceOf, thumbnails = thumbnailStore }) => pictureGate.servedThumbnail({
   origin,
-  thumbnails: thumbnailStore,
+  thumbnails,
   key: showThumbnailKeyOf(origin),
   width,
   loadOriginal: async () => {

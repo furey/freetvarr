@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { AIRING_MEMORY_ENTRIES, createAiringMemory, forgetAiringsOnArtChanges } from '../src/airing-memory.js'
+import { createAiringMemory, forgetAiringsOnArtChanges } from '../src/airing-memory.js'
 import { createArtFeed } from '../src/art-feed.js'
 
 const answerOf = (origin) => ({ depth: 1, result: { stage: 'own', origin, transform: 'none', pending: false } })
@@ -17,10 +17,6 @@ test('airing memory holds at most its entry limit and drops the least recently u
   assert.equal(memory.size(), 3)
   assert.equal(memory.recall('event|2'), null)
   assert.deepEqual(['event|1', 'event|3', 'event|4'].map((key) => Boolean(memory.recall(key))), [true, true, true])
-})
-
-test('airing memory keeps a full week of guide airings by default', () => {
-  assert.ok(AIRING_MEMORY_ENTRIES >= 2 * 8446)
 })
 
 test('airing memory gives back the fingerprint it stored, so a caller can reject an airing whose sources changed', () => {

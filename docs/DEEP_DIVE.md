@@ -1650,7 +1650,7 @@ Every picture route reads the cache first and reads the original only on a miss 
 
 - Channel logos (`channel:<id>:<logos>`), person pictures (`person:<source>`), and owner choices (`chosen-1080:<kind>:<origin>`) are keyed without a read.
 - Show pictures resolve from the saved `art_resolutions` row, then read the cache under `art:<shape>:<transform>:<origin>`.
-- A guide airing resolves through the airing memory ([Picture resolver](#picture-resolver)). On a miss, the airing chain loads each origin through `loadUnlessCached` with the asked width, so an origin whose thumbnail is cached is not read, also after a restart.
+- A guide airing resolves through the airing memory ([Picture resolver](#picture-resolver)). On a miss, the airing chain loads each origin through `loadUnlessCached` with the asked width, so an origin whose thumbnail is cached is not read, also after a restart. A cached airing thumbnail is still served after its source fails, until the image cache drops it.
 - An art pool picture is keyed by its origin (`show-1080:<origin>`), so a `plex:` origin finds its thumbnail without the Plex token. The token is read only to load the original.
 - A recording picture is keyed by the size and time of the saved file (`recording:<id>:<size>-<mtime>`).
 
