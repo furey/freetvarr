@@ -165,6 +165,36 @@ test('a cached thumbnail of a source later judged a stand-in is not served', asy
   assert.equal(await serve(), null)
 })
 
+test('thumbnail first: a cached thumbnail answers for a measured picture without reading the original', async () => {
+  const { checks } = await memoryChecks()
+  const source = 'https://img.example.com/a/44.jpg'
+  const plex = 'plex:/library/metadata/9/thumb/1'
+  const reads = []
+  const read = async (origin) => {
+    reads.push(origin)
+    return { body: await sceneOf(9) }
+  }
+  const gate = createPictureGate({ checks, readers: { url: read, plex: read } })
+  assert.ok(await gate.loadUnlessCached({ origin: source, isCached: () => true }))
+  assert.deepEqual(reads, [source])
+  assert.deepEqual(await gate.loadUnlessCached({ origin: source, isCached: () => true }), { cached: true })
+  assert.deepEqual(await gate.loadUnlessCached({ origin: plex, isCached: () => true }), { cached: true })
+  assert.deepEqual(reads, [source])
+  assert.ok((await gate.loadUnlessCached({ origin: source, isCached: () => false })).body)
+  assert.deepEqual(reads, [source, source])
+})
+
+test('thumbnail first: a cached thumbnail of a picture now judged a stand-in is skipped without reading it', async () => {
+  const { checks } = await memoryChecks()
+  const source = 'https://img.example.com/a/45.jpg'
+  let reads = 0
+  const gate = createPictureGate({ checks, readers: { url: async () => { reads += 1; return { body: await sceneOf(10) } } } })
+  await gate.load(source)
+  checks.noteTitles(['Love Island Australia', 'The Garden Gurus', 'Budget Battlers', 'Helping Hands', 'Lingo'].map((title) => ({ source, title })))
+  assert.equal(await gate.loadUnlessCached({ origin: source, isCached: () => true }), null)
+  assert.equal(reads, 1)
+})
+
 test('recording copies are screened at save and on read, by the guide address they came from and by their bytes', async () => {
   const { checks } = await memoryChecks()
   const named = 'https://img-store-prod.switch.tv/images/0027/814112_default_program_image.png'

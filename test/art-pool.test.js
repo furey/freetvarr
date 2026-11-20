@@ -112,7 +112,7 @@ const poolWith = (over = {}) => createArtPool({
   poolStore: memoryCache(),
   loadSavedArtwork: async () => ({ body: Buffer.from('jpeg') }),
   savedCopyVerdict: async () => 'ok',
-  thumbnailFor: async ({ source, width }) => ({ body: Buffer.from(`${source}|${width}`), contentType: 'image/webp' }),
+  thumbnailFor: async ({ width, sourceOf }) => ({ body: Buffer.from(`${await sourceOf()}|${width}`), contentType: 'image/webp' }),
   chosenBackground: async () => null,
   ...over,
 })
@@ -217,6 +217,20 @@ test('recordingArt lists the guide image and the Plex episode thumb', async () =
 test('imageFor resolves Plex origins with the current token', async () => {
   const image = await poolWith().imageFor({ origin: plexTranscodeOrigin('/ep'), width: 768 })
   assert.match(image.body.toString(), /^http:\/\/plex\/photo\/:\/transcode\?.*X-Plex-Token=t\|768$/)
+})
+
+test('imageFor serves a cached pool thumbnail without asking Plex for its token', async () => {
+  let asked = 0
+  const pool = poolWith({
+    plexConnection: async () => {
+      asked += 1
+      return { url: 'http://plex', token: 't' }
+    },
+    thumbnailFor: async ({ origin, width }) => ({ body: Buffer.from(`${origin}|${width}`), contentType: 'image/webp' }),
+  })
+  const image = await pool.imageFor({ origin: plexTranscodeOrigin('/ep'), width: 768 })
+  assert.doesNotMatch(image.body.toString(), /X-Plex-Token/)
+  assert.equal(asked, 0)
 })
 
 test('recordingArt leaves out a guide image that no longer loads', async () => {
@@ -489,8 +503,8 @@ test('art pool routes are warm when the pool source thumbnail is cached', async 
   const { createImageWarmCheck } = await import('../src/image-routes.js')
   const checked = []
   const artPool = poolWith({
-    isSourceWarm: async ({ source, width }) => {
-      checked.push({ source, width })
+    isOriginWarm: async ({ origin, width }) => {
+      checked.push({ origin, width })
       return width === 768
     },
   })

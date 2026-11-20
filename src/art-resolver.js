@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import sharp from 'sharp'
 
+import { createAiringMemory } from './airing-memory.js'
 import { db } from './db.js'
 import { newPictureStamp } from './programme-stamps.js'
-import { GATE_RULE_VERSION, WEAK_VERDICT } from './picture-gate.js'
+import { GATE_RULE_VERSION, OK_VERDICT, WEAK_VERDICT } from './picture-gate.js'
 import { isLandscapeSize } from './image-thumbnails.js'
 import { showTitleKey } from './show-artwork.js'
 import { POSTER_SHAPE, isPortraitSize } from './show-poster.js'
@@ -112,6 +113,9 @@ export const createArtResolver = ({
   onMarkedDue = (changes) => changes.forEach(onResolved),
   followUpDelaysMs = FOLLOW_UP_DELAYS_MS,
   followUpBudgetMs = FOLLOW_UP_BUDGET_MS,
+  airingMemory = createAiringMemory(),
+  airingSkipRetryMs = AIRING_SKIP_RETRY_MS,
+  verdictOf = async () => OK_VERDICT,
 }) => {
   const inflight = new Map()
   const followUps = new Map()
@@ -140,11 +144,48 @@ export const createArtResolver = ({
   }
 
   const resolveOuter = async (ctx) => {
-    const run = (budget) => settleAnswer({ ctx, key: outerKeyOf(ctx), result: runOuterChain({ chain: chainOf(ctx), ctx, budget }) })
+    const run = (budget) => settleAnswer({ ctx, key: outerKeyOf(ctx), result: outerAnswerOf({ ctx, budget }) })
     const result = await run(outerBudgetMs)
     if (result.pending || result.provisional) followUp({ key: outerKeyOf(ctx), run: () => run(followUpBudgetMs) })
     return result
   }
+
+  const outerAnswerOf = ({ ctx, budget }) => (ctx.eventId != null
+    ? runAiringChain({ ctx, budget })
+    : runOuterChain({ chain: chainOf(ctx), ctx, budget }))
+
+  const runAiringChain = async ({ ctx, budget }) => {
+    const chain = chainOf(ctx)
+    const deadline = now() + budget
+    const found = {}
+    const fingerprintUpTo = async (depth) => {
+      const stages = chain.slice(0, depth)
+      for (const stage of stages) found[stage] ??= await stageWithin({ stage, ctx, deadline })
+      if (stages.some((stage) => found[stage].pending)) return null
+      return airingFingerprintOf({ ruleVersion, chain, ctx, found: stages.map((stage) => [stage, found[stage].sources]) })
+    }
+    const key = outerKeyOf(ctx)
+    const remembered = airingMemory.recall(key)
+    const current = remembered && (remembered.answer.retryAt ?? Infinity) > now()
+    const matches = current && await fingerprintUpTo(remembered.answer.depth) === remembered.fingerprint
+    const recalled = matches ? await stillValidAnswer(remembered.answer) : null
+    if (recalled?.result) return { ...recalled.result, remembered: true }
+    const rememberOuter = async ({ skippedSome, ...answer }) => {
+      const fingerprint = await fingerprintUpTo(answer.depth)
+      const retryAt = skippedSome ? now() + airingSkipRetryMs : null
+      if (fingerprint) airingMemory.remember({ key, fingerprint, showKey: showKeyOf(ctx.title), answer: { ...answer, retryAt } })
+    }
+    return runOuterChain({ chain, ctx, deadline, load: ctx.load ?? loadImage, found, recalled, rememberOuter })
+  }
+
+  const stillValidAnswer = async (answer) => {
+    const picture = answer?.result ?? answer?.titleCard
+    if (!picture) return answer
+    const expected = answer.result ? OK_VERDICT : WEAK_VERDICT
+    return await verdictOf(picture.origin).catch(() => null) === expected ? answer : null
+  }
+
+  const forgetAiring = (eventId) => airingMemory.forget(outerKeyOf({ eventId }))
 
   const resolveRecordingPicture = ({ title, budget = followUpBudgetMs, load = loadImage, ...extra }) => runOuterChain({
     chain: RECORDING_SAVE_CHAIN,
@@ -241,28 +282,44 @@ export const createArtResolver = ({
     return settle(lastResort())
   }
 
-  const runOuterChain = async ({ chain, ctx, budget = outerBudgetMs, load = loadImage }) => {
-    const deadline = now() + budget
+  const runOuterChain = async ({
+    chain,
+    ctx,
+    budget = outerBudgetMs,
+    deadline = now() + budget,
+    load = loadImage,
+    found = {},
+    recalled = null,
+    rememberOuter = () => {},
+  }) => {
     let pendingSeen = false
-    let titleCard = null
+    let skippedSome = false
+    let titleCard = recalled?.titleCard ?? null
     const lastResort = () => {
       if (titleCard) return provisionalIf({ result: titleCard, pendingSeen })
       return pendingSeen ? PENDING_RESULT : FINAL_RESULT
     }
-    for (const stage of chain) {
+    for (const stage of recalled ? chain.slice(chain.indexOf('title')) : chain) {
       if (stage === FINAL_STAGE) return lastResort()
       if (stage === 'title') {
+        const outer = pendingSeen ? null : { depth: chain.indexOf(stage), titleCard, skippedSome }
         const fromTitle = await resolveTitle({ ...ctx, recordingId: null, eventId: null })
+        if (outer) await rememberOuter(outer)
         if (fromTitle.pending) pendingSeen = true
         else if (fromTitle.stage === WEAK_STAGE) titleCard ??= fromTitle
         else if (fromTitle.stage !== FINAL_STAGE) return provisionalIf({ result: fromTitle, pendingSeen })
         continue
       }
-      const found = await stageWithin({ stage, ctx, deadline })
-      if (found.pending) pendingSeen = true
-      const loaded = await firstLoaded({ sources: found.sources, deadline, load })
+      const stageFound = found[stage] ??= await stageWithin({ stage, ctx, deadline })
+      if (stageFound.pending) pendingSeen = true
+      const loaded = await firstLoaded({ sources: stageFound.sources, deadline, load })
       if (loaded.titleCard) titleCard ??= { stage: WEAK_STAGE, origin: loaded.titleCard, transform: 'none', pending: false }
-      if (loaded.origin) return provisionalIf({ result: { stage, origin: loaded.origin, transform: 'none', pending: false }, pendingSeen })
+      skippedSome ||= loaded.skipped
+      if (loaded.origin) {
+        const result = { stage, origin: loaded.origin, transform: 'none', pending: false }
+        if (!pendingSeen) await rememberOuter({ depth: chain.indexOf(stage) + 1, result, skippedSome })
+        return provisionalIf({ result, pendingSeen })
+      }
       if (loaded.pending) pendingSeen = true
     }
     return lastResort()
@@ -270,15 +327,17 @@ export const createArtResolver = ({
 
   const firstLoaded = async ({ sources, deadline, load }) => {
     let failed = false
+    let skipped = false
     let titleCard = null
     for (const origin of sources) {
       const image = await within(load(origin), deadline - now())
-      if (image === TIMED_OUT) return { origin: null, pending: true, titleCard }
+      if (image === TIMED_OUT) return { origin: null, pending: true, titleCard, skipped }
       if (image === LOAD_FAILED) failed = true
       else if (image?.verdict === WEAK_VERDICT) titleCard ??= origin
-      else if (image) return { origin, pending: false, titleCard }
+      else if (image) return { origin, pending: false, titleCard, skipped }
+      skipped ||= !image || image === LOAD_FAILED
     }
-    return { origin: null, pending: failed, titleCard }
+    return { origin: null, pending: failed, titleCard, skipped }
   }
 
   const stageWithin = async ({ stage, ctx, deadline }) => {
@@ -364,7 +423,7 @@ export const createArtResolver = ({
     return changes
   }
 
-  return { resolve, resolveRecordingPicture, peek, forget, invalidate, stampsByKey }
+  return { resolve, resolveRecordingPicture, peek, forget, forgetAiring, invalidate, stampsByKey }
 }
 
 export const retryContextOf = ({ ctx, saved, nowMs }) => (saved && Number(saved.next_check_at) <= nowMs
@@ -413,6 +472,11 @@ const fingerprintOf = ({ ctx, local, ruleVersion, settingsKey }) => createHash('
     LOCAL_STAGES.map((stage) => local.found[stage]?.sources ?? []),
     settingsKey,
   ]))
+  .digest('hex')
+  .slice(0, FINGERPRINT_LENGTH)
+
+const airingFingerprintOf = ({ ruleVersion, chain, ctx, found }) => createHash('sha256')
+  .update(JSON.stringify([AIRING_FINGERPRINT_VERSION, ruleVersion, chain, ctx.titleKey, found]))
   .digest('hex')
   .slice(0, FINGERPRINT_LENGTH)
 
@@ -472,6 +536,8 @@ const NO_SOURCES = { sources: [], pending: false }
 const FINAL_RESULT = { stage: FINAL_STAGE, origin: null, transform: 'none', pending: false }
 const PENDING_RESULT = { stage: null, origin: null, transform: null, pending: true }
 const FINGERPRINT_VERSION = 'art-v3'
+const AIRING_FINGERPRINT_VERSION = 'airing-v1'
+const AIRING_SKIP_RETRY_MS = 10 * 60 * 1000
 const FINGERPRINT_LENGTH = 24
 const RESOLVE_BUDGET_MS = 3000
 const OUTER_BUDGET_MS = 1500
