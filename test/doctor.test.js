@@ -675,6 +675,18 @@ test('live.streams: warns when the limit is above the estimate, skips before the
   assert.equal(liveStreamsCheck({ max_live_streams: 1, benchmark: null }).status, 'skip')
 })
 
+test('live.streams: passes with a measuring note while the speed test waits or runs, even over an old result', () => {
+  const old = { encoder: 'vaapi', speed: 0.9, estimated: 0 }
+  const waiting = liveStreamsCheck({ max_live_streams: 2, benchmark: old, measuring: 'waiting' })
+  assert.equal(waiting.status, 'pass')
+  assert.match(waiting.detail, /^Measuring live stream capacity once nothing plays, records, syncs, or imports\./)
+  assert.match(waiting.detail, /\bup to 2\b/)
+  assert.doesNotMatch(waiting.detail, /too slow/)
+  const running = liveStreamsCheck({ max_live_streams: 1, benchmark: null, measuring: 'running' })
+  assert.equal(running.status, 'pass')
+  assert.match(running.detail, /^Measuring live stream capacity now\./)
+})
+
 test('host.names: passes when no unknown name was seen, and counts the names added', () => {
   const none = hostNamesCheck({ anyHost: false, added: 0, seen: [] })
   assert.deepEqual(Object.keys(none).sort(), ['detail', 'status'])

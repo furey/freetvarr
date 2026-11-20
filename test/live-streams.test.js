@@ -8,6 +8,7 @@ import {
   liveStreamLimit,
   storedStreamsFrom,
   benchmarkFrom,
+  betterBenchmark,
 } from '../src/live-streams.js'
 
 const BENCHMARK = { encoder: 'vaapi', speed: 6.2, estimated: 4, measuredAt: 1, seconds: 10 }
@@ -74,6 +75,7 @@ const harness = ({ settings = {}, busy = false, encoder = { kind: 'vaapi' }, env
       runs += 1
       return { ...BENCHMARK, estimated: 1 }
     },
+    pause: async () => {},
   })
   return { streams, store, runs: () => runs }
 }
@@ -119,4 +121,115 @@ test('createLiveStreams: skips the benchmark while a stream is running', async (
   await h.streams.load()
   assert.deepEqual(await h.streams.measure(), { skipped: 'busy' })
   assert.equal(h.runs(), 0)
+})
+
+test('betterBenchmark: keeps more smooth streams, then the faster run', () => {
+  const slow = { ...BENCHMARK, estimated: 0, speed: 1.1 }
+  const fast = { ...BENCHMARK, estimated: 1, speed: 1.4 }
+  assert.equal(betterBenchmark(slow, fast), fast)
+  assert.equal(betterBenchmark(fast, slow), fast)
+  assert.equal(betterBenchmark({ ...fast, speed: 1.3 }, fast), fast)
+  assert.equal(betterBenchmark(fast, null), fast)
+})
+
+const twoRunHarness = ({ results, busyAfter = Infinity, encoder = { kind: 'vaapi' } }) => {
+  const store = {}
+  let runs = 0
+  let pauses = 0
+  const streams = createLiveStreams({
+    encoderReady: Promise.resolve(encoder),
+    getSetting: async (key) => store[key] ?? null,
+    setSetting: async (key, value) => { store[key] = value },
+    readTunerCount: async () => 2,
+    isBusy: () => runs >= busyAfter,
+    benchmark: async () => {
+      const result = results[runs]
+      runs += 1
+      if (result instanceof Error) throw result
+      return result
+    },
+    pause: async () => { pauses += 1 },
+  })
+  return { streams, store, runs: () => runs, pauses: () => pauses }
+}
+
+test('createLiveStreams: two runs keep the better result in the saved format', async () => {
+  const slow = { ...BENCHMARK, estimated: 0, speed: 1.1 }
+  const fast = { ...BENCHMARK, estimated: 1, speed: 1.4 }
+  const h = twoRunHarness({ results: [slow, fast] })
+  await h.streams.load()
+  const outcome = await h.streams.measure({ runs: 2 })
+  assert.deepEqual(outcome.benchmark, fast)
+  assert.equal(h.pauses(), 1)
+  assert.deepEqual(benchmarkFrom(h.store.live_benchmark), fast)
+})
+
+test('createLiveStreams: a failed or interrupted second run keeps the first', async () => {
+  const first = { ...BENCHMARK, estimated: 1, speed: 1.3 }
+  const failed = twoRunHarness({ results: [first, new Error('ffmpeg exited (1).')] })
+  assert.deepEqual((await failed.streams.measure({ runs: 2 })).benchmark, first)
+  const interrupted = twoRunHarness({ results: [first, BENCHMARK], busyAfter: 1 })
+  assert.deepEqual((await interrupted.streams.measure({ runs: 2 })).benchmark, first)
+  assert.equal(interrupted.runs(), 1)
+})
+
+test('createLiveStreams: pass-through video runs once', async () => {
+  const copy = { encoder: 'copy', speed: null, estimated: 4, measuredAt: 1, seconds: 0, rounds: [] }
+  const h = twoRunHarness({ results: [copy, copy], encoder: { kind: 'copy' } })
+  await h.streams.measure({ runs: 2 })
+  assert.equal(h.runs(), 1)
+  assert.equal(h.pauses(), 0)
+})
+
+test('createLiveStreams: a saved result for this encoder shows at once after a restart', async () => {
+  const h = harness({ settings: { live_benchmark: JSON.stringify(BENCHMARK) } })
+  assert.equal(h.streams.describe().measuring, 'waiting')
+  await h.streams.load()
+  assert.equal(h.streams.describe().measuring, null)
+  const other = harness({ settings: { live_benchmark: JSON.stringify(BENCHMARK) }, encoder: { kind: 'software' } })
+  await other.streams.load()
+  assert.equal(other.streams.describe().measuring, 'waiting')
+})
+
+test('createLiveStreams: a second run waits for the idle probe and tells listeners once', async () => {
+  const fast = { ...BENCHMARK, estimated: 1, speed: 1.4 }
+  const h = twoRunHarness({ results: [fast, BENCHMARK] })
+  const heard = []
+  h.streams.onMeasured((result) => heard.push(result))
+  const outcome = await h.streams.measure({ runs: 2, stillIdle: async () => false })
+  assert.deepEqual(outcome.benchmark, fast)
+  assert.equal(h.runs(), 1)
+  assert.deepEqual(heard, [fast])
+})
+
+test('createLiveStreams: reports waiting, running, then nothing for the first measurement', async () => {
+  let finish = null
+  const streams = createLiveStreams({
+    encoderReady: Promise.resolve({ kind: 'vaapi' }),
+    getSetting: async () => null,
+    setSetting: async () => {},
+    readTunerCount: async () => 2,
+    benchmark: () => new Promise((resolve) => { finish = resolve }),
+  })
+  await streams.load()
+  assert.equal(streams.describe().measuring, 'waiting')
+  assert.equal(streams.current(), 2)
+  const run = streams.measure()
+  await new Promise(setImmediate)
+  assert.equal(streams.describe().measuring, 'running')
+  finish({ ...BENCHMARK, estimated: 1 })
+  await run
+  assert.equal(streams.describe().measuring, null)
+})
+
+test('createLiveStreams: a failed measurement stops reporting measuring', async () => {
+  const streams = createLiveStreams({
+    encoderReady: Promise.resolve({ kind: 'vaapi' }),
+    getSetting: async () => null,
+    setSetting: async () => {},
+    readTunerCount: async () => 2,
+    benchmark: async () => { throw new Error('ffmpeg exited (1).') },
+  })
+  await assert.rejects(streams.measure())
+  assert.equal(streams.describe().measuring, null)
 })
