@@ -96,8 +96,8 @@ A show page has these parts:
 - **Scheduled episode**: the next episode that TVHeadend has scheduled for the show, at the top of its season, with its day and time, such as `Tomorrow 8:30pm`. Press it to open its [programme sheet](/guide/tv-guide#recording-a-programme), where you can change or cancel the recording.
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
-  <img src="../img/screenshot-show.png" alt="A show page with the next scheduled episode above the recorded episodes" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/ncis">
+  <img src="../img/screenshot-show.png" alt="The NCIS show page with a series recording that records every new episode, and the next scheduled episode above the recorded episodes" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -106,8 +106,8 @@ Press an episode row to play it. Press **⋯** on the row, or hold the row on a 
 A show with a series recording but no episodes yet still gets a poster. The page says when the first episode records, for example `First episode records Tue 8:30pm`. A show with only a scheduled episode also opens a full show page, with that episode in the list.
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/recordings/show/1-euro-house">
-  <img src="../img/screenshot-show-scheduled.png" alt="A show page with one scheduled episode and no recordings yet" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/survivor">
+  <img src="../img/screenshot-show-scheduled.png" alt="The show page of Survivor, with one scheduled episode and no recordings yet" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -117,8 +117,8 @@ A recording shows in the Library from the moment TVHeadend starts it. Its show p
 
 <!-- markdownlint-disable MD033 -->
 <div class="phone-frames">
-  <BrowserFrame phone label="freetvarr.lan/#/recordings/show/the-block">
-    <img src="../img/screenshot-mobile-recording-banner.png" alt="A phone with the recording banner under the page title, showing the show title and Recording with the minutes left" width="780" height="1688" loading="lazy">
+  <BrowserFrame phone label="freetvarr.lan/#/recordings/scheduled">
+    <img src="../img/screenshot-mobile-recording-banner.png" alt="Recordings → Scheduled on a phone, with the recording banner under the page title, showing Death In Paradise and Recording with the minutes left" width="780" height="1688" loading="lazy">
   </BrowserFrame>
 </div>
 <!-- markdownlint-enable MD033 -->
@@ -202,8 +202,8 @@ When the TV guide gives some episodes of a show a different title, those episode
 4. Press that show. To start a new show instead, type its full title and press **New show named "…"**.
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
-  <img src="../img/screenshot-merge.png" alt="The Merge into another show sheet, listing shows that match what you type" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/friends">
+  <img src="../img/screenshot-merge.png" alt="The Merge into another show sheet for Friends, listing other shows to merge into" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

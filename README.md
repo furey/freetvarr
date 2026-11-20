@@ -321,8 +321,8 @@ Freetvarr keeps two settings for one folder: `recordings_root` is where Freetvar
 **Ad removal** lives in Settings, not in the `.env`. Turn it on in Settings → RECORDING → Ad removal (off by default), then pick a mode for each series in Settings → RECORDING → Series rules. Freetvarr ships a `comskip.ini` tuned for Australian free-to-air, the author's own channels. To override it, put your own `comskip.ini` in the `/config` bind mount (a folder on the host that the container reads).
 
 <p align="center">
-  <img src="https://furey.github.io/freetvarr/img/screenshot-settings.png" alt="Settings" width="100%"/>
-  <br/><em>Settings</em>
+  <img src="https://furey.github.io/freetvarr/img/screenshot-settings.png" alt="Settings → RECORDING → Media library" width="100%"/>
+  <br/><em>Media library (Settings → RECORDING)</em>
 </p>
 
 ## Security

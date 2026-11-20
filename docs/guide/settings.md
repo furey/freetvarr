@@ -10,8 +10,8 @@ description: >-
 Settings groups its pages under five headings: **ABOUT**, **WATCHING**, **RECORDING**, **SYSTEM**, and **DANGER ZONE**. On a phone, Settings opens on the list of pages; press a page to open it. On a tablet or computer, the list sits beside the open page, and Settings opens on **About Freetvarr**.
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/settings">
-  <img src="../img/screenshot-settings.png" alt="Settings" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/settings/storage">
+  <img src="../img/screenshot-settings.png" alt="Settings → RECORDING → Media library" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
