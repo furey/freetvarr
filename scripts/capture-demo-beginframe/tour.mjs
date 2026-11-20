@@ -229,7 +229,7 @@ const run = async () => {
     if (warm) await settle('film sheet')
     await hold(900)
     if (warm) {
-      await clickOn(`document.querySelector('.programme-sheet-dismiss')`)
+      await clickOn(`document.querySelector('.programme-sheet-close')`)
       await pumpUntil(SHEET_CLOSED, 4000, 'sheet closed')
     } else {
       await hoverOn(`document.querySelector('.programme-sheet-primary')`, { rest: 450 })
@@ -247,7 +247,7 @@ const run = async () => {
     await hold(600)
     const everyEpisode = `[...document.querySelectorAll('.ui-sheet-backdrop button, .ui-sheet-backdrop [role=radio], .ui-sheet-backdrop label')].find((el) => /every episode/i.test(el.textContent) && el.offsetParent)`
     if (warm) {
-      await clickOn(`document.querySelector('.programme-sheet-dismiss')`)
+      await clickOn(`document.querySelector('.programme-sheet-close')`)
       await pumpUntil(SHEET_CLOSED, 4000, 'sheet closed')
     } else {
       await hoverOn(everyEpisode, { rest: 400 })
@@ -386,7 +386,7 @@ const run = async () => {
   const recordTour = async ({ warm }) => {
     const settle = warm ? settleArt : async () => {}
     const closeSheet = async () => {
-      await clickOn(`document.querySelector('.programme-sheet-dismiss')`)
+      await clickOn(`document.querySelector('.programme-sheet-close')`)
       await pumpUntil(SHEET_CLOSED, 4000, 'sheet closed')
     }
     const recordFromSheet = async (label) => {

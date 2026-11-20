@@ -48,7 +48,7 @@ Each day's grid runs to 3am the next morning, so a late film stays on the same p
 
 ## Recording a programme
 
-Press a programme's cell to open its programme sheet: the programme image, title, season and episode, channel, time, and synopsis. On a phone the sheet slides up from the bottom. On a wide screen it opens as a dialog. To close it, press **Close**, press `Esc`, press outside it, or swipe it down on a phone. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none); see [Missing pictures](#missing-pictures) for what Freetvarr shows when the feed has no image.
+Press a programme's cell to open its programme sheet. The top of the sheet shows the programme image, the title, a line with the season, episode number, and episode title, a line with the channel and time, and the synopsis. On a phone the sheet slides up from the bottom. On a wide screen it opens as a dialog. To close it, press the X on the image, press `Esc`, press outside it, or swipe it down on a phone. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none); see [Missing pictures](#missing-pictures) for what Freetvarr shows when the feed has no image.
 
 Press **More info**, under the synopsis, for the programme's cast, crew, and details: the network or studio, the year it first aired or came out, its genres, its length, and its language. Freetvarr looks these up only when you press **More info**, and the section is closed each time you open a sheet. A row with no value is left out. When the lookup finds nothing, or [Cast and crew](#cast-and-crew) is off, the section shows the genre from the guide, or says that it found nothing.
 
@@ -56,19 +56,19 @@ While **Show For you** is on, the sheet also has **Hide this show** (**Hide this
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="The programme sheet of an upcoming Vera episode, with This episode and Every episode, the padding settings, the Close and Record buttons, and a card with Hide this show, Hide crime drama shows, and Change categories" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="The programme sheet of an upcoming Vera episode, with a card that holds This episode and Every episode, the padding settings, and Advanced, then the Record button, and a card with Hide this show, Hide crime drama shows, and Change categories" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-A switch in the sheet picks what to do. One line under it says what the main button does.
+Under **More info**, one card holds the recording settings. A switch at the top of the card picks what to do. One line under it says what **Record** does. The buttons come after the card, and the menu items (such as **Show in TV guide**) come last.
 
 - **This episode** with **Record** schedules the single airing. For a movie the switch reads **This movie**, and for a programme that is not part of a series it reads **This showing**. **Start early** and **Finish late** pad the recording, 2 minutes before and 10 minutes after by default, because free-to-air broadcasts often run late.
 - **Every episode** with **Record series** creates a series recording. A movie does not offer it. **Keep** sets how many episodes to keep. **Any channel** records the show on whichever channel airs it. See [How a series recording works](/guide/series#how-a-series-recording-works).
-- **Advanced** holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library (the folder that holds your TV shows). The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
-- **Watch live** shows when the programme is on air.
+- **Advanced**, the last row of the card, holds **Add to library**. It decides what Freetvarr does with the recording. With the switch off, the recording stays in TVHeadend only. With it on, **Record series** also creates the [series folder](/guide/series), so the episodes go to the TV library (the folder that holds your TV shows). The note under the switch says where the file goes: the series folder when one matches, or the movies folder for a film. Otherwise the import decides: an episode with a real season number, or a show recorded on more than one day, goes to the TV library in a show folder of its own, even without a series recording, and anything else goes to the one-off folder. See [Library](/guide/recordings#library). The default is in Settings → RECORDING → Media library. To change a folder later, open [Series rules](/guide/series).
+- **Watch live** shows under **Record** when the programme is on air.
 - **Watch from the start** shows when TVHeadend is recording the programme. It plays the recording from its first minute while it keeps recording. The line under it says the time it plays from.
 - **Show in TV guide** shows when you open the sheet outside the TV guide. It opens the TV guide at that channel and time.
-- A scheduled programme shows **Cancel recording** instead. For an episode of a series recording, the button reads **Skip this episode**: TVHeadend keeps the episode disabled, so the series recording does not schedule it again. To turn it back on, open the episode later and press **Record**.
+- A scheduled programme shows its status and **Cancel recording** in the card instead. For an episode of a series recording, the button reads **Skip this episode**: TVHeadend keeps the episode disabled, so the series recording does not schedule it again. To turn it back on, open the episode later and press **Record**.
 - A programme that is recording now shows **Stop recording**. After `5` minutes or more, the part recorded so far stays and imports to your library; before `5` minutes, Freetvarr deletes it. The sheet says which applies, and a dialog asks you to confirm before the recording stops (**Stop recording**, or **Stop and delete** before `5` minutes).
 - A programme with a series recording also shows **Cancel series**. See [Cancel a series recording](/guide/series#cancel-a-series-recording).
 
@@ -86,7 +86,7 @@ When Freetvarr gets it wrong, the programme sheet has a link to correct it. A pr
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme-movie.png" alt="The programme sheet of The Last Samurai, with the Start early and Finish late settings, the Close and Record buttons, and a card with Not a movie and Hide this film" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme-movie.png" alt="The programme sheet of The Last Samurai, with a card that holds the Start early and Finish late settings and Advanced, then the Record button, and a card with Not a movie and Hide this film" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

@@ -52,8 +52,11 @@ export const primaryActionOf = ({ strength }) => {
 
 export const pendingActionLabelOf = (key) => PENDING_ACTION_LABELS[key] || 'Saving…'
 
-export const sheetMetaLineOf = ({ seasonEpisode, episodeTitle, channelName, timeRange }) =>
-  [seasonEpisode, episodeTitle, channelName, timeRange].filter(Boolean).join(' · ')
+export const sheetEpisodeLineOf = ({ seasonEpisode, episodeTitle }) =>
+  [seasonEpisode, isNumberedEpisodeTitle(episodeTitle) ? '' : episodeTitle].filter(Boolean).join(' · ')
+
+export const sheetAiringLineOf = ({ channelName, timeRange }) =>
+  [channelName, timeRange].filter(Boolean).join(' · ')
 
 export const seasonEpisodeShort = ({ series_no: season, episode_no: episode }) =>
   [season != null && `S${season}`, episode != null && `E${episode}`].filter(Boolean).join(' ')
@@ -71,6 +74,8 @@ export const cellMarksOf = ({ state, seriesScheduled = false, watching = false }
 })
 
 export const clockWithoutPeriod = (clock) => String(clock).replace(/\s?[ap]\.?m\.?$/i, '')
+
+const isNumberedEpisodeTitle = (title) => /^episode\s+\d+$/i.test(String(title || '').trim())
 
 const PENDING_ACTION_LABELS = {
   record: 'Scheduling…',
