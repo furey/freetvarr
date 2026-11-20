@@ -4,6 +4,7 @@ import { getTunerStatus } from './tvheadend.js'
 export const MAX_LIVE_STREAMS_KEY = 'max_live_streams'
 export const LIVE_BENCHMARK_KEY = 'live_benchmark'
 export const PLAYER_STREAM_CHOICES = [1, 2, 3, 4]
+export const MEASURE_PAUSE_MS = 20_000
 
 export const envStreamCapFrom = (value) => {
   if (value == null || String(value).trim() === '') return null
@@ -32,6 +33,12 @@ export const defaultLiveStreams = ({ cap, benchmark, tunerCount, encoderKind }) 
     return Math.max(1, Math.min(benchmark.estimated, tuners, Math.max(...PLAYER_STREAM_CHOICES)))
   }
   return encoderKind === 'vaapi' ? 2 : 1
+}
+
+export const betterBenchmark = (a, b) => {
+  if (!a || !b) return a || b
+  if (a.estimated !== b.estimated) return b.estimated > a.estimated ? b : a
+  return (b.speed ?? 0) > (a.speed ?? 0) ? b : a
 }
 
 export const streamChoicesFor = ({ cap, tunerCount }) => {
@@ -64,12 +71,19 @@ export const createLiveStreams = ({
   readTunerCount = async () => (await getTunerStatus()).tunerCount,
   isBusy = () => false,
   benchmark = runLiveBenchmark,
+  pause = pauseFor,
+  pauseMs = MEASURE_PAUSE_MS,
 }) => {
   const cap = envStreamCapFrom(envValue)
-  const state = { stored: null, benchmark: null, tunerCount: null, encoderKind: null }
+  const state = { stored: null, benchmark: null, tunerCount: null, encoderKind: null, settled: false }
   let running = null
 
-  const describe = () => liveStreamLimit({ ...state, cap })
+  const measuringState = () => {
+    if (running) return 'running'
+    return state.settled ? null : 'waiting'
+  }
+
+  const describe = () => ({ ...liveStreamLimit({ ...state, cap }), measuring: measuringState() })
 
   const current = () => describe().max_live_streams
 
@@ -97,15 +111,28 @@ export const createLiveStreams = ({
     if (count > 0) state.tunerCount = count
   }
 
-  const measure = async () => {
+  const bestOf = async ({ encoder, runs }) => {
+    let best = await benchmark({ encoder })
+    for (let run = 1; run < runs && encoder.kind !== 'copy'; run += 1) {
+      await pause(pauseMs)
+      if (isBusy()) break
+      best = betterBenchmark(best, await benchmark({ encoder }).catch(() => null))
+    }
+    return best
+  }
+
+  const measure = async ({ runs = 1 } = {}) => {
     if (running) return running
     if (isBusy()) return { skipped: 'busy' }
     running = (async () => {
-      const result = await benchmark({ encoder: await encoderReady })
+      const result = await bestOf({ encoder: await encoderReady, runs })
       state.benchmark = result
       await setSetting(LIVE_BENCHMARK_KEY, JSON.stringify(result))
       return { benchmark: result }
-    })().finally(() => { running = null })
+    })().finally(() => {
+      running = null
+      state.settled = true
+    })
     return running
   }
 
@@ -150,3 +177,5 @@ export const mountLiveStreams = ({ app, csrf, limiter, liveStreams }) => {
     }
   })
 }
+
+const pauseFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref())
