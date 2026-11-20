@@ -4,6 +4,7 @@ import {
   badgeOf,
   cardMetaOf,
   cardRatingOf,
+  carouselReasonOf,
   chooserShownOf,
   CHOOSER_SNOOZE_MS,
   doneLabelOf,
@@ -431,4 +432,14 @@ test('sectionsOf: a show in Ready to watch still shows in airing rows such as Co
     ],
   })
   assert.deepEqual(sectionsOf({ payload: page }).map((s) => s.key), ['ready-to-watch', 'coming-up'])
+})
+
+test('carouselReasonOf: a liked film says movie, a liked series or one-off says show', () => {
+  const liked = (programmeKind) => carouselReasonOf({ kind: 'liked', programmeKind, reason: '' })
+  assert.equal(liked('movie'), 'A movie you liked')
+  assert.equal(liked('series'), 'A show you liked')
+  assert.equal(liked('one-off'), 'A show you liked')
+  assert.equal(liked(null), 'A show you liked')
+  assert.equal(carouselReasonOf({ kind: 'liked', programmeKind: 'movie', reason: 'More like Die Hard' }), 'More like Die Hard')
+  assert.equal(carouselReasonOf({ kind: 'movie', reason: '' }), 'A movie you might like')
 })
