@@ -41,6 +41,7 @@ import {
 } from './sync.js'
 import { LIBRARY_STATES, refreshLibraryStates, sweepLibraryStates } from './library-files.js'
 import { libraryRootsSaveError, loadLibraryRoots, rootsAfterSaveOf } from './library-roots.js'
+import { createRecordingTitleKinds } from './recording-title-kind.js'
 import { shrinkStoredArtwork } from './artwork.js'
 import { startScheduler, getSchedulerExpression, getSchedulerNextRun, scheduledSyncsOn, stopScheduler } from './scheduler.js'
 import { createAutoImport, watchForFinishedRecordings } from './auto-import.js'
@@ -641,9 +642,11 @@ app.get('/api/recordings', async (req, res) => {
   const progress = snapshotProgress(rows.map((r) => r.recording_id))
   const sources = await playbackSourceResolver()
   const playable = await Promise.all(rows.map(async (r) => Boolean(await sources(r))))
+  const titleKindOf = await createRecordingTitleKinds()
   res.json({
     recordings: rows.map((r, i) => ({
       ...r,
+      kind: titleKindOf(r),
       progress: progress[r.recording_id] ?? null,
       ad_backup_kept_until: r.ad_backup_saved_at ? backupKeptUntil({ savedAt: r.ad_backup_saved_at, retentionDays }) : null,
       playable: playable[i],

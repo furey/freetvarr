@@ -13,6 +13,7 @@ import { playback } from '/shared/player-shared.js'
 import { refreshAfterRecordingChange } from '/shared/recording-now.js'
 import { toast } from '/shared/toast.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
+import { MoreInfo } from '/components/more-info.js'
 
 export const MenuIcon = {
   props: { name: { type: String, required: true } },
@@ -80,6 +81,7 @@ export const LibraryMenuSheet = {
 }
 
 export const LibraryInfoSheet = {
+  components: { MoreInfo },
   props: {
     open: Boolean,
     info: { type: Object, default: null },
@@ -96,6 +98,7 @@ export const LibraryInfoSheet = {
             <dd :class="['library-info-value', { 'ui-mono': row.mono }]">{{ row.value }}</dd>
           </div>
         </dl>
+        <more-info v-if="info.more" :key="[info.title, info.more.title].join('/')" :title="info.more.title" :kind="info.more.kind" :year="info.more.year" />
       </template>
       <template #footer>
         <button type="button" class="ui-button ui-button-block" @click="$emit('close')">Close</button>

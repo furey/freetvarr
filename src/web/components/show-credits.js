@@ -68,33 +68,26 @@ export const ShowAbout = {
   `,
 }
 
-export const ShowCast = {
+export const CastScroller = {
   props: {
     cast: { type: Array, default: () => [] },
-    crew: { type: Array, default: () => [] },
   },
   template: `
-    <section v-if="cast.length || crew.length" class="show-credits show-late-section" aria-labelledby="show-credits-title">
-      <h2 id="show-credits-title" class="ui-section-title">Cast and crew</h2>
-      <ul v-if="cast.length" class="ui-scroller show-cast" aria-label="Cast">
-        <li v-for="(person, index) in cast" :key="index + person.name" class="show-cast-person">
-          <component :is="person.url ? 'a' : 'div'" class="show-cast-hit" :href="person.url || undefined"
-            :target="person.url ? '_blank' : undefined" :rel="person.url ? 'noopener noreferrer' : undefined">
-            <span class="show-cast-face" :style="faceStyle(person.name)" aria-hidden="true">
-              <span class="show-cast-initials">{{ person.initials }}</span>
-              <img v-if="person.image && !failedImages.has(person.image)" :class="['show-cast-photo', { 'is-loaded': loadedImages.has(person.image) }]"
-                :src="person.image" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-                @load="markLoaded(person.image)" @error="markFailed(person.image)" />
-            </span>
-            <span class="show-cast-name">{{ person.name }}</span>
-            <span v-if="person.character" class="show-cast-role">{{ person.character }}</span>
-          </component>
-        </li>
-      </ul>
-      <div v-if="crew.length" class="show-crew">
-        <p v-for="line in crew" :key="line.job" class="show-crew-line"><span class="show-crew-job">{{ line.job }}:</span> {{ line.names }}</p>
-      </div>
-    </section>
+    <ul v-scroll-fade class="ui-scroller ui-scroll-fade show-cast" aria-label="Cast">
+      <li v-for="(person, index) in cast" :key="index + person.name" class="show-cast-person">
+        <component :is="person.url ? 'a' : 'div'" class="show-cast-hit" :href="person.url || undefined"
+          :target="person.url ? '_blank' : undefined" :rel="person.url ? 'noopener noreferrer' : undefined">
+          <span class="show-cast-face" :style="faceStyle(person.name)" aria-hidden="true">
+            <span class="show-cast-initials">{{ person.initials }}</span>
+            <img v-if="person.image && !failedImages.has(person.image)" :class="['show-cast-photo', { 'is-loaded': loadedImages.has(person.image) }]"
+              :src="person.image" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+              @load="markLoaded(person.image)" @error="markFailed(person.image)" />
+          </span>
+          <span class="show-cast-name">{{ person.name }}</span>
+          <span v-if="person.character" class="show-cast-role">{{ person.character }}</span>
+        </component>
+      </li>
+    </ul>
   `,
   setup() {
     const loadedImages = ref(new Set())
@@ -103,6 +96,32 @@ export const ShowCast = {
     const markFailed = (src) => { failedImages.value = new Set(failedImages.value).add(src) }
     return { loadedImages, failedImages, markLoaded, markFailed, faceStyle: artFallbackStyle }
   },
+}
+
+export const CrewLines = {
+  props: {
+    crew: { type: Array, default: () => [] },
+  },
+  template: `
+    <div class="show-crew">
+      <p v-for="line in crew" :key="line.job" class="show-crew-line"><span class="show-crew-job">{{ line.job }}:</span> {{ line.names }}</p>
+    </div>
+  `,
+}
+
+export const ShowCast = {
+  components: { CastScroller, CrewLines },
+  props: {
+    cast: { type: Array, default: () => [] },
+    crew: { type: Array, default: () => [] },
+  },
+  template: `
+    <section v-if="cast.length || crew.length" class="show-credits show-late-section" aria-labelledby="show-credits-title">
+      <h2 id="show-credits-title" class="ui-section-title">Cast and crew</h2>
+      <cast-scroller v-if="cast.length" :cast="cast" />
+      <crew-lines v-if="crew.length" :crew="crew" />
+    </section>
+  `,
 }
 
 const LOOKUP_ANSWER_TTL_MS = 5 * 60_000

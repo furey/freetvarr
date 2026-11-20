@@ -50,7 +50,7 @@ const ENTRIES = [
   { label: 'Missing pictures', page: 'film-tv-info', setting: 'missing-pictures', description: 'Pictures from TVmaze, Wikipedia, and TMDB.', tags: ['artwork', 'images', 'posters'] },
   { label: 'Ratings', page: 'film-tv-info', setting: 'ratings', description: 'Scores for films and drama series.', tags: ['scores', 'stars'] },
   { label: 'Reviews', page: 'film-tv-info', setting: 'reviews', description: 'A line from a TMDB review.', tags: ['tmdb'] },
-  { label: 'Cast and crew', page: 'film-tv-info', setting: 'cast-and-crew', description: 'Cast and crew from TMDB and TVmaze.', tags: ['credits', 'actors'] },
+  { label: 'Cast and crew', page: 'film-tv-info', setting: 'cast-and-crew', description: 'Cast and crew from TMDB, TVmaze, and Wikidata.', tags: ['credits', 'actors'] },
   { label: 'Genres', page: 'film-tv-info', setting: 'genres', description: 'Genres from TVmaze and Wikidata for For you and search.', tags: ['tvmaze', 'wikidata', 'other titles'] },
   { label: 'TMDB key', page: 'film-tv-info', setting: 'tmdb-key', description: 'The optional key for TMDB posters, ratings, and reviews.', tags: ['api key', 'the movie database', 'token'] },
   { label: 'TMDB API key', page: 'film-tv-info', setting: 'tmdb-key', description: 'Test, save, or remove the TMDB key.', tags: ['api key', 'token'] },

@@ -50,6 +50,8 @@ Each day's grid runs to 3am the next morning, so a late film stays on the same p
 
 Press a programme's cell to open its programme sheet: the programme image, title, season and episode, channel, time, and synopsis. On a phone the sheet slides up from the bottom. On a wide screen it opens as a dialog. To close it, press **Close**, press `Esc`, press outside it, or swipe it down on a phone. The image comes from the XMLTV guide feed (a TV guide fed only by the broadcast has none); see [Missing pictures](#missing-pictures) for what Freetvarr shows when the feed has no image.
 
+Press **More info**, under the synopsis, for the programme's cast, crew, and details: the network or studio, the year it first aired or came out, its genres, its length, and its language. Freetvarr looks these up only when you press **More info**, and the section is closed each time you open a sheet. A row with no value is left out. When the lookup finds nothing, or [Cast and crew](#cast-and-crew) is off, the section shows the genre from the guide, or says that it found nothing.
+
 While **Show For you** is on, the sheet also has **Hide this show** (**Hide this film** for a film) and, for a show with a category, **Hide** with its category, such as **Hide crime drama shows**. They do the same as the For you menu items; see [For you](/guide/for-you#the-for-you-page).
 
 <!-- markdownlint-disable MD033 -->
@@ -258,15 +260,16 @@ A recording keeps the label it had when it was recorded or imported. A recording
 
 ### Cast and crew
 
-The page of a recorded show lists its cast and crew; see [Recordings](/guide/recordings#about-and-cast-and-crew). Freetvarr looks them up by the show title, so reality and game show hosts appear too.
+The page of a recorded show lists its cast and crew; see [Recordings](/guide/recordings#about-and-cast-and-crew). **More info** in the [programme sheet](#recording-a-programme), the [Info sheet](/guide/recordings#episode-menu), and the [player](/guide/live-tv#programme-info) shows the same cast and crew. Freetvarr looks them up by the show title, so reality and game show hosts appear too.
 
-- **Films**: from TMDB, which needs a [TMDB key](#tmdb-key). Without a key, a film page shows no cast.
+- **Films with a TMDB key**: the cast with photos, the crew, and the details, from TMDB.
+- **Films without a key**: the cast names, the characters, the crew, and the details, from [Wikidata](https://www.wikidata.org). Wikidata has no photos, so each person shows their initials, and a name links to the person's Wikipedia article. When two films share a title, Freetvarr uses the year or the cast named in the guide to pick one. When neither picks one film, the section shows no cast.
 - **Series with a TMDB key**: the cast of the current season, the creators, and the executive producers, from TMDB, when TMDB has a confident match with a cast list (the same checks as [Ratings and reviews](#ratings-and-reviews)). Otherwise the cast and crew come from TVmaze.
 - **Series without a key**: the cast and crew come from TVmaze.
 
-Freetvarr keeps a copy of each photo on the server, so photos still show when TVmaze or TMDB is down. A name links to the person's TMDB or TVmaze page; when that site does not answer, the name has no link.
+Freetvarr keeps a copy of each photo on the server, so photos still show when TVmaze or TMDB is down. A name links to the person's TMDB, TVmaze, or Wikipedia page; when that site does not answer, the name has no link.
 
-Each lookup sends the show title to TVmaze or TMDB. To turn it off, go to Settings → WATCHING → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
+Each lookup sends the show title to TVmaze, TMDB, or Wikidata. To turn it off, go to Settings → WATCHING → Film and TV info and turn off **Cast and crew**. Freetvarr keeps each answer for 30 days, or 7 days when there is no match, and keeps showing an old answer while a service is down.
 
 ## Caching
 

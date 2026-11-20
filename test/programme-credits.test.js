@@ -9,6 +9,7 @@ import {
   personImagePathOf,
   plainTextOf,
 } from '../src/programme-credits.js'
+import { createWikidataFilmCredits } from '../src/wikidata-film-credits.js'
 import { createTitleMatcher, lookupCacheControlOf, requestedYearOf } from '../src/programme-ratings.js'
 import { artworkKindOf, programmeHintsOf } from '../src/artwork-match.js'
 
@@ -64,7 +65,7 @@ const creditsWith = ({
   const client = fakeClient(routes || {})
   const matcher = createTitleMatcher({ client, countryCode: () => country, knownReference })
   const credits = createProgrammeCredits({
-    lookUp: lookUp || createCreditsLookup({ matcher }),
+    lookUp: lookUp || createCreditsLookup({ matcher, wikidataFilm: createWikidataFilmCredits({ client }) }),
     cache,
     creditsEnabled: async () => creditsOn,
     tmdbKey: async () => apiKey,
@@ -90,6 +91,10 @@ const HEAT_DETAILS = {
   id: 949,
   title: 'Heat',
   release_date: '1995-12-15',
+  runtime: 170,
+  original_language: 'en',
+  genres: [{ id: 80, name: 'Crime' }, { id: 18, name: 'Drama' }],
+  production_companies: [{ id: 508, name: 'Regency Enterprises' }],
   overview: 'Obsessive master thief Neil McCauley leads a top-notch crew on various daring heists throughout Los Angeles while determined detective Vincent Hanna pursues him without rest.',
   vote_average: 7.94,
   vote_count: 7400,
@@ -111,6 +116,60 @@ const HEAT_DETAILS = {
   },
   reviews: { total_results: 0, results: [] },
 }
+
+const wikidataItem = (id) => ({ datavalue: { value: { id } } })
+const wikidataString = (value) => [{ datavalue: { value } }]
+
+const WIKIDATA_HEAT = {
+  claims: {
+    P161: [
+      { rank: 'normal', mainsnak: wikidataItem('Q36949'), qualifiers: { P4633: wikidataString('Neil McCauley'), P1545: wikidataString('2') } },
+      { rank: 'deprecated', mainsnak: wikidataItem('Q99999') },
+      { rank: 'normal', mainsnak: wikidataItem('Q41163'), qualifiers: { P4633: wikidataString('Vincent Hanna'), P1545: wikidataString('1') } },
+    ],
+    P57: [{ rank: 'normal', mainsnak: wikidataItem('Q295964') }],
+    P272: [{ rank: 'normal', mainsnak: wikidataItem('Q1891') }],
+    P136: [{ rank: 'normal', mainsnak: wikidataItem('Q959790') }, { rank: 'normal', mainsnak: wikidataItem('Q2484376') }],
+    P364: [{ rank: 'normal', mainsnak: wikidataItem('Q1860') }],
+    P2047: [{ rank: 'normal', mainsnak: { datavalue: { value: { amount: '+170', unit: 'http://www.wikidata.org/entity/Q7727' } } } }],
+    P577: [{ rank: 'normal', mainsnak: { datavalue: { value: { time: '+1995-12-15T00:00:00Z' } } } }],
+  },
+  sitelinks: { enwiki: { url: 'https://en.wikipedia.org/wiki/Heat_(1995_film)' } },
+}
+
+const WIKIDATA_REMAKE = {
+  claims: {
+    P161: [{ rank: 'normal', mainsnak: wikidataItem('Q4000') }],
+    P577: [{ rank: 'normal', mainsnak: { datavalue: { value: { time: '+1986-03-14T00:00:00Z' } } } }],
+  },
+}
+
+const WIKIDATA_NAMES = {
+  Q36949: { labels: { mul: { value: 'Robert De Niro' } } },
+  Q41163: { labels: { en: { value: 'Al Pacino' } }, sitelinks: { enwiki: { url: 'https://en.wikipedia.org/wiki/Al_Pacino' } } },
+  Q295964: { labels: { en: { value: 'Michael Mann' } } },
+  Q1891: { labels: { en: { value: 'Regency Enterprises' } } },
+  Q959790: { labels: { en: { value: 'crime film' } } },
+  Q2484376: { labels: { en: { value: 'thriller film' } } },
+  Q1860: { labels: { en: { value: 'English' } } },
+  Q4000: { labels: { en: { value: 'Burt Reynolds' } } },
+}
+
+const WIKIDATA_HEAT_ROUTES = {
+  '/w/api.php': (params) => {
+    if (params.action === 'wbsearchentities') return { search: [{ id: 'Q42198', label: 'Heat', description: '1995 film directed by Michael Mann' }, { id: 'Q1', label: 'Heat', description: 'form of energy' }] }
+    if (params.action === 'query') return { query: { search: [{ title: 'Q42198' }, { title: 'Q4242' }] } }
+    if (params.props.startsWith('labels|aliases')) return { entities: { Q42198: { labels: { mul: { value: 'Heat' } } }, Q4242: { labels: { en: { value: 'Heat' } }, descriptions: { en: { value: '1986 film' } } } } }
+    if (params.props.startsWith('claims')) return { entities: { [params.ids]: params.ids === 'Q42198' ? WIKIDATA_HEAT : WIKIDATA_REMAKE } }
+    return { entities: Object.fromEntries(params.ids.split('|').map((id) => [id, WIKIDATA_NAMES[id]])) }
+  },
+  '/sparql': { results: { bindings: [{ film: { value: 'http://www.wikidata.org/entity/Q42198' }, year: { value: '1995' } }] } },
+}
+
+const WIKIDATA_TWO_HEATS = { results: { bindings: [
+  { film: { value: 'http://www.wikidata.org/entity/Q42198' }, year: { value: '1995' } },
+  { film: { value: 'http://www.wikidata.org/entity/Q4242' }, year: { value: '1986' } },
+] } }
 
 const HEAT_REMAKE = { ...HEAT_DETAILS, id: 4242, release_date: '1986-03-14' }
 
@@ -163,7 +222,7 @@ const MASTERCHEF_ROUTES = {
 test('a film answers pending first, then TMDB cast in billing order, crew, and the overview', async () => {
   const { credits, client } = creditsWith({ routes: HEAT_ROUTES, hints: HEAT_HINTS })
   assert.deepEqual(await credits.creditsFor('Heat', { kind: 'movie' }), {
-    status: 'pending', overview: null, cast: [], crew: [], source: null, url: null,
+    status: 'pending', overview: null, cast: [], crew: [], details: null, source: null, url: null,
   })
   assert.deepEqual(await settled(credits, 'Heat', { kind: 'movie' }), {
     status: 'ready',
@@ -180,6 +239,7 @@ test('a film answers pending first, then TMDB cast in billing order, crew, and t
       { name: 'Michael Mann', job: 'Producer' },
       { name: 'Art Linson', job: 'Producer' },
     ],
+    details: { company: 'Regency Enterprises', year: 1995, genres: ['Crime', 'Drama'], minutes: 170, language: 'English' },
     source: 'tmdb',
     url: 'https://www.themoviedb.org/movie/949',
   })
@@ -202,6 +262,7 @@ test('a reality series shows its hosts from TVmaze with https pictures and the p
       { name: 'Margie Bashfield', job: 'Executive Producer' },
       { name: 'Paul Franklin', job: 'Executive Producer' },
     ],
+    details: { company: 'Network 10', year: 2009, genres: [], minutes: null, language: 'English' },
     source: 'tvmaze',
     url: 'https://www.tvmaze.com/shows/1238/masterchef-australia',
   })
@@ -257,16 +318,69 @@ test('a year keeps its own cache entry and series ignore it', async () => {
   assert.deepEqual([...cache.rows.keys()], ['tmdb:movie:heat@1995', 'tmdb:series-v2:masterchef australia'])
 })
 
-test('a film without a TMDB key is not looked up', async () => {
-  const { credits, client } = creditsWith({ routes: HEAT_ROUTES, hints: HEAT_HINTS, apiKey: null })
-  assert.equal((await credits.creditsFor('Heat', { kind: 'movie' })).status, 'none')
+test('a film without a TMDB key takes cast names, crew, and details from Wikidata, with no photos', async () => {
+  const { credits, client } = creditsWith({ routes: { ...HEAT_ROUTES, ...WIKIDATA_HEAT_ROUTES }, hints: HEAT_HINTS, apiKey: null })
+  const answer = await settled(credits, 'Heat', { kind: 'movie' })
+  assert.deepEqual(answer, {
+    status: 'ready',
+    overview: null,
+    cast: [
+      { name: 'Al Pacino', character: 'Vincent Hanna', image: null, url: 'https://en.wikipedia.org/wiki/Al_Pacino' },
+      { name: 'Robert De Niro', character: 'Neil McCauley', image: null, url: 'https://www.wikidata.org/wiki/Q36949' },
+    ],
+    crew: [{ name: 'Michael Mann', job: 'Director' }],
+    details: { company: 'Regency Enterprises', year: 1995, genres: ['Crime', 'Thriller'], minutes: 170, language: 'English' },
+    source: 'wikidata',
+    url: 'https://en.wikipedia.org/wiki/Heat_(1995_film)',
+  })
+  assert.equal(client.calls.some(({ path }) => path.startsWith('/movie') || path.startsWith('/search/movie')), false)
+})
+
+test('a keyless film with two same-name films and no guide evidence is a miss, not a guess', async () => {
+  const routes = { ...WIKIDATA_HEAT_ROUTES, '/sparql': WIKIDATA_TWO_HEATS }
+  const { credits } = creditsWith({ routes, hints: null, apiKey: null })
+  assert.equal((await settled(credits, 'Heat', { kind: 'movie' })).status, 'none')
+})
+
+test('a keyless film title with a year picks that year when the guide gives none', async () => {
+  const routes = { ...WIKIDATA_HEAT_ROUTES, '/sparql': WIKIDATA_TWO_HEATS }
+  const { credits } = creditsWith({ routes, hints: null, apiKey: null })
+  const answer = await settled(credits, 'Heat (1986)', { kind: 'movie' })
+  assert.equal(answer.url, 'https://www.wikidata.org/wiki/Q4242')
+  assert.deepEqual(answer.cast.map(({ name }) => name), ['Burt Reynolds'])
+})
+
+test('a keyless film with two same-name films picks the one the guide synopsis names', async () => {
+  const routes = { ...WIKIDATA_HEAT_ROUTES, '/sparql': WIKIDATA_TWO_HEATS }
+  const { credits } = creditsWith({ routes, hints: HEAT_HINTS, apiKey: null })
+  assert.equal((await settled(credits, 'Heat', { kind: 'movie' })).url, 'https://en.wikipedia.org/wiki/Heat_(1995_film)')
+})
+
+test('a Wikidata outage backs off and answers pending, never a cached miss', async () => {
+  const routes = { '/w/api.php': () => { throw Object.assign(new Error('www.wikidata.org HTTP 503'), { code: 'unavailable' }) } }
+  const { credits, cache } = creditsWith({ routes, hints: HEAT_HINTS, apiKey: null })
+  assert.equal((await credits.creditsFor('Heat', { kind: 'movie' })).status, 'pending')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal((await credits.creditsFor('Heat', { kind: 'movie' })).status, 'pending')
+  assert.equal(cache.rows.size, 0)
+})
+
+test('the credits switch off means no lookup at all, for series and keyless films', async () => {
+  const { credits, client } = creditsWith({ routes: { ...MASTERCHEF_ROUTES, ...WIKIDATA_HEAT_ROUTES }, creditsOn: false, apiKey: null })
+  assert.deepEqual(await credits.creditsFor('MasterChef Australia'), {
+    status: 'none', overview: null, cast: [], crew: [], details: null, source: null, url: null, off: true,
+  })
+  assert.equal((await credits.creditsFor('Heat', { kind: 'movie' })).off, true)
   assert.equal(client.calls.length, 0)
 })
 
-test('the credits switch off means no lookup at all', async () => {
-  const { credits, client } = creditsWith({ routes: MASTERCHEF_ROUTES, creditsOn: false })
-  assert.equal((await credits.creditsFor('MasterChef Australia')).status, 'none')
-  assert.equal(client.calls.length, 0)
+test('a cached hit from before details existed answers at once and refreshes in the background', async () => {
+  const { credits, client, cache } = creditsWith({ routes: MASTERCHEF_ROUTES, apiKey: null })
+  cache.rows.set('open:series-v2:masterchef australia', { found: { overview: 'Old.', cast: [], crew: [{ name: 'Franc Roddam', job: 'Creator' }], source: 'tvmaze', url: null }, expiresAt: 5000 })
+  assert.equal((await credits.creditsFor('MasterChef Australia')).overview, 'Old.')
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(client.calls.length, 3)
+  assert.equal((await credits.creditsFor('MasterChef Australia')).details.company, 'Network 10')
 })
 
 test('an unmatched show is cached as a miss', async () => {
@@ -392,6 +506,7 @@ test('a series with a TMDB key matched on a local guide network takes TMDB credi
     overview: FISK_TMDB.overview,
     cast: [{ name: 'Kitty Flanagan', character: 'Helen Tudor-Fisk', image: shown('https://image.tmdb.org/t/p/w185/kitty.jpg'), url: 'https://www.themoviedb.org/person/11' }],
     crew: [{ name: 'Kitty Flanagan', job: 'Creator' }, { name: 'Kevin Whyte', job: 'Executive Producer' }],
+    details: { company: 'ABC', year: 2021, genres: [], minutes: null, language: null },
     source: 'tmdb',
     url: 'https://www.themoviedb.org/tv/500',
   })

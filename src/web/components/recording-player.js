@@ -13,6 +13,7 @@ import {
 } from '/recording-info.js'
 import { CAPTION_LINE_PERCENT } from '/live-captions.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
+import { playerCreditsKindOf } from '/more-info.js'
 import { adMarkersOf, leftPillText, percentWithin, joinedParts, endsAtText } from '/player-labels.js'
 import { NO_CAPTIONS_ON_RECORDING } from '/player-mute.js'
 import {
@@ -99,6 +100,8 @@ export const RecordingPlayer = {
             <span class="live-info-next-label">{{ line.label }}</span>
             <marquee-text class="live-info-next-value" :text="line.text" :active="infoOpen"><span class="live-info-next-title">{{ line.text }}</span></marquee-text>
           </p>
+          <more-info v-if="recording" :key="recording.recording_id" class="live-info-more"
+            :title="recording.show_title_override || recording.title" :kind="playerCreditsKindOf(recording)" />
         </player-info-panel>
         <player-top-bar :channel-id="recording?.channel_id" has-logo :title="header.title" :subtitle="header.subtitle"
           back-label="Close" :can-pip="canPip" :pip-active="pipActive" :can-minimise="!miniInRow" :muted="playerMuted"
@@ -338,7 +341,7 @@ export const RecordingPlayer = {
       skip: skipPlaybackByKey,
       toggleFullscreen,
       toggleMute: togglePlayerMuted,
-      ignoreSelector: 'button, select, textarea, input:not(.pl-range)',
+      ignoreSelector: 'button, select, textarea, input:not(.pl-range), summary, a[href]',
     })
 
     const onTimeUpdate = () => {
@@ -389,7 +392,7 @@ export const RecordingPlayer = {
     })
 
     return {
-      playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
+      playerCreditsKindOf, playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
       infoOpen, infoClosing, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
