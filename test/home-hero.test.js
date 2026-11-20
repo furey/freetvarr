@@ -136,6 +136,14 @@ test('continue watching slide: resume with watched progress', () => {
   assert.equal(slide.art.image, '/api/epg/show-image?title=The%20Block&w=768&c=series-v2')
 })
 
+test('continue watching slide: Episodes for a series or an unknown kind, Details for a film or one-off', () => {
+  const labelFor = (kind) => slidesFrom({ inProgress: [episode({ kind })], nowMs, timeZone })[0].secondary.label
+  assert.equal(labelFor('show'), 'Episodes')
+  assert.equal(labelFor('movie'), 'Details')
+  assert.equal(labelFor('oneoff'), 'Details')
+  assert.equal(labelFor(undefined), 'Episodes')
+})
+
 test('new episode slide: only for a series you have watched', () => {
   const newEpisodes = [episode({ recordingId: 'n1', showKey: 'mkr', title: 'MKR', season: 16, episode: 8, positionS: null })]
   const unseen = slidesFrom({ newEpisodes, shows: [show({ key: 'mkr', counts: { total: 4, unwatched: 4 } })], nowMs, timeZone })

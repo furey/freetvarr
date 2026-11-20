@@ -190,6 +190,25 @@ test('a liked show you have not touched in weeks is back after a break', () => {
   assert.equal(sectionOf(run({ programmes: [airing('Rake')], events }), 'new-seasons').items[0].title, 'Rake')
 })
 
+test('a liked film you have not touched in weeks is not called back after a break', () => {
+  const events = [...baseEvents(), ...watched('Die Hard', { episodes: 6, daysAgo: 70 })]
+  const result = run({ programmes: [airing('Die Hard', { kind: 'movie' })], events })
+  const item = itemFor(result, 'Die Hard')
+  assert.equal(item.kind, 'liked')
+  assert.equal(item.programmeKind, 'movie')
+  assert.notEqual(item.reason, 'Back after a break')
+  assert.equal(sectionOf(result, 'new-seasons'), undefined)
+  const { signals } = result.explanations.get(item.id)
+  assert.ok(signals.includes('You watched Die Hard'))
+  assert.ok(signals.every((text) => !/episode|season/i.test(text)))
+})
+
+test('a film with a series link in the guide never offers Record series', () => {
+  const events = [...baseEvents(), ...watched('Die Hard', { episodes: 6 })]
+  const item = itemFor(run({ programmes: [airing('Die Hard', { kind: 'movie' })], events }), 'Die Hard')
+  assert.equal(item.canRecordSeries, false)
+})
+
 test('abandoned shows (three or more starts, under 15% finished) are not treated as liked', () => {
   const events = [...baseEvents(), ...watched('Dud Show', { episodes: 4, completed: 0 })]
   const result = run({ programmes: [airing('Dud Show')], events })

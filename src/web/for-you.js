@@ -367,7 +367,11 @@ export const topRatedItemSlideOf = ({ item, nowMs, timeZone }) => {
 
 export const hasWidePicture = (item) => String(item?.image || '').startsWith('/api/epg/image/')
 
-export const carouselReasonOf = (item) => item.reason || CAROUSEL_REASONS[kindOf(item)] || 'Picked for you'
+export const carouselReasonOf = (item) => item.reason || carouselReasonsOf(item)[kindOf(item)] || 'Picked for you'
+
+const carouselReasonsOf = (item) => (programmeKindOfItem(item) === 'movie'
+  ? { ...CAROUSEL_REASONS, ...FILM_CAROUSEL_REASONS }
+  : CAROUSEL_REASONS)
 
 export const pageIntroOf = ({ coldStart }) => (coldStart
   ? 'Suggestions start after you watch a few shows. Until then, here is what\'s new this week.'
@@ -608,6 +612,10 @@ const CAROUSEL_REASONS = {
   'new-show': 'New this week',
   movie: 'A movie you might like',
   liked: 'A show you liked',
+}
+
+const FILM_CAROUSEL_REASONS = {
+  liked: 'A movie you liked',
 }
 
 const SHEET_FOCUS = {

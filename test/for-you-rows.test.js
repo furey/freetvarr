@@ -105,6 +105,23 @@ test('ready to watch: the oldest unwatched episode per show, watched and gone re
   assert.deepEqual(result.explanations.get(item.id).signals, ['You have 2 unwatched recordings of Rosehaven', 'This is the oldest one'])
 })
 
+test('ready to watch: films and one-offs count recordings, not episodes', () => {
+  const titleKind = (kind) => ({ genreTags: [], genres: [], source: null, titleKind: { kind, source: 'guide', evidence: null } })
+  const genresByKey = new Map([['die-hard', titleKind('movie')], ['the-melbourne-cup', titleKind('one-off')], ['rosehaven', titleKind('series')]])
+  const recordings = [
+    recording('Die Hard', { season: null, episode: null }),
+    recording('The Melbourne Cup', { season: null, episode: null }),
+    recording('Rosehaven'),
+  ]
+  const result = run({ programmes: [], events: engagedEvents(), recordings, genresByKey })
+  const byTitle = new Map(sectionOf(result, 'ready-to-watch').items.map((item) => [item.title, item]))
+  assert.equal(byTitle.get('Die Hard').reason, '1 recording to watch')
+  assert.equal(byTitle.get('Die Hard').programmeKind, 'movie')
+  assert.equal(byTitle.get('The Melbourne Cup').reason, '1 recording to watch')
+  assert.equal(byTitle.get('The Melbourne Cup').programmeKind, 'one-off')
+  assert.equal(byTitle.get('Rosehaven').reason, '1 episode to watch')
+})
+
 test('ready to watch: shows you engage with come first, then the newest arrivals, up to 12', () => {
   const titles = Array.from({ length: 14 }, (_, index) => `Drama ${index}`)
   const recordings = titles.map((title, index) => recording(title, { imported_at: NOW - (index + 1) * HOUR }))
@@ -144,6 +161,19 @@ test('finish what you started: shows with 1 to 3 watched episodes whose next epi
   assert.equal(newsreader.start, NOW + 5 * HOUR)
   assert.equal(newsreader.reason, 'You watched 2 episodes')
   assert.equal(allTitles(result).filter((title) => title === 'The Newsreader').length, 1)
+})
+
+test('finish what you started: a one-off names the title, a film is left out', () => {
+  const events = [...engagedEvents(), ...watched('Carols by Candlelight', { episodes: 2 }), ...watched('Die Hard', { episodes: 2 })]
+  const programmes = [
+    airing('Carols by Candlelight', { start: NOW + 5 * HOUR, kind: 'one-off' }),
+    airing('Die Hard', { start: NOW + 6 * HOUR, kind: 'movie' }),
+  ]
+  const result = run({ programmes, events })
+  assert.deepEqual(titlesIn(result, 'finish-started'), ['Carols by Candlelight'])
+  const [item] = sectionOf(result, 'finish-started').items
+  assert.equal(item.reason, 'You watched Carols by Candlelight')
+  assert.deepEqual(result.explanations.get(item.id).signals, ['You watched Carols by Candlelight', 'It airs again this week'])
 })
 
 test('finish what you started: a show you already record as a series is left out', () => {
