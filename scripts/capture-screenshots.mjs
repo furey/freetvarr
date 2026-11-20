@@ -33,7 +33,7 @@ const DESKTOP_SHOTS = [
   { hash: '#/for-you', file: 'screenshot-for-you-row-menu.png', wait: '.for-you-rows .for-you-card', prepare: (page) => openCategoryRowMenu(page) },
   { hash: '#/settings/for-you', file: 'screenshot-for-you-categories.png', wait: '.settings-page', prepare: (page) => openCategoriesSheet(page) },
   { hash: '#/recordings/scheduled', file: 'screenshot-scheduled.png', wait: '.scheduled-view, .ui-empty' },
-  { hash: '#/recordings/show/:showcase', file: 'screenshot-show.png', wait: '.show-view, .show-hero' },
+  { hash: '#/recordings/show/:seriesShow', file: 'screenshot-show.png', wait: '.show-view, .show-hero' },
   { hash: '#/recordings/show/:scheduledOnly', file: 'screenshot-show-scheduled.png', wait: '.show-hero' },
   { hash: '#/recordings/show/:copyShow', file: 'screenshot-delete.png', wait: '.show-hero', prepare: (page, picks) => openEpisodeAction(page, { label: 'Delete episode', episode: picks.copyEpisode }) },
   { hash: '#/recordings/show/:showcase', file: 'screenshot-merge.png', wait: '.show-hero', prepare: (page) => openEpisodeAction(page, { label: 'Merge into another show…' }) },
@@ -218,6 +218,7 @@ const revealPlayerControls = async (page) => {
 
 const resolveHash = (hash, picks) => hash
   .replace(':showcase', encodeURIComponent(picks.showcaseKey || ''))
+  .replace(':seriesShow', encodeURIComponent(picks.seriesShowKey || ''))
   .replace(':scheduledOnly', encodeURIComponent(picks.scheduledOnlyKey || ''))
   .replace(':copyShow', encodeURIComponent(picks.copyShowKey || ''))
 
@@ -230,12 +231,14 @@ const libraryKeys = async ({ request, base }) => {
   const recordedKeys = new Set(shows.filter((s) => s.counts?.total > 0).map((s) => s.key))
   const scheduledOnly = series.find((s) => s.nextAiring && !recordedKeys.has(showKeyOf(s.title)))
   const named = SHOWCASE_TITLE ? shows.find((s) => s.title === SHOWCASE_TITLE) : null
-  const showcase = named ?? shows.find((s) => s.nextAiring && s.counts?.total >= 4) ?? shows.find((s) => s.counts?.total >= 4) ?? shows[0]
+  const recordingNewEpisodes = shows.find((s) => s.nextAiring && s.counts?.total >= 4)
+  const showcase = named ?? recordingNewEpisodes ?? shows.find((s) => s.counts?.total >= 4) ?? shows[0]
   const details = await Promise.all(shows.map(async (show) => (await request.get(`${base}/api/library/shows/${encodeURIComponent(show.key)}`)).json()))
   const copyEpisodeOf = (detail) => (detail.seasons || []).flatMap((season) => season.episodes || []).find((e) => e.otherVersions?.length)
   const withCopy = details.find(copyEpisodeOf)
   return {
     showcaseKey: showcase?.key,
+    seriesShowKey: recordingNewEpisodes?.key ?? showcase?.key,
     scheduledOnlyKey: scheduledOnly ? showKeyOf(scheduledOnly.title) : null,
     copyShowKey: withCopy?.key ?? showcase?.key,
     copyEpisode: withCopy ? copyEpisodeOf(withCopy).episode : null,
@@ -269,7 +272,7 @@ const captureAll = async (shots, viewport, { mobile = false } = {}) => {
   })
   const picks = await prepareDemoContext({ context: ctx, base: BASE, simNow: SIM_NOW })
   Object.assign(picks, await libraryKeys({ request: ctx.request, base: BASE }))
-  console.log(`up next: ${picks.upNext?.program.title}; programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; show: ${picks.showcaseKey}; scheduled only: ${picks.scheduledOnlyKey}`)
+  console.log(`up next: ${picks.upNext?.program.title}; programme: ${picks.programme.program.title} on ${picks.programme.channel.name}; show: ${picks.showcaseKey}; series show: ${picks.seriesShowKey}; scheduled only: ${picks.scheduledOnlyKey}`)
   const page = await ctx.newPage()
   for (const shot of shots) {
     const url = `${BASE}/${resolveHash(shot.hash, picks)}`

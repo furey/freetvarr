@@ -96,8 +96,8 @@ A show page has these parts:
 - **Scheduled episode**: the next episode that TVHeadend has scheduled for the show, at the top of its season, with its day and time, such as `Tomorrow 8:30pm`. Press it to open its [programme sheet](/guide/tv-guide#recording-a-programme), where you can change or cancel the recording.
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
-  <img src="../img/screenshot-show.png" alt="A show page with the next scheduled episode above the recorded episodes" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/ncis">
+  <img src="../img/screenshot-show.png" alt="The NCIS show page with a series recording that records every new episode, and the next scheduled episode above the recorded episodes" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
