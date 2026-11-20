@@ -14,7 +14,8 @@ import {
   pendingActionLabelOf,
   primaryActionOf,
   seasonEpisodeShort,
-  sheetMetaLineOf,
+  sheetAiringLineOf,
+  sheetEpisodeLineOf,
   sheetStrengthsFor,
   stepValue,
   strengthLineOf,
@@ -80,14 +81,17 @@ test('primaryActionOf: red for recording, nothing otherwise', () => {
   assert.equal(primaryActionOf({ strength: '' }), null)
 })
 
-test('sheetMetaLineOf and seasonEpisodeShort: skip the parts a programme lacks', () => {
+test('sheet lines: the episode line names the episode, the airing line names the channel and time', () => {
   assert.equal(seasonEpisodeShort({ series_no: 8, episode_no: 17 }), 'S8 E17')
   assert.equal(seasonEpisodeShort({ series_no: null, episode_no: 3 }), 'E3')
-  assert.equal(
-    sheetMetaLineOf({ seasonEpisode: 'S8 E17', episodeTitle: 'Dead Ringer', channelName: '7 Sydney', timeRange: 'Mon 9:12–10:10pm' }),
-    'S8 E17 · Dead Ringer · 7 Sydney · Mon 9:12–10:10pm',
-  )
-  assert.equal(sheetMetaLineOf({ seasonEpisode: '', episodeTitle: null, channelName: 'ABC', timeRange: '' }), 'ABC')
+  assert.equal(sheetEpisodeLineOf({ seasonEpisode: 'S1 E6', episodeTitle: 'Wednesday' }), 'S1 E6 · Wednesday')
+  assert.equal(sheetEpisodeLineOf({ seasonEpisode: 'S14 E1', episodeTitle: 'Episode 1' }), 'S14 E1')
+  assert.equal(sheetEpisodeLineOf({ seasonEpisode: '', episodeTitle: null }), '')
+  assert.equal(sheetEpisodeLineOf({ seasonEpisode: 'E3', episodeTitle: 'The Return' }), 'E3 · The Return')
+  assert.equal(sheetEpisodeLineOf({ seasonEpisode: 'S2 E12', episodeTitle: 'episode 12' }), 'S2 E12')
+  assert.equal(sheetEpisodeLineOf({ seasonEpisode: 'S1 E1', episodeTitle: 'Episode 1 of 6' }), 'S1 E1 · Episode 1 of 6')
+  assert.equal(sheetAiringLineOf({ channelName: 'SBS ONE HD', timeRange: 'Fri 10:50pm–11:55pm' }), 'SBS ONE HD · Fri 10:50pm–11:55pm')
+  assert.equal(sheetAiringLineOf({ channelName: 'ABC', timeRange: '' }), 'ABC')
 })
 
 test('watch items: fulfilled entries no longer count as watched', () => {

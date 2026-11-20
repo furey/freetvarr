@@ -10,7 +10,8 @@ import {
   primaryActionOf,
   scheduledMessageOf,
   seasonEpisodeShort,
-  sheetMetaLineOf,
+  sheetAiringLineOf,
+  sheetEpisodeLineOf,
   sheetStrengthsFor,
   stepValue,
   strengthLineOf,
@@ -82,7 +83,8 @@ export const ProgrammeSheetHost = {
         </div>
         <div class="programme-sheet-heading">
           <h2 id="programme-sheet-title" class="programme-sheet-title">{{ selected.program.title }}</h2>
-          <p class="programme-sheet-meta">{{ sheetMeta }}</p>
+          <p v-if="sheetEpisodeLine" class="programme-sheet-meta">{{ sheetEpisodeLine }}</p>
+          <p class="programme-sheet-meta">{{ sheetAiringLine }}</p>
         </div>
         <p v-if="selected.program.synopsis" class="programme-sheet-synopsis">{{ selected.program.synopsis }}</p>
         <programme-review-card v-if="ratingReview" :key="selected.program.title" :review="ratingReview" />
@@ -90,79 +92,77 @@ export const ProgrammeSheetHost = {
           :guide="guideDetailsOf(selected.program)" />
         <div :class="['programme-sheet-actions', { 'is-ready': sheetReady }]" :aria-busy="String(!sheetReady)">
         <p v-if="selectedRepeatNotice" class="ui-banner is-warning" role="status">{{ selectedRepeatNotice }}</p>
-        <p v-else-if="selectedStatusText" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ selectedStatusText }}</p>
-        <p v-else-if="selectedState === 'series'" class="programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>A series recording in TVHeadend records this show.</p>
         <cancel-series-step v-if="cancelSeriesStep" :title="cancelSeriesStep.title" :episode-outcome="cancelSeriesStep.episodeOutcome"
           :title-match="cancelSeriesStep.titleMatch" :busy="modalBusy" @back="cancelSeriesStep = null" @confirm="cancelSelectedSeries" />
         <template v-else>
-          <div v-if="cancelActions.length" class="programme-sheet-cancels">
-            <div v-for="action in cancelActions" :key="action.key" class="programme-sheet-cancel">
-              <button type="button" :class="['ui-button', 'ui-button-destructive', 'ui-button-block', { 'is-busy': modalAction === action.busyKey, 'is-pending': modalAction === action.busyKey }]"
-                :disabled="modalBusy" :aria-busy="modalAction === action.busyKey" @click="action.run">
-                <span v-if="modalAction === action.busyKey" class="spinner" aria-hidden="true"></span><stop-icon v-else-if="action.key === 'stop'" />
-                {{ modalAction === action.busyKey ? pendingActionLabelOf(action.key) : action.label }}
-              </button>
-              <p class="programme-sheet-outcome">{{ action.outcome }}</p>
-            </div>
-          </div>
-          <template v-if="sheetStrengths.length">
-            <ui-segmented v-if="sheetStrengths.length > 1" fill class="programme-sheet-strengths" aria-label="What to record"
-              v-model="sheetStrength" :options="sheetStrengths.map((s) => ({ value: s.key, label: s.label }))" />
-            <p v-if="showStrengthLine" class="programme-sheet-line">{{ strengthLine }}</p>
-            <div v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="ui-group programme-sheet-options">
-              <padding-rows v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme" />
-              <div v-if="sheetStrength === 'series'" class="ui-group-row">
-                <span class="ui-group-row-main" id="programme-keep-label">Keep</span>
-                <span class="ui-stepper" role="group" aria-labelledby="programme-keep-label">
-                  <button type="button" class="ui-stepper-button" aria-label="Keep fewer" :disabled="!canStep({ steps: keepSteps, value: episodesToKeep, step: -1 })" @click="episodesToKeep = stepValue({ steps: keepSteps, value: episodesToKeep, step: -1 })">−</button>
-                  <span class="ui-stepper-value" aria-live="polite">{{ keepLabel(episodesToKeep) }}</span>
-                  <button type="button" class="ui-stepper-button" aria-label="Keep more" :disabled="!canStep({ steps: keepSteps, value: episodesToKeep, step: 1 })" @click="episodesToKeep = stepValue({ steps: keepSteps, value: episodesToKeep, step: 1 })">+</button>
-                </span>
+          <div v-if="hasRecordingCard" class="ui-group programme-sheet-recording" role="group" aria-label="Recording">
+            <p v-if="recordingStatusText" class="ui-group-row programme-sheet-status"><span class="ui-dot is-live" aria-hidden="true"></span>{{ recordingStatusText }}</p>
+            <button v-for="action in cancelActions" :key="action.key" type="button"
+              :class="['ui-group-row', 'programme-sheet-cancel', { 'is-pending': modalAction === action.busyKey }]"
+              :disabled="modalBusy" :aria-busy="modalAction === action.busyKey" @click="action.run">
+              <stop-icon v-if="action.key === 'stop'" class="programme-sheet-cancel-icon" />
+              <span class="ui-group-row-main">
+                <span class="ui-group-row-title">{{ modalAction === action.busyKey ? pendingActionLabelOf(action.key) : action.label }}</span>
+                <span class="ui-group-row-meta">{{ action.outcome }}</span>
+              </span>
+              <span v-if="modalAction === action.busyKey" class="spinner" aria-hidden="true"></span>
+            </button>
+            <template v-if="sheetStrengths.length">
+              <div v-if="sheetStrengths.length > 1 || showStrengthLine" class="ui-group-row programme-sheet-choice">
+                <ui-segmented v-if="sheetStrengths.length > 1" fill class="programme-sheet-strengths" aria-label="What to record"
+                  v-model="sheetStrength" :options="sheetStrengths.map((s) => ({ value: s.key, label: s.label }))" />
+                <p v-if="showStrengthLine" class="programme-sheet-line">{{ strengthLine }}</p>
               </div>
-              <div v-if="sheetStrength === 'series'" class="ui-group-row">
-                <span class="ui-group-row-main">
-                  <span class="ui-group-row-title">Any channel</span>
-                  <span class="ui-group-row-meta">Record the series on whichever channel airs it</span>
-                </span>
-                <toggle-switch v-model="anyChannel" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" />
-              </div>
-            </div>
-            <details v-if="sheetStrength === 'episode' || sheetStrength === 'series'" class="programme-sheet-advanced">
-              <summary class="ui-disclosure-summary">Advanced</summary>
-              <div class="ui-group">
-                <div class="ui-group-row">
-                  <span class="ui-group-row-main">
-                    <span class="ui-group-row-title">Add to library</span>
-                    <span class="ui-group-row-meta">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/settings/system/series">Series rules</a>.</template></span>
+              <template v-if="sheetStrength === 'episode' || sheetStrength === 'series'">
+                <padding-rows v-model:lead="leadTime" v-model:lag="lagTime" id-prefix="programme" />
+                <div v-if="sheetStrength === 'series'" class="ui-group-row">
+                  <span class="ui-group-row-main" id="programme-keep-label">Keep</span>
+                  <span class="ui-stepper" role="group" aria-labelledby="programme-keep-label">
+                    <button type="button" class="ui-stepper-button" aria-label="Keep fewer" :disabled="!canStep({ steps: keepSteps, value: episodesToKeep, step: -1 })" @click="episodesToKeep = stepValue({ steps: keepSteps, value: episodesToKeep, step: -1 })">−</button>
+                    <span class="ui-stepper-value" aria-live="polite">{{ keepLabel(episodesToKeep) }}</span>
+                    <button type="button" class="ui-stepper-button" aria-label="Keep more" :disabled="!canStep({ steps: keepSteps, value: episodesToKeep, step: 1 })" @click="episodesToKeep = stepValue({ steps: keepSteps, value: episodesToKeep, step: 1 })">+</button>
                   </span>
-                  <toggle-switch v-model="addToLibrary" aria-label="Add to library" />
                 </div>
-              </div>
-            </details>
-          </template>
-          <p v-if="!sheetStrengths.length && !cancelActions.length" class="programme-sheet-line">This programme has already aired.</p>
+                <div v-if="sheetStrength === 'series'" class="ui-group-row">
+                  <span class="ui-group-row-main">
+                    <span class="ui-group-row-title">Any channel</span>
+                    <span class="ui-group-row-meta">Record the series on whichever channel airs it</span>
+                  </span>
+                  <toggle-switch v-model="anyChannel" aria-label="Record on any channel" :title="ANY_CHANNEL_HINT" />
+                </div>
+                <details class="programme-sheet-advanced">
+                  <summary class="ui-group-row ui-disclosure-summary ui-disclosure-row">Advanced</summary>
+                  <div class="ui-group-row">
+                    <span class="ui-group-row-main">
+                      <span class="ui-group-row-title">Add to library</span>
+                      <span class="ui-group-row-meta">{{ libraryNote.text }}<template v-if="libraryNote.changeable"> Change it in <a href="#/settings/system/series">Series rules</a>.</template></span>
+                    </span>
+                    <toggle-switch v-model="addToLibrary" aria-label="Add to library" />
+                  </div>
+                </details>
+              </template>
+            </template>
+          </div>
+          <p v-if="!sheetStrengths.length && !cancelActions.length && !recordingStatusText" class="programme-sheet-line">This programme has already aired.</p>
           <p v-if="modalStatusText" :class="['programme-sheet-error', modalStatusKind]" role="status">{{ modalStatusText }}</p>
-          <div class="ui-sheet-footer programme-sheet-footer">
+          <div v-if="primaryAction || fromStartRecording || canWatchLive" class="ui-sheet-footer programme-sheet-footer">
+            <button v-if="primaryAction" type="button" :class="['ui-button', 'ui-button-block', 'programme-sheet-primary', primaryClass, { 'is-pending': modalAction === primaryAction.key }]"
+              :disabled="modalBusy" :aria-busy="modalAction === primaryAction.key" @click="runPrimaryAction">
+              <span v-if="modalAction === primaryAction.key" class="spinner" aria-hidden="true"></span>
+              <span v-else-if="primaryAction.tone === 'record'" class="programme-sheet-rec-dot" aria-hidden="true"></span>
+              {{ modalAction === primaryAction.key ? pendingActionLabelOf(primaryAction.key) : primaryAction.label }}
+            </button>
             <div v-if="fromStartRecording" class="programme-sheet-from-start">
               <button type="button" :class="['ui-button', 'ui-button-block', primaryAction ? 'ui-button-secondary' : 'ui-button-primary']" @click="watchSelectedFromStart"><play-glyph /> Watch from the start</button>
               <p class="programme-sheet-outcome">{{ fromStartLine }}</p>
             </div>
-            <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block" @click="watchSelected"><tv-icon /> Watch live</button>
-            <div class="programme-sheet-buttons">
-              <button type="button" class="ui-button ui-button-secondary programme-sheet-dismiss" @click="closeModal">Close</button>
-              <button v-if="primaryAction" type="button" :class="['ui-button', 'programme-sheet-primary', primaryClass, { 'is-pending': modalAction === primaryAction.key }]"
-                :disabled="modalBusy" :aria-busy="modalAction === primaryAction.key" @click="runPrimaryAction">
-                <span v-if="modalAction === primaryAction.key" class="spinner" aria-hidden="true"></span>
-                <span v-else-if="primaryAction.tone === 'record'" class="programme-sheet-rec-dot" aria-hidden="true"></span>
-                {{ modalAction === primaryAction.key ? pendingActionLabelOf(primaryAction.key) : primaryAction.label }}
-              </button>
-            </div>
-            <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length" class="library-menu programme-sheet-more">
-              <div class="ui-group library-menu-group">
-                <button v-if="canShowInGuide" type="button" class="ui-group-row library-menu-item" @click="showSelectedInGuide"><menu-icon name="guide" /><span class="library-menu-text"><span class="library-menu-label">Show in TV guide</span></span></button>
-                <button v-if="movieChoiceLabel" type="button" class="ui-group-row library-menu-item" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /><span class="library-menu-text"><span class="library-menu-label">{{ movieChoiceLabel }}</span></span></button>
-                <button v-for="item in dislikeItems" :key="item.key" type="button" class="ui-group-row library-menu-item" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /><span class="library-menu-text"><span class="library-menu-label">{{ item.label }}</span></span></button>
-              </div>
+            <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block programme-sheet-watch" @click="watchSelected"><tv-icon /> Watch live</button>
+          </div>
+          <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length" class="library-menu programme-sheet-more">
+            <div class="ui-group library-menu-group">
+              <button v-if="canShowInGuide" type="button" class="ui-group-row library-menu-item" @click="showSelectedInGuide"><menu-icon name="guide" /><span class="library-menu-text"><span class="library-menu-label">Show in TV guide</span></span></button>
+              <button v-if="movieChoiceLabel" type="button" class="ui-group-row library-menu-item" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /><span class="library-menu-text"><span class="library-menu-label">{{ movieChoiceLabel }}</span></span></button>
+              <button v-for="item in dislikeItems" :key="item.key" type="button" class="ui-group-row library-menu-item" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /><span class="library-menu-text"><span class="library-menu-label">{{ item.label }}</span></span></button>
             </div>
           </div>
         </template>
@@ -403,16 +403,25 @@ export const ProgrammeSheetHost = {
       record: 'ui-button-record',
     })[primaryAction.value?.tone] || '')
 
-    const sheetMeta = computed(() => {
+    const sheetEpisodeLine = computed(() => {
       const program = selected.value?.program
       if (!program) return ''
-      return sheetMetaLineOf({
-        seasonEpisode: seasonEpisodeShort(program),
-        episodeTitle: program.episode_title,
+      return sheetEpisodeLineOf({ seasonEpisode: seasonEpisodeShort(program), episodeTitle: program.episode_title })
+    })
+
+    const sheetAiringLine = computed(() => {
+      const program = selected.value?.program
+      if (!program) return ''
+      return sheetAiringLineOf({
         channelName: selected.value.channel?.name || channelName(program.channelId),
         timeRange: program.start ? fmtSheetRange(program) : '',
       })
     })
+
+    const recordingStatusText = computed(() => selectedStatusText.value
+      || (selectedState.value === 'series' ? 'A series recording in TVHeadend records this show.' : ''))
+
+    const hasRecordingCard = computed(() => Boolean(recordingStatusText.value || cancelActions.value.length || sheetStrengths.value.length))
 
     const cancelActions = computed(() => {
       const program = selected.value?.program
@@ -887,7 +896,7 @@ export const ProgrammeSheetHost = {
       keepSteps: SHEET_KEEP_STEPS,
       stepValue, canStep, keepLabel,
       sheetStrengths, sheetStrength, strengthLine, showStrengthLine, primaryAction, primaryClass, runPrimaryAction,
-      sheetMeta, cancelActions, stopRequest, onStopped, selectedState, selectedStatusText, selectedRepeatNotice,
+      sheetEpisodeLine, sheetAiringLine, recordingStatusText, hasRecordingCard, cancelActions, stopRequest, onStopped, selectedState, selectedStatusText, selectedRepeatNotice,
       hdOffer, recordOffered, cancelSelectedSeries, cancelSeriesStep,
       hasChannelLogo, drag, hdDrag, hdSheetEl, sheetReady,
       ratingScore, ratingReview, ratingCardOpen, ratingLoading,

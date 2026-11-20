@@ -1813,6 +1813,15 @@ Wikidata cast has `image: null`. A person `url` is the `enwiki` article, else th
 
 The client reads credits only in two places: the show page (`useProgrammeCredits`), and **More info** (`MoreInfo` in `src/web/components/more-info.js`). `MoreInfo` is a `<details>` with the `ui-disclosure-summary` style, used in the programme sheet, `LibraryInfoSheet`, and both player info panels. It fetches on the first `toggle` to open, through `loadMoreInfoCredits` in `src/web/more-info.js`: it repeats a `pending` answer on each `retryDelayOf` step (`1–15 s`, about `30 s` in all), and `holdAtLeast` keeps the skeletons for at least `900 ms`. `moreInfoOf` builds the cast, the crew lines, and the details rows (series: Network, First aired, Genres, Episode length, Language; film: Studio, Released, Genres, Length, Language). It drops empty rows, and falls back to the guide genre (`guideDetailsOf`). Each panel keys `MoreInfo` by programme, so it starts closed. When every retry is still `pending`, the section says it is still looking up cast and crew, and the next open asks again. `GET /api/recordings` adds `kind` to each row (`src/recording-title-kind.js`): the `title_kinds` kind, else `movie` or `one-off` from the folder the file sits in, else `null`. `playerCreditsKindOf` sends a film, a one-off, or a recording with no season and episode to the film lookup, a series to the series lookup, and asks nothing for any other recording.
 
+The programme sheet (`ProgrammeSheetHost` in `src/web/components/programme-sheet-host.js`) has these parts, top to bottom:
+
+1. About: the image with the close button (`.programme-sheet-close`), the title, the episode line (`sheetEpisodeLineOf`, which drops an episode title of the form `Episode N`), the airing line (`sheetAiringLineOf`), the synopsis, and `MoreInfo`.
+2. Recording: one `ui-group` card (`.programme-sheet-recording`). It holds the status row, the cancel rows (`cancelActions`), the `ui-segmented` choice from `sheetStrengthsFor`, `PaddingRows`, **Keep**, **Any channel**, and **Advanced**. **Advanced** is a `<details>` whose summary uses the shared `ui-disclosure-row` style.
+3. Actions: **Record** (`primaryActionOf`), **Watch from the start**, and **Watch live**.
+4. Menu: **Show in TV guide**, the movie correction, and the For you hide items, as `library-menu` rows.
+
+The sheet has no Close button. It closes from the X, the grab handle (tap or swipe), the backdrop, `Esc`, the browser back button (`overlayStack`), and a route change.
+
 ### Classification
 
 A classification is one of `G`, `PG`, `M`, `MA15+`, `R18+`, `P`, `C`, or `AV15+` (`CLASSIFICATIONS` in `src/classification-labels.js`).
