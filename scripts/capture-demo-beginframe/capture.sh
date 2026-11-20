@@ -81,8 +81,8 @@ if [ "$TOUR" = "hero" ]; then
   HERO="${REPO_ROOT}/docs/img/hero.webp"
   mkdir -p "$HERO_MASTER_DIR"
   VIDEO_FPS="$FPS" "$REPO_ROOT/scripts/encode-screencast.sh" "$FRAMES_DIR" "$HERO_MASTER" "${HERO_MASTER_DIR}/hero-poster.jpg" 0
-  ffmpeg -y -loglevel error -i "$HERO_MASTER" -vf "fps=${HERO_FPS:-12},scale=800:-1:flags=lanczos" \
-    -c:v libwebp_anim -quality "${HERO_QUALITY:-45}" -compression_level 6 -loop 0 -an "$HERO"
+  ffmpeg -y -loglevel error -i "$HERO_MASTER" -vf "fps=${HERO_FPS:-12},scale=${HERO_WIDTH:-1600}:-1:flags=lanczos" \
+    -c:v libwebp_anim -quality "${HERO_QUALITY:-75}" -compression_level 6 -loop 0 -an "$HERO"
   echo "[demo] done:"
   ls -lh "$HERO_MASTER" "$HERO"
 else

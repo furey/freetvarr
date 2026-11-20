@@ -40,25 +40,25 @@ Chrome renders each frame on demand (`HeadlessExperimental.beginFrame`) with vir
 To remake only `hero.webp` from a hero master you already have, run the same `ffmpeg` command that `capture.sh` runs:
 
 ```bash
-ffmpeg -y -i scripts/.cache/hero/hero.mp4 -vf "fps=12,scale=800:-1:flags=lanczos" \
-  -c:v libwebp_anim -quality 45 -compression_level 6 -loop 0 -an docs/img/hero.webp
+ffmpeg -y -i scripts/.cache/hero/hero.mp4 -vf "fps=12,scale=1600:-1:flags=lanczos" \
+  -c:v libwebp_anim -quality 75 -compression_level 6 -loop 0 -an docs/img/hero.webp
 ```
 
 ## Settings
 
-| Variable                   | Default                             | Effect                                                                           |
-| -------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
-| `DEMO_SHOWS`, `DEMO_FILMS` | `library` in the pack manifest      | Titles the library holds, in order, joined by `\|`                               |
-| `HERO_SHOWCASE`            | `tours.hero` in the pack manifest   | Home hero slides, in order; a missing title stops the capture                    |
-| `FILM_TITLE`               | `tours.film` in the pack manifest   | Film recorded from the TV guide                                                  |
-| `SERIES_TITLE`             | `tours.series` in the pack manifest | Series set to record every episode                                               |
-| `SHOW_TITLE`               | `tours.show` in the pack manifest   | Show page opened from Recordings                                                 |
-| `CAPTURE_PORT`             | `3801`                              | Port of the capture server                                                       |
-| `TOUR`                     | `demo`                              | `demo` for the docs demo, `hero` for `hero.webp`, `record` for `record-demo.mp4` |
-| `RECORD_SERIES_TITLE`      | the next series with a picture      | Series set to Every episode in the `record` tour                                 |
-| `HERO_FPS`, `HERO_QUALITY` | `12`, `45`                          | Frame rate and WebP quality of `hero.webp`                                       |
-| `EXTRA_HIDDEN_TITLES`      | none                                | More titles to hide outside the guide grid, joined by `\|`                       |
-| `LIVE_TUNING_MS`           | `1500`, `900` for `hero`            | Time the live channel takes to tune                                              |
+| Variable                                 | Default                             | Effect                                                                           |
+| ---------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| `DEMO_SHOWS`, `DEMO_FILMS`               | `library` in the pack manifest      | Titles the library holds, in order, joined by `\|`                               |
+| `HERO_SHOWCASE`                          | `tours.hero` in the pack manifest   | Home hero slides, in order; a missing title stops the capture                    |
+| `FILM_TITLE`                             | `tours.film` in the pack manifest   | Film recorded from the TV guide                                                  |
+| `SERIES_TITLE`                           | `tours.series` in the pack manifest | Series set to record every episode                                               |
+| `SHOW_TITLE`                             | `tours.show` in the pack manifest   | Show page opened from Recordings                                                 |
+| `CAPTURE_PORT`                           | `3801`                              | Port of the capture server                                                       |
+| `TOUR`                                   | `demo`                              | `demo` for the docs demo, `hero` for `hero.webp`, `record` for `record-demo.mp4` |
+| `RECORD_SERIES_TITLE`                    | the next series with a picture      | Series set to Every episode in the `record` tour                                 |
+| `HERO_FPS`, `HERO_QUALITY`, `HERO_WIDTH` | `12`, `75`, `1600`                  | Frame rate, WebP quality, and width in pixels of `hero.webp`                     |
+| `EXTRA_HIDDEN_TITLES`                    | none                                | More titles to hide outside the guide grid, joined by `\|`                       |
+| `LIVE_TUNING_MS`                         | `1500`, `900` for `hero`            | Time the live channel takes to tune                                              |
 
 The film, series, and show must air in the guide that night. The seed keeps a curated title only when its poster and backdrop both load, and fails when fewer than six shows or six films pass.
 
@@ -67,5 +67,5 @@ The Live TV favourites show what airs at the simulated time, and that time moves
 ## Outputs
 
 - `docs/public/demo.mp4`, `demo-1x.mp4`, and `demo-poster.jpg`
-- `docs/img/hero.webp` (`TOUR=hero`): `12 fps`, `800` pixels wide, from its `60 fps` master `scripts/.cache/hero/hero.mp4`
+- `docs/img/hero.webp` (`TOUR=hero`): `12 fps`, `1600` pixels wide (the README shows it at `800`, so it stays sharp on high-density screens), from its `60 fps` master `scripts/.cache/hero/hero.mp4`
 - `scripts/.cache/frames/demo-beginframe/` (or `hero-beginframe/`): the JPEG frames, plus `log.json` (cursor, hover, and video state per frame), `checks.json` (tiles per row), and `art-issues.json` (images that failed to show)
