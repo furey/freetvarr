@@ -7,7 +7,7 @@ import { artworkVersionOf, findArtwork } from './artwork.js'
 import { PLEX_ORIGIN_PREFIX, artworkChoices, choiceStampOf, plexSourceOf } from './artwork-choices.js'
 import { db } from './db.js'
 import { OK_VERDICT, STAND_IN_VERDICT } from './picture-gate.js'
-import { findArtSourceThumbnail, findEpisodeThumbnail, isArtSourceWarm, isEpisodeArtWarm, knownRecordingCopyVerdict, recordingCopyVerdict } from './epg.js'
+import { findArtOriginThumbnail, findEpisodeThumbnail, isArtOriginWarm, isEpisodeArtWarm, knownRecordingCopyVerdict, recordingCopyVerdict } from './epg.js'
 import { HERO_IMAGE_WIDTHS, createThumbnailStore, getThumbnailRoot, heroWidthFrom } from './image-thumbnails.js'
 import { imageRouteOf, serveImageRoute } from './image-routes.js'
 import { groupKeyOf, isLibraryMember, ruleTitleOf, withPlexRows } from './library.js'
@@ -143,8 +143,8 @@ export const createArtPool = ({
   findSeriesShow = seriesShowFinder({ searchTvmaze, countryCode }),
   cache = databaseCache,
   poolStore = databasePoolStore,
-  thumbnailFor = findArtSourceThumbnail,
-  isSourceWarm = isArtSourceWarm,
+  thumbnailFor = findArtOriginThumbnail,
+  isOriginWarm = isArtOriginWarm,
   loadSavedArtwork = findArtwork,
   savedCopyVerdict = recordingCopyVerdict,
   chosenBackground = (key) => artworkChoices.chosenFor({ key, kind: 'background' }),
@@ -262,15 +262,9 @@ export const createArtPool = ({
     return entries.filter((_, at) => loadable[at])
   }
 
-  const imageFor = async ({ origin, width }) => {
-    const source = await sourceOfOrigin({ origin, plexConnection })
-    return source ? thumbnailFor({ source, width }) : null
-  }
+  const imageFor = ({ origin, width }) => thumbnailFor({ origin, width, sourceOf: () => sourceOfOrigin({ origin, plexConnection }) })
 
-  const isImageWarm = async ({ origin, width }) => {
-    const source = await sourceOfOrigin({ origin, plexConnection })
-    return source ? isSourceWarm({ source, width }) : false
-  }
+  const isImageWarm = ({ origin, width }) => isOriginWarm({ origin, width })
 
   return { showPool, showSources, recordingArt, imageFor, isImageWarm }
 }

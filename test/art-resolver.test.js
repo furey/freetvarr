@@ -23,10 +23,13 @@ import {
   RECORDING_SAVE_CHAIN,
   pictureStampOf,
 } from '../src/art-resolver.js'
+import { createAiringMemory, forgetAiringsOnArtChanges } from '../src/airing-memory.js'
+import { createArtFeed } from '../src/art-feed.js'
 import { imageRouteOf, serveImageRoute } from '../src/image-routes.js'
 import { portraitPadOf } from '../src/show-poster.js'
 import { artKindHintOf, createArtworkStamps, showImageUrlOf } from '../src/web/artwork-stamps.js'
 import { artProbeStateOf } from '../src/web/art-fallback.js'
+import { showKeyOf } from '../src/web/show-key.js'
 
 const HOUR = 60 * 60 * 1000
 const POSTER = { width: 680, height: 1000 }
@@ -299,6 +302,121 @@ test('guide-only chain: the airing picture, then other airings, then the title c
   assert.deepEqual(await run({ sameTitle: ['guide:other'] }), ['same-title', 'guide:other'])
   assert.deepEqual(await run({ titleSources: ['plex:/art'] }), ['plex', 'plex:/art'])
   assert.deepEqual(await run({}), ['none', null])
+})
+
+const airingResolverWith = ({ sizes, verdicts = {}, ...rest }) => {
+  const loads = []
+  const built = resolverWith({
+    sizes,
+    loadImage: async (origin) => {
+      loads.push(origin)
+      return sizes[origin] && verdicts[origin] !== 'stand-in' ? { body: Buffer.from(origin) } : null
+    },
+    verdictOf: async (origin) => verdicts[origin] ?? 'ok',
+    ...rest,
+  })
+  return { ...built, loads }
+}
+
+const airingStages = {
+  own: async ({ ownSource }) => ({ sources: [ownSource].filter(Boolean) }),
+  'same-title': async ({ sameTitleSources = [] }) => ({ sources: sameTitleSources }),
+}
+
+test('airing memory: a settled airing picture is served again without loading any picture', async () => {
+  const { resolver, loads } = airingResolverWith({ stages: airingStages, sizes: { 'guide:own': WIDE } })
+  const ask = () => resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: 'guide:own' })
+  const first = await ask()
+  assert.deepEqual([first.stage, first.origin, first.remembered], ['own', 'guide:own', undefined])
+  const second = await ask()
+  assert.deepEqual([second.stage, second.origin, second.remembered], ['own', 'guide:own', true])
+  assert.deepEqual(loads, ['guide:own'])
+})
+
+test('airing memory: a new airing source, a new rule version, or a new picture stamp runs the chain again', async () => {
+  const sizes = { 'guide:own': WIDE, 'guide:new': WIDE }
+  const airingMemory = createAiringMemory()
+  const { resolver, loads } = airingResolverWith({ stages: airingStages, sizes, airingMemory, ruleVersion: 'gate-1' })
+  const ask = (target, ownSource = 'guide:own') => target.resolve({ title: 'Bluey', eventId: '7', ownSource })
+  await ask(resolver)
+  await ask(resolver)
+  assert.equal(loads.length, 1)
+  assert.equal((await ask(resolver, 'guide:new')).origin, 'guide:new')
+  assert.deepEqual(loads, ['guide:own', 'guide:new'])
+  const newRules = airingResolverWith({ stages: airingStages, sizes, airingMemory, ruleVersion: 'gate-2' })
+  await ask(newRules.resolver, 'guide:new')
+  assert.deepEqual(newRules.loads, ['guide:new'])
+  const feed = createArtFeed()
+  forgetAiringsOnArtChanges({ feed, memory: airingMemory })
+  await ask(newRules.resolver, 'guide:new')
+  assert.equal(newRules.loads.length, 1)
+  feed.publish({ key: showKeyOf('Bluey'), kind: 'programme', stamp: 'fresh' })
+  await ask(newRules.resolver, 'guide:new')
+  assert.equal(newRules.loads.length, 2)
+})
+
+test('airing memory: a remembered picture later judged a stand-in falls through to the next source', async () => {
+  const verdicts = {}
+  const { resolver } = airingResolverWith({ stages: airingStages, sizes: { 'guide:own': WIDE, 'guide:other': WIDE }, verdicts })
+  const ask = () => resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: 'guide:own', sameTitleSources: ['guide:other'] })
+  assert.equal((await ask()).origin, 'guide:own')
+  verdicts['guide:own'] = 'stand-in'
+  const found = await ask()
+  assert.deepEqual([found.stage, found.origin, found.remembered], ['same-title', 'guide:other', undefined])
+})
+
+test('airing memory: an answer given while a source was still pending is not remembered', async () => {
+  const { resolver, loads } = airingResolverWith({
+    stages: { ...airingStages, 'same-title': async () => ({ sources: [], pending: true }), plex: async () => ({ sources: ['plex:/art'] }) },
+    sizes: { 'plex:/art': WIDE },
+  })
+  const ask = () => resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: 'guide:dead' })
+  assert.equal((await ask()).provisional, true)
+  await ask()
+  assert.deepEqual(loads.filter((origin) => origin === 'guide:dead'), ['guide:dead', 'guide:dead'])
+})
+
+test('airing memory: an airing that falls to the title chain skips its own dead pictures but still asks the title chain', async () => {
+  const titleSources = { list: ['plex:/art'] }
+  const { resolver, loads } = airingResolverWith({
+    stages: { ...airingStages, plex: async () => ({ sources: titleSources.list }) },
+    sizes: { 'plex:/art': WIDE, 'plex:/new': WIDE },
+  })
+  const ask = () => resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: 'guide:dead' })
+  assert.equal((await ask()).origin, 'plex:/art')
+  titleSources.list = ['plex:/new']
+  assert.equal((await ask()).origin, 'plex:/new')
+  assert.deepEqual(loads.filter((origin) => origin === 'guide:dead'), ['guide:dead'])
+})
+
+test('airing memory: an answer that skipped a missing picture asks that picture again after the miss wait', async () => {
+  const sizes = { 'guide:other': WIDE }
+  const { resolver, clock } = airingResolverWith({ stages: airingStages, sizes })
+  const ask = () => resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: 'guide:own', sameTitleSources: ['guide:other'] })
+  assert.equal((await ask()).origin, 'guide:other')
+  sizes['guide:own'] = WIDE
+  assert.equal((await ask()).origin, 'guide:other')
+  clock.ms += 10 * 60 * 1000
+  assert.equal((await ask()).origin, 'guide:own')
+})
+
+test('airing memory: a request with a thumbnail-first load never reads an original through the default loader', async () => {
+  const { resolver, loads } = airingResolverWith({ stages: airingStages, sizes: { 'guide:own': WIDE } })
+  const cachedFirst = []
+  const load = async (origin) => {
+    cachedFirst.push(origin)
+    return { cached: true }
+  }
+  const found = await resolver.resolve({ title: 'Bluey', eventId: '7', ownSource: 'guide:own', load })
+  assert.deepEqual([found.stage, found.origin], ['own', 'guide:own'])
+  assert.deepEqual(cachedFirst, ['guide:own'])
+  assert.deepEqual(loads, [])
+})
+
+test('airing memory: an airing never answers from another airing of the same title', async () => {
+  const { resolver } = airingResolverWith({ stages: airingStages, sizes: { 'guide:a': WIDE, 'guide:b': WIDE } })
+  assert.equal((await resolver.resolve({ title: 'Bluey', eventId: '1', ownSource: 'guide:a' })).origin, 'guide:a')
+  assert.equal((await resolver.resolve({ title: 'Bluey', eventId: '2', ownSource: 'guide:b' })).origin, 'guide:b')
 })
 
 test('episode chain: the recording picture, then the series picture, then no picture', async () => {

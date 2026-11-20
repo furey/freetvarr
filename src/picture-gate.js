@@ -45,6 +45,20 @@ export const createPictureGate = ({
 
   const loadOwnerChoice = (origin) => readOf(origin).catch(() => null)
 
+  const loadUnlessCached = async ({ origin, isCached }) => {
+    const verdict = isCached() ? await measuredVerdictOf(origin) : null
+    if (!verdict) return load(origin)
+    if (verdict === STAND_IN_VERDICT) return null
+    return verdict === WEAK_VERDICT ? { verdict } : CACHED_PICTURE
+  }
+
+  const measuredVerdictOf = async (origin) => {
+    const subject = await subjectOf(String(origin ?? '')).catch(() => null)
+    if (!subject) return OK_VERDICT
+    await checks.load()
+    return checks.isMeasured?.(subject.key) ? checks.verdictOf(subject.key, { name: subject.name }).verdict : null
+  }
+
   const servedThumbnail = async ({ origin, thumbnails, key, width, loadOriginal, ownerChoice = false }) => {
     if (!ownerChoice && await knownVerdict(origin).catch(() => OK_VERDICT) === STAND_IN_VERDICT) return null
     return thumbnails.thumbnailFor({ key, width, loadOriginal })
@@ -73,9 +87,10 @@ export const createPictureGate = ({
     return readers.url(text)
   }
 
-  return { screen, load, knownVerdict, loadOwnerChoice, servedThumbnail }
+  return { screen, load, loadUnlessCached, knownVerdict, loadOwnerChoice, servedThumbnail }
 }
 
 const isOwnOrigin = (origin) => origin.startsWith(UPLOAD_ORIGIN_PREFIX) || origin.startsWith(PLEX_ORIGIN_PREFIX) || isFrameOrigin(origin)
 
 const OK_JUDGEMENT = Object.freeze({ verdict: OK_VERDICT, reason: null })
+const CACHED_PICTURE = Object.freeze({ cached: true })
