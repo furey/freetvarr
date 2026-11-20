@@ -1,6 +1,6 @@
 export const FALLBACK_ATTRIBUTION = [
   { name: 'TVmaze', url: 'https://www.tvmaze.com', licence: 'CC BY-SA 4.0', use: 'show genres, show ratings, cast, some artwork, and the show each TV folder is named after' },
-  { name: 'Wikidata', url: 'https://www.wikidata.org', licence: 'CC0', use: 'movie genres and links to film and show articles' },
+  { name: 'Wikidata', url: 'https://www.wikidata.org', licence: 'CC0', use: 'movie genres, film cast and crew names without a TMDB key, and links to film and show articles' },
   { name: 'Wikipedia', url: 'https://en.wikipedia.org', licence: 'CC BY-SA 4.0', use: 'some film and show pictures', notice: 'Some film and show pictures from Wikipedia. Each picture keeps its own licence.' },
   { name: 'date-holidays', url: 'https://github.com/commenthol/date-holidays', licence: 'ISC', use: 'the build tool that works out the Lunar New Year, Eid al-Fitr, and Hanukkah dates for the seasonal rows in For you', notice: 'The Lunar New Year, Eid al-Fitr, and Hanukkah dates for the seasonal rows in For you were worked out with date-holidays when Freetvarr was built.' },
   { name: 'Te Kāhui o Matariki Public Holiday Act 2022', url: 'https://www.legislation.govt.nz/act/public/2022/0014/latest/whole.html', licence: 'No copyright (NZ Copyright Act 1994, s 27)', use: 'the Matariki dates for the seasonal rows in For you', notice: 'The Matariki dates for the seasonal rows in For you come from Schedule 1 of the Te Kāhui o Matariki Public Holiday Act 2022.' },

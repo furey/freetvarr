@@ -210,6 +210,7 @@ export const recordingRowOf = (episode) => ({
   deleted_from_tvh_at: episode.deletedFromTvhAt,
   library_state: episode.libraryState,
   library_file_present: !episode.libraryState,
+  kind: episode.kind ?? null,
 })
 
 export const shortDayOf = ({ ms, timeZone }) =>

@@ -179,13 +179,14 @@ export const unmarkedText = ({ failed, total }) => {
   return `Could not mark ${what}`
 }
 
-export const episodeInfoOf = ({ episode, showTitle, timeZone }) => {
+export const episodeInfoOf = ({ episode, showTitle, timeZone, kind = '', year = null }) => {
   const fromPlex = episode.source === 'plex'
   const copies = fromPlex ? episode.versions || [] : episode.otherVersions || []
   const versionCount = copies.length + (fromPlex ? 0 : 1)
   return {
     title: episodeHeading(episode),
     subtitle: showTitle,
+    more: moreInfoOfShow({ title: showTitle, kind, year }),
     note: versionCount > 1 ? versionsNoteOf({ count: versionCount, fromPlex }) : '',
     text: episode.synopsis || '',
     rows: [
@@ -198,6 +199,12 @@ export const episodeInfoOf = ({ episode, showTitle, timeZone }) => {
     ].filter((row) => row && row.value),
   }
 }
+
+export const moreInfoOfShow = ({ title, kind = '', year = null }) => ({
+  title: title || '',
+  kind: kind === 'movie' ? 'movie' : '',
+  year: year ?? null,
+})
 
 export const isRecorded = (episode) => episode.source !== 'plex'
 
@@ -254,6 +261,7 @@ export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
     title: show.title,
     subtitle: '',
     text: '',
+    more: moreInfoOfShow({ title: show.title, kind: show.kind, year: show.year }),
     rows: [
       { label: 'Episodes', value: `${episodes.length} ${recorded ? 'recorded' : 'in your library'} · ${unwatched} unwatched` },
       { label: 'Series recording', value: seriesRecordingTextOf({ show, recorded }) },

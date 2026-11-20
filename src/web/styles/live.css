@@ -1232,6 +1232,24 @@ body.player-open .app-tabbar {
   gap: 0;
 }
 
+.pl-frame.is-info-open .live-info-text > .more-info:last-child {
+  display: block;
+  min-height: 0;
+  margin-right: 0;
+}
+
+.pl-frame.is-info-open .live-info-text > .more-info:last-child > .more-info-summary {
+  margin-right: calc(var(--pl-edge-right) + 4 * 44px + 3 * 8px + 12px - 1.25rem);
+}
+
+.pl-frame.is-info-open .live-info-text > .more-info[open]:last-child > .more-info-body {
+  padding-bottom: 52px;
+}
+
+.pl-frame.is-info-open .live-info:has(.more-info[open]) {
+  max-height: calc(100% - env(safe-area-inset-top, 0px) - 80px);
+}
+
 .pl-marquee-line {
   display: block;
   overflow: hidden;
@@ -1509,4 +1527,8 @@ body.player-open .app-tabbar {
   .pl-scrub.is-growing :is(.pl-track-buffer, .pl-track-edge, .pl-track-played, .pl-thumb) {
     transition: none;
   }
+}
+
+.live-info-text > .more-info {
+  margin-top: calc(0.35rem + var(--more-info-row-slack));
 }

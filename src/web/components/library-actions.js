@@ -112,7 +112,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     closeMenus()
   }
 
-  const play = (episode, options) => playRecording(recordingRowOf(episode), options)
+  const play = (episode, options) => playRecording(recordingRowOf({ ...episode, kind: show.value?.kind }), options)
 
   const { openProgramme } = useProgrammeSheet()
   const liveItemOf = (episode) => liveInProgressOf({ episode, active: recordingNow.value.active || [] })
@@ -352,7 +352,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
       return earlier && setShowWatched(true, earlier.recordingId)
     }
     if (key === 'episode-info') {
-      info.value = episodeInfoOf({ episode, showTitle: show.value.title, timeZone: tz.value })
+      info.value = episodeInfoOf({ episode, showTitle: show.value.title, timeZone: tz.value, kind: show.value.kind, year: show.value.year })
       return
     }
     if (key === 'move') return openMove([episode])

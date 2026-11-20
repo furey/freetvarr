@@ -68,8 +68,6 @@ export const VIEW_PRELOADS = {
     '/artwork-picker.js',
     '/components/artwork-picker.js',
     '/components/move-to-show-sheet.js',
-    '/components/show-credits.js',
-    '/credits-display.js',
     '/poll.js',
     '/response-order.js',
     '/views/show-view.js',

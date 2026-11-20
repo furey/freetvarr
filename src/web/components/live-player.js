@@ -20,6 +20,7 @@ import {
   useInfoCloseReveal,
 } from '/components/player-controls.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
+import { guideDetailsOf } from '/more-info.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf } from '/mini-player.js'
@@ -170,6 +171,8 @@ export const LivePlayer = {
               <marquee-text class="live-info-next-value" :text="info.next.title + ' ' + fmtClockTz(info.next.start)" :active="infoOpen"><span
                 class="live-info-next-title">{{ info.next.title }}</span>{{ fmtClockTz(info.next.start) }}</marquee-text>
             </p>
+            <more-info v-if="info.now && !tuneInShown" :key="info.now.program_id" class="live-info-more"
+              :title="info.now.title" :kind="info.now.kind || ''" :guide="guideDetailsOf(info.now)" />
         </player-info-panel>
         <player-top-bar :channel-id="live.channel?.id" :has-logo="Boolean(live.channel?.hasLogo)" :title="playerTitle"
           :subtitle="playerSubtitle" back-label="Stop and close"
@@ -892,7 +895,7 @@ export const LivePlayer = {
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       onLiveScrubInput, onLiveScrubCommit, controlsShown, onControlsPointerMove, cancelLiveTap, frameEl, toggleLiveFullscreen, isStageFullscreen, onFramePointerDown, onFramePointerUp, onFrameClick, onFrameDoubleClick,
       infoOpen, infoClosing, toggleInfo, tuneInShown, tuneInExit, headingHeld, prePlayChrome, panelOpen, slowTune, SLOW_TUNE_TEXT, info, infoChannelLabel, infoEpisodeLine, infoMetaLine, infoClassification, infoProgress,
-      tuneInClassification,
+      tuneInClassification, guideDetailsOf,
       captionsOn: liveCaptionsOn, toggleLiveCaptions,
       fmtClockTz, NO_GUIDE_TEXT, TUNING_TEXT,
     }

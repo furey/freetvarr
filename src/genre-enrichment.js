@@ -191,9 +191,11 @@ export const pickFilm = ({ rows = [], title, year = null }) => {
   return signatures.size === 1 ? dated[0] : null
 }
 
+export const WIKIDATA_FILM_KINDS = ['Q11424', 'Q24869', 'Q202866', 'Q506240', 'Q93204']
+
 export const filmQueryOf = (ids) => `SELECT ?film ?label (MIN(YEAR(?date)) AS ?year) (GROUP_CONCAT(DISTINCT ?genreLabel; separator="|") AS ?genres) WHERE {
   VALUES ?film { ${ids.map((id) => `wd:${id}`).join(' ')} }
-  VALUES ?kind { wd:Q11424 wd:Q24869 wd:Q202866 wd:Q506240 wd:Q93204 }
+  VALUES ?kind { ${WIKIDATA_FILM_KINDS.map((id) => `wd:${id}`).join(' ')} }
   ?film wdt:P31 ?kind .
   ?film rdfs:label ?label FILTER(LANG(?label) = "en")
   OPTIONAL { ?film wdt:P577 ?date }

@@ -402,7 +402,7 @@ export const SettingsView = {
             <info-button title="Film and TV info" doc="guide/tv-guide#missing-pictures" piece="metadata">
               <p>Most programme pictures come from the TV guide. When a guide picture is missing, Freetvarr uses the show's poster from your Plex library, then from TVmaze, a free online TV database. For films and other shows TVmaze does not list, it finds the matching Wikipedia article through Wikidata and uses its picture, or the TMDB poster when you add a TMDB key.</p>
               <p>Films and drama series also get a score on the programme sheet. Film scores come from TMDB users. Show scores come from TMDB users when you add a TMDB key and TMDB has enough votes, and from TVmaze users otherwise. With a TMDB key, the sheet also shows a line from a TMDB review.</p>
-              <p>A recorded show's page lists its cast and crew from TMDB and TVmaze, reality hosts included.</p>
+              <p>A recorded show's page lists its cast and crew from TMDB and TVmaze, reality hosts included. More info on the programme sheet, the Info sheet, and the player shows the same cast and crew. Films without a TMDB key get cast and crew names from Wikidata, with no photos.</p>
               <p>Genres from TVmaze and Wikidata help For you pick shows, and help search find other titles.</p>
               <p>A lookup sends the programme title to those services. Turn the switches off to keep every title on your network.</p>
             </info-button>
@@ -438,7 +438,7 @@ export const SettingsView = {
                 <toggle-switch v-model="creditsLookupEnabled" class="settings-toggle">
                   <span class="settings-toggle-text">
                     <span class="settings-row-title">Cast and crew</span>
-                    <span class="settings-row-meta">Cast and crew from TMDB and TVmaze</span>
+                    <span class="settings-row-meta">Cast and crew from TMDB, TVmaze, and Wikidata</span>
                   </span>
                 </toggle-switch>
               </div>

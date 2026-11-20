@@ -10,7 +10,7 @@ const isPlainKey = (e, key) => (e.key === key || e.key === key.toUpperCase())
 
 export const usePlayerKeys = ({
   isActive, infoOpen, close, toggleInfo, canToggleCaptions, toggleCaptions, togglePause, skip, toggleFullscreen, toggleMute,
-  ignoreSelector = 'button, select, textarea, input',
+  ignoreSelector = 'button, select, textarea, input, summary, a[href]',
 }) => {
   const onKeydown = (e) => {
     if (!isActive() || e.defaultPrevented || overlayStack.size() > 0) return
