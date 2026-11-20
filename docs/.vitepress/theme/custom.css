@@ -986,6 +986,25 @@ kbd {
   color: var(--ftv-text-3);
 }
 
+.VPFooter .footer-fineprint {
+  display: block;
+  max-width: 640px;
+  margin: 8px auto 10px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--ftv-text-3);
+  opacity: 0.75;
+  text-wrap: pretty;
+}
+
+.VPFooter .footer-fineprint img {
+  display: inline-block;
+  height: 7px;
+  width: auto;
+  vertical-align: baseline;
+}
+
 .VPFooter .copyright a {
   color: var(--ftv-text-2);
   font-weight: 600;

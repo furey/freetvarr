@@ -190,7 +190,7 @@ export default withMermaid(defineConfig({
     docFooter: { prev: 'Previous', next: 'Next' },
 
     footer: {
-      message: 'GPL-3.0-or-later. Not affiliated with or endorsed by SiliconDust, TVHeadend, or Plex. Demo artwork from TMDB and TVmaze; this product uses the TMDB API but is not endorsed or certified by TMDB.',
+      message: 'GPL-3.0-or-later. Not affiliated with or endorsed by SiliconDust, TVHeadend, or Plex.<span class="footer-fineprint">Titles and artwork in screenshots and videos belong to their owners and appear for demonstration only. Not affiliated with any broadcaster, studio, or Fetch TV. This product uses the TMDB API but is not endorsed or certified by TMDB. <img src="/freetvarr/brand/tmdb.svg" alt="TMDB" width="52" height="7"></span>',
       copyright: `<a href="${repo}">Source on GitHub</a>`
     }
   },

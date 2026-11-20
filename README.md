@@ -399,7 +399,7 @@ This project:
 
 - Is licensed under the [GNU GPLv3 License](./LICENSE).
 - Is not affiliated with or endorsed by [SiliconDust](https://www.silicondust.com/), TVHeadend, Plex, Sonarr, Radarr, or Fetch TV.
-- Shows film and TV artwork from [TMDB](https://www.themoviedb.org) and [TVmaze](https://www.tvmaze.com) in its demo screenshots and videos. This product uses the TMDB API but is not endorsed or certified by TMDB.
+- Shows titles and artwork in its screenshots and videos that belong to their owners and appear for demonstration only. It is not affiliated with any broadcaster, studio, or Fetch TV. This product uses the [TMDB](https://www.themoviedb.org) API but is not endorsed or certified by TMDB.
 - Began as a fork of [Fetcharr](https://github.com/furey/fetcharr), with the Fetch TV backend replaced by TVHeadend.
 - Is written with the assistance of AI and may contain errors.
 - Is intended for educational and experimental purposes only.
