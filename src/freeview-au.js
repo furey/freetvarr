@@ -9,7 +9,7 @@ export const FREEVIEW_NZ_REGION = 'nz'
 export const FREEVIEW_IMAGE_HOST = 'img-store-prod.switch.tv'
 export const FREEVIEW_WINDOW_MS = 6 * 60 * 60 * 1000
 export const FREEVIEW_MATCH_TOLERANCE_MS = 5 * 60 * 1000
-export const FREEVIEW_API_PACE = Object.freeze({ concurrency: 1, gapMs: 500, jitterMs: 1000 })
+export const FREEVIEW_API_PACE = Object.freeze({ concurrency: 1, gapMs: 500, jitterMs: 500 })
 
 export const FREEVIEW_REGIONS = {
   'Australia/Sydney': 'region_nsw_sydney',

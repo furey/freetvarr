@@ -12,6 +12,7 @@ import {
   retryAfterOf,
   retryDelayMs,
 } from '../src/outbound-http.js'
+import { FREEVIEW_API_PACE } from '../src/freeview-au.js'
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' }
 
@@ -132,17 +133,17 @@ test('host limiter caps concurrency, spaces starts, and refuses an overfull queu
   await assert.rejects(crowded.run(task), { code: 'queue-full' })
 })
 
-test('host limiter spaces starts by the gap plus a random share of the jitter, never less and never more', async () => {
+test('the Freeview pace spaces starts by 500 ms plus a random share of 500 ms, never less and never more', async () => {
   const startGaps = async (draw) => {
     const clock = { ms: 0 }
     const starts = []
-    const limiter = createHostLimiter({ gapMs: 500, jitterMs: 1000, now: () => clock.ms, random: () => draw, sleep: async (ms) => { clock.ms += ms } })
+    const limiter = createHostLimiter({ ...FREEVIEW_API_PACE, now: () => clock.ms, random: () => draw, sleep: async (ms) => { clock.ms += ms } })
     await Promise.all([1, 2, 3].map(() => limiter.run(async () => starts.push(clock.ms))))
     return starts.slice(1).map((start, index) => start - starts[index])
   }
   assert.deepEqual(await startGaps(0), [500, 500])
-  assert.deepEqual(await startGaps(0.5), [1000, 1000])
-  assert.deepEqual(await startGaps(1), [1500, 1500])
+  assert.deepEqual(await startGaps(0.5), [750, 750])
+  assert.deepEqual(await startGaps(1), [1000, 1000])
 })
 
 test('a 429 or 5xx holds the whole host queue for the backoff, and a long Retry-After holds it up to five minutes', async () => {
