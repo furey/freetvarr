@@ -1315,7 +1315,8 @@ The idle signal (`liveMeasureBusyReason`) is idle when all of these hold:
 - No live session, playback session, or ad scan runs.
 - No heavy job runs in `activity.snapshot().running` (`HEAVY_JOB_KINDS`: sync, import, ad removal, guide load, guide pictures, merged guide, For you rebuild, artwork warm-up, picture focus, library folders, and cache prune).
 - `getRecordingNow()` lists no active or finishing recording. A failed TVHeadend read counts as idle.
-- The one-minute `os.loadavg()` divided by the processor count is below `0.6`.
+- The Freetvarr process uses less than `15%` of one processor over the last minute (`process.cpuUsage()` against wall time, `createProcessCpuMeter`).
+- The one-minute `os.loadavg()` divided by the processor count is below `1.0`. Other containers keep this near `0.55` on an idle DS220+, so it blocks only a saturated machine.
 
 Until the first measurement on this start settles, and while one runs, `describe()` returns `measuring: 'waiting'` or `'running'`. The give-up warning and a skipped due check log the busy reason. The `live.streams` Health check then passes with a measuring detail instead of the saved result. The stream limit still uses the saved result. **Measure again** runs one benchmark at once, with no idle wait.
 

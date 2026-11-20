@@ -268,7 +268,7 @@ import { classificationKeyOf, createClassificationStore, isRatingsLikely, shiftH
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
-import { liveMeasureBusyReason, processorQuiet, startLiveMeasureSchedule } from './live-measure-schedule.js'
+import { createProcessCpuMeter, liveMeasureBusyReason, processorQuiet, startLiveMeasureSchedule } from './live-measure-schedule.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
 import { listSyncs, syncPageParams, syncRowOf } from './sync-history.js'
@@ -1021,11 +1021,13 @@ const liveStreams = createLiveStreams({
 const liveStreamsLoaded = liveStreams.load()
   .catch((err) => console.warn(`[live] could not load the stream limit: ${err.message}`))
 
+const freetvarrCpuShare = createProcessCpuMeter()
+
 const liveMeasureBusy = () => liveMeasureBusyReason({
   streamsBusy: liveStreamsBusy,
   runningJobs: () => activity.snapshot().running.map((run) => run.kind),
   recordingNow: () => getRecordingNow(),
-  quiet: () => processorQuiet(),
+  quiet: () => processorQuiet({ processCpuShare: freetvarrCpuShare }),
 })
 
 const startLiveMeasure = () => startLiveMeasureSchedule({

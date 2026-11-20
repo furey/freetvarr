@@ -4,8 +4,10 @@ import assert from 'node:assert/strict'
 import {
   isMeasureDue,
   liveMeasureBusyReason,
+  createProcessCpuMeter,
   processorQuiet,
   startLiveMeasureSchedule,
+  systemQuiet,
   waitForIdle,
 } from '../src/live-measure-schedule.js'
 
@@ -51,10 +53,36 @@ test('isMeasureDue: due with no run this start, then once a day', () => {
   assert.equal(isMeasureDue({ lastRunAt: 0, nowMs: 24 * 3_600_000 }), true)
 })
 
-test('processorQuiet: compares the one-minute load with the processor count', () => {
-  assert.equal(processorQuiet({ loadavg: () => [0.8, 0, 0], cpuCount: () => 2 }), true)
-  assert.equal(processorQuiet({ loadavg: () => [1.4, 0, 0], cpuCount: () => 2 }), false)
-  assert.equal(processorQuiet({ loadavg: () => [0.5, 0, 0], cpuCount: () => 0 }), true)
+test('systemQuiet: blocks only when the one-minute load per processor reaches the limit', () => {
+  assert.equal(systemQuiet({ loadavg: () => [1.1, 1.49, 1.58], cpuCount: () => 2 }), true)
+  assert.equal(systemQuiet({ loadavg: () => [1.9, 0, 0], cpuCount: () => 2 }), true)
+  assert.equal(systemQuiet({ loadavg: () => [2, 0, 0], cpuCount: () => 2 }), false)
+  assert.equal(systemQuiet({ loadavg: () => [0.5, 0, 0], cpuCount: () => 0 }), true)
+  assert.equal(systemQuiet({ loadavg: () => [1.1, 0, 0], cpuCount: () => 2, limit: 0.5 }), false)
+})
+
+test('createProcessCpuMeter: measures processor time against wall time over the last minute', () => {
+  let nowMs = 0
+  let cpuMicros = 0
+  const meter = createProcessCpuMeter({ cpuUsage: () => ({ user: cpuMicros, system: 0 }), now: () => nowMs })
+  nowMs = 30_000
+  cpuMicros = 15_000_000
+  assert.equal(meter(), 0.5)
+  nowMs = 60_000
+  assert.equal(meter(), 0.25)
+  nowMs = 90_000
+  assert.equal(meter(), 0)
+  nowMs = 10 * 60_000
+  cpuMicros = 15_000_000 + 54_000_000
+  assert.equal(meter(), 54_000 / (10 * 60_000 - 90_000))
+})
+
+test('processorQuiet: Freetvarr processor use first, then system load, each with its own limit', () => {
+  const busyOwn = processorQuiet({ processCpuShare: () => 0.2, systemIsQuiet: () => true })
+  assert.equal(busyOwn, 'freetvarr processor use')
+  assert.equal(processorQuiet({ processCpuShare: () => 0.1, systemIsQuiet: () => true }), null)
+  assert.equal(processorQuiet({ processCpuShare: () => 0.1, systemIsQuiet: () => false }), 'system load')
+  assert.equal(processorQuiet({ processCpuShare: () => 0.1, systemIsQuiet: () => true, limit: 0.05 }), 'freetvarr processor use')
 })
 
 test('liveMeasureBusyReason: names streams, running jobs, recordings, then the processor', async () => {
@@ -62,7 +90,7 @@ test('liveMeasureBusyReason: names streams, running jobs, recordings, then the p
     streamsBusy: () => false,
     runningJobs: () => [],
     recordingNow: async () => ({ active: [], finishing: [] }),
-    quiet: () => true,
+    quiet: () => null,
   }
   assert.equal(await liveMeasureBusyReason(base), null)
   assert.equal(await liveMeasureBusyReason({ ...base, streamsBusy: () => true }), 'playback or ad scan')
@@ -71,7 +99,7 @@ test('liveMeasureBusyReason: names streams, running jobs, recordings, then the p
   assert.equal(await liveMeasureBusyReason({ ...base, recordingNow: async () => ({ active: [{}] }) }), 'recording')
   assert.equal(await liveMeasureBusyReason({ ...base, recordingNow: async () => ({ finishing: [{}] }) }), 'recording')
   assert.equal(await liveMeasureBusyReason({ ...base, recordingNow: async () => { throw new Error('down') } }), null)
-  assert.equal(await liveMeasureBusyReason({ ...base, quiet: () => false }), 'processor')
+  assert.equal(await liveMeasureBusyReason({ ...base, quiet: () => 'system load' }), 'system load')
 })
 
 const scheduleHarness = ({ idle = () => true, outcome = { benchmark: { encoder: 'vaapi', estimated: 1, speed: 1.4 } } } = {}) => {

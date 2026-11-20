@@ -9,7 +9,9 @@ export const IDLE_SETTLE_MS = 3 * 60_000
 export const IDLE_GIVE_UP_MS = 15 * 60_000
 export const REMEASURE_CHECK_MS = 10 * 60_000
 export const REMEASURE_AFTER_MS = 24 * 60 * 60_000
-export const QUIET_LOAD_PER_CPU = 0.6
+export const QUIET_LOAD_PER_CPU = 1.0
+export const QUIET_PROCESS_CPU_SHARE = 0.15
+export const PROCESS_CPU_WINDOW_MS = 60_000
 export const HEAVY_JOB_KINDS = ['sync', 'import', 'ads', 'guide', 'guide-pictures', 'guide-merge', 'for-you', 'artwork', 'focus', 'reclassify', 'prune']
 
 export const startLiveMeasureSchedule = ({
@@ -95,11 +97,40 @@ export const waitForIdle = async ({ isIdle, sleep, now, firstDelayMs, pollMs, se
 export const isMeasureDue = ({ lastRunAt, nowMs, afterMs = REMEASURE_AFTER_MS }) =>
   lastRunAt == null || nowMs - lastRunAt >= afterMs
 
-export const processorQuiet = ({
+export const systemQuiet = ({
   loadavg = os.loadavg,
   cpuCount = () => os.cpus().length,
   limit = QUIET_LOAD_PER_CPU,
 } = {}) => loadavg()[0] / Math.max(1, cpuCount()) < limit
+
+export const createProcessCpuMeter = ({
+  cpuUsage = process.cpuUsage,
+  now = Date.now,
+  windowMs = PROCESS_CPU_WINDOW_MS,
+} = {}) => {
+  const sampleOf = () => {
+    const { user, system } = cpuUsage()
+    return { cpuMs: (user + system) / 1000, atMs: now() }
+  }
+  let samples = [sampleOf()]
+  return () => {
+    const latest = sampleOf()
+    const kept = samples.filter((sample) => latest.atMs - sample.atMs <= windowMs)
+    const base = kept[0] ?? samples[samples.length - 1]
+    samples = [...(kept.length ? kept : [base]), latest]
+    const elapsedMs = latest.atMs - base.atMs
+    return elapsedMs > 0 ? (latest.cpuMs - base.cpuMs) / elapsedMs : 0
+  }
+}
+
+export const processorQuiet = ({
+  processCpuShare,
+  systemIsQuiet = systemQuiet,
+  limit = QUIET_PROCESS_CPU_SHARE,
+}) => {
+  if (processCpuShare() >= limit) return 'freetvarr processor use'
+  return systemIsQuiet() ? null : 'system load'
+}
 
 export const liveMeasureBusyReason = async ({ streamsBusy, runningJobs, recordingNow, quiet }) => {
   if (streamsBusy()) return 'playback or ad scan'
@@ -107,7 +138,7 @@ export const liveMeasureBusyReason = async ({ streamsBusy, runningJobs, recordin
   if (job) return job
   const { active = [], finishing = [] } = await recordingNow().catch(() => ({}))
   if (active.length + finishing.length) return 'recording'
-  return quiet() ? null : 'processor'
+  return quiet()
 }
 
 const sleepFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref())
