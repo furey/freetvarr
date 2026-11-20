@@ -68,6 +68,7 @@ import {
   seasonalKeyOf,
 } from './for-you-occasions.js'
 import { classificationTitleKey } from './classification-labels.js'
+import { requestKindOf } from './title-kinds.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { msOf } from './user-events.js'
 import {
@@ -166,7 +167,7 @@ export const buildForYou = ({
   const topRated = topRatedOf({ upcoming, context })
   const choices = allowed.filter((programme) => Number(programme.start) >= nowMs)
   const rows = {
-    ready: readyToWatchOf({ recordings, profile, keyOf }),
+    ready: readyToWatchOf({ recordings, profile, keyOf, records }),
     finish: finishStartedOf({ choices, context }),
     tonight: tonightMoviesOf({ choices, scored, context }),
     topRatedSeries: topRatedSeriesOf({ choices, context }),
@@ -571,6 +572,7 @@ const scoreAiring = ({ programme, context }) => {
   const liked = Boolean(show && show.affinity >= LIKED && !show.abandoned)
   const genreTags = context.genreTagsOf(programme)
   const movie = genreTags.includes('movie')
+  const film = movie || programme.kind === 'movie'
   const channelId = String(programme.channel_id)
   const channelName = context.channelNames.get(channelId) || null
   const hour = hourOf(Number(programme.start))
@@ -581,10 +583,10 @@ const scoreAiring = ({ programme, context }) => {
 
   const source = affinitySourceOf(show)
   if (source) add(source === 'interest' ? 'interest' : 'affinity', W.affinity * show.affinity, affinityReasonOf({ source, title: show.title || title }))
-  const newSeason = liked && show.maxSeason != null && Number(programme.series_no) > show.maxSeason
+  const newSeason = liked && !film && show.maxSeason != null && Number(programme.series_no) > show.maxSeason
   const finished = Boolean(show && show.episodesCompleted >= 2 && show.completionRatio >= FINISHED_RATIO)
   if (newSeason) add('new-season', W.newSeason, finished ? 'New season of a show you finished' : `New season of ${show.title || title}`)
-  const back = liked && !newSeason && show.lastActivityTs && nowMs - show.lastActivityTs > BREAK_MS
+  const back = liked && !film && !newSeason && show.lastActivityTs && nowMs - show.lastActivityTs > BREAK_MS
   if (back) add('back', W.back, 'Back after a break')
   const premiere = context.isPremiere(programme)
   if (premiere && !liked) add('premiere', W.premiere, 'A premiere this week')
@@ -636,6 +638,7 @@ const scoreAiring = ({ programme, context }) => {
 export const airingItemOf = ({ programme, context, movie, genreTags, kind, reason, score }) => {
   const channelId = String(programme.channel_id)
   const title = programme.title
+  const film = movie || programme.kind === 'movie'
   return {
     id: String(programme.program_id),
     programmeKey: `${channelId}:${programme.start}`,
@@ -645,7 +648,7 @@ export const airingItemOf = ({ programme, context, movie, genreTags, kind, reaso
     synopsis: programme.synopsis || '',
     image: programme.image
       ? `/api/epg/image/${encodeURIComponent(programme.program_id)}`
-      : showImageUrlOf({ title, kind: movie || programme.kind === 'movie' ? 'movie' : null }),
+      : showImageUrlOf({ title, kind: film ? 'movie' : null }),
     channelId,
     channelName: context.channelNames.get(channelId) || null,
     start: Number(programme.start),
@@ -655,8 +658,8 @@ export const airingItemOf = ({ programme, context, movie, genreTags, kind, reaso
     programmeKind: programme.kind ?? null,
     reason,
     score: Math.round(score * 1000) / 1000,
-    canRecordSeries: Boolean(programme.series_link) && !movie,
-    movieChoice: movieChoiceOf({ programme, film: movie || programme.kind === 'movie' }),
+    canRecordSeries: Boolean(programme.series_link) && !film,
+    movieChoice: movieChoiceOf({ programme, film }),
     seasonNumber: programme.series_no ?? null,
     episodeNumber: programme.episode_no ?? null,
     genreTags,
@@ -712,7 +715,7 @@ export const topRatedSeriesOf = ({ choices, context }) => {
   return [...byKey.values()].sort((a, b) => b.facts.score - a.facts.score || b.facts.weight - a.facts.weight || a.item.start - b.item.start)
 }
 
-export const readyToWatchOf = ({ recordings = [], profile, keyOf = showKeyOf }) => {
+export const readyToWatchOf = ({ recordings = [], profile, keyOf = showKeyOf, records = new Map() }) => {
   const byKey = new Map()
   for (const row of recordings) {
     if (!isReadyRecording(row)) continue
@@ -729,7 +732,7 @@ export const readyToWatchOf = ({ recordings = [], profile, keyOf = showKeyOf }) 
       count: rows.length,
       affinity: show?.affinity || 0,
       addedAt: Math.max(...rows.map(addedAtOf)),
-      item: readyItemOf({ row: [...rows].sort(oldestEpisodeFirst)[0], key, title, count: rows.length }),
+      item: readyItemOf({ row: [...rows].sort(oldestEpisodeFirst)[0], key, title, count: rows.length, programmeKind: titleKindOfRecord(records.get(key)) }),
     }))
     .sort((a, b) => b.affinity - a.affinity || b.addedAt - a.addedAt)
 }
@@ -746,7 +749,7 @@ export const finishStartedOf = ({ choices, context }) => {
     byKey.set(key, {
       key,
       show,
-      item: airingItemOf({ programme, context, movie: false, genreTags, kind: 'continue', reason: `You watched ${plural(show.episodesCompleted, 'episode')}`, score: show.affinity }),
+      item: airingItemOf({ programme, context, movie: false, genreTags, kind: 'continue', reason: startedReasonOf({ show, programme }), score: show.affinity }),
     })
   }
   return [...byKey.values()].sort((a, b) => a.item.start - b.item.start)
@@ -812,6 +815,14 @@ const localMsOf = ({ timeZone, year, month, day, hour }) => {
   return wall - offsetAt({ ms: guess, timeZone })
 }
 
+const startedSignalsOf = ({ show, item }) => (SINGLE_PROGRAMME_KINDS.has(item.programmeKind)
+  ? [`You watched ${show.title || item.title}`, 'It airs again this week']
+  : [`You watched ${plural(show.episodesCompleted, 'episode')} of ${show.title || item.title}`, 'The next episode airs this week'])
+
+const startedReasonOf = ({ show, programme }) => (SINGLE_PROGRAMME_KINDS.has(programme.kind)
+  ? `You watched ${show.title || programme.title}`
+  : `You watched ${plural(show.episodesCompleted, 'episode')}`)
+
 const isEpisodeChoice = ({ programme, genreTags }) => !genreTags.includes('movie')
   && programme.kind !== 'movie'
   && !genreTags.some((category) => category === 'news' || category === 'sport')
@@ -850,7 +861,11 @@ const oldestEpisodeFirst = (a, b) => {
   return byEpisode || (Number(a.aired_at) || 0) - (Number(b.aired_at) || 0)
 }
 
-const readyItemOf = ({ row, key, title, count }) => ({
+const titleKindOfRecord = (record) => requestKindOf({ row: record?.titleKind ?? null })
+
+const readyNounOf = (programmeKind) => READY_NOUNS[programmeKind] ?? 'episode'
+
+const readyItemOf = ({ row, key, title, count, programmeKind = null }) => ({
   id: `rec:${row.recording_id}`,
   recordingId: row.recording_id,
   programmeKey: `rec:${row.recording_id}`,
@@ -861,15 +876,15 @@ const readyItemOf = ({ row, key, title, count }) => ({
   synopsis: row.synopsis || '',
   image: row.image_path
     ? `/api/recordings/${encodeURIComponent(row.recording_id)}/image?w=${READY_IMAGE_WIDTH}`
-    : showImageUrlOf({ title }),
+    : showImageUrlOf({ title, kind: programmeKind === 'movie' ? 'movie' : null }),
   channelId: null,
   channelName: null,
   start: null,
   stop: null,
   onNow: false,
   kind: 'ready',
-  programmeKind: null,
-  reason: `${plural(count, 'episode')} to watch`,
+  programmeKind,
+  reason: `${plural(count, readyNounOf(programmeKind))} to watch`,
   durationS: Number(row.duration_s) || null,
   score: 0,
   canRecordSeries: false,
@@ -1246,15 +1261,25 @@ const topPickOf = (sections) => {
   return withImage ? { ...withImage.entry.item, section: withImage.key } : null
 }
 
+const isSeriesEntry = (entry) => !entry.movie && !SINGLE_PROGRAMME_KINDS.has(entry.item.programmeKind)
+
+const watchedSignalOf = ({ show, title, series }) => {
+  if (!series) return show.episodesCompleted ? `You watched ${title}` : `You watched part of ${title}`
+  return show.episodesCompleted
+    ? `You watched ${show.episodesCompleted} of ${show.episodesStarted} episodes of ${title}`
+    : `You watched part of ${plural(show.episodesStarted, 'episode')} of ${title}`
+}
+
+const recordedSignalOf = ({ show, title, series }) => (series
+  ? `You recorded ${plural(show.recordings, 'episode')} of ${title}`
+  : `You recorded ${title}`)
+
 const explanationOf = ({ entry, context }) => {
   const { show, item } = entry
   const signals = []
-  if (show?.episodesStarted) {
-    signals.push(show.episodesCompleted
-      ? `You watched ${show.episodesCompleted} of ${show.episodesStarted} episodes of ${show.title || item.title}`
-      : `You watched part of ${plural(show.episodesStarted, 'episode')} of ${show.title || item.title}`)
-  }
-  if (show?.recordings) signals.push(`You recorded ${plural(show.recordings, 'episode')} of ${show.title || item.title}`)
+  const series = isSeriesEntry(entry)
+  if (show?.episodesStarted) signals.push(watchedSignalOf({ show, title: show.title || item.title, series }))
+  if (show?.recordings) signals.push(recordedSignalOf({ show, title: show.title || item.title, series }))
   if (show?.requests.some((request) => request.type === 'series')) signals.push(`You set up a series recording for ${show.title || item.title}`)
   if (show?.thumbsUp.length) signals.push(`You pressed More like this for ${show.title || item.title}`)
   if (affinitySourceOf(show) === 'interest') signals.push(`You looked at ${show.title || item.title} recently`)
@@ -1310,7 +1335,7 @@ const ROW_EXPLANATIONS = {
   'finish-started': ({ entry: { item, show } }) => ({
     title: item.title,
     reasons: [{ text: 'A show you started', weight: 1 }],
-    signals: [`You watched ${plural(show.episodesCompleted, 'episode')} of ${show.title || item.title}`, 'The next episode airs this week'],
+    signals: startedSignalsOf({ show, item }),
   }),
   'tonight-movies': ({ entry: { item, facts }, known }) => ({
     title: item.title,
@@ -1393,6 +1418,8 @@ const MIN_SLOT_RATIO = 0.8
 const MAX_SLOT_RATIO = 2.2
 const TONIGHT_PLAIN_FEATURES = new Set(['prime', 'image', 'hour'])
 const READY_STATUSES = new Set(['done', 'partial'])
+const READY_NOUNS = { movie: 'recording', 'one-off': 'recording' }
+const SINGLE_PROGRAMME_KINDS = new Set(['movie', 'one-off'])
 const READY_IMAGE_WIDTH = 384
 const FINISH_MIN_EPISODES = 1
 const FINISH_MAX_EPISODES = 3

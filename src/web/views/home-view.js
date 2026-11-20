@@ -428,7 +428,7 @@ export const HomeView = {
         toast({ text: skippedTextOf(upcoming.name, hasRuleFor(showKeyOf(upcoming.name)) ? 'series' : upcoming.kind) })
         refreshAfterRecordingChange()
       } catch (err) {
-        toast({ text: 'TVHeadend did not skip that episode', detail: err.message, kind: 'error' })
+        toast({ text: 'Could not skip that recording', detail: err.message, kind: 'error' })
       }
     }
 

@@ -233,9 +233,13 @@ const continueSlideOf = ({ episode, stampUrl }) => ({
   metaShort: joinMeta([episodeCodeOf(episode), `${minutesLeftOf(episode)} min left`]),
   progress: { percent: Math.round(watchedFractionOf(episode) * 100), live: false, label: 'Watched' },
   primary: { action: 'play', label: 'Resume', icon: 'play' },
-  secondary: { label: 'Episodes', href: showHrefOf(episode) },
+  secondary: { label: continueLinkLabelOf(episode), href: showHrefOf(episode) },
   source: { episode },
 })
+
+const continueLinkLabelOf = (episode) => (SINGLE_RECORDING_KINDS.has(episode.kind) ? 'Details' : 'Episodes')
+
+const SINGLE_RECORDING_KINDS = new Set(['movie', 'oneoff'])
 
 const newEpisodeSlidesOf = ({ newEpisodes, shows, inProgress, nowMs, timeZone, stampUrl }) => {
   const watched = watchedShowKeysOf({ shows, inProgress })
