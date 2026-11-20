@@ -54,7 +54,7 @@ While **Show For you** is on, the sheet also has **Hide this show** (**Hide this
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme sheet for an upcoming episode, with This episode and Every episode, the padding settings, the Close and Record buttons, and a card with Hide this show, Hide police and rescue shows, and Change categories" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="The programme sheet of an upcoming Vera episode, with This episode and Every episode, the padding settings, the Close and Record buttons, and a card with Hide this show, Hide crime drama shows, and Change categories" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
@@ -84,7 +84,7 @@ When Freetvarr gets it wrong, the programme sheet has a link to correct it. A pr
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme-movie.png" alt="A programme sheet for a film, with the Start early and Finish late settings, the Close and Record buttons, and a card with Not a movie and Hide this film" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme-movie.png" alt="The programme sheet of The Last Samurai, with the Start early and Finish late settings, the Close and Record buttons, and a card with Not a movie and Hide this film" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

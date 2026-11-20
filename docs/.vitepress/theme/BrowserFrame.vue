@@ -10,7 +10,7 @@ const props = defineProps({
   phone: { type: Boolean, default: false },
   bare: { type: Boolean, default: false },
   ratio: { type: String, default: '1280 / 800' },
-  ariaLabel: { type: String, default: 'A walkthrough of the Freetvarr dashboard, live TV, TV guide, series, recordings, syncs, and settings' }
+  ariaLabel: { type: String, default: 'A walkthrough of Freetvarr: Home, live TV and the player, recording from the TV guide, Recordings, a show page, and For you' }
 })
 
 const slots = useSlots()
