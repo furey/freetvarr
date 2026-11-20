@@ -1305,7 +1305,7 @@ The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and h
 `src/live-measure-schedule.js` starts the measurement from the `app.listen` callback, after the startup work begins:
 
 1. Wait `1 min`, then read the idle signal every `30 s`.
-2. Measure when the signal stays idle for `3 min`. After `15 min`, measure anyway, even during a recording or a heavy job. A live session, playback session, or ad scan still blocks the run.
+2. Measure when the signal stays idle for `3 min`. After `30 min`, measure anyway (longer than a merged guide build, about `13 min` on a DS220+), even during a recording or a heavy job. A live session, playback session, or ad scan still blocks the run.
 3. Call `measure({ runs: 2 })`. It runs the benchmark, pauses `20 s`, and runs it again. It keeps the result with the higher estimate, then the higher speed. Before the second run, `stillIdle` checks sessions, ad scans, recordings, and heavy jobs again, but not the processor (the first run raised the load). A second run that fails or meets any of these keeps the first result. The copy encoder runs once.
 4. Every `10 min`, measure again when the measurement is due and the idle signal is idle. It is due when none ran this start, `24 h` after a measurement, and `1 h` after a failed run.
 5. After each measurement, including **Measure again**, reset the `24 h` timer and refresh the Health report (`liveStreams.onMeasured`).
