@@ -268,7 +268,7 @@ import { classificationKeyOf, createClassificationStore, isRatingsLikely, shiftH
 import { createGuideHints, createProgrammeRatings, forYouProgrammesOf, lookupCacheControlOf, RATINGS_SETTING, requestedYearOf, REVIEWS_SETTING, upcomingFilmsOf, upcomingProgrammesOf } from './programme-ratings.js'
 import { createProgrammeCredits, CREDITS_SETTING, PERSON_IMAGE_WIDTHS } from './programme-credits.js'
 import { createLiveStreams, mountLiveStreams, streamCapacity } from './live-streams.js'
-import { describeBenchmark } from './live-benchmark.js'
+import { createProcessCpuMeter, liveMeasureBusyReason, processorQuiet, startLiveMeasureSchedule } from './live-measure-schedule.js'
 import { mountTunerStatus } from './tuner-status.js'
 import { mountInProgressPlayback, inProgressFolders } from './in-progress-playback.js'
 import { listSyncs, syncPageParams, syncRowOf } from './sync-history.js'
@@ -1009,17 +1009,39 @@ const playbackSessions = createPlaybackSessions({
 })
 usePlaybackCheck((recordingId) => playbackSessions.list().some((session) => String(session.recordingId) === String(recordingId)))
 
+const liveStreamsBusy = () => liveSessions.activeCount() + playbackSessions.activeCount() + adScansRunning() > 0
+
 const liveStreams = createLiveStreams({
   envValue: process.env.LIVE_TV_MAX_SESSIONS,
   encoderReady: liveEncoderReady,
   getSetting,
   setSetting,
-  isBusy: () => liveSessions.activeCount() + playbackSessions.activeCount() + adScansRunning() > 0,
+  isBusy: liveStreamsBusy,
 })
-liveStreams.load()
-  .then(() => liveStreams.measure())
-  .then((outcome) => outcome.benchmark && console.log(`[live] ${describeBenchmark(outcome.benchmark)}`))
-  .catch((err) => console.warn(`[live] stream capacity check failed: ${err.message}`))
+const liveStreamsLoaded = liveStreams.load()
+  .catch((err) => console.warn(`[live] could not load the stream limit: ${err.message}`))
+
+const freetvarrCpuShare = createProcessCpuMeter()
+
+const liveMeasureBusy = ({ quiet = () => processorQuiet({ processCpuShare: freetvarrCpuShare }) } = {}) => liveMeasureBusyReason({
+  streamsBusy: liveStreamsBusy,
+  runningJobs: () => activity.snapshot().running.map((run) => run.kind),
+  recordingNow: () => getRecordingNow(),
+  quiet,
+})
+
+const startLiveMeasure = () => startLiveMeasureSchedule({
+  liveStreams,
+  busyReason: async () => {
+    await liveStreamsLoaded
+    return liveMeasureBusy()
+  },
+  runAgainBusyReason: () => liveMeasureBusy({ quiet: () => null }),
+  onMeasured: () => getDoctorReport({ fresh: true, deps: liveDoctorDeps })
+    .catch((err) => console.warn(`[doctor] refresh after the live measurement failed: ${err.message}`)),
+})
+
+let liveMeasure = { stop: () => {} }
 
 const liveLimiter = createRateLimiter({ limit: 20 })
 
@@ -2673,6 +2695,7 @@ const server = app.listen(PORT, async () => {
   loopMonitor.start()
   activity.useStore(createJobRunStore()).catch((err) => console.warn(`[activity] could not load failed runs: ${err.message}`))
   scheduleDoctorChecks({ run: () => getDoctorReport({ fresh: true, deps: liveDoctorDeps }) })
+  liveMeasure = startLiveMeasure()
   await fs.rm(LIVE_ROOT, { recursive: true, force: true }).catch(() => {})
   try {
     await keepOneOffFolder(await getOneOffRoot())
@@ -2776,6 +2799,7 @@ const shutdown = async () => {
   stopScheduler()
   stopAutoImport()
   stopArtWarmSchedule()
+  liveMeasure.stop()
   artWarmer.stop()
   clearInterval(liveReaper)
   loopMonitor.stop()

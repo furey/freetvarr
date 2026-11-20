@@ -1017,9 +1017,10 @@ const seenHostLine = ({ name, count, last_seen: lastSeen, from }) =>
   `${name} (${plural(count, 'request')}, last ${fmtStamp(lastSeen)}${from ? `, from ${from}` : ''})`
 
 export const liveStreamsCheck = (streams) => {
+  const limit = `Freetvarr plays up to ${streams?.max_live_streams} at once.`
+  if (streams?.measuring) return { status: 'pass', detail: `${LIVE_SPEED_TEST_STATES[streams.measuring]} ${limit}` }
   const measured = describeBenchmark(streams?.benchmark)
   if (!measured) return { status: 'skip', detail: 'The live TV speed test has not run yet.' }
-  const limit = `Freetvarr plays up to ${streams.max_live_streams} at once.`
   if (streams.max_live_streams > streams.benchmark.estimated) {
     return {
       status: 'warn',
@@ -1029,6 +1030,11 @@ export const liveStreamsCheck = (streams) => {
     }
   }
   return { status: 'pass', detail: `${measured}. ${limit}` }
+}
+
+const LIVE_SPEED_TEST_STATES = {
+  waiting: 'Measuring live stream capacity once nothing plays, records, syncs, or imports.',
+  running: 'Measuring live stream capacity now.',
 }
 
 const liveStreamsFix = (estimated) => estimated
