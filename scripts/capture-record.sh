@@ -13,7 +13,7 @@ set -euo pipefail
 # record-demo-poster.jpg.
 #
 #   ./scripts/capture-record.sh
-#   RECORD_SERIES_TITLE="Grand Designs New Zealand" ./scripts/capture-record.sh
+#   RECORD_SERIES_TITLE="Grand Designs" ./scripts/capture-record.sh
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TOUR=record exec "$REPO_ROOT/scripts/capture-demo-beginframe/capture.sh"

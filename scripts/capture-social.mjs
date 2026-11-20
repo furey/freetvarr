@@ -2,7 +2,7 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { TIMEZONE, simulatedNow, prepareDemoContext, requireAllArt } from './capture-demo-api.mjs'
+import { OFFLINE_BROWSER_ARGS, TIMEZONE, requiredEnv, simulatedNow, prepareDemoContext, requireAllArt } from './capture-demo-api.mjs'
 import { startLoopback } from './capture-loopback.mjs'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
@@ -61,7 +61,7 @@ const cards = [
 
 const HOME_VIEWPORT = { width: 1280, height: 1100 }
 const HOME_SCALE = 2
-const HERO_TITLE = process.env.SOCIAL_HERO_TITLE ?? 'Big Brother'
+const HERO_TITLE = requiredEnv('SOCIAL_HERO_TITLE')
 const SWIFTSHADER_ARGS = [
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
@@ -71,9 +71,9 @@ const HIDE_SCROLLBARS = '::-webkit-scrollbar{width:0!important;height:0!importan
 
 const main = async () => {
   const assets = await loadAssets()
-  const browser = await chromium.launch()
+  const browser = await chromium.launch({ args: OFFLINE_BROWSER_ARGS })
   const mistBrowser = cards.some((card) => card.mist)
-    ? await chromium.launch({ args: SWIFTSHADER_ARGS })
+    ? await chromium.launch({ args: [...SWIFTSHADER_ARGS, ...OFFLINE_BROWSER_ARGS] })
     : null
   const homeShot = cards.some((card) => card.layout === 'screenshot')
     ? await captureHome(browser)

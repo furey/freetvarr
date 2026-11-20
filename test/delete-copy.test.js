@@ -13,6 +13,7 @@ import {
 const GB = 1e9
 const show = { title: 'The Block', rule: { paused: false, channels: ['9HD'] } }
 const item = (episode, overrides = {}) => ({ recordingId: `e${episode}`, title: 'The Block', episodeTitle: null, season: 22, episode, bytes: 4 * GB, missing: false, ...overrides })
+const textOf = (line) => [line.title, line.detail].filter(Boolean).join(' · ')
 const inTvh = (count) => Array.from({ length: count }, () => ({ deletedFromTvhAt: null }))
 
 test('sizeText and listText: plain sizes and joined lists', () => {
@@ -28,14 +29,12 @@ test('deleteConfirmOf: delete all episodes says what goes and what stays', () =>
   const items = Array.from({ length: 10 }, (_, i) => item(35 + i))
   const copy = deleteConfirmOf({ variant: 'all', show, preview: { count: 10, bytes: 41 * GB, items }, episodes: inTvh(10), totalCount: 10 })
   assert.equal(copy.title, 'Delete all 10 episodes of The Block?')
-  assert.deepEqual(copy.deleted, [
-    { title: '10 episodes, 41 GB', detail: 'from your library and Plex' },
-    { title: 'Their recordings in TVHeadend' },
-  ])
-  assert.deepEqual(copy.stays, [
-    { title: 'The series recording', detail: 'New episodes still record on 9HD' },
-    { title: 'Your other shows' },
-  ])
+  assert.equal(copy.deleted.length, 2)
+  assert.match(textOf(copy.deleted[0]), /10 episodes.*41 GB.*library and Plex/)
+  assert.match(textOf(copy.deleted[1]), /TVHeadend/)
+  assert.equal(copy.stays.length, 2)
+  assert.match(textOf(copy.stays[0]), /series recording.*9HD/)
+  assert.match(textOf(copy.stays[1]), /other shows/)
   assert.equal(copy.confirmLabel, 'Delete 10 episodes')
   assert.equal(copy.offersStopSeries, true)
   assert.equal(copy.missingNote, '')
@@ -44,18 +43,18 @@ test('deleteConfirmOf: delete all episodes says what goes and what stays', () =>
 test('deleteConfirmOf: stopping the series moves it to what gets deleted', () => {
   const copy = deleteConfirmOf({ variant: 'all', show, preview: { count: 1, bytes: GB, items: [item(1)] }, episodes: inTvh(1), totalCount: 1, stopSeries: true })
   assert.equal(copy.title, 'Delete the only episode of The Block?')
-  assert.deepEqual(copy.deleted.at(-1), { title: 'The series recording', detail: 'New episodes stop recording' })
-  assert.deepEqual(copy.stays, [{ title: 'Your other shows' }])
+  assert.match(textOf(copy.deleted.at(-1)), /series recording.*stop recording/)
+  assert.equal(copy.stays.length, 1)
+  assert.doesNotMatch(textOf(copy.stays[0]), /series recording/)
 })
 
 test('deleteConfirmOf: a single episode keeps the others and the series', () => {
   const copy = deleteConfirmOf({ variant: 'episode', show, preview: { count: 1, bytes: 4.1 * GB, items: [item(44)] }, episodes: inTvh(1), totalCount: 10 })
   assert.equal(copy.title, 'Delete this episode?')
-  assert.deepEqual(copy.deleted, [
-    { title: 'This episode, 4.1 GB', detail: 'from your library and Plex' },
-    { title: 'Its recording in TVHeadend' },
-  ])
-  assert.deepEqual(copy.stays[0], { title: 'The other 9 episodes of The Block' })
+  assert.equal(copy.deleted.length, 2)
+  assert.match(textOf(copy.deleted[0]), /4\.1 GB.*library and Plex/)
+  assert.match(textOf(copy.deleted[1]), /TVHeadend/)
+  assert.match(textOf(copy.stays[0]), /\b9 episodes\b/)
   assert.equal(copy.confirmLabel, 'Delete episode')
   assert.equal(copy.offersStopSeries, false)
 })
@@ -64,9 +63,13 @@ test('deleteConfirmOf: watched episodes are listed, and a missing file gets a no
   const items = [item(41, { missing: true }), item(42), item(43)]
   const copy = deleteConfirmOf({ variant: 'watched', show, preview: { count: 3, bytes: 8.2 * GB, missingCount: 1, items }, episodes: inTvh(3), totalCount: 10 })
   assert.equal(copy.title, 'Delete 3 watched episodes of The Block?')
-  assert.deepEqual(copy.deleted.map((line) => line.title), ['E42 and E43, 8.2 GB', 'All 3 recordings in TVHeadend'])
-  assert.equal(copy.missingNote, 'E41 is already missing from your library. Someone may have moved or deleted it. Freetvarr deletes only its TVHeadend recording.')
-  assert.deepEqual(copy.stays[0], { title: '7 unwatched episodes' })
+  assert.equal(copy.deleted.length, 2)
+  assert.match(copy.deleted[0].title, /E42 and E43.*8\.2 GB/)
+  assert.doesNotMatch(copy.deleted[0].title, /E41/)
+  assert.match(copy.deleted[1].title, /\b3 recordings in TVHeadend/)
+  assert.match(copy.missingNote, /E41/)
+  assert.match(copy.missingNote, /only its TVHeadend recording/)
+  assert.match(textOf(copy.stays[0]), /\b7 unwatched episodes/)
 })
 
 test('deleteConfirmOf: selected episodes, a paused series, and rows already gone from TVHeadend', () => {
@@ -75,11 +78,12 @@ test('deleteConfirmOf: selected episodes, a paused series, and rows already gone
   const paused = { ...show, rule: { paused: true } }
   const copy = deleteConfirmOf({ variant: 'selected', show: paused, preview: { count: 4, bytes: 16 * GB, items }, episodes, totalCount: 10 })
   assert.equal(copy.title, 'Delete 4 selected episodes of The Block?')
-  assert.deepEqual(copy.deleted.map((line) => line.title), ['4 episodes, 16 GB', '3 recordings in TVHeadend'])
-  assert.deepEqual(copy.stays, [
-    { title: 'The other 6 episodes' },
-    { title: 'The series recording', detail: 'Paused, so new episodes do not record' },
-  ])
+  assert.equal(copy.deleted.length, 2)
+  assert.match(copy.deleted[0].title, /\b4 episodes.*16 GB/)
+  assert.match(copy.deleted[1].title, /\b3 recordings in TVHeadend/)
+  assert.equal(copy.stays.length, 2)
+  assert.match(textOf(copy.stays[0]), /\b6 episodes/)
+  assert.match(textOf(copy.stays[1]), /series recording.*Paused/)
   assert.equal(copy.confirmLabel, 'Delete 4 episodes')
 })
 

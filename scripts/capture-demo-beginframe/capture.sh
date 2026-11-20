@@ -33,8 +33,7 @@ DEFAULT_TUNING_MS=1500
 [ "$TOUR" = "hero" ] && DEFAULT_TUNING_MS=900
 LIVE_DEMO_DIR="${REPO_ROOT}/scripts/.cache/live-demo"
 FPS=60
-DEFAULT_HIDDEN_TITLES="Manuka Honey Spring Renewal|Pawn Stars|Summer In The Isles Of Scilly|Millionaire Hot Seat|Millionaire Hot Seat Encore|Rugby League World Cup 2026|Jeopardy!|Anthony Bourdain: A Cook's Tour|Bargain Hunt|Bargain Block|Bargain Mansions|Flower & Flour|Go!|Scrapper|Interview With The Vampire|Bring Her Home|1 Euro House|Chefs Ahoy|My Kitchen Rules|Bamay|Tales From Zambia|Deli Boys"
-DEFAULT_HERO_SHOWCASE="Big Brother|Ocean's Eleven|Wonder Woman|Seinfeld|Hard Quiz"
+source "${REPO_ROOT}/scripts/demo-pack/pack-env.sh"
 
 for tool in docker ffmpeg curl; do
   command -v "$tool" >/dev/null 2>&1 || { echo "[demo] $tool not found on PATH" >&2; exit 1; }
@@ -54,7 +53,7 @@ docker run --rm --init --cpus="${CAPTURE_CPUS:-6}" --add-host=host.docker.intern
   -v "${REPO_ROOT}/scripts":/repo/scripts:ro \
   -v "${LIVE_DEMO_DIR}":/live:ro \
   -v "${FRAMES_DIR}":/frames \
-  -e TZ="${TZ:-Australia/Sydney}" \
+  -e TZ="$TZ" \
   -e FREETVARR_URL="http://host.docker.internal:${PORT}" \
   -e CAPTURE_CLOCK_OFFSET_MS="$(cat "${CAPTURE_DIR}/clock-offset")" \
   -e CAPTURE_PATH_ROOT="${CAPTURE_DIR}/data" \
@@ -63,8 +62,7 @@ docker run --rm --init --cpus="${CAPTURE_CPUS:-6}" --add-host=host.docker.intern
   -e CHROME_BIN="$CHROME_BIN" \
   -e TOUR="$TOUR" \
   -e FILM_TITLE -e SERIES_TITLE -e SHOW_TITLE -e RECORD_SERIES_TITLE \
-  -e "HIDDEN_TITLES=${HIDDEN_TITLES:-$DEFAULT_HIDDEN_TITLES}${EXTRA_HIDDEN_TITLES:+|$EXTRA_HIDDEN_TITLES}" \
-  -e "HERO_SHOWCASE=${HERO_SHOWCASE:-$DEFAULT_HERO_SHOWCASE}" \
+  -e HERO_SHOWCASE -e SEARCH_QUERY \
   "$IMAGE" node /repo/scripts/capture-demo-beginframe/tour.mjs /frames
 
 ls "$FRAMES_DIR"/*.jpg >/dev/null 2>&1 || { echo "[demo] no frames produced" >&2; exit 1; }
