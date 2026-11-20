@@ -41,3 +41,8 @@ test('watchedMessageOf: says what happens next', () => {
   assert.match(watchedMessageOf({ title: 'Utopia', item: { mode: 'record' } }), /once it is in the guide/)
   assert.match(watchedMessageOf({ title: 'Utopia', item: { mode: 'record', fulfilledAt: 'x' } }), /now records/)
 })
+
+test('watchForOfferOf: a matching recording hides the offer, and no recording match keeps it', () => {
+  assert.equal(watchForOfferOf({ query: 'Ali G', guideCount: 0, recordingCount: 1 }), null)
+  assert.equal(watchForOfferOf({ query: 'Ali G', guideCount: 0, recordingCount: 0 }), 'Ali G')
+})

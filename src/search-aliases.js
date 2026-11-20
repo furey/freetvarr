@@ -33,6 +33,17 @@ export const showCatalogueOf = (rows = []) => {
   return [...shows.values()]
 }
 
+export const searchCatalogueOf = ({ rows = [], libraryShows = [] }) => {
+  const shows = new Map(showCatalogueOf(rows).map((show) => [show.key, show]))
+  for (const show of libraryShows) {
+    const libraryCount = Number(show?.counts?.total) || 0
+    if (!show?.key || !show.title || !libraryCount) continue
+    const recordingCount = Math.max(libraryCount, shows.get(show.key)?.recordingCount || 0)
+    shows.set(show.key, { key: show.key, title: show.title, recordingCount, ...singleKindOf(show.kind) })
+  }
+  return [...shows.values()]
+}
+
 export const loadSearchAliases = () => {
   aliasesLoad ??= Promise.all([loadCurated(), loadNicknameAliases(), loadKnownAs()])
     .then(([curated, nicknames, knownAs]) => ({ curated, aliases: [...nicknames, ...knownAs] }))
@@ -51,15 +62,16 @@ export const rememberKnownAsFromTvmaze = (found) => knownAs.fromTvmazeShow(found
 
 export const rememberKnownAsFromWikidata = (found) => knownAs.fromWikidataFilm(found)
 
-export const mountSearchRoutes = ({ app, csrf, limiter = passThrough, loadRecordingTitles = async () => [] }) => {
+export const mountSearchRoutes = ({ app, csrf, limiter = passThrough, loadRecordingTitles = async () => [], loadLibraryShows = async () => [] }) => {
   app.get('/api/search/catalogue', async (req, res) => {
     try {
-      const [rows, { curated, aliases }, recordingTitles] = await Promise.all([
+      const [rows, { curated, aliases }, recordingTitles, libraryShows] = await Promise.all([
         db('recordings').whereNull('purged_at').whereNotNull('title').select(db.raw(`${GROUP_TITLE} as title`)).count({ count: 'recording_id' }).groupByRaw(GROUP_TITLE),
         loadSearchAliases(),
         loadRecordingTitles().catch(() => []),
+        loadLibraryShows().catch(() => []),
       ])
-      res.json({ shows: showCatalogueOf([...rows, ...recordingRowsOf(recordingTitles)]), curated, aliases })
+      res.json({ shows: searchCatalogueOf({ rows: [...rows, ...recordingRowsOf(recordingTitles)], libraryShows }), curated, aliases })
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
@@ -121,6 +133,8 @@ const loadCurated = async () => {
   return curatedLoad
 }
 
+const singleKindOf = (kind) => (SINGLE_RECORDING_KINDS.has(kind) ? { kind } : {})
+
 const passThrough = (req, res, next) => next()
 
 let aliasesLoad = null
@@ -133,4 +147,5 @@ const MAX_TOTAL_NICKNAMES = 2000
 const MAX_SHOW_KEY_LENGTH = 200
 const SHOW_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const SHOW_KEY_ERROR = 'key must be a show key'
+const SINGLE_RECORDING_KINDS = new Set(['movie', 'oneoff'])
 const GROUP_TITLE = 'coalesce(show_title_override, title)'

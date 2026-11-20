@@ -22,9 +22,9 @@ export const SearchOverlay = {
             <div class="ui-search-bar">
               <label class="ui-search-field">
                 <search-glyph />
-                <span class="ui-visually-hidden">Search shows and the guide</span>
+                <span class="ui-visually-hidden">Search recordings and the guide</span>
                 <input ref="input" v-model="query" class="ui-search-input" type="search" enterkeyhint="done" data-type-ahead @keydown.enter.prevent="openFirstResult"
-                  placeholder="Search shows and the guide" autocomplete="off" spellcheck="false" />
+                  placeholder="Search recordings and the guide" autocomplete="off" spellcheck="false" />
               </label>
               <button type="button" class="ui-button ui-button-sm" @click="close">Cancel</button>
             </div>
@@ -115,6 +115,7 @@ export const SearchOverlay = {
       searching: searching.value,
       failed: Boolean(guideFailure.value),
       guideCount: programmes.value.length,
+      recordingCount: shows.value.length,
       minLength: MIN_QUERY_LENGTH,
     }))
     let debounceTimer = null

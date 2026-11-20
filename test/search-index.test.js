@@ -135,3 +135,31 @@ test('ties: airing soon first, then more recordings', () => {
 test('limit caps the ranked results', () => {
   assert.equal(search({ titles: guideTitles, query: 'news', limit: 5 }).length, 5)
 })
+
+test('punctuation and one-letter words in a film title still match: "ali g" finds "Ali G: Who Iz I?"', () => {
+  const titles = ['Ali G: Who Iz I?', 'Alice in Wonderland', 'Big Brother']
+  for (const query of ['ali g', 'Ali G:', 'ali g who iz i?', 'who iz i']) {
+    const [match] = search({ titles, query })
+    assert.deepEqual([query, match.entry.title, match.reason], [query, 'Ali G: Who Iz I?', 'title'])
+  }
+})
+
+test('query words in any order, with words skipped, score 88 and need no "Did you mean"', () => {
+  const titles = ['PAW Patrol: The Dino Movie', "Harry Potter and the Sorcerer's Stone", 'Paw Paw Patrol']
+  assert.deepEqual(search({ titles, query: 'paw patrol dino' }).map((m) => [m.entry.title, m.score, m.reason]), [
+    ['PAW Patrol: The Dino Movie', 88, 'words'],
+  ])
+  assert.deepEqual(titlesOf(search({ titles, query: 'potter stone' })), ["Harry Potter and the Sorcerer's Stone"])
+})
+
+test('a run-together query matches a title split by spaces or hyphens', () => {
+  assert.deepEqual(search({ titles: ['Spider-Man: Homecoming', 'Mr. Bean', 'Spin City'], query: 'spiderman' }).map((m) => [m.entry.title, m.reason]), [
+    ['Spider-Man: Homecoming', 'contains'],
+  ])
+  assert.deepEqual(titlesOf(search({ titles: ['Mr. Bean', 'Mr Inbetween'], query: 'mrbean' })), ['Mr. Bean'])
+})
+
+test('a one-letter query finds nothing, and a one-letter word must start a title word', () => {
+  assert.deepEqual(search({ titles: ['Ali G: Who Iz I?'], query: 'g' }), [])
+  assert.deepEqual(titlesOf(search({ titles: ['Ali G: Who Iz I?', 'Ali Baba'], query: 'g ali' })), ['Ali G: Who Iz I?'])
+})
