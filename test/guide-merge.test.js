@@ -370,7 +370,7 @@ const nearFirstPrimary = ({ reads, pendingUntilFull = true }) => {
       reads.push({ channel, fetchUntil })
       return programmes.filter((programme) => full || !pendingUntilFull || programme.start < fetchUntil).map((programme) => ({ ...programme, channel }))
     },
-    stats: () => ({ requests: 0, failedWindows: 0, splitWindows: 0, windowsRead: 1, pendingWindows: full || !pendingUntilFull ? 0 : 1 }),
+    stats: () => ({ requests: 3, failedWindows: 0, splitWindows: 0, windowsRead: 1, pendingWindows: full || !pendingUntilFull ? 0 : 1 }),
   }
 }
 
@@ -402,6 +402,7 @@ test('near first: a build writes the next two days first, then reads the later w
   assert.deepEqual(reads.filter((read) => read.channel).map((read) => read.fetchUntil), [NOW + 2 * DAY, Infinity])
   assert.match(lines[0], /wrote the next 48 h first; reading 1 later windows now/)
   assert.equal(saved.length, 1)
+  assert.equal(merge.latest().primaryRequests, 6, 'the build reports the requests of both passes')
   const xml = zlib.gunzipSync(await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))).toString('utf8')
   assert.ok(programmesOf(xml).some((programme) => programme.title === 'Late Film'))
 })

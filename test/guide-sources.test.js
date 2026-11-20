@@ -228,6 +228,16 @@ test('freeview: a 504 on a 12 h window reads it again as two six-hour halves', a
   assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 3, failedWindows: 0, splitWindows: 1, windowsRead: 1, pendingWindows: 0, windows: 0, failures: 0 })
 })
 
+test('freeview: a 12 h window over the size limit reads it again as two six-hour halves', async () => {
+  const client = fakeFreeviewClient(({ params }) => {
+    if ((Date.parse(params.end) - Date.parse(params.start)) / HOUR === 12) throw new OutboundError('fvau-api-prod.switch.tv sent more than 2097152 bytes', { code: 'too-large' })
+    return { data: [freeviewListing({ id: params.start, start: params.start, end: new Date(Date.parse(params.start) + HOUR).toISOString() })], meta: { pagination: { more: false } } }
+  })
+  const source = createFreeviewAuSource({ client, now: () => NOW })
+  assert.equal((await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })).length, 2)
+  assert.equal(source.stats().splitWindows, 1)
+})
+
 test('freeview: a 12 h window that needs more pages than a six-hour one is still read to the end', async () => {
   const client = fakeFreeviewClient(({ params }) => {
     const page = params.offset / params.limit

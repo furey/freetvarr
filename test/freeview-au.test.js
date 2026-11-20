@@ -303,6 +303,9 @@ test('seedWindow: a seeded window lives until the expiry the guide build gives i
   assert.equal(client.calls.length, 1)
   await freeview.listingsFor({ triplet: TRIPLET, windowStart: windowStartOf(START) + FREEVIEW_WINDOW_MS })
   assert.equal(client.calls.length, 2, 'an already expired seed is not kept')
+  freeview.seedWindow({ ...window, listings: [], expiresAt: clock.ms + 60 * MINUTE })
+  assert.deepEqual(await freeview.listingsFor(window), [], 'a seed with its own expiry replaces the window it re-read')
+  assert.equal(client.calls.length, 2)
 })
 
 test('seedWindow: a window read by the merged guide build answers matchAirings with no request', async () => {

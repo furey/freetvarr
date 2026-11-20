@@ -268,7 +268,7 @@ export const createFreeviewAu = ({
   }
 
   const seedWindow = ({ triplet, windowStart, listings, expiresAt = null }) => {
-    if (cachedListingsFor({ triplet, windowStart })) return
+    if (expiresAt === null && cachedListingsFor({ triplet, windowStart })) return
     const slim = listings.map(slimListingOf)
     const ttlMs = expiresAt === null ? (slim.length ? listingsTtlMs : emptyTtlMs) : expiresAt - now()
     if (ttlMs <= 0) return

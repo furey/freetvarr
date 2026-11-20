@@ -66,7 +66,8 @@ export const createGuideMerge = ({
     try {
       const near = await writeUpTo(now() + nearMs)
       if (near.primaryPendingWindows) log.log(`[guide-merge] wrote the next ${Math.round(nearMs / HOUR_MS)} h first; reading ${near.primaryPendingWindows} later windows now`)
-      const { fallbacks, healthRows, ...stats } = near.primaryPendingWindows ? await writeUpTo(Infinity) : near
+      const final = near.primaryPendingWindows ? withPassCounts({ near, full: await writeUpTo(Infinity) }) : near
+      const { fallbacks, healthRows, ...stats } = final
       await saveHealth({ rows: healthRows, builtAt: startedAt })
       noteFallbacks({ job, fallbacks })
       latest = { ...stats, fallbacks: fallbacks.length, builtAt: now(), durationMs: now() - startedAt }
@@ -172,6 +173,13 @@ export const createGuideMerge = ({
 
   return { start, stop, requestBuild, firstBuild, servablePath, builtPath, builtAt, builtRegions, matchesPlan, buildForPlan, savedChannels, planNow, latest: () => latest }
 }
+
+const withPassCounts = ({ near, full }) => ({
+  ...full,
+  primaryRequests: near.primaryRequests + full.primaryRequests,
+  primaryFailedWindows: near.primaryFailedWindows + full.primaryFailedWindows,
+  primarySplitWindows: near.primarySplitWindows + full.primarySplitWindows,
+})
 
 const tripletsOf = (value) => {
   if (!value) return { linked: new Map(), tvChannels: null }
