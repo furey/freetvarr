@@ -41,7 +41,7 @@ To remake only `hero.webp` from a hero master you already have, run the same `ff
 
 ```bash
 ffmpeg -y -i scripts/.cache/hero/hero.mp4 -vf "fps=12,scale=1600:-1:flags=lanczos" \
-  -c:v libwebp_anim -quality 75 -compression_level 6 -loop 0 -an docs/img/hero.webp
+  -c:v libwebp_anim -quality 55 -compression_level 6 -loop 0 -an docs/img/hero.webp
 ```
 
 ## Settings
