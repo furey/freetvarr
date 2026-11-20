@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { TIMEZONE, simulatedNow, prepareDemoContext, restartHeroCarousel, requireAllArt, waitForImages } from './capture-demo-api.mjs'
+import { OFFLINE_BROWSER_ARGS, TIMEZONE, simulatedNow, prepareDemoContext, restartHeroCarousel, requireAllArt, waitForImages } from './capture-demo-api.mjs'
 import { startScreencast } from './capture-screencast.mjs'
 import { startLoopback } from './capture-loopback.mjs'
 
@@ -47,7 +47,7 @@ const SCROLLBARS_OFF = '::-webkit-scrollbar{width:0!important;height:0!important
 
 const run = async () => {
   const browser = await chromium.launch({
-    args: ['--font-render-hinting=none', `--force-device-scale-factor=${DEVICE_SCALE}`],
+    args: ['--font-render-hinting=none', `--force-device-scale-factor=${DEVICE_SCALE}`, ...OFFLINE_BROWSER_ARGS],
   })
   const base = await startLoopback({ target: SERVER_URL })
   const dashboards = {

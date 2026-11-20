@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { launch } from './cdp.mjs'
 import { startLoopback } from '../capture-loopback.mjs'
-import { prepareDemoContext, simulatedNow } from '../capture-demo-api.mjs'
+import { OFFLINE_BROWSER_ARGS, prepareDemoContext, requiredEnv, simulatedNow } from '../capture-demo-api.mjs'
 import { ARROW, HAND, installMacCursor } from './cursor.mjs'
 
 const OUT = process.argv[2]
@@ -11,9 +11,9 @@ const H = 800
 const BIN = process.env.CHROME_BIN
 const SERVER_URL = process.env.FREETVARR_URL.replace(/\/$/, '')
 const PARK = [930, 300]
-const FILM = process.env.FILM_TITLE || 'Die Hard'
-const SERIES = process.env.SERIES_TITLE || 'NCIS'
-const SHOW = process.env.SHOW_TITLE || 'Home and Away'
+const FILM = requiredEnv('FILM_TITLE')
+const SERIES = requiredEnv('SERIES_TITLE')
+const SHOW = requiredEnv('SHOW_TITLE')
 const HOVER_REST = 600
 const TOUR = process.env.TOUR || 'demo'
 const END_HOLD_MS = { hero: 300, record: 1200 }[TOUR] ?? 2400
@@ -31,7 +31,7 @@ const run = async () => {
     args: ['--headless', '--no-sandbox', '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw',
       '--deterministic-mode', '--force-device-scale-factor=2', '--autoplay-policy=no-user-gesture-required',
       '--hide-scrollbars', '--font-render-hinting=none',
-      '--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4', 'about:blank'],
+      '--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4', ...OFFLINE_BROWSER_ARGS, 'about:blank'],
   })
   const { targetId } = await b.send('Target.createTarget', { url: 'about:blank', enableBeginFrameControl: true, width: W, height: H })
   const { sessionId } = await b.send('Target.attachToTarget', { targetId, flatten: true })

@@ -1,0 +1,2170 @@
+{
+  "version": 1,
+  "clock": "2026-11-14T19:45:00+11:00",
+  "timeZone": "Australia/Sydney",
+  "channels": [
+    {
+      "id": "abc",
+      "name": "ABC TV",
+      "number": 2,
+      "hd": true,
+      "logo": "https://i.mjh.nz/.images/abc-nsw.png",
+      "offsetMinutes": 0
+    },
+    {
+      "id": "sbs",
+      "name": "SBS",
+      "number": 3,
+      "hd": true,
+      "logo": "https://image.pr.sbsod.com/b073959a-a63e-5b6a-a05a-157d615a4b8c",
+      "offsetMinutes": 10
+    },
+    {
+      "id": "seven",
+      "name": "7",
+      "number": 7,
+      "hd": true,
+      "logo": "https://i.mjh.nz/.images/auto-seven-syd-9608a4.png",
+      "offsetMinutes": 0
+    },
+    {
+      "id": "nine",
+      "name": "9",
+      "number": 9,
+      "hd": true,
+      "logo": "https://imageresizer.static9.net.au/lx1XIWcrYZRtnfJOqvxNn9CshDI=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F09%2F630608%2F9nine-1.png",
+      "offsetMinutes": 5
+    },
+    {
+      "id": "ten",
+      "name": "10",
+      "number": 10,
+      "hd": true,
+      "logo": "https://10play.com.au/ip/s3/2025/06/25/b18ae76555d114f7bfaf1c3bfa43dd3f-1384577.png",
+      "offsetMinutes": -10
+    },
+    {
+      "id": "ten-comedy",
+      "name": "10 Comedy",
+      "number": 11,
+      "hd": false,
+      "logo": "https://10play.com.au/ip/s3/2025/06/25/443fa2a5bca1191f12efa002a2a8ef85-1384586.png",
+      "offsetMinutes": 15
+    },
+    {
+      "id": "abc-kids",
+      "name": "ABC Kids",
+      "number": 22,
+      "hd": false,
+      "logo": "https://i.mjh.nz/.images/abc-kids.png",
+      "offsetMinutes": 0
+    },
+    {
+      "id": "abc-entertains",
+      "name": "ABC Entertains",
+      "number": 23,
+      "hd": false,
+      "logo": "https://cdn.iview.abc.net.au/thumbs/256/6_Entertains_C-1054_iview_LivestreamOn_2000x2000_new.png",
+      "offsetMinutes": 10
+    },
+    {
+      "id": "sbs-food",
+      "name": "SBS Food",
+      "number": 33,
+      "hd": false,
+      "logo": "https://image.pr.sbsod.com/336c48bb-129d-5348-9d2f-63ab4fe6d493",
+      "offsetMinutes": -5
+    },
+    {
+      "id": "seven-two",
+      "name": "7two",
+      "number": 72,
+      "hd": false,
+      "logo": "https://i.mjh.nz/.images/auto-7two-syd-701123.png",
+      "offsetMinutes": 5
+    },
+    {
+      "id": "seven-mate",
+      "name": "7mate",
+      "number": 74,
+      "hd": true,
+      "logo": "https://i.mjh.nz/.images/auto-7mate-syd-360d60.png",
+      "offsetMinutes": 15
+    },
+    {
+      "id": "nine-gem",
+      "name": "9Gem",
+      "number": 92,
+      "hd": false,
+      "logo": "https://imageresizer.static9.net.au/d00389KKc5T4o5isRaDE9Pl9DWk=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F08%2F620929%2F9gem-1.png",
+      "offsetMinutes": 10
+    },
+    {
+      "id": "nine-go",
+      "name": "9Go!",
+      "number": 93,
+      "hd": false,
+      "logo": "https://imageresizer.static9.net.au/fcTwzkAJT4q81emfp2kYkgoxlDA=/768x0/https%3A%2F%2Fvms-tv-images-prod.s3-ap-southeast-2.amazonaws.com%2F2024%2F03%2F574470%2F9go.png",
+      "offsetMinutes": -5
+    }
+  ],
+  "titles": [
+    {
+      "key": "avatar",
+      "title": "Avatar",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 19995
+      },
+      "backdrop": "/vleYRzYlnT61icJyaBFHV86m9pR.jpg"
+    },
+    {
+      "key": "friends",
+      "title": "Friends",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1668
+      },
+      "season": 10
+    },
+    {
+      "key": "the-avengers",
+      "title": "The Avengers",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 24428
+      }
+    },
+    {
+      "key": "death-in-paradise",
+      "title": "Death In Paradise",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 41956
+      },
+      "season": 14
+    },
+    {
+      "key": "the-two-towers",
+      "title": "The Lord of the Rings: The Two Towers",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 121
+      }
+    },
+    {
+      "key": "chicago-fire",
+      "title": "Chicago Fire",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 44006
+      },
+      "season": 13
+    },
+    {
+      "key": "vera",
+      "title": "Vera",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 39185
+      },
+      "season": 14
+    },
+    {
+      "key": "shetland",
+      "title": "Shetland",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 46923
+      }
+    },
+    {
+      "key": "grantchester",
+      "title": "Grantchester",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 61457
+      }
+    },
+    {
+      "key": "father-brown",
+      "title": "Father Brown",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 61511
+      }
+    },
+    {
+      "key": "call-the-midwife",
+      "title": "Call The Midwife",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 39793
+      },
+      "season": 14
+    },
+    {
+      "key": "law-and-order-svu",
+      "title": "Law & Order: Special Victims Unit",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 2734
+      }
+    },
+    {
+      "key": "fbi",
+      "title": "FBI",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 80748
+      }
+    },
+    {
+      "key": "ghosts",
+      "title": "Ghosts",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 17174
+      }
+    },
+    {
+      "key": "survivor",
+      "title": "Survivor",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 14658
+      }
+    },
+    {
+      "key": "survivor-australia",
+      "title": "Survivor Australia",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Australian Survivor",
+        "year": 2016,
+        "country": "AU"
+      }
+    },
+    {
+      "key": "the-amazing-race",
+      "title": "The Amazing Race",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 30957
+      }
+    },
+    {
+      "key": "the-traitors",
+      "title": "The Traitors",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 215307
+      }
+    },
+    {
+      "key": "love-island",
+      "title": "Love Island",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 66636
+      }
+    },
+    {
+      "key": "gogglebox",
+      "title": "Gogglebox",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 55808
+      }
+    },
+    {
+      "key": "big-brother",
+      "title": "Big Brother",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 10160
+      },
+      "reserve": true
+    },
+    {
+      "key": "hells-kitchen",
+      "title": "Hell's Kitchen",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 2370
+      }
+    },
+    {
+      "key": "the-block",
+      "title": "The Block",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 12271
+      }
+    },
+    {
+      "key": "the-apprentice",
+      "title": "The Apprentice",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "The Apprentice",
+        "year": 2005,
+        "country": "GB"
+      }
+    },
+    {
+      "key": "great-british-bake-off",
+      "title": "The Great British Bake Off",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 87012
+      }
+    },
+    {
+      "key": "masterchef-australia",
+      "title": "MasterChef Australia",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 16395
+      }
+    },
+    {
+      "key": "kitchen-nightmares",
+      "title": "Kitchen Nightmares",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 11294
+      }
+    },
+    {
+      "key": "gordon-ramsay-uncharted",
+      "title": "Gordon Ramsay: Uncharted",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 91405
+      }
+    },
+    {
+      "key": "jamie-cooks-italy",
+      "title": "Jamie Cooks Italy",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 85034
+      }
+    },
+    {
+      "key": "diners-drive-ins-and-dives",
+      "title": "Diners, Drive-Ins and Dives",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 4086
+      },
+      "backdrop": "/6T9303aY450jjdfZFs5iqnM6BlO.jpg"
+    },
+    {
+      "key": "rick-stein-far-eastern-odyssey",
+      "title": "Rick Stein's Far Eastern Odyssey",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 27613
+      }
+    },
+    {
+      "key": "masterchef-uk",
+      "title": "MasterChef",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 25992
+      },
+      "backdrop": "/bhO5vVSBf8NR532WE0rIikJvolG.jpg"
+    },
+    {
+      "key": "grand-designs",
+      "title": "Grand Designs",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1831
+      }
+    },
+    {
+      "key": "escape-to-the-country",
+      "title": "Escape To The Country",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 6390
+      }
+    },
+    {
+      "key": "location-location-location",
+      "title": "Location, Location, Location",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 4151
+      }
+    },
+    {
+      "key": "the-repair-shop",
+      "title": "The Repair Shop",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 78075
+      }
+    },
+    {
+      "key": "house-hunters-international",
+      "title": "House Hunters International",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 29173
+      }
+    },
+    {
+      "key": "love-it-or-list-it",
+      "title": "Love It or List It",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 33927
+      },
+      "backdrop": "/21Rr1LfS5nk4OXFimD0biJTxUmf.jpg"
+    },
+    {
+      "key": "fixer-upper",
+      "title": "Fixer Upper",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 60911
+      }
+    },
+    {
+      "key": "property-brothers",
+      "title": "Property Brothers",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Property Brothers",
+        "year": 2011
+      }
+    },
+    {
+      "key": "seinfeld",
+      "title": "Seinfeld",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1400
+      },
+      "season": 9
+    },
+    {
+      "key": "frasier",
+      "title": "Frasier",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 3452
+      },
+      "season": 11
+    },
+    {
+      "key": "modern-family",
+      "title": "Modern Family",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Modern Family",
+        "year": 2009,
+        "country": "US"
+      },
+      "season": 11
+    },
+    {
+      "key": "doctor-who",
+      "title": "Doctor Who",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 57243
+      }
+    },
+    {
+      "key": "the-simpsons",
+      "title": "The Simpsons",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 456
+      }
+    },
+    {
+      "key": "qi",
+      "title": "QI",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1554
+      },
+      "reserve": true
+    },
+    {
+      "key": "would-i-lie-to-you",
+      "title": "Would I Lie To You?",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 4775
+      },
+      "reserve": true
+    },
+    {
+      "key": "midsomer-murders",
+      "title": "Midsomer Murders",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 764
+      },
+      "season": 24
+    },
+    {
+      "key": "family-guy",
+      "title": "Family Guy",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1434
+      },
+      "season": 22
+    },
+    {
+      "key": "two-and-a-half-men",
+      "title": "Two And A Half Men",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 2691
+      }
+    },
+    {
+      "key": "the-bridge-on-the-river-kwai",
+      "title": "The Bridge On The River Kwai",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 826
+      }
+    },
+    {
+      "key": "the-shining",
+      "title": "The Shining",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 694
+      }
+    },
+    {
+      "key": "stand-by-me",
+      "title": "Stand By Me",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 235
+      }
+    },
+    {
+      "key": "django-unchained",
+      "title": "Django Unchained",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 68718
+      }
+    },
+    {
+      "key": "braveheart",
+      "title": "Braveheart",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 197
+      }
+    },
+    {
+      "key": "rocky",
+      "title": "Rocky",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 1366
+      }
+    },
+    {
+      "key": "the-terminator",
+      "title": "The Terminator",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 218
+      }
+    },
+    {
+      "key": "midnight-run",
+      "title": "Midnight Run",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 9013
+      }
+    },
+    {
+      "key": "independence-day",
+      "title": "Independence Day",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 602
+      }
+    },
+    {
+      "key": "the-last-samurai",
+      "title": "The Last Samurai",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 616
+      }
+    },
+    {
+      "key": "gran-turismo",
+      "title": "Gran Turismo",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 980489
+      }
+    },
+    {
+      "key": "the-mummy",
+      "title": "The Mummy",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 564
+      }
+    },
+    {
+      "key": "war-of-the-worlds",
+      "title": "War Of The Worlds",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 74
+      }
+    },
+    {
+      "key": "batman-forever",
+      "title": "Batman Forever",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 414
+      }
+    },
+    {
+      "key": "ncis",
+      "title": "NCIS",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 4614
+      },
+      "season": 22
+    },
+    {
+      "key": "ncis-los-angeles",
+      "title": "NCIS: Los Angeles",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 17610
+      }
+    },
+    {
+      "key": "ncis-hawaii",
+      "title": "NCIS: Hawai'i",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 124271
+      }
+    },
+    {
+      "key": "ncis-sydney",
+      "title": "NCIS: Sydney",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 157950
+      }
+    },
+    {
+      "key": "ncis-origins",
+      "title": "NCIS: Origins",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "NCIS: Origins",
+        "year": 2024
+      }
+    },
+    {
+      "key": "young-sheldon",
+      "title": "Young Sheldon",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 71728
+      },
+      "season": 7,
+      "synopsis": "The early life of child genius Sheldon Cooper, growing up with his family in East Texas."
+    },
+    {
+      "key": "the-graham-norton-show",
+      "title": "The Graham Norton Show",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1220
+      },
+      "season": 32
+    },
+    {
+      "key": "bluey",
+      "title": "Bluey",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 82728
+      },
+      "season": 3
+    },
+    {
+      "key": "die-hard-with-a-vengeance",
+      "title": "Die Hard: With a Vengeance",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 1572
+      }
+    },
+    {
+      "key": "oceans-twelve",
+      "title": "Ocean's Twelve",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 163
+      }
+    },
+    {
+      "key": "the-blues-brothers",
+      "title": "The Blues Brothers",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 525
+      }
+    },
+    {
+      "key": "the-lego-movie",
+      "title": "The Lego Movie",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 137106
+      }
+    },
+    {
+      "key": "minions-the-rise-of-gru",
+      "title": "Minions: The Rise Of Gru",
+      "kind": "film",
+      "tmdb": {
+        "type": "movie",
+        "id": 438148
+      }
+    },
+    {
+      "key": "wallace-and-gromit-vengeance-most-fowl",
+      "title": "Wallace & Gromit: Vengeance Most Fowl",
+      "kind": "one-off",
+      "tmdb": {
+        "type": "movie",
+        "id": 929204
+      }
+    },
+    {
+      "key": "friends-the-reunion",
+      "title": "Friends: The Reunion",
+      "kind": "one-off",
+      "tmdb": {
+        "type": "movie",
+        "id": 691179
+      }
+    },
+    {
+      "key": "antiques-roadshow",
+      "title": "Antiques Roadshow",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 2042
+      }
+    },
+    {
+      "key": "the-chase",
+      "title": "The Chase",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 21502
+      }
+    },
+    {
+      "key": "peppa-pig",
+      "title": "Peppa Pig",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 12225
+      }
+    },
+    {
+      "key": "top-gear",
+      "title": "Top Gear",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 45
+      }
+    },
+    {
+      "key": "blue-bloods",
+      "title": "Blue Bloods",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 32692
+      }
+    },
+    {
+      "key": "the-rookie",
+      "title": "The Rookie",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 79744
+      }
+    },
+    {
+      "key": "nine-one-one",
+      "title": "9-1-1",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 75219
+      }
+    },
+    {
+      "key": "mythbusters",
+      "title": "MythBusters",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "id": 1428
+      }
+    },
+    {
+      "key": "strictly-come-dancing",
+      "title": "Strictly Come Dancing",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Strictly Come Dancing",
+        "year": 2004,
+        "country": "GB"
+      }
+    },
+    {
+      "key": "the-bachelor",
+      "title": "The Bachelor",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "The Bachelor",
+        "year": 2002,
+        "country": "US"
+      }
+    },
+    {
+      "key": "rupauls-drag-race",
+      "title": "RuPaul's Drag Race",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "RuPaul's Drag Race",
+        "year": 2009
+      }
+    },
+    {
+      "key": "below-deck",
+      "title": "Below Deck",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Below Deck",
+        "year": 2013
+      }
+    },
+    {
+      "key": "dancing-with-the-stars",
+      "title": "Dancing with the Stars",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Dancing with the Stars",
+        "year": 2005,
+        "country": "US"
+      }
+    },
+    {
+      "key": "im-a-celebrity",
+      "title": "I'm a Celebrity...Get Me Out of Here!",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "I'm a Celebrity...Get Me Out of Here!",
+        "year": 2002,
+        "country": "GB"
+      }
+    },
+    {
+      "key": "chopped",
+      "title": "Chopped",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Chopped",
+        "year": 2009,
+        "country": "US"
+      }
+    },
+    {
+      "key": "restaurant-impossible",
+      "title": "Restaurant: Impossible",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Restaurant: Impossible",
+        "year": 2011
+      }
+    },
+    {
+      "key": "barefoot-contessa",
+      "title": "Barefoot Contessa",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Barefoot Contessa",
+        "year": 2002
+      }
+    },
+    {
+      "key": "nadiyas-time-to-eat",
+      "title": "Nadiya's Time to Eat",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Nadiya's Time to Eat",
+        "year": 2019
+      }
+    },
+    {
+      "key": "top-chef",
+      "title": "Top Chef",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Top Chef",
+        "year": 2006,
+        "country": "US"
+      }
+    },
+    {
+      "key": "homes-under-the-hammer",
+      "title": "Homes Under the Hammer",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Homes Under the Hammer",
+        "year": 2003,
+        "country": "GB"
+      }
+    },
+    {
+      "key": "amazing-spaces",
+      "title": "George Clarke's Amazing Spaces",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "George Clarke's Amazing Spaces",
+        "year": 2012
+      }
+    },
+    {
+      "key": "escape-to-the-chateau",
+      "title": "Escape to the Chateau",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Escape to the Chateau",
+        "year": 2016
+      }
+    },
+    {
+      "key": "flip-or-flop",
+      "title": "Flip or Flop",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Flip or Flop",
+        "year": 2013
+      }
+    },
+    {
+      "key": "extreme-makeover-home-edition",
+      "title": "Extreme Makeover: Home Edition",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Extreme Makeover: Home Edition",
+        "year": 2003,
+        "country": "US"
+      }
+    },
+    {
+      "key": "guys-grocery-games",
+      "title": "Guy's Grocery Games",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Guy's Grocery Games",
+        "year": 2013
+      }
+    },
+    {
+      "key": "beat-bobby-flay",
+      "title": "Beat Bobby Flay",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Beat Bobby Flay",
+        "year": 2013
+      }
+    },
+    {
+      "key": "the-pioneer-woman",
+      "title": "The Pioneer Woman",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "The Pioneer Woman",
+        "year": 2011
+      }
+    },
+    {
+      "key": "rick-steins-long-weekends",
+      "title": "Rick Stein's Long Weekends",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Rick Stein's Long Weekends",
+        "year": 2016
+      }
+    },
+    {
+      "key": "jamies-quick-and-easy-food",
+      "title": "Jamie's Quick & Easy Food",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Jamie's Quick & Easy Food",
+        "year": 2017
+      }
+    },
+    {
+      "key": "masterchef-the-professionals",
+      "title": "MasterChef: The Professionals",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "MasterChef: The Professionals",
+        "year": 2008
+      }
+    },
+    {
+      "key": "home-town",
+      "title": "Home Town",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Home Town",
+        "year": 2016,
+        "country": "US"
+      }
+    },
+    {
+      "key": "tiny-house-nation",
+      "title": "Tiny House Nation",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Tiny House Nation",
+        "year": 2014
+      }
+    },
+    {
+      "key": "selling-sunset",
+      "title": "Selling Sunset",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Selling Sunset",
+        "year": 2019
+      }
+    },
+    {
+      "key": "fixer-to-fabulous",
+      "title": "Fixer to Fabulous",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Fixer to Fabulous",
+        "year": 2019
+      }
+    },
+    {
+      "key": "property-brothers-forever-home",
+      "title": "Property Brothers: Forever Home",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Property Brothers: Forever Home",
+        "year": 2019
+      }
+    },
+    {
+      "key": "24-hours-to-hell-and-back",
+      "title": "24 Hours to Hell and Back",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "24 Hours to Hell and Back",
+        "year": 2018
+      }
+    },
+    {
+      "key": "great-american-baking-show",
+      "title": "The Great American Baking Show",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "The Great American Baking Show",
+        "year": 2015
+      }
+    },
+    {
+      "key": "nigella-cook-eat-repeat",
+      "title": "Nigella's Cook, Eat, Repeat",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Nigella's Cook, Eat, Repeat",
+        "year": 2020
+      }
+    },
+    {
+      "key": "dream-home-makeover",
+      "title": "Dream Home Makeover",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Dream Home Makeover",
+        "year": 2020
+      }
+    },
+    {
+      "key": "celebrity-iou",
+      "title": "Celebrity IOU",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Celebrity IOU",
+        "year": 2020
+      }
+    },
+    {
+      "key": "the-voice",
+      "title": "The Voice",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "The Voice",
+        "year": 2011,
+        "country": "US"
+      }
+    },
+    {
+      "key": "american-idol",
+      "title": "American Idol",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "American Idol",
+        "year": 2002,
+        "country": "US"
+      }
+    },
+    {
+      "key": "the-masked-singer",
+      "title": "The Masked Singer",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "The Masked Singer",
+        "year": 2019,
+        "country": "US"
+      }
+    },
+    {
+      "key": "love-is-blind",
+      "title": "Love Is Blind",
+      "kind": "series",
+      "tmdb": {
+        "type": "tv",
+        "query": "Love Is Blind",
+        "year": 2020
+      }
+    }
+  ],
+  "schedule": {
+    "days": 7,
+    "channels": {
+      "abc": {
+        "daytime": [
+          ["06:00", "escape-to-the-country"],
+          ["07:00", "antiques-roadshow"],
+          ["08:00", "father-brown"],
+          ["09:00", "midsomer-murders"],
+          ["11:00", "grand-designs"],
+          ["12:00", "the-repair-shop"],
+          ["13:00", "vera"],
+          ["14:30", "grantchester"],
+          ["15:30", "father-brown"],
+          ["16:30", "the-repair-shop"]
+        ],
+        "evenings": [
+          [
+            ["17:30", "antiques-roadshow"],
+            ["18:30", "gogglebox"],
+            ["19:30", "death-in-paradise"],
+            ["20:30", "vera"],
+            ["22:00", "shetland"],
+            ["23:00", "midsomer-murders"]
+          ],
+          [
+            ["17:30", "grand-designs"],
+            ["18:30", "the-repair-shop"],
+            ["19:30", "call-the-midwife"],
+            ["20:30", "grantchester"],
+            ["21:30", "father-brown"],
+            ["22:30", "midsomer-murders"]
+          ],
+          [
+            ["17:30", "antiques-roadshow"],
+            ["18:30", "gogglebox"],
+            ["19:30", "vera"],
+            ["21:00", "shetland"],
+            ["22:00", "death-in-paradise"],
+            ["23:00", "father-brown"]
+          ],
+          [
+            ["17:30", "the-repair-shop"],
+            ["18:30", "grand-designs"],
+            ["19:30", "midsomer-murders"],
+            ["21:30", "ghosts"],
+            ["22:00", "vera"],
+            ["23:30", "father-brown"]
+          ],
+          [
+            ["17:30", "antiques-roadshow"],
+            ["18:30", "gogglebox"],
+            ["19:30", "ghosts"],
+            ["20:00", "death-in-paradise"],
+            ["21:00", "grantchester"],
+            ["22:00", "shetland"],
+            ["23:00", "father-brown"]
+          ],
+          [
+            ["17:30", "the-repair-shop"],
+            ["18:30", "grand-designs"],
+            ["19:30", "call-the-midwife"],
+            ["20:30", "shetland"],
+            ["21:30", "vera"],
+            ["23:00", "midsomer-murders"]
+          ],
+          [
+            ["17:30", "antiques-roadshow"],
+            ["18:30", "gogglebox"],
+            ["19:30", "the-graham-norton-show"],
+            ["20:30", "midsomer-murders"],
+            ["22:30", "father-brown"],
+            ["23:30", "the-repair-shop"]
+          ]
+        ],
+        "overnight": [
+          ["24:30", "antiques-roadshow"],
+          ["25:30", "grand-designs"],
+          ["26:30", "father-brown"],
+          ["27:30", "escape-to-the-country"],
+          ["28:30", "the-repair-shop"]
+        ]
+      },
+      "sbs": {
+        "daytime": [
+          ["06:00", "top-gear"],
+          ["08:00", "rick-stein-far-eastern-odyssey"],
+          ["09:00", "mythbusters"],
+          ["11:00", "location-location-location"],
+          ["12:00", "masterchef-uk"],
+          ["13:00", "top-gear"],
+          ["15:00", "mythbusters"],
+          ["16:00", "location-location-location"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "top-gear"],
+            ["21:30", "the-last-samurai"],
+            ["24:15", "mythbusters"]
+          ],
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "the-bridge-on-the-river-kwai"],
+            ["22:30", "top-gear"]
+          ],
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "the-traitors"],
+            ["21:00", "top-gear"],
+            ["22:30", "location-location-location"]
+          ],
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "top-gear"],
+            ["20:30", "the-traitors"],
+            ["22:00", "stand-by-me"]
+          ],
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "the-traitors"],
+            ["21:00", "braveheart"]
+          ],
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "top-gear"],
+            ["20:30", "midnight-run"],
+            ["22:45", "location-location-location"]
+          ],
+          [
+            ["17:00", "jamie-cooks-italy"],
+            ["18:00", "mythbusters"],
+            ["19:30", "the-traitors"],
+            ["21:00", "the-shining"],
+            ["23:45", "top-gear"]
+          ]
+        ],
+        "overnight": [
+          ["25:00", "mythbusters"],
+          ["27:00", "top-gear"],
+          ["29:00", "location-location-location"]
+        ]
+      },
+      "seven": {
+        "daytime": [
+          ["06:00", "the-chase"],
+          ["07:00", "escape-to-the-country"],
+          ["09:00", "house-hunters-international"],
+          ["10:00", "the-chase"],
+          ["11:00", "blue-bloods"],
+          ["12:00", "the-rookie"],
+          ["13:00", "nine-one-one"],
+          ["14:00", "escape-to-the-country"],
+          ["15:00", "the-chase"],
+          ["16:00", "house-hunters-international"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:30", "avatar"],
+            ["22:30", "the-rookie"],
+            ["23:30", "blue-bloods"]
+          ],
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:00", "the-rookie"],
+            ["20:00", "the-terminator"],
+            ["22:15", "nine-one-one"],
+            ["23:15", "blue-bloods"]
+          ],
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:00", "the-rookie"],
+            ["20:00", "nine-one-one"],
+            ["21:00", "blue-bloods"],
+            ["22:00", "the-rookie"],
+            ["23:00", "nine-one-one"]
+          ],
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:00", "nine-one-one"],
+            ["20:00", "the-rookie"],
+            ["21:00", "blue-bloods"],
+            ["22:00", "nine-one-one"],
+            ["23:00", "the-rookie"]
+          ],
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:00", "the-rookie"],
+            ["20:00", "blue-bloods"],
+            ["21:00", "nine-one-one"],
+            ["22:00", "blue-bloods"],
+            ["23:00", "the-rookie"]
+          ],
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:00", "nine-one-one"],
+            ["20:00", "the-rookie"],
+            ["21:00", "nine-one-one"],
+            ["22:00", "the-rookie"],
+            ["23:00", "blue-bloods"]
+          ],
+          [
+            ["17:00", "the-chase"],
+            ["18:00", "escape-to-the-country"],
+            ["19:00", "blue-bloods"],
+            ["20:00", "rocky"],
+            ["22:30", "the-rookie"],
+            ["23:30", "nine-one-one"]
+          ]
+        ],
+        "overnight": [
+          ["24:30", "house-hunters-international"],
+          ["25:30", "the-chase"],
+          ["26:30", "blue-bloods"],
+          ["27:30", "escape-to-the-country"],
+          ["28:30", "house-hunters-international"]
+        ]
+      },
+      "nine": {
+        "daytime": [
+          ["06:00", "house-hunters-international"],
+          ["08:00", "the-block"],
+          ["09:00", "fbi"],
+          ["10:00", "law-and-order-svu"],
+          ["11:00", "chicago-fire"],
+          ["12:00", "fbi"],
+          ["13:00", "law-and-order-svu"],
+          ["14:00", "love-it-or-list-it"],
+          ["15:00", "the-block"],
+          ["16:00", "house-hunters-international"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:30", "the-avengers"],
+            ["22:15", "chicago-fire"],
+            ["23:15", "law-and-order-svu"]
+          ],
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:00", "the-block"],
+            ["20:30", "fbi"],
+            ["21:30", "chicago-fire"],
+            ["22:30", "law-and-order-svu"]
+          ],
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:00", "the-block"],
+            ["20:30", "chicago-fire"],
+            ["21:30", "fbi"],
+            ["22:30", "law-and-order-svu"]
+          ],
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:00", "the-block"],
+            ["20:30", "law-and-order-svu"],
+            ["21:30", "chicago-fire"],
+            ["22:30", "fbi"]
+          ],
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:30", "chicago-fire"],
+            ["20:30", "fbi"],
+            ["21:30", "law-and-order-svu"],
+            ["22:30", "chicago-fire"]
+          ],
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:30", "django-unchained"],
+            ["22:45", "fbi"],
+            ["23:45", "law-and-order-svu"]
+          ],
+          [
+            ["17:00", "love-it-or-list-it"],
+            ["18:00", "the-block"],
+            ["19:30", "fbi"],
+            ["20:30", "chicago-fire"],
+            ["21:30", "law-and-order-svu"],
+            ["22:30", "fbi"]
+          ]
+        ],
+        "overnight": [
+          ["24:30", "house-hunters-international"],
+          ["25:30", "love-it-or-list-it"],
+          ["26:30", "fixer-upper"],
+          ["27:30", "house-hunters-international"],
+          ["28:30", "fixer-upper"]
+        ]
+      },
+      "ten": {
+        "daytime": [
+          ["06:00", "fixer-upper"],
+          ["07:00", "ncis"],
+          ["08:00", "ncis-los-angeles"],
+          ["09:00", "masterchef-australia"],
+          ["10:00", "ncis"],
+          ["11:00", "ncis-hawaii"],
+          ["12:00", "survivor"],
+          ["13:00", "ncis"],
+          ["14:00", "the-amazing-race"],
+          ["15:00", "masterchef-australia"],
+          ["16:00", "ncis-los-angeles"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "survivor"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "gran-turismo"],
+            ["22:00", "ncis"],
+            ["23:00", "ncis-los-angeles"]
+          ],
+          [
+            ["17:00", "the-amazing-race"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "ncis-sydney"],
+            ["20:30", "ncis"],
+            ["21:30", "the-graham-norton-show"],
+            ["22:30", "ncis-hawaii"]
+          ],
+          [
+            ["17:00", "survivor"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "survivor"],
+            ["21:00", "ncis"],
+            ["22:00", "ncis-los-angeles"],
+            ["23:00", "ncis-origins"]
+          ],
+          [
+            ["17:00", "the-amazing-race"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "the-amazing-race"],
+            ["20:30", "ncis"],
+            ["21:30", "ncis-hawaii"],
+            ["22:30", "ncis-los-angeles"]
+          ],
+          [
+            ["17:00", "survivor-australia"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "ncis-hawaii"],
+            ["20:30", "ncis"],
+            ["21:30", "ncis-sydney"],
+            ["22:30", "ncis-los-angeles"]
+          ],
+          [
+            ["17:00", "the-amazing-race"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "the-graham-norton-show"],
+            ["20:30", "ncis"],
+            ["21:30", "ncis-los-angeles"],
+            ["22:30", "ncis-origins"]
+          ],
+          [
+            ["17:00", "survivor"],
+            ["18:00", "masterchef-australia"],
+            ["19:30", "hells-kitchen"],
+            ["20:30", "the-graham-norton-show"],
+            ["21:30", "ncis"],
+            ["22:30", "ncis-hawaii"]
+          ]
+        ],
+        "overnight": [
+          ["24:00", "ncis"],
+          ["25:00", "ncis-los-angeles"],
+          ["26:00", "survivor-australia"],
+          ["27:00", "fixer-upper"],
+          ["28:00", "ncis-hawaii"],
+          ["29:00", "fixer-upper"]
+        ]
+      },
+      "ten-comedy": {
+        "daytime": [
+          ["06:00", "two-and-a-half-men"],
+          ["08:00", "friends"],
+          ["10:00", "modern-family"],
+          ["12:00", "seinfeld"],
+          ["13:00", "frasier"],
+          ["14:00", "young-sheldon"],
+          ["16:00", "friends"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "two-and-a-half-men"],
+            ["19:00", "young-sheldon"],
+            ["19:30", "friends"],
+            ["20:30", "modern-family"],
+            ["21:30", "family-guy"],
+            ["22:30", "two-and-a-half-men"]
+          ],
+          [
+            ["17:00", "friends"],
+            ["18:00", "modern-family"],
+            ["19:00", "young-sheldon"],
+            ["19:30", "frasier"],
+            ["20:30", "family-guy"],
+            ["21:30", "the-simpsons"],
+            ["22:30", "seinfeld"]
+          ]
+        ],
+        "overnight": [
+          ["24:00", "frasier"],
+          ["26:00", "friends"],
+          ["28:00", "two-and-a-half-men"]
+        ]
+      },
+      "abc-kids": {
+        "daytime": [
+          ["06:00", "bluey"],
+          ["07:00", "peppa-pig"],
+          ["08:00", "bluey"],
+          ["10:00", "peppa-pig"],
+          ["12:00", "bluey"],
+          ["14:00", "peppa-pig"],
+          ["16:00", "bluey"]
+        ],
+        "evenings": [
+          [
+            ["17:30", "peppa-pig"],
+            ["18:30", "bluey"],
+            ["19:30", "doctor-who"],
+            ["20:30", "ghosts"],
+            ["21:00", "the-graham-norton-show"],
+            ["22:00", "doctor-who"]
+          ]
+        ],
+        "overnight": [
+          ["23:00", "ghosts"],
+          ["24:00", "doctor-who"],
+          ["26:00", "the-repair-shop"],
+          ["28:00", "antiques-roadshow"]
+        ]
+      },
+      "abc-entertains": {
+        "daytime": [
+          ["06:00", "antiques-roadshow"],
+          ["07:00", "homes-under-the-hammer"],
+          ["08:00", "property-brothers"],
+          ["09:00", "amazing-spaces"],
+          ["10:00", "dream-home-makeover"],
+          ["11:00", "escape-to-the-chateau"],
+          ["12:00", "celebrity-iou"],
+          ["13:00", "flip-or-flop"],
+          ["14:00", "the-repair-shop"],
+          ["15:00", "extreme-makeover-home-edition"],
+          ["16:00", "fixer-to-fabulous"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "gogglebox"],
+            ["18:00", "property-brothers"],
+            ["19:30", "doctor-who"],
+            ["20:30", "ghosts"],
+            ["21:00", "would-i-lie-to-you"],
+            ["21:30", "qi"],
+            ["22:00", "gogglebox"]
+          ],
+          [
+            ["17:00", "gogglebox"],
+            ["18:00", "grand-designs"],
+            ["19:30", "great-british-bake-off"],
+            ["20:30", "property-brothers"],
+            ["21:30", "qi"],
+            ["22:00", "would-i-lie-to-you"]
+          ]
+        ],
+        "overnight": [
+          ["23:00", "home-town"],
+          ["24:00", "tiny-house-nation"],
+          ["25:00", "selling-sunset"],
+          ["26:00", "fixer-to-fabulous"],
+          ["27:00", "property-brothers-forever-home"],
+          ["28:00", "home-town"]
+        ]
+      },
+      "sbs-food": {
+        "daytime": [
+          ["06:00", "barefoot-contessa"],
+          ["07:00", "chopped"],
+          ["08:00", "24-hours-to-hell-and-back"],
+          ["09:00", "top-chef"],
+          ["10:00", "nigella-cook-eat-repeat"],
+          ["11:00", "nadiyas-time-to-eat"],
+          ["12:00", "restaurant-impossible"],
+          ["13:00", "gordon-ramsay-uncharted"],
+          ["14:00", "beat-bobby-flay"],
+          ["15:00", "top-chef"],
+          ["16:00", "great-american-baking-show"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "diners-drive-ins-and-dives"],
+            ["18:00", "jamie-cooks-italy"],
+            ["19:30", "gordon-ramsay-uncharted"],
+            ["20:30", "kitchen-nightmares"],
+            ["21:30", "rick-stein-far-eastern-odyssey"],
+            ["22:30", "masterchef-uk"]
+          ],
+          [
+            ["17:00", "masterchef-uk"],
+            ["18:00", "diners-drive-ins-and-dives"],
+            ["19:30", "great-british-bake-off"],
+            ["20:30", "gordon-ramsay-uncharted"],
+            ["21:30", "kitchen-nightmares"],
+            ["22:30", "diners-drive-ins-and-dives"]
+          ]
+        ],
+        "overnight": [
+          ["23:30", "guys-grocery-games"],
+          ["24:30", "beat-bobby-flay"],
+          ["25:30", "the-pioneer-woman"],
+          ["26:30", "rick-steins-long-weekends"],
+          ["27:30", "jamies-quick-and-easy-food"],
+          ["28:30", "masterchef-the-professionals"]
+        ]
+      },
+      "seven-two": {
+        "daytime": [
+          ["06:00", "house-hunters-international"],
+          ["07:00", "below-deck"],
+          ["08:00", "the-apprentice"],
+          ["09:00", "midsomer-murders"],
+          ["10:00", "the-bachelor"],
+          ["11:00", "dancing-with-the-stars"],
+          ["12:00", "love-island"],
+          ["13:00", "hells-kitchen"],
+          ["14:00", "rupauls-drag-race"],
+          ["15:00", "strictly-come-dancing"],
+          ["16:00", "im-a-celebrity"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "love-island"],
+            ["20:30", "the-mummy"],
+            ["22:45", "batman-forever"]
+          ],
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "love-island"],
+            ["20:30", "hells-kitchen"],
+            ["21:30", "love-island"],
+            ["22:30", "fixer-upper"]
+          ],
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "hells-kitchen"],
+            ["20:30", "independence-day"],
+            ["23:15", "fixer-upper"]
+          ],
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "love-island"],
+            ["20:30", "oceans-twelve"],
+            ["23:00", "hells-kitchen"]
+          ],
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "love-island"],
+            ["20:30", "kitchen-nightmares"],
+            ["21:30", "hells-kitchen"],
+            ["22:30", "love-island"]
+          ],
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "the-lego-movie"],
+            ["21:30", "love-island"],
+            ["22:30", "hells-kitchen"]
+          ],
+          [
+            ["17:00", "fixer-upper"],
+            ["18:00", "house-hunters-international"],
+            ["19:30", "love-island"],
+            ["20:30", "minions-the-rise-of-gru"],
+            ["22:15", "hells-kitchen"]
+          ]
+        ],
+        "overnight": [
+          ["24:00", "the-voice"],
+          ["25:00", "american-idol"],
+          ["26:00", "the-masked-singer"],
+          ["27:00", "love-is-blind"],
+          ["28:00", "house-hunters-international"]
+        ]
+      },
+      "seven-mate": {
+        "daytime": [
+          ["06:00", "top-gear"],
+          ["08:00", "mythbusters"],
+          ["10:00", "mythbusters"],
+          ["12:00", "top-gear"],
+          ["16:00", "top-gear"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "the-simpsons"],
+            ["19:30", "rocky"],
+            ["22:45", "war-of-the-worlds"]
+          ],
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "top-gear"],
+            ["19:30", "the-mummy"],
+            ["22:00", "die-hard-with-a-vengeance"]
+          ],
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "top-gear"],
+            ["19:30", "top-gear"],
+            ["22:00", "the-blues-brothers"]
+          ],
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "mythbusters"],
+            ["19:30", "the-simpsons"],
+            ["22:30", "the-terminator"]
+          ],
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "top-gear"],
+            ["19:30", "rocky"],
+            ["22:30", "midnight-run"]
+          ],
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "mythbusters"],
+            ["19:30", "the-simpsons"],
+            ["22:30", "batman-forever"]
+          ],
+          [
+            ["17:00", "family-guy"],
+            ["17:30", "the-simpsons"],
+            ["18:30", "top-gear"],
+            ["19:30", "the-terminator"],
+            ["21:45", "family-guy"],
+            ["22:15", "the-simpsons"]
+          ]
+        ],
+        "overnight": [
+          ["25:00", "top-gear"],
+          ["27:00", "mythbusters"],
+          ["29:00", "family-guy"]
+        ]
+      },
+      "nine-gem": {
+        "daytime": [
+          ["06:00", "midsomer-murders"],
+          ["08:00", "call-the-midwife"],
+          ["09:00", "escape-to-the-country"],
+          ["11:00", "location-location-location"],
+          ["12:00", "vera"],
+          ["14:00", "midsomer-murders"],
+          ["16:00", "call-the-midwife"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "independence-day"],
+            ["22:15", "the-shining"]
+          ],
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "braveheart"],
+            ["23:00", "midsomer-murders"]
+          ],
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "stand-by-me"],
+            ["21:30", "die-hard-with-a-vengeance"]
+          ],
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "the-last-samurai"],
+            ["22:30", "midsomer-murders"]
+          ],
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "oceans-twelve"],
+            ["22:00", "vera"]
+          ],
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "rocky"],
+            ["22:00", "midsomer-murders"]
+          ],
+          [
+            ["17:00", "escape-to-the-country"],
+            ["18:00", "location-location-location"],
+            ["19:30", "war-of-the-worlds"],
+            ["21:45", "the-bridge-on-the-river-kwai"]
+          ]
+        ],
+        "overnight": [
+          ["25:00", "call-the-midwife"],
+          ["27:00", "escape-to-the-country"],
+          ["29:00", "location-location-location"]
+        ]
+      },
+      "nine-go": {
+        "daytime": [
+          ["06:00", "the-simpsons"],
+          ["08:00", "two-and-a-half-men"],
+          ["10:00", "mythbusters"],
+          ["12:00", "modern-family"],
+          ["14:00", "the-simpsons"],
+          ["16:00", "two-and-a-half-men"]
+        ],
+        "evenings": [
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "the-two-towers"],
+            ["23:00", "family-guy"]
+          ],
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "minions-the-rise-of-gru"],
+            ["21:15", "the-blues-brothers"]
+          ],
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "gran-turismo"],
+            ["22:00", "family-guy"]
+          ],
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "the-mummy"],
+            ["22:00", "two-and-a-half-men"]
+          ],
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "avatar"],
+            ["22:30", "family-guy"]
+          ],
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "the-avengers"],
+            ["22:15", "two-and-a-half-men"]
+          ],
+          [
+            ["17:00", "modern-family"],
+            ["18:00", "the-simpsons"],
+            ["19:30", "the-two-towers"],
+            ["23:00", "family-guy"]
+          ]
+        ],
+        "overnight": [
+          ["24:00", "two-and-a-half-men"],
+          ["26:00", "the-simpsons"],
+          ["28:00", "modern-family"]
+        ]
+      }
+    },
+    "specials": [
+      {
+        "day": 3,
+        "channel": "abc",
+        "at": "19:30",
+        "until": "21:00",
+        "title": "wallace-and-gromit-vengeance-most-fowl"
+      },
+      {
+        "day": 4,
+        "channel": "nine",
+        "at": "19:30",
+        "until": "21:30",
+        "title": "friends-the-reunion"
+      }
+    ]
+  },
+  "rules": {
+    "series": [
+      {
+        "title": "midsomer-murders",
+        "channel": "abc"
+      },
+      {
+        "title": "ncis",
+        "channel": "ten"
+      },
+      {
+        "title": "chicago-fire",
+        "channel": "nine"
+      },
+      {
+        "title": "the-graham-norton-show",
+        "channel": "ten"
+      },
+      {
+        "title": "survivor",
+        "channel": "ten"
+      }
+    ],
+    "oneOffs": [
+      {
+        "title": "the-blues-brothers",
+        "channel": "seven-mate"
+      },
+      {
+        "title": "wallace-and-gromit-vengeance-most-fowl",
+        "channel": "abc"
+      }
+    ],
+    "tuners": 4
+  },
+  "library": {
+    "shows": ["ncis", "friends", "seinfeld", "modern-family", "young-sheldon", "frasier", "midsomer-murders", "vera", "death-in-paradise", "call-the-midwife", "the-graham-norton-show", "chicago-fire", "family-guy", "bluey"],
+    "films": ["die-hard-with-a-vengeance", "independence-day", "oceans-twelve", "the-blues-brothers", "the-lego-movie", "minions-the-rise-of-gru"],
+    "plexFilms": ["the-terminator", "rocky"],
+    "oneOffs": ["wallace-and-gromit-vengeance-most-fowl", "friends-the-reunion"]
+  },
+  "tours": {
+    "hero": ["the-avengers", "avatar", "friends", "death-in-paradise", "the-two-towers", "chicago-fire"],
+    "film": "the-last-samurai",
+    "series": "vera",
+    "show": "friends",
+    "search": "NCIS",
+    "liveFavourites": ["abc", "seven", "nine", "ten", "seven-mate"],
+    "liveClipChannel": "seven-mate",
+    "otherTitlesSeries": "survivor"
+  },
+  "rows": {
+    "youMightLike": ["vera", "shetland", "grantchester", "father-brown", "call-the-midwife", "law-and-order-svu", "fbi", "ghosts"],
+    "reality": ["survivor", "the-amazing-race", "the-traitors", "love-island", "gogglebox", "hells-kitchen", "the-block", "the-apprentice", "strictly-come-dancing", "the-bachelor", "rupauls-drag-race", "below-deck", "dancing-with-the-stars", "im-a-celebrity", "the-voice", "american-idol", "the-masked-singer", "love-is-blind"],
+    "cooking": ["great-british-bake-off", "masterchef-australia", "kitchen-nightmares", "gordon-ramsay-uncharted", "jamie-cooks-italy", "diners-drive-ins-and-dives", "rick-stein-far-eastern-odyssey", "masterchef-uk", "chopped", "restaurant-impossible", "barefoot-contessa", "nadiyas-time-to-eat", "top-chef", "guys-grocery-games", "beat-bobby-flay", "the-pioneer-woman", "rick-steins-long-weekends", "jamies-quick-and-easy-food", "masterchef-the-professionals", "24-hours-to-hell-and-back", "great-american-baking-show", "nigella-cook-eat-repeat"],
+    "home": ["grand-designs", "escape-to-the-country", "location-location-location", "the-repair-shop", "house-hunters-international", "love-it-or-list-it", "fixer-upper", "property-brothers", "homes-under-the-hammer", "amazing-spaces", "escape-to-the-chateau", "flip-or-flop", "extreme-makeover-home-edition", "home-town", "tiny-house-nation", "selling-sunset", "fixer-to-fabulous", "property-brothers-forever-home", "dream-home-makeover", "celebrity-iou"],
+    "topRatedSeries": ["seinfeld", "frasier", "modern-family", "doctor-who", "the-simpsons", "midsomer-murders", "family-guy", "two-and-a-half-men"],
+    "topRatedMovies": ["the-bridge-on-the-river-kwai", "the-shining", "stand-by-me", "django-unchained", "braveheart", "rocky", "the-terminator", "midnight-run"],
+    "moviesTonight": ["independence-day", "the-last-samurai", "gran-turismo", "the-mummy", "war-of-the-worlds", "batman-forever"]
+  }
+}

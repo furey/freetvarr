@@ -13,10 +13,10 @@ set -euo pipefail
 #   ./scripts/capture-screenshots.sh screenshot-plex
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "$REPO_ROOT/scripts/demo-pack/pack-env.sh"
 FREETVARR_URL="${FREETVARR_URL:-http://localhost:3733}"
 FREETVARR_URL="${FREETVARR_URL%/}"
-HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's#.*zoneinfo/##')}"
-HOST_TZ="${HOST_TZ:-Australia/Sydney}"
+HOST_TZ="$TZ"
 
 for tool in node ffmpeg; do
   command -v "$tool" >/dev/null 2>&1 || { echo "[capture] $tool not found on PATH" >&2; exit 1; }
@@ -33,13 +33,13 @@ fi
 
 FREETVARR_URL="$FREETVARR_URL" \
 TZ="$HOST_TZ" \
-SIMULATED_NOW="${SIMULATED_NOW:-}" \
+SIMULATED_NOW="$SIMULATED_NOW" \
 SHOT_FILTER="${SHOT_FILTER:-${1:-}}" \
-SCREENSHOT_OUT="$REPO_ROOT/docs/img" \
+SCREENSHOT_OUT="${SCREENSHOT_OUT:-$REPO_ROOT/docs/img}" \
 LIVE_DEMO_DIR="$REPO_ROOT/scripts/.cache/live-demo" \
   "$REPO_ROOT/scripts/run-capture-tour.sh" capture-screenshots.mjs
 
 echo "[capture] done. PNGs:"
-ls -lh "$REPO_ROOT/docs/img"/screenshot-*.png
+ls -lh "${SCREENSHOT_OUT:-$REPO_ROOT/docs/img}"/screenshot-*.png
 
 "$REPO_ROOT/scripts/upload-docs-media.sh"

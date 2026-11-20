@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { TIMEZONE, simulatedNow, prepareDemoContext, waitForProgrammeImages } from './capture-demo-api.mjs'
+import { OFFLINE_BROWSER_ARGS, TIMEZONE, requiredEnv, simulatedNow, prepareDemoContext, waitForProgrammeImages } from './capture-demo-api.mjs'
 import { startLoopback } from './capture-loopback.mjs'
 
 const SERVER_URL = (process.env.FREETVARR_URL || 'http://localhost:3733').replace(/\/$/, '')
@@ -29,8 +29,8 @@ const DESKTOP_SHOTS = [
   { hash: '#/live', file: 'screenshot-player.png', wait: '.live-row, .live-list', prepare: (page, picks) => playLive(page, picks) },
   { hash: '#/home', file: 'screenshot-search.png', wait: '.home-hero, .home-row', prepare: (page) => openSearch(page, SEARCH_QUERY) },
   { hash: '#/settings/system/series', file: 'screenshot-series-drawer.png', wait: '.settings-page', prepare: (page) => openSeriesDrawer(page, SERIES_WITH_OTHER_TITLES) },
-  { hash: '#/for-you', file: 'screenshot-for-you.png', wait: '.for-you-view, .fy-rail', finish: (page) => scrollToCategoryRow(page) },
-  { hash: '#/for-you', file: 'screenshot-for-you-row-menu.png', wait: '.for-you-view, .fy-rail', prepare: (page) => openCategoryRowMenu(page) },
+  { hash: '#/for-you', file: 'screenshot-for-you.png', wait: '.for-you-rows .for-you-card', finish: (page) => scrollToCategoryRow(page) },
+  { hash: '#/for-you', file: 'screenshot-for-you-row-menu.png', wait: '.for-you-rows .for-you-card', prepare: (page) => openCategoryRowMenu(page) },
   { hash: '#/settings/for-you', file: 'screenshot-for-you-categories.png', wait: '.settings-page', prepare: (page) => openCategoriesSheet(page) },
   { hash: '#/recordings/scheduled', file: 'screenshot-scheduled.png', wait: '.scheduled-view, .ui-empty' },
   { hash: '#/recordings/show/:showcase', file: 'screenshot-show.png', wait: '.show-view, .show-hero' },
@@ -122,9 +122,9 @@ const openChangeCategories = async (page, pick) => {
   await page.waitForTimeout(800)
 }
 
-const SEARCH_QUERY = 'young'
-const SERIES_WITH_OTHER_TITLES = 'Big Brother'
-const SHOWCASE_TITLE = process.env.SHOWCASE_TITLE
+const SEARCH_QUERY = requiredEnv('SEARCH_QUERY')
+const SERIES_WITH_OTHER_TITLES = requiredEnv('OTHER_TITLES_SERIES')
+const SHOWCASE_TITLE = process.env.SHOWCASE_TITLE ?? requiredEnv('SHOW_TITLE')
 
 const openSearch = async (page, query) => {
   await page.getByRole('button', { name: 'Search' }).first().click()
@@ -256,7 +256,7 @@ const SIM_NOW = simulatedNow()
 console.log(`simulated now: ${new Date(SIM_NOW).toString()}`)
 
 const BASE = await startLoopback({ target: SERVER_URL })
-const browser = await chromium.launch()
+const browser = await chromium.launch({ args: OFFLINE_BROWSER_ARGS })
 
 const captureAll = async (shots, viewport, { mobile = false } = {}) => {
   if (!shots.length) return

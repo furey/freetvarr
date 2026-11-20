@@ -12,22 +12,19 @@ set -euo pipefail
 # to docs/public/home-screen-demo.mp4 and home-screen-demo-1x.mp4 with a
 # matching poster.
 #
-# HERO_SHOWCASE sets the Home hero slides and their order, as titles joined
-# by | (default Big Brother first, then films and big entertainment shows).
-# A title missing from the seeded library comes from tonight's guide as a
-# For you or Top rated slide; a title missing from both is skipped.
+# The demo pack (demo-pack/pack-env.sh) sets the Home hero slides and their
+# order; the capture stops when a hero title is missing.
 #
-# Needs host `node` + `ffmpeg`, and a running freetvarr with a reachable
-# TVHeadend EPG.
+# Needs host `node` + `ffmpeg`.
 #
 #   ./scripts/capture-home-screen.sh
 #   FREETVARR_URL=http://localhost:3733 ./scripts/capture-home-screen.sh
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source "$REPO_ROOT/scripts/demo-pack/pack-env.sh"
 FREETVARR_URL="${FREETVARR_URL:-http://localhost:3733}"
 FREETVARR_URL="${FREETVARR_URL%/}"
-HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's#.*zoneinfo/##')}"
-HOST_TZ="${HOST_TZ:-Australia/Sydney}"
+HOST_TZ="$TZ"
 
 FRAMES_DIR="${REPO_ROOT}/scripts/.cache/frames/home-screen"
 MP4="${REPO_ROOT}/docs/public/home-screen-demo.mp4"
@@ -48,7 +45,7 @@ fi
 echo "[home-screen] recording in host Chromium"
 FREETVARR_URL="$FREETVARR_URL" \
 TZ="$HOST_TZ" \
-SIMULATED_NOW="${SIMULATED_NOW:-}" \
+SIMULATED_NOW="$SIMULATED_NOW" \
 HOME_SCREEN_FRAMES="$FRAMES_DIR" \
   "$REPO_ROOT/scripts/run-capture-tour.sh" capture-home-screen.mjs \
   2>&1 | tee "$TOUR_LOG"
