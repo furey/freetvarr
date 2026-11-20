@@ -293,6 +293,7 @@ test('last good file: a build where every source fails keeps the earlier merged 
   const sources = sydneySources()
   const first = await writeMergedGuide({ dir, ...sources, tvChannels: SEVEN_SD_UNLINKED, now: () => NOW })
   assert.equal(first.programmes, 4)
+  const before = await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))
   const down = new Error('HTTP 503')
   const failing = {
     primary: { ...sources.primary, source: { ...sources.primary.source, channels: async () => { throw down } } },
@@ -417,7 +418,6 @@ test('near first: with a merged file for this plan already written, the build sk
   const reads = []
   const { merge, dir } = await nearFirstMerge({ primary: nearFirstPrimary({ reads }) })
   await merge.requestBuild()
-  const before = await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))
   const laterReads = []
   const sources = sydneySources()
   const restarted = createGuideMerge({
