@@ -1023,11 +1023,11 @@ const liveStreamsLoaded = liveStreams.load()
 
 const freetvarrCpuShare = createProcessCpuMeter()
 
-const liveMeasureBusy = () => liveMeasureBusyReason({
+const liveMeasureBusy = ({ quiet = () => processorQuiet({ processCpuShare: freetvarrCpuShare }) } = {}) => liveMeasureBusyReason({
   streamsBusy: liveStreamsBusy,
   runningJobs: () => activity.snapshot().running.map((run) => run.kind),
   recordingNow: () => getRecordingNow(),
-  quiet: () => processorQuiet({ processCpuShare: freetvarrCpuShare }),
+  quiet,
 })
 
 const startLiveMeasure = () => startLiveMeasureSchedule({
@@ -1036,6 +1036,7 @@ const startLiveMeasure = () => startLiveMeasureSchedule({
     await liveStreamsLoaded
     return liveMeasureBusy()
   },
+  runAgainBusyReason: () => liveMeasureBusy({ quiet: () => null }),
   onMeasured: () => getDoctorReport({ fresh: true, deps: liveDoctorDeps })
     .catch((err) => console.warn(`[doctor] refresh after the live measurement failed: ${err.message}`)),
 })

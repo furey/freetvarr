@@ -47,10 +47,10 @@ test('waitForIdle: gives up after the bound when the server never goes quiet', a
   assert.equal(clock.now(), BOUNDS.giveUpMs)
 })
 
-test('isMeasureDue: due with no run this start, then once a day', () => {
-  assert.equal(isMeasureDue({ lastRunAt: null, nowMs: 5 }), true)
-  assert.equal(isMeasureDue({ lastRunAt: 0, nowMs: 23 * 3_600_000 }), false)
-  assert.equal(isMeasureDue({ lastRunAt: 0, nowMs: 24 * 3_600_000 }), true)
+test('isMeasureDue: due with no run this start, then from the due time', () => {
+  assert.equal(isMeasureDue({ dueAt: null, nowMs: 5 }), true)
+  assert.equal(isMeasureDue({ dueAt: 24 * 3_600_000, nowMs: 23 * 3_600_000 }), false)
+  assert.equal(isMeasureDue({ dueAt: 24 * 3_600_000, nowMs: 24 * 3_600_000 }), true)
 })
 
 test('systemQuiet: blocks only when the one-minute load per processor reaches the limit', () => {
@@ -75,6 +75,15 @@ test('createProcessCpuMeter: measures processor time against wall time over the 
   nowMs = 10 * 60_000
   cpuMicros = 15_000_000 + 54_000_000
   assert.equal(meter(), 54_000 / (10 * 60_000 - 90_000))
+})
+
+test('createProcessCpuMeter: a clock that steps back reads as busy, never as quiet', () => {
+  let nowMs = 100_000
+  const meter = createProcessCpuMeter({ cpuUsage: () => ({ user: 0, system: 0 }), now: () => nowMs })
+  nowMs = 50_000
+  assert.equal(meter(), Infinity)
+  nowMs = 80_000
+  assert.equal(meter(), 0)
 })
 
 test('processorQuiet: Freetvarr processor use first, then system load, each with its own limit', () => {
@@ -102,19 +111,36 @@ test('liveMeasureBusyReason: names streams, running jobs, recordings, then the p
   assert.equal(await liveMeasureBusyReason({ ...base, quiet: () => 'system load' }), 'system load')
 })
 
-const scheduleHarness = ({ idle = () => true, outcome = { benchmark: { encoder: 'vaapi', estimated: 1, speed: 1.4 } } } = {}) => {
-  const clock = fakeClock()
+const fakeLiveStreams = ({ clock, outcome }) => {
   const calls = []
-  const measured = []
-  let repeated = null
-  const liveStreams = {
+  const listeners = new Set()
+  const announce = (benchmark) => listeners.forEach((listener) => listener(benchmark))
+  return {
+    calls,
+    announce,
+    onMeasured: (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
     measure: async (options) => {
       calls.push({ at: clock.now(), ...options })
-      return typeof outcome === 'function' ? outcome() : outcome
+      const result = typeof outcome === 'function' ? outcome() : outcome
+      if (result instanceof Error) throw result
+      if (result.benchmark) announce(result.benchmark)
+      return result
     },
   }
+}
+
+const scheduleHarness = ({ idle = () => true, outcome = { benchmark: { encoder: 'vaapi', estimated: 1, speed: 1.4 } }, runAgainBusyReason } = {}) => {
+  const clock = fakeClock()
+  const measured = []
+  let repeated = null
+  const liveStreams = fakeLiveStreams({ clock, outcome })
+  const calls = liveStreams.calls
   const schedule = startLiveMeasureSchedule({
     liveStreams,
+    runAgainBusyReason,
     busyReason: async () => (idle(clock.now()) ? null : 'guide'),
     onMeasured: (benchmark) => measured.push(benchmark),
     log: quietLog,
@@ -125,7 +151,7 @@ const scheduleHarness = ({ idle = () => true, outcome = { benchmark: { encoder: 
       return () => { repeated = null }
     },
   })
-  return { schedule, clock, calls, measured, repeated: () => repeated }
+  return { schedule, clock, calls, measured, liveStreams, repeated: () => repeated }
 }
 
 test('startLiveMeasureSchedule: measures best of two once startup settles', async () => {
@@ -173,4 +199,36 @@ test('startLiveMeasureSchedule: stop clears the daily check', async () => {
   h.schedule.stop()
   assert.equal(h.repeated(), null)
   assert.deepEqual(await h.schedule.first, { skipped: 'stopped' })
+})
+
+test('startLiveMeasureSchedule: the second run checks recordings and jobs but not the processor', async () => {
+  let busy = null
+  const h = scheduleHarness({ runAgainBusyReason: async () => busy })
+  await h.schedule.first
+  assert.equal(await h.calls[0].stillIdle(), true)
+  busy = 'recording'
+  assert.equal(await h.calls[0].stillIdle(), false)
+})
+
+test('startLiveMeasureSchedule: a failed run retries after an hour, not a day', async () => {
+  let outcome = new Error('ffmpeg exited (1).')
+  const h = scheduleHarness({ outcome: () => outcome })
+  assert.deepEqual(await h.schedule.first, { failed: 'ffmpeg exited (1).' })
+  await h.clock.sleep(59 * 60_000)
+  assert.deepEqual(await h.repeated()(), { skipped: 'not due' })
+  await h.clock.sleep(60_000)
+  outcome = { benchmark: { encoder: 'vaapi', estimated: 1, speed: 1.4 } }
+  await h.repeated()()
+  assert.equal(h.calls.length, 2)
+  assert.equal(h.measured.length, 1)
+})
+
+test('startLiveMeasureSchedule: a Measure again run resets the daily timer and refreshes Health', async () => {
+  const h = scheduleHarness()
+  await h.schedule.first
+  await h.clock.sleep(20 * 3_600_000)
+  h.liveStreams.announce({ encoder: 'vaapi', estimated: 2, speed: 1.6 })
+  assert.equal(h.measured.length, 2)
+  await h.clock.sleep(5 * 3_600_000)
+  assert.deepEqual(await h.repeated()(), { skipped: 'not due' })
 })

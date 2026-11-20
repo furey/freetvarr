@@ -76,6 +76,7 @@ export const createLiveStreams = ({
 }) => {
   const cap = envStreamCapFrom(envValue)
   const state = { stored: null, benchmark: null, tunerCount: null, encoderKind: null, settled: false }
+  const listeners = new Set()
   let running = null
 
   const measuringState = () => {
@@ -97,6 +98,7 @@ export const createLiveStreams = ({
     state.encoderKind = encoder.kind
     const cached = benchmarkFrom(saved)
     state.benchmark = cached?.encoder === encoder.kind ? cached : null
+    state.settled = state.settled || state.benchmark != null
     state.tunerCount = await readTunerCount().catch(() => null)
     return describe()
   }
@@ -111,23 +113,37 @@ export const createLiveStreams = ({
     if (count > 0) state.tunerCount = count
   }
 
-  const bestOf = async ({ encoder, runs }) => {
+  const bestOf = async ({ encoder, runs, stillIdle }) => {
     let best = await benchmark({ encoder })
     for (let run = 1; run < runs && encoder.kind !== 'copy'; run += 1) {
       await pause(pauseMs)
-      if (isBusy()) break
+      if (isBusy() || !(await stillIdle().catch(() => false))) break
       best = betterBenchmark(best, await benchmark({ encoder }).catch(() => null))
     }
     return best
   }
 
-  const measure = async ({ runs = 1 } = {}) => {
+  const onMeasured = (listener) => {
+    listeners.add(listener)
+    return () => listeners.delete(listener)
+  }
+
+  const announce = (result) => {
+    for (const listener of listeners) {
+      try {
+        listener(result)
+      } catch {}
+    }
+  }
+
+  const measure = async ({ runs = 1, stillIdle = async () => true } = {}) => {
     if (running) return running
     if (isBusy()) return { skipped: 'busy' }
     running = (async () => {
-      const result = await bestOf({ encoder: await encoderReady, runs })
+      const result = await bestOf({ encoder: await encoderReady, runs, stillIdle })
       state.benchmark = result
       await setSetting(LIVE_BENCHMARK_KEY, JSON.stringify(result))
+      announce(result)
       return { benchmark: result }
     })().finally(() => {
       running = null
@@ -136,7 +152,7 @@ export const createLiveStreams = ({
     return running
   }
 
-  return { describe, current, load, setStored, noteTunerCount, measure, encoderKind: () => state.encoderKind }
+  return { describe, current, load, setStored, noteTunerCount, measure, onMeasured, encoderKind: () => state.encoderKind }
 }
 
 export const streamCapacity = ({ liveStreams, sessions }) => {

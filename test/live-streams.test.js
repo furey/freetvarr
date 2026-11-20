@@ -181,18 +181,38 @@ test('createLiveStreams: pass-through video runs once', async () => {
   assert.equal(h.pauses(), 0)
 })
 
+test('createLiveStreams: a saved result for this encoder shows at once after a restart', async () => {
+  const h = harness({ settings: { live_benchmark: JSON.stringify(BENCHMARK) } })
+  assert.equal(h.streams.describe().measuring, 'waiting')
+  await h.streams.load()
+  assert.equal(h.streams.describe().measuring, null)
+  const other = harness({ settings: { live_benchmark: JSON.stringify(BENCHMARK) }, encoder: { kind: 'software' } })
+  await other.streams.load()
+  assert.equal(other.streams.describe().measuring, 'waiting')
+})
+
+test('createLiveStreams: a second run waits for the idle probe and tells listeners once', async () => {
+  const fast = { ...BENCHMARK, estimated: 1, speed: 1.4 }
+  const h = twoRunHarness({ results: [fast, BENCHMARK] })
+  const heard = []
+  h.streams.onMeasured((result) => heard.push(result))
+  const outcome = await h.streams.measure({ runs: 2, stillIdle: async () => false })
+  assert.deepEqual(outcome.benchmark, fast)
+  assert.equal(h.runs(), 1)
+  assert.deepEqual(heard, [fast])
+})
+
 test('createLiveStreams: reports waiting, running, then nothing for the first measurement', async () => {
   let finish = null
   const streams = createLiveStreams({
     encoderReady: Promise.resolve({ kind: 'vaapi' }),
-    getSetting: async (key) => (key === 'live_benchmark' ? JSON.stringify(BENCHMARK) : null),
+    getSetting: async () => null,
     setSetting: async () => {},
     readTunerCount: async () => 2,
     benchmark: () => new Promise((resolve) => { finish = resolve }),
   })
   await streams.load()
   assert.equal(streams.describe().measuring, 'waiting')
-  assert.equal(streams.describe().benchmark.speed, 6.2)
   assert.equal(streams.current(), 2)
   const run = streams.measure()
   await new Promise(setImmediate)

@@ -9,6 +9,7 @@ export const IDLE_SETTLE_MS = 3 * 60_000
 export const IDLE_GIVE_UP_MS = 15 * 60_000
 export const REMEASURE_CHECK_MS = 10 * 60_000
 export const REMEASURE_AFTER_MS = 24 * 60 * 60_000
+export const RETRY_AFTER_FAILURE_MS = 60 * 60_000
 export const QUIET_LOAD_PER_CPU = 1.0
 export const QUIET_PROCESS_CPU_SHARE = 0.15
 export const PROCESS_CPU_WINDOW_MS = 60_000
@@ -17,6 +18,7 @@ export const HEAVY_JOB_KINDS = ['sync', 'import', 'ads', 'guide', 'guide-picture
 export const startLiveMeasureSchedule = ({
   liveStreams,
   busyReason,
+  runAgainBusyReason = busyReason,
   onMeasured = () => {},
   log = console,
   sleep = sleepFor,
@@ -28,24 +30,29 @@ export const startLiveMeasureSchedule = ({
   giveUpMs = IDLE_GIVE_UP_MS,
   checkEveryMs = REMEASURE_CHECK_MS,
   remeasureAfterMs = REMEASURE_AFTER_MS,
+  retryAfterFailureMs = RETRY_AFTER_FAILURE_MS,
 }) => {
-  const state = { stopped: false, firstDone: false, lastRunAt: null, lastBusy: null, waitLogged: false }
+  const state = { stopped: false, firstDone: false, dueAt: null, lastBusy: null, waitLogged: false }
   const idleNow = async () => {
     state.lastBusy = await Promise.resolve().then(busyReason).catch((err) => `error: ${err.message}`)
     return state.lastBusy == null
   }
 
+  const stopListening = liveStreams.onMeasured((benchmark) => {
+    state.dueAt = now() + remeasureAfterMs
+    state.waitLogged = false
+    log.log(`[live] ${describeBenchmark(benchmark)}`)
+    onMeasured(benchmark)
+  })
+
+  const runAgainIdle = async () => (await runAgainBusyReason()) == null
+
   const measure = async () => {
     try {
-      const outcome = await liveStreams.measure({ runs: MEASURE_RUNS })
-      if (outcome.skipped) return outcome
-      state.lastRunAt = now()
-      state.waitLogged = false
-      log.log(`[live] ${describeBenchmark(outcome.benchmark)}`)
-      onMeasured(outcome.benchmark)
-      return outcome
+      return await liveStreams.measure({ runs: MEASURE_RUNS, stillIdle: runAgainIdle })
     } catch (err) {
-      state.lastRunAt = now()
+      state.dueAt = now() + retryAfterFailureMs
+      state.waitLogged = false
       log.warn(`[live] stream capacity check failed: ${err.message}`)
       return { failed: err.message }
     }
@@ -61,7 +68,7 @@ export const startLiveMeasureSchedule = ({
 
   const recheck = async () => {
     if (state.stopped || !state.firstDone) return { skipped: 'waiting' }
-    if (!isMeasureDue({ lastRunAt: state.lastRunAt, nowMs: now(), afterMs: remeasureAfterMs })) return { skipped: 'not due' }
+    if (!isMeasureDue({ dueAt: state.dueAt, nowMs: now() })) return { skipped: 'not due' }
     if (!(await idleNow())) {
       if (!state.waitLogged) log.log(`[live] stream capacity check due; waiting (${state.lastBusy})`)
       state.waitLogged = true
@@ -78,6 +85,7 @@ export const startLiveMeasureSchedule = ({
     stop: () => {
       state.stopped = true
       stopRepeat()
+      stopListening()
     },
   }
 }
@@ -94,8 +102,7 @@ export const waitForIdle = async ({ isIdle, sleep, now, firstDelayMs, pollMs, se
   return { gaveUp: true }
 }
 
-export const isMeasureDue = ({ lastRunAt, nowMs, afterMs = REMEASURE_AFTER_MS }) =>
-  lastRunAt == null || nowMs - lastRunAt >= afterMs
+export const isMeasureDue = ({ dueAt, nowMs }) => dueAt == null || nowMs >= dueAt
 
 export const systemQuiet = ({
   loadavg = os.loadavg,
@@ -105,7 +112,7 @@ export const systemQuiet = ({
 
 export const createProcessCpuMeter = ({
   cpuUsage = process.cpuUsage,
-  now = Date.now,
+  now = () => performance.now(),
   windowMs = PROCESS_CPU_WINDOW_MS,
 } = {}) => {
   const sampleOf = () => {
@@ -115,11 +122,15 @@ export const createProcessCpuMeter = ({
   let samples = [sampleOf()]
   return () => {
     const latest = sampleOf()
-    const kept = samples.filter((sample) => latest.atMs - sample.atMs <= windowMs)
-    const base = kept[0] ?? samples[samples.length - 1]
+    const earlier = samples.filter((sample) => sample.atMs < latest.atMs)
+    if (!earlier.length) {
+      samples = [latest]
+      return Infinity
+    }
+    const kept = earlier.filter((sample) => latest.atMs - sample.atMs <= windowMs)
+    const base = kept[0] ?? earlier[earlier.length - 1]
     samples = [...(kept.length ? kept : [base]), latest]
-    const elapsedMs = latest.atMs - base.atMs
-    return elapsedMs > 0 ? (latest.cpuMs - base.cpuMs) / elapsedMs : 0
+    return (latest.cpuMs - base.cpuMs) / (latest.atMs - base.atMs)
   }
 }
 

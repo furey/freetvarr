@@ -1305,20 +1305,20 @@ The reaper runs every `5 s` (`LIVE_REAPER_MS`). A session that is not held and h
 `src/live-measure-schedule.js` starts the measurement from the `app.listen` callback, after the startup work begins:
 
 1. Wait `1 min`, then read the idle signal every `30 s`.
-2. Measure when the signal stays idle for `3 min`. After `15 min`, measure anyway.
-3. Call `measure({ runs: 2 })`. It runs the benchmark, pauses `20 s`, and runs it again. It keeps the result with the higher estimate, then the higher speed. A second run that fails or meets a session keeps the first result. The copy encoder runs once.
-4. Every `10 min`, measure again when the last scheduled run is `24 h` old, or none ran this start, and the idle signal is idle.
-5. After each measurement, refresh the Health report.
+2. Measure when the signal stays idle for `3 min`. After `15 min`, measure anyway, even during a recording or a heavy job. A live session, playback session, or ad scan still blocks the run.
+3. Call `measure({ runs: 2 })`. It runs the benchmark, pauses `20 s`, and runs it again. It keeps the result with the higher estimate, then the higher speed. Before the second run, `stillIdle` checks sessions, ad scans, recordings, and heavy jobs again, but not the processor (the first run raised the load). A second run that fails or meets any of these keeps the first result. The copy encoder runs once.
+4. Every `10 min`, measure again when the measurement is due and the idle signal is idle. It is due when none ran this start, `24 h` after a measurement, and `1 h` after a failed run.
+5. After each measurement, including **Measure again**, reset the `24 h` timer and refresh the Health report (`liveStreams.onMeasured`).
 
 The idle signal (`liveMeasureBusyReason`) is idle when all of these hold:
 
 - No live session, playback session, or ad scan runs.
 - No heavy job runs in `activity.snapshot().running` (`HEAVY_JOB_KINDS`: sync, import, ad removal, guide load, guide pictures, merged guide, For you rebuild, artwork warm-up, picture focus, library folders, and cache prune).
 - `getRecordingNow()` lists no active or finishing recording. A failed TVHeadend read counts as idle.
-- The Freetvarr process uses less than `15%` of one processor over the last minute (`process.cpuUsage()` against wall time, `createProcessCpuMeter`).
+- The Freetvarr process uses less than `15%` of one processor over the last minute (`process.cpuUsage()` against `performance.now()`, `createProcessCpuMeter`). A clock that steps back reads as busy.
 - The one-minute `os.loadavg()` divided by the processor count is below `1.0`. Other containers keep this near `0.55` on an idle DS220+, so it blocks only a saturated machine.
 
-Until the first measurement on this start settles, and while one runs, `describe()` returns `measuring: 'waiting'` or `'running'`. The give-up warning and a skipped due check log the busy reason. The `live.streams` Health check then passes with a measuring detail instead of the saved result. The stream limit still uses the saved result. **Measure again** runs one benchmark at once, with no idle wait.
+While a measurement runs, `describe()` returns `measuring: 'running'`. When no saved result for the current encoder exists, it returns `measuring: 'waiting'` until the first measurement on this start settles. A saved result shows at once after a restart. The give-up warning and a skipped due check log the busy reason. The `live.streams` Health check then passes with a measuring detail instead of the saved result. The stream limit still uses the saved result. **Measure again** runs one benchmark at once, with no idle wait.
 
 | Source                     | Effect                                                                |
 | -------------------------- | --------------------------------------------------------------------- |
