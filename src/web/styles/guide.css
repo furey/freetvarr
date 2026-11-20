@@ -1143,6 +1143,11 @@
   line-height: 20px;
   color: var(--color-text-2);
   font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+
+.programme-sheet-meta + .programme-sheet-meta {
+  margin-top: 0;
 }
 
 .programme-sheet-synopsis {
@@ -1150,6 +1155,7 @@
   font-size: 15px;
   line-height: 22px;
   color: var(--color-text-soft);
+  text-wrap: pretty;
 }
 
 .programme-art-badge {
@@ -1351,13 +1357,46 @@
 }
 
 .programme-sheet-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
+  text-wrap: pretty;
+}
+
+.programme-sheet-status > .ui-dot {
+  flex: none;
+}
+
+.programme-sheet-cancel .ui-group-row-title {
   color: var(--color-live-text);
+}
+
+.programme-sheet-cancel .spinner,
+.programme-sheet-cancel-icon {
+  flex: none;
+}
+
+.programme-sheet-cancel-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-live-text);
+}
+
+.programme-sheet-cancel + :not(.programme-sheet-cancel) {
+  border-top: 8px solid var(--color-surface-2);
+}
+
+.programme-sheet-choice {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding-block: 12px;
+}
+
+.programme-sheet-strengths {
+  background: var(--color-surface-2);
 }
 
 .programme-sheet-strengths .ui-segment {
@@ -1367,37 +1406,19 @@
 }
 
 .programme-sheet-line {
-  margin: -6px 0 0;
+  margin: 0;
   font-size: 13px;
   line-height: 18px;
   color: var(--color-text-2);
+  text-wrap: pretty;
 }
 
 .programme-sheet .ui-group {
   background: var(--color-surface-1);
 }
 
-.programme-sheet-advanced > summary {
-  min-height: 44px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-2);
-}
-
 .programme-sheet-advanced .ui-group-row-meta a {
   color: var(--color-primary);
-}
-
-.programme-sheet-cancels {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.programme-sheet-cancel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .programme-sheet-outcome {
@@ -1419,7 +1440,13 @@
 }
 
 .programme-sheet-footer {
-  padding-top: 4px;
+  margin-top: 6px;
+}
+
+.programme-sheet-footer > .programme-sheet-primary {
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .programme-sheet-from-start {
@@ -1466,7 +1493,7 @@
 }
 
 .programme-sheet-more {
-  margin-top: 4px;
+  margin-top: 10px;
 }
 
 .programme-sheet-rec-dot {
