@@ -20,7 +20,7 @@ Suggestions show in three places:
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/for-you">
-  <img src="../img/screenshot-for-you.png" alt="The For you page, with the Cooking category row below the You might like suggestions" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-for-you.png" alt="The For you page, with suggestions and their reasons above the Cooking, Reality, and Home and property category rows" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

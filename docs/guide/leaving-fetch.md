@@ -129,7 +129,7 @@ Recording works like the record button on the Fetch remote. In Freetvarr's [TV g
 
 <!-- markdownlint-disable MD033 -->
 <BrowserFrame label="http://freetvarr.lan/#/guide">
-  <img src="../img/screenshot-programme.png" alt="A programme sheet in the TV guide, with its image, description, This episode and Every episode, padding settings, the Close and Record buttons, and a card with Hide this show, Hide police and rescue shows, and Change categories" width="2560" height="1872" loading="lazy">
+  <img src="../img/screenshot-programme.png" alt="A programme sheet in the TV guide, with its image, description, This episode and Every episode, padding settings, the Close and Record buttons, and a card with Hide this show, Hide crime drama shows, and Change categories" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 

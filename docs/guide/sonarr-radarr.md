@@ -58,8 +58,8 @@ Under each **API key** field, Settings then says `Read from Sonarr's config.xml.
 An episode can have two copies: Freetvarr's recording and a file that Sonarr, Radarr, or you added. The delete dialog for that episode asks which to delete: **Both**, **Recording**, or the other copy (**Sonarr copy**, **Radarr copy**, or **Other copy**). The dialog lists each file, its size, and whether it goes through Sonarr, through Radarr, or from the disk.
 
 <!-- markdownlint-disable MD033 -->
-<BrowserFrame label="http://freetvarr.lan/#/recordings/show/the-block">
-  <img src="../img/screenshot-delete.png" alt="The delete dialog for an episode with two copies, offering Both, Recording, or Sonarr copy" width="2560" height="1872" loading="lazy">
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/ncis">
+  <img src="../img/screenshot-delete.png" alt="The delete dialog for an NCIS episode with two copies, offering Both, Recording, or Sonarr copy" width="2560" height="1872" loading="lazy">
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
