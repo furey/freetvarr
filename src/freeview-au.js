@@ -9,6 +9,7 @@ export const FREEVIEW_NZ_REGION = 'nz'
 export const FREEVIEW_IMAGE_HOST = 'img-store-prod.switch.tv'
 export const FREEVIEW_WINDOW_MS = 6 * 60 * 60 * 1000
 export const FREEVIEW_MATCH_TOLERANCE_MS = 5 * 60 * 1000
+export const FREEVIEW_API_PACE = Object.freeze({ concurrency: 1, gapMs: 500, jitterMs: 1000 })
 
 export const FREEVIEW_REGIONS = {
   'Australia/Sydney': 'region_nsw_sydney',
@@ -266,10 +267,12 @@ export const createFreeviewAu = ({
     return null
   }
 
-  const seedWindow = ({ triplet, windowStart, listings }) => {
+  const seedWindow = ({ triplet, windowStart, listings, expiresAt = null }) => {
     if (cachedListingsFor({ triplet, windowStart })) return
     const slim = listings.map(slimListingOf)
-    remember({ key: `${triplet}|${windowStart}`, listings: slim, ttlMs: slim.length ? listingsTtlMs : emptyTtlMs })
+    const ttlMs = expiresAt === null ? (slim.length ? listingsTtlMs : emptyTtlMs) : expiresAt - now()
+    if (ttlMs <= 0) return
+    remember({ key: `${triplet}|${windowStart}`, listings: slim, ttlMs })
   }
 
   return { region, isOn, regionTriplets, listingsFor, matchAirings, seedWindow }
@@ -277,8 +280,8 @@ export const createFreeviewAu = ({
 
 export const freeviewClient = createOutboundClient({
   hosts: {
-    [FREEVIEW_API_HOST]: { concurrency: 1, gapMs: 500 },
-    [FREEVIEW_NZ_API_HOST]: { concurrency: 1, gapMs: 500 },
+    [FREEVIEW_API_HOST]: FREEVIEW_API_PACE,
+    [FREEVIEW_NZ_API_HOST]: FREEVIEW_API_PACE,
     [FREEVIEW_IMAGE_HOST]: { concurrency: 1, gapMs: 250 },
   },
 })

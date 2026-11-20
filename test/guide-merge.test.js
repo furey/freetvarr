@@ -357,6 +357,85 @@ test('scheduler: one build at a time, a request during a build runs once more af
   assert.equal(await merge.servablePath(), null, 'the file is built but not served until guide_merged_feed is on')
 })
 
+const nearFirstPrimary = ({ reads, pendingUntilFull = true }) => {
+  let full = false
+  const programmes = [slot({ title: 'Better Homes and Gardens', at: 0 }), slot({ title: 'Late Film', at: 4 * DAY / MINUTE })]
+  return {
+    ...fakeSource({ id: 'freeview-au', channels: [{ id: '1013:0502:0521', names: ['7HD'], lcn: 71 }], listings: {} }),
+    prefetch: async ({ channels, to }) => {
+      reads.push({ channels, to })
+      if (to === Infinity || to > NOW + 3 * DAY) full = true
+    },
+    listings: async ({ channel, fetchUntil }) => {
+      reads.push({ channel, fetchUntil })
+      return programmes.filter((programme) => full || !pendingUntilFull || programme.start < fetchUntil).map((programme) => ({ ...programme, channel }))
+    },
+    stats: () => ({ requests: 0, failedWindows: 0, splitWindows: 0, windowsRead: 1, pendingWindows: full || !pendingUntilFull ? 0 : 1 }),
+  }
+}
+
+const nearFirstMerge = async ({ primary, health = null }) => {
+  const dir = await tempDir()
+  const sources = sydneySources()
+  const lines = []
+  const merge = createGuideMerge({
+    dir,
+    sources: { forCountry: (country) => (country === 'au' ? [primary, sources.secondary.source] : []) },
+    timeZone: () => 'Australia/Sydney',
+    channelTriplets: async () => ({ linked: new Map(), tvChannels: null }),
+    health,
+    now: () => NOW,
+    log: { log: (line) => lines.push(line), warn: () => {} },
+  })
+  return { merge, dir, lines }
+}
+
+test('near first: a build writes the next two days first, then reads the later windows in time order and writes again; only the full build saves health', async () => {
+  const reads = []
+  const saved = []
+  const health = { history: async () => new Map(), save: async ({ rows }) => saved.push(rows) }
+  const { merge, dir, lines } = await nearFirstMerge({ primary: nearFirstPrimary({ reads }), health })
+  await merge.requestBuild()
+  const prefetches = reads.filter((read) => read.to !== undefined)
+  assert.deepEqual(prefetches.map((read) => read.to), [NOW + 2 * DAY, NOW + 9 * DAY])
+  assert.deepEqual(prefetches[0].channels, ['1013:0502:0521'])
+  assert.deepEqual(reads.filter((read) => read.channel).map((read) => read.fetchUntil), [NOW + 2 * DAY, Infinity])
+  assert.match(lines[0], /wrote the next 48 h first; reading 1 later windows now/)
+  assert.equal(saved.length, 1)
+  const xml = zlib.gunzipSync(await fs.readFile(path.join(dir, MERGED_GUIDE_FILE))).toString('utf8')
+  assert.ok(programmesOf(xml).some((programme) => programme.title === 'Late Film'))
+})
+
+test('near first: with every later window already fresh, one build writes once', async () => {
+  const reads = []
+  const { merge } = await nearFirstMerge({ primary: nearFirstPrimary({ reads, pendingUntilFull: false }) })
+  await merge.requestBuild()
+  assert.deepEqual(reads.filter((read) => read.channel).map((read) => read.fetchUntil), [NOW + 2 * DAY])
+})
+
+test('first build: the promise settles once the first build after start ends, also when it fails or there is no plan', async () => {
+  const reads = []
+  const { merge } = await nearFirstMerge({ primary: nearFirstPrimary({ reads }) })
+  let settled = false
+  merge.firstBuild().then(() => { settled = true })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(settled, false)
+  await merge.requestBuild()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(settled, true)
+  const failing = createGuideMerge({
+    dir: await tempDir(),
+    sources: { forCountry: () => [{ ...nearFirstPrimary({ reads }), channels: async () => { throw new Error('HTTP 503') } }] },
+    timeZone: () => 'Australia/Sydney',
+    log: { log: () => {}, warn: () => {} },
+  })
+  await failing.requestBuild()
+  await failing.firstBuild()
+  const noPlan = createGuideMerge({ dir: await tempDir(), sources: { forCountry: () => [] }, timeZone: () => 'Europe/Berlin', log: { log: () => {}, warn: () => {} } })
+  await noPlan.requestBuild()
+  await noPlan.firstBuild()
+})
+
 test('migration 0047: title_aliases is unique per source title, and down drops it', async () => {
   const { database, aliases } = await memoryAliases()
   await aliases.save({ source: 'freeview-au', aliases: [{ sourceTitle: 'Hell\'s Kitchen', title: 'Hells Kitchen' }] })

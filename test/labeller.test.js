@@ -409,7 +409,7 @@ test('migration 0054 adds title_labels; stored labels count only while a key is 
   assert.deepEqual(loaded.get('blank'), { format: null, topics: [], origin: null, sport: null })
   assert.equal((await labellerStatusOf()).labelled, 1)
   await setSetting(LABELLER_KEY_SETTING, '')
-  await db.migrate.down()
+  await db.migrate.down({ name: '0054_title_labels.js' })
   assert.equal(await db.schema.hasTable('title_labels'), false)
   await db.migrate.latest()
 })

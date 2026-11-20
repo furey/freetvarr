@@ -27,7 +27,7 @@ export const createOutboundClient = ({
   const isAllowedHost = (host) => Object.hasOwn(hosts, host)
 
   const limiterFor = (host) => {
-    if (!limiters.has(host)) limiters.set(host, createHostLimiter({ ...hosts[host], now, sleep }))
+    if (!limiters.has(host)) limiters.set(host, createHostLimiter({ ...hosts[host], now, sleep, random }))
     return limiters.get(host)
   }
 
@@ -69,13 +69,10 @@ export const createOutboundClient = ({
         throw new OutboundError(`${host} HTTP ${outcome.response.status}`, { code: 'rejected', host, status: outcome.response.status })
       }
       breaker.recordFailure()
-      const delayMs = retryDelayMs({
-        attempt,
-        baseMs: retryBaseMs,
-        maxMs: retryMaxMs,
-        retryAfterS: retryAfterOf(outcome.response?.headers),
-        random,
-      })
+      const retryAfterS = retryAfterOf(outcome.response?.headers)
+      const delayMs = retryDelayMs({ attempt, baseMs: retryBaseMs, maxMs: retryMaxMs, retryAfterS, random })
+      const holdMs = hostHoldMsOf({ status: outcome.response?.status, delayMs, retryAfterS })
+      if (holdMs) limiterFor(host).holdFor(holdMs)
       if (attempt >= retries || delayMs === null) {
         const status = outcome.response?.status ?? null
         throw new OutboundError(status ? `${host} HTTP ${status}` : `${host} did not answer`, { code: 'unavailable', host, status })
@@ -166,6 +163,14 @@ export const retryAfterOf = (headers = {}) => {
   return Number.isFinite(atMs) ? Math.max(0, Math.ceil((atMs - Date.now()) / 1000)) : null
 }
 
+export const hostHoldMsOf = ({ status, delayMs, retryAfterS = null }) => {
+  if (!isServerPushback(status)) return 0
+  const askedMs = retryAfterS === null ? delayMs : retryAfterS * 1000
+  return Math.min(HOST_HOLD_MAX_MS, Math.max(0, askedMs ?? 0))
+}
+
+const isServerPushback = (status) => status === 429 || (status >= 500 && status < 600)
+
 export const createCircuitBreaker = ({
   failureThreshold = BREAKER_FAILURE_THRESHOLD,
   baseCooldownMs = BREAKER_BASE_COOLDOWN_MS,
@@ -200,10 +205,12 @@ export const createCircuitBreaker = ({
 export const createHostLimiter = ({
   concurrency = 1,
   gapMs = 0,
+  jitterMs = 0,
   maxQueue = DEFAULT_MAX_QUEUE,
   reservedForUrgent = 0,
   now = Date.now,
   sleep = wait,
+  random = Math.random,
 } = {}) => {
   const urgent = []
   const background = []
@@ -211,6 +218,12 @@ export const createHostLimiter = ({
   let active = 0
   let activeBackground = 0
   let nextStartAt = 0
+
+  const nextGapMs = () => gapMs + Math.round(random() * jitterMs)
+
+  const holdFor = (ms) => {
+    nextStartAt = Math.max(nextStartAt, now() + ms)
+  }
 
   const nextEntry = () => {
     if (urgent.length) return urgent.shift()
@@ -226,7 +239,7 @@ export const createHostLimiter = ({
       active += 1
       if (isBackground) activeBackground += 1
       const startAt = Math.max(now(), nextStartAt)
-      nextStartAt = startAt + gapMs
+      nextStartAt = startAt + nextGapMs()
       Promise.resolve(sleep(Math.max(0, startAt - now())))
         .then(task)
         .then(resolve, reject)
@@ -258,7 +271,7 @@ export const createHostLimiter = ({
 
   const size = () => ({ active, queued: urgent.length + background.length, background: background.length, activeBackground })
 
-  return { run, promote, size }
+  return { run, promote, size, holdFor }
 }
 
 export const isImageContentType = (contentType) => ALLOWED_IMAGE_TYPES.has(contentType)
@@ -327,6 +340,7 @@ const RETRY_MAX_MS = 8000
 const MAX_REDIRECTS = 3
 const PROBE_TIMEOUT_MS = 5000
 const PROBE_MAX_BYTES = 64 * 1024
+const HOST_HOLD_MAX_MS = 5 * 60 * 1000
 const UNREACHABLE_CODES = new Set(['unavailable', 'circuit-open'])
 const DEFAULT_MAX_QUEUE = 200
 const BREAKER_FAILURE_THRESHOLD = 5

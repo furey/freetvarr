@@ -288,6 +288,23 @@ test('listChannelTriplets reads the service and mux grids and maps each channel 
   }
 })
 
+test('seedWindow: a seeded window lives until the expiry the guide build gives it, then is read again', async () => {
+  const clock = { ms: START }
+  const client = fakeClient(({ url }) => (url.includes('/channels/region/') ? channelsBody : { data: [listing({ title: 'Gruen', show: 'gruen-new.jpg' })] }))
+  const freeview = createFreeviewAu({ client, timeZone: () => 'Australia/Sydney', now: () => clock.ms })
+  const window = { triplet: TRIPLET, windowStart: windowStartOf(START) }
+  freeview.seedWindow({ ...window, listings: [listing({ title: 'Gruen', show: 'gruen.jpg' })], expiresAt: START + 20 * 60 * MINUTE })
+  freeview.seedWindow({ triplet: TRIPLET, windowStart: windowStartOf(START) + FREEVIEW_WINDOW_MS, listings: [], expiresAt: START - MINUTE })
+  clock.ms = START + 19 * 60 * MINUTE
+  assert.equal((await freeview.listingsFor(window)).length, 1)
+  assert.equal(client.calls.length, 0)
+  clock.ms = START + 21 * 60 * MINUTE
+  await freeview.listingsFor(window)
+  assert.equal(client.calls.length, 1)
+  await freeview.listingsFor({ triplet: TRIPLET, windowStart: windowStartOf(START) + FREEVIEW_WINDOW_MS })
+  assert.equal(client.calls.length, 2, 'an already expired seed is not kept')
+})
+
 test('seedWindow: a window read by the merged guide build answers matchAirings with no request', async () => {
   const client = fakeClient(({ url }) => (url.includes('/channels/region/') ? channelsBody : { data: [] }))
   const freeview = createFreeviewAu({ client, timeZone: () => 'Australia/Sydney', now: () => START })
