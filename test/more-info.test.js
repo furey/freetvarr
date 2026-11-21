@@ -206,7 +206,7 @@ test('a film uses film labels and leaves out rows with no value', () => {
   assert.deepEqual(moreInfoOf({ credits: film, kind: 'movie' }).rows, [
     { label: 'Studio', value: 'Marvel Studios' },
     { label: 'Released', value: '2012' },
-    { label: 'Length', value: '2 hrs 22 mins' },
+    { label: 'Runtime', value: '2 hrs 22 mins' },
   ])
 })
 
