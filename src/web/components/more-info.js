@@ -156,7 +156,7 @@ const easeHeightChange = ({ el, fromHeight }) => {
 }
 
 const NEVER_SLOW = () => () => {}
-const SKELETON_NAME_WIDTHS = ['5.5em', '3.5em']
-const SKELETON_ROLE_WIDTHS = ['5em', '3.5em']
+const SKELETON_NAME_WIDTHS = ['5.5em']
+const SKELETON_ROLE_WIDTHS = ['5em']
 const HEIGHT_EASE_MS = 240
 const HEIGHT_EASING = 'cubic-bezier(0.2, 0, 0, 1)'

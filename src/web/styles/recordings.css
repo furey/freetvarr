@@ -1913,7 +1913,7 @@ a.show-cast-hit:active .show-cast-face {
 .more-info-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding: 16px 0 8px;
 }
 
@@ -1950,7 +1950,7 @@ a.show-cast-hit:active .show-cast-face {
 }
 
 .more-info .show-cast-hit {
-  min-height: calc(64px + 8px + 2 * 17px + 2px + 3 * 16px);
+  min-height: calc(64px + 8px + 17px + 2px + 16px);
 }
 
 .more-info-facts {
