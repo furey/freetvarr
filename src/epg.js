@@ -86,7 +86,7 @@ import { createRecordingStateCache } from './recording-state-cache.js'
 import { orderChannels } from './channel-order.js'
 import { airingIdentityOf, isPreferredAiring, twinAnnotationOf } from './airing-identity.js'
 import { invalidateRecordingNow } from './recording-now.js'
-import { createAiringKinds, createDisplayKinds, withDisplayKinds } from './display-kind.js'
+import { createAiringKinds, createConfirmedOneOffs, createDisplayKinds, withDisplayKinds } from './display-kind.js'
 import { createTitleKindStore, guideKindUpdatesOf, libraryKindUpdatesOf, loadGuideCategories, withTitleKinds } from './title-kinds.js'
 import { loadSeriesEvidence, saveGuideEvidence } from './series-evidence.js'
 import {
@@ -1779,7 +1779,7 @@ const loadGuide = async (startMs) => {
   const titleKinds = await saveGuideTitleKinds({ programmes: listed, records, evidence, categories })
   const recordsByKey = withTitleKinds({ records, titleKinds })
   const kindOf = createDisplayKinds({ programmes: listed, recordsByKey, evidence })
-  const events = withDisplayKinds({ programmes: listed, kindOf })
+  const events = withDisplayKinds({ programmes: listed, kindOf, confirmedOneOffOf: createConfirmedOneOffs({ recordsByKey, evidence }) })
   if (channels.length === 0) {
     throw new TvheadendError(
       'TVHeadend has no channels yet. Scan the mux and map services to channels in TVHeadend first.',

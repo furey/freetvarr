@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createDisplayKinds, displayKindOf, guideMovieChoiceOf, withDisplayKinds } from '../src/display-kind.js'
+import { createConfirmedOneOffs, createDisplayKinds, displayKindOf, guideMovieChoiceOf, isConfirmedOneOff, withDisplayKinds } from '../src/display-kind.js'
 import { FILM_MIN_MS, looksLikeFilm } from '../src/film-rule.js'
 import { savedWithKinds } from '../src/epg.js'
+import { canRecordSeriesOf } from '../src/web/title-kind.js'
 
 const MINUTE_MS = 60_000
 const airing = ({ title, minutes, genre = null, ...rest }) => ({
@@ -116,4 +117,28 @@ test('displayKindOf: a sport airing whose title has no TVDB or TMDB id shows as 
   assert.equal(displayKindOf({ programme: game, airingsInWeek: 4, evidence: { databaseIds: 'found' } }), 'series')
   const kindOf = createDisplayKinds({ programmes: [game], evidence: new Map([['aflw', { databaseIds: 'none' }]]) })
   assert.equal(kindOf(game), 'one-off')
+})
+
+test('isConfirmedOneOff: an override, a library folder, or a sport guide category confirms a one-off; the airing count alone does not', () => {
+  const rowOf = (source, evidence = {}) => ({ titleKind: { kind: 'one-off', source, evidence: { override: null, library: [], guide: null, hint: null, ...evidence } } })
+  assert.equal(isConfirmedOneOff({ programme: carols, record: rowOf('override') }), true)
+  assert.equal(isConfirmedOneOff({ programme: carols, record: rowOf('library') }), true)
+  assert.equal(isConfirmedOneOff({ programme: carols, record: rowOf('guide', { guide: { kind: 'one-off', sport: true } }) }), true)
+  assert.equal(isConfirmedOneOff({ programme: { ...grandFinal, title: 'AFL Grand Final 2026' } }), true)
+  assert.equal(isConfirmedOneOff({ programme: carols, record: rowOf('guide', { guide: { kind: 'one-off', sport: false } }) }), false)
+  assert.equal(isConfirmedOneOff({ programme: carols, record: rowOf('hint') }), false)
+  assert.equal(isConfirmedOneOff({ programme: carols }), false)
+})
+
+test('withDisplayKinds: only a confirmed one-off is marked, so a guessed one-off with a series link keeps Record series', () => {
+  const linked = { ...carols, series_link: 'carols-link' }
+  const confirmedTitles = new Map([['carols-by-candlelight', { titleKind: { kind: 'one-off', source: 'override', evidence: {} } }]])
+  const [guessed] = withDisplayKinds({ programmes: [linked], kindOf: () => 'one-off', confirmedOneOffOf: createConfirmedOneOffs({}) })
+  assert.equal(guessed.one_off_confirmed, undefined)
+  assert.equal(canRecordSeriesOf(guessed), true)
+  const [confirmed] = withDisplayKinds({ programmes: [linked], kindOf: () => 'one-off', confirmedOneOffOf: createConfirmedOneOffs({ recordsByKey: confirmedTitles }) })
+  assert.equal(confirmed.one_off_confirmed, true)
+  assert.equal(canRecordSeriesOf(confirmed), false)
+  const [series] = withDisplayKinds({ programmes: [linked], kindOf: () => 'series', confirmedOneOffOf: () => true })
+  assert.equal(series.one_off_confirmed, undefined)
 })

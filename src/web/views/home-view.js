@@ -454,7 +454,7 @@ export const HomeView = {
 
     const SLIDE_MENUS = {
       'on-now': (slide) => ({
-        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, movieChoice: slide.target.program.movieChoice, dislike: dislikeItemOfSlide(slide) }),
+        groups: onNowMenuOf({ channelName: slide.target.channel.name, seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, oneOffConfirmed: Boolean(slide.target.program.one_off_confirmed), movieChoice: slide.target.program.movieChoice, dislike: dislikeItemOfSlide(slide) }),
         actions: {
           'watch-live': () => SLIDE_ACTIONS['watch-live'](slide),
           'record-episode': () => openSlideProgramme(slide, 'episode'),
@@ -480,7 +480,7 @@ export const HomeView = {
       },
       upcoming: (slide) => scheduledMenu({ upcoming: slide.target.upcoming, subtitle: slide.metaShort }),
       watchlist: (slide) => ({
-        groups: guideMatchMenuOf({ seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, movieChoice: slide.target.program.movieChoice }),
+        groups: guideMatchMenuOf({ seriesLink: Boolean(slide.target.program.series_link), kind: slide.target.program.kind, oneOffConfirmed: Boolean(slide.target.program.one_off_confirmed), movieChoice: slide.target.program.movieChoice }),
         actions: {
           'record-episode': () => openSlideProgramme(slide, 'episode'),
           'record-series': () => openSlideProgramme(slide, 'series'),
@@ -516,7 +516,7 @@ export const HomeView = {
         title: item.program.title,
         subtitle: onNowMetaOf({ item }),
         art: programmeArtOf(item.program),
-        groups: onNowMenuOf({ channelName: item.channel.name, seriesLink: Boolean(item.program.series_link), kind: item.program.kind, movieChoice: item.program.movieChoice }),
+        groups: onNowMenuOf({ channelName: item.channel.name, seriesLink: Boolean(item.program.series_link), kind: item.program.kind, oneOffConfirmed: Boolean(item.program.one_off_confirmed), movieChoice: item.program.movieChoice }),
         actions: {
           'watch-live': () => watchChannel(item),
           'record-episode': () => openOnNow(item, 'episode'),
