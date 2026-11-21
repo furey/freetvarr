@@ -1,7 +1,7 @@
 import { airingLooksLikeFilm, movieChoiceOf } from './genre-enrichment.js'
 import { showKeyOf } from './web/show-key.js'
 import { isSportOneOff } from './series-kind.js'
-import { requestKindOf } from './title-kinds.js'
+import { KIND_SOURCES, ONE_OFF_KIND, requestKindOf } from './title-kinds.js'
 
 export const airingKindOf = ({ programme, record = null, airingsInWeek = 1, evidence = null }) => {
   if (airingLooksLikeFilm({ programme, record, airingsInWeek })) return 'movie'
@@ -28,12 +28,29 @@ export const createDisplayKinds = ({ programmes = [], recordsByKey = new Map(), 
   }
 }
 
+export const isConfirmedOneOff = ({ programme, record = null, evidence = null }) => {
+  const row = record?.titleKind ?? null
+  if (row?.kind === ONE_OFF_KIND && (CONFIRMING_SOURCES.has(row.source) || row.evidence?.guide?.sport)) return true
+  return isSportOneOff({ title: programme?.title, recordings: [{ genre: programme?.genre ?? null }], evidence })
+}
+
+export const createConfirmedOneOffs = ({ recordsByKey = new Map(), evidence = new Map() }) => (programme) => {
+  const key = showKeyOf(programme?.title)
+  return isConfirmedOneOff({ programme, record: recordsByKey.get(key) || null, evidence: evidence.get(key) ?? null })
+}
+
 export const createAiringKinds = (inputs) => createDisplayKinds({ ...inputs, kindOf: airingKindOf })
 
-export const withDisplayKinds = ({ programmes, kindOf }) => programmes.map((programme) => {
+export const withDisplayKinds = ({ programmes, kindOf, confirmedOneOffOf = () => false }) => programmes.map((programme) => {
   const kind = kindOf(programme)
   const movieChoice = guideMovieChoiceOf({ programme, kind })
-  return movieChoice ? { ...programme, kind, movieChoice } : { ...programme, kind }
+  const confirmed = kind === ONE_OFF_KIND && confirmedOneOffOf(programme)
+  return {
+    ...programme,
+    kind,
+    ...(movieChoice && { movieChoice }),
+    ...(confirmed && { one_off_confirmed: true }),
+  }
 })
 
 export const guideMovieChoiceOf = ({ programme, kind }) => (kind === 'series'
@@ -55,3 +72,4 @@ const airingsByTitleOf = (programmes) => {
 }
 
 const SERIES_MIN_AIRINGS = 3
+const CONFIRMING_SOURCES = new Set([KIND_SOURCES.override, KIND_SOURCES.library])

@@ -6,6 +6,7 @@ import { db } from './db.js'
 import { createKnownAs, loadKnownAs } from './known-as.js'
 import { normaliseSearchText } from './web/search-text.js'
 import { showKeyOf } from './web/show-key.js'
+import { isSingleTitleKind } from './web/title-kind.js'
 
 export const nicknameFrom = (raw) => {
   const name = String(raw ?? '').replace(/\s+/g, ' ').trim()
@@ -146,7 +147,7 @@ const loadCurated = async () => {
   return curatedLoad
 }
 
-const singleKindOf = (kind) => (SINGLE_RECORDING_KINDS.has(kind) ? { kind } : {})
+const singleKindOf = (kind) => (isSingleTitleKind(kind) ? { kind } : {})
 
 const passThrough = (req, res, next) => next()
 
@@ -161,5 +162,4 @@ const MAX_SHOW_KEY_LENGTH = 200
 const SHOW_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const SHOW_KEY_ERROR = 'key must be a show key'
 const LIBRARY_TIMEOUT_MS = 3000
-const SINGLE_RECORDING_KINDS = new Set(['movie', 'oneoff'])
 const GROUP_TITLE = 'coalesce(show_title_override, title)'

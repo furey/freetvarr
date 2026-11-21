@@ -1,4 +1,4 @@
-import { recordWordingOf } from './record-wording.js'
+import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
 import { movieKindRowOf } from './movie-choice.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { dislikeLabelsOf, programmeKindOfItem } from './for-you.js'
@@ -7,11 +7,11 @@ import { CHANGE_CATEGORIES } from './category-override.js'
 export const PROGRAMME_INFO = { key: 'programme-info', label: 'Programme info', icon: 'info' }
 export const GO_TO_SHOW = { key: 'show', label: 'Go to show', icon: 'show' }
 
-export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null, movieChoice = null, dislike = null }) => [
+export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null, oneOffConfirmed = false, movieChoice = null, dislike = null }) => [
   [
     { key: 'watch-live', label: 'Watch live', icon: 'play', detail: channelName },
     { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: 'From now' },
-    seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
+    canRecordSeriesOf({ series_link: seriesLink, kind, one_off_confirmed: oneOffConfirmed }) && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO, movieKindRowOf(movieChoice)],
   dislikeGroupOf(dislike),
@@ -40,10 +40,10 @@ export const scheduledMenuOf = ({ hasRule = false, kind = null }) => [
   [{ key: 'skip', label: recordWordingOf({ kind, hasRule }).skipLabel, icon: 'skip', danger: true }],
 ].map(compact)
 
-export const guideMatchMenuOf = ({ when = '', seriesLink = false, kind = null, movieChoice = null }) => [
+export const guideMatchMenuOf = ({ when = '', seriesLink = false, kind = null, oneOffConfirmed = false, movieChoice = null }) => [
   [
     { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: when },
-    seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
+    canRecordSeriesOf({ series_link: seriesLink, kind, one_off_confirmed: oneOffConfirmed }) && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO, movieKindRowOf(movieChoice)],
 ].map(compact)

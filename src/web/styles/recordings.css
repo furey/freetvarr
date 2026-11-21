@@ -187,6 +187,12 @@
   color: var(--color-text-soft);
 }
 
+.show-hero-progress {
+  display: block;
+  width: min(240px, 60%);
+  margin-top: 10px;
+}
+
 .show-title-skeleton {
   --skeleton-w: 7em;
 }
@@ -1814,12 +1820,6 @@ a.show-cast-hit:focus-visible .show-cast-face {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transition: opacity 220ms var(--ease-standard);
-}
-
-.show-cast-photo.is-loaded {
-  opacity: 1;
 }
 
 .show-cast-name,
