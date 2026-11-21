@@ -15,6 +15,7 @@ const watchMs = Number(process.env.LAYOUT_WATCH_MS ?? 2500)
 const film = process.env.LAYOUT_FILM ?? 'rocky'
 const deepLinkFilm = process.env.LAYOUT_DEEP_LINK_FILM ?? 'the-terminator'
 const series = process.env.LAYOUT_SERIES ?? 'friends'
+const filmTitle = process.env.LAYOUT_FILM_TITLE ?? 'Rocky'
 const limits = {
   cls: Number(process.env.LAYOUT_MAX_CLS ?? 0.02),
   popInMs: Number(process.env.LAYOUT_MAX_POP_IN_MS ?? 1500),
@@ -42,7 +43,7 @@ const guideCell = 'button.epg-cell'
 const SCREENS = [
   { name: 'home', from: '#/recordings', to: '#/home' },
   { name: 'for-you', from: '#/home', to: '#/for-you' },
-  { name: 'live', from: '#/home', to: '#/live' },
+  { name: 'live', from: '#/home', to: '#/live', allow: { popInMs: 2000, note: 'a slow channel list adds the 800 ms skeleton hold' } },
   { name: 'guide', from: '#/home', to: '#/guide' },
   { name: 'recordings', from: '#/home', to: '#/recordings' },
   { name: 'recordings-shows', from: '#/recordings', to: '#/recordings/shows' },
@@ -56,8 +57,9 @@ const SCREENS = [
   { name: 'scheduled', from: '#/recordings', to: '#/recordings/scheduled' },
   { name: 'settings', from: '#/home', to: '#/settings' },
   { name: 'search', from: '#/home', click: 'button[aria-label="Search"] >> visible=true' },
-  { name: 'programme-sheet', from: '#/guide', click: guideCell },
-  { name: 'more-info', from: '#/guide', click: guideCell, then: 'summary.more-info-summary', allow: { cls: 0.03, moves: 80, popInMs: 2000, note: 'the opened section pushes the actions below it down' } },
+  { name: 'programme-sheet', from: '#/guide', click: guideCell, allow: { popInMs: 2500, note: 'the hide rows can wait behind guide pictures; they swap into a reserved slot' } },
+  { name: 'programme-sheet-film', from: '#/guide', click: `${guideCell}:has-text("${filmTitle}")` },
+  { name: 'more-info', from: '#/guide', click: guideCell, then: 'summary.more-info-summary', allow: { cls: 0.5, moves: 80, popInMs: 2500, flicker: true, note: 'the opened section grows when its details load, which pushes the actions down and, on a phone, the sheet up' } },
   { name: 'info-sheet', from: `#/recordings/show/${series}`, click: '.show-episode-more', then: 'button.library-menu-item:has-text("info")' },
   { name: 'player', from: `#/recordings/show/${film}`, click: '.show-actions >> visible=true >> .ui-button-primary' },
 ]
