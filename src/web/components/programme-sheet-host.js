@@ -34,7 +34,9 @@ import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { useSheetDrag } from '/shared/sheet-drag.js'
 import { useProgrammeRatings } from '/components/programme-ratings.js'
-import { api, fetchSettings } from '/shared/api.js'
+import { api, fetchSettings, loadedBuild } from '/shared/api.js'
+import { browserStorage } from '/shared/storage.js'
+import { readHomeCache } from '/home-cache.js'
 import { useFlash } from '/shared/composables.js'
 import { liveChannelOf, watchLive, watchRecordingFromStart } from '/shared/live-session.js'
 import { playsFromMsOf } from '/start-over.js'
@@ -544,15 +546,16 @@ export const ProgrammeSheetHost = {
     const dislikeSlots = ref(0)
     watch(() => sheetProgramme.value?.title, async (title) => {
       const cached = title ? tasteCache.get(title) : null
+      const tasteOn = Boolean(title) && tasteEnabledLastTime()
       sheetTaste.value = cached ?? null
-      tasteKnown.value = Boolean(cached) || !title || !tasteEnabledLastTime()
-      dislikeSlots.value = title && tasteEnabledLastTime()
+      tasteKnown.value = Boolean(cached) || !tasteOn
+      dislikeSlots.value = tasteOn && !cached
         ? dislikeSlotCountOf({ title, programmeKind: sheetProgramme.value?.kind ?? null })
         : 0
       if (!title || cached) return
       const taste = await api('GET', `/api/for-you/taste?title=${encodeURIComponent(title)}`).catch(() => null)
       if (taste) rememberTaste({ title, taste })
-      if (sheetProgramme.value?.title !== title) return
+      if (!tasteOn || sheetProgramme.value?.title !== title) return
       sheetTaste.value = taste
       tasteKnown.value = true
     })
@@ -937,6 +940,8 @@ let tasteCache = newTasteCache()
 const forgetTastes = () => { tasteCache = newTasteCache() }
 
 const tasteEnabledLastTime = () => {
+  const fromHome = readHomeCache({ storage: browserStorage(), build: loadedBuild || 'dev' })?.forYouPayload?.enabled
+  if (typeof fromHome === 'boolean') return fromHome
   try {
     return localStorage.getItem(TASTE_ENABLED_KEY) !== '0'
   } catch {
