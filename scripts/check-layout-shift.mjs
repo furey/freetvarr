@@ -20,6 +20,7 @@ const limits = {
   cls: Number(process.env.LAYOUT_MAX_CLS ?? 0.02),
   popInMs: Number(process.env.LAYOUT_MAX_POP_IN_MS ?? 1500),
   blankMs: Number(process.env.LAYOUT_MAX_BLANK_MS ?? 20),
+  slowItemsMs: Number(process.env.LAYOUT_MAX_SLOW_ITEMS_MS ?? 2500),
   skeletonMs: Number(process.env.LAYOUT_MIN_SKELETON_MS ?? 700),
 }
 
@@ -40,10 +41,12 @@ const main = async () => {
 }
 
 const guideCell = 'button.epg-cell'
+const LATE_SECTION_ITEMS = [/^h2\.ui-section-title\|(About|Cast and crew)/, /^p\.(show-about-synopsis|show-crew-line)/, /^li\.show-cast-person/, /programme-score-badge/]
+const SHEET_LOOKUP_ITEMS = [/library-menu-item\|(Hide|Change categories)/, /^span\.ui-skeleton/, /programme-score-badge/, /^section\.ui-sheet\.programme-sheet/]
 const SCREENS = [
   { name: 'home', from: '#/recordings', to: '#/home' },
   { name: 'for-you', from: '#/home', to: '#/for-you' },
-  { name: 'live', from: '#/home', to: '#/live', allow: { popInMs: 2000, note: 'a slow channel list adds the 800 ms skeleton hold' } },
+  { name: 'live', from: '#/home', to: '#/live', slowItems: [/^(li|button|span|h2)\.(live-|ui-group-label|sort-edit)/] },
   { name: 'guide', from: '#/home', to: '#/guide' },
   { name: 'recordings', from: '#/home', to: '#/recordings' },
   { name: 'recordings-shows', from: '#/recordings', to: '#/recordings/shows' },
@@ -51,15 +54,15 @@ const SCREENS = [
   { name: 'recordings-one-offs', from: '#/recordings', to: '#/recordings/one-offs' },
   { name: 'series-page', from: '#/recordings/shows', click: `a[href="#/recordings/show/${series}"]` },
   { name: 'movie-page', from: '#/recordings/movies', click: `a[href="#/recordings/show/${film}"]` },
-  { name: 'movie-page-cold-lookups', from: '#/recordings/movies', click: `a[href="#/recordings/show/${film}"]`, lookups: 'pending', allow: { popInMs: 2500 } },
+  { name: 'movie-page-cold-lookups', from: '#/recordings/movies', click: `a[href="#/recordings/show/${film}"]`, lookups: 'pending', slowItems: LATE_SECTION_ITEMS },
   { name: 'movie-page-deep-link', deepLink: `#/recordings/show/${deepLinkFilm}` },
   { name: 'one-off-page', from: '#/recordings/one-offs', click: '.library-poster a' },
   { name: 'scheduled', from: '#/recordings', to: '#/recordings/scheduled' },
   { name: 'settings', from: '#/home', to: '#/settings' },
   { name: 'search', from: '#/home', click: 'button[aria-label="Search"] >> visible=true' },
-  { name: 'programme-sheet', from: '#/guide', click: guideCell, allow: { popInMs: 2500, note: 'the hide rows can wait behind guide pictures; they swap into a reserved slot' } },
+  { name: 'programme-sheet', from: '#/guide', click: guideCell, slowItems: SHEET_LOOKUP_ITEMS },
   { name: 'programme-sheet-film', from: '#/guide', click: `${guideCell}:has-text("${filmTitle}")` },
-  { name: 'more-info', from: '#/guide', click: guideCell, then: 'summary.more-info-summary', allow: { popInMs: 2000, note: 'a slow details lookup adds the 900 ms skeleton minimum' } },
+  { name: 'more-info', from: '#/guide', click: guideCell, then: 'summary.more-info-summary', inputGrace: true, slowItems: [...SHEET_LOOKUP_ITEMS, /^(h3|li|div|dt|dd|p)\.(ui-group-label|show-cast|more-info)/] },
   { name: 'info-sheet', from: `#/recordings/show/${series}`, click: '.show-episode-more', then: 'button.library-menu-item:has-text("info")' },
   { name: 'player', from: `#/recordings/show/${film}`, click: '.show-actions >> visible=true >> .ui-button-primary' },
 ]
@@ -100,7 +103,7 @@ const measureScreen = async ({ browser, viewport, screen }) => {
     await page.waitForFunction(() => window.__layoutCheck.done, null, { timeout: watchMs + 20_000 })
     const raw = await page.evaluate(() => window.__layoutCheck.result())
     await stopWatch(cdp)
-    const result = { screen: screen.name, viewport: `${viewport.width}`, allow: screen.allow, ...summarise({ raw, inputGraceMs: screen.then ? INPUT_GRACE_MS : 0 }), pageErrors, requests: requests.since(raw.startWallMs) }
+    const result = { screen: screen.name, viewport: `${viewport.width}`, allow: screen.allow, ...summarise({ raw, inputGrace: Boolean(screen.inputGrace), slowItems: screen.slowItems ?? [] }), pageErrors, requests: requests.since(raw.startWallMs) }
     if (framesDir) await saveFrames({ frames, raw, dir: join(framesDir, `${screen.name}-${viewport.width}`) })
     return result
   } catch (error) {
@@ -199,12 +202,16 @@ const saveFrames = async ({ frames, raw, dir }) => {
   await writeFile(join(dir, 'frames.json'), JSON.stringify(index.map(({ file, ms }) => ({ file, ms }))))
 }
 
-const summarise = ({ raw, inputGraceMs }) => {
+const summarise = ({ raw, inputGrace, slowItems }) => {
   const changes = changesOf(raw.frames)
   const content = changes.filter((change) => !isArt(change))
   const arrivals = content.filter((change) => change.kind !== 'out')
   const startMs = arrivals[0]?.ms ?? null
   const late = arrivals.filter((change) => change.ms - startMs > 0)
+  const isSlowItem = (change) => slowItems.some((pattern) => pattern.test(change.key))
+  const lateContent = late.filter((change) => !isSlowItem(change))
+  const lateSlow = late.filter(isSlowItem)
+  const isTapResponse = (change) => inputGrace && raw.inputs.some((ms) => change.ms >= ms && change.ms - ms < INPUT_GRACE_MS)
   const art = changes.filter((change) => isArt(change) && change.kind === 'in' && change.key.endsWith('|loaded'))
   const skeletonSpans = skeletonSpansOf(raw.frames)
   return {
@@ -213,10 +220,11 @@ const summarise = ({ raw, inputGraceMs }) => {
     cls: round(raw.shifts.reduce((sum, shift) => sum + shift.value, 0), 4),
     startMs,
     blankMs: blankMsOf({ frames: raw.frames, startMs }),
-    popInMs: late.length ? late.at(-1).ms - startMs : 0,
-    moves: late.filter((change) => change.kind === 'move' && change.ms >= inputGraceMs).length,
+    popInMs: lateContent.length ? lateContent.at(-1).ms - startMs : 0,
+    slowItemsMs: lateSlow.length ? lateSlow.at(-1).ms - startMs : 0,
+    moves: late.filter((change) => change.kind === 'move' && !isTapResponse(change)).length,
     artMs: art.length && startMs !== null ? Math.max(0, art.at(-1).ms - startMs) : 0,
-    flickers: skeletonSpans.filter((span) => span.ended && span.ms < limits.skeletonMs),
+    flickers: skeletonSpans.filter((span) => span.start > 0 && span.ended && span.ms < limits.skeletonMs),
     skeletonSpans,
     lateFades: raw.fades.filter((fade) => startMs !== null && fade.ms - startMs > 50).slice(0, 12),
     lateItems: late.slice(0, 16),
@@ -268,6 +276,7 @@ const failuresOf = (result) => {
     result.cls > (allow.cls ?? limits.cls) ? `CLS ${result.cls}` : '',
     result.blankMs > limits.blankMs ? `blank for ${result.blankMs} ms` : '',
     result.popInMs > (allow.popInMs ?? limits.popInMs) ? `content still arriving ${result.popInMs} ms after the first frame` : '',
+    result.slowItemsMs > limits.slowItemsMs ? `the named slow items still arriving ${result.slowItemsMs} ms after the first frame` : '',
     result.moves > (allow.moves ?? 0) ? `${result.moves} shifted items` : '',
     result.flickers.length && !allow.flicker ? `placeholder shown only ${result.flickers.map((f) => f.ms).join('/')} ms` : '',
     result.visible === false ? 'tab not visible' : '',
@@ -276,10 +285,10 @@ const failuresOf = (result) => {
 }
 
 const printTable = (results) => {
-  const columns = ['screen', 'width', 'CLS', 'blank', 'pop-in', 'moves', 'art', 'flicker']
+  const columns = ['screen', 'width', 'CLS', 'blank', 'pop-in', 'slow', 'moves', 'art', 'flicker']
   console.log(columns.map((name, n) => name.padEnd(n ? 8 : 26)).join(''))
   results.forEach((r) => console.log([
-    r.screen, r.viewport, r.cls, r.blankMs, r.popInMs, r.moves, r.artMs,
+    r.screen, r.viewport, r.cls, r.blankMs, r.popInMs, r.slowItemsMs, r.moves, r.artMs,
     r.skipped ?? r.error ?? (r.flickers.length ? r.flickers.map((f) => `${f.ms}ms`).join(' ') : '-'),
   ].map((value, n) => String(value ?? '-').padEnd(n ? 8 : 26)).join('')))
 }
@@ -306,7 +315,7 @@ function instrument ({ clockOffsetMs }) {
     sessionStorage.setItem('freetvarr.introPlayed', '1')
     localStorage.setItem('freetvarr.introPlayedOn', day)
   } catch {}
-  const state = { start: 0.0001, shifts: [], frames: [], fades: [], done: false, watchMs: 0, visible: null, startWallMs: 0 }
+  const state = { start: 0.0001, shifts: [], frames: [], fades: [], inputs: [], done: false, watchMs: 0, visible: null, startWallMs: 0 }
   const noteFade = (target, source) => {
     if (!target?.isConnected) return
     state.fades.push({ ms: Math.round(performance.now() - state.start), node: describe(target), source })
@@ -317,6 +326,7 @@ function instrument ({ clockOffsetMs }) {
     if (first && Number(first.opacity) === 0) noteFade(this, 'script')
     return animate.call(this, keyframes, options)
   }
+  document.addEventListener('pointerdown', () => state.inputs.push(Math.round(performance.now() - state.start)), true)
   document.addEventListener('animationstart', (event) => {
     if (Number(getComputedStyle(event.target).opacity) < 0.05) noteFade(event.target, event.animationName)
   }, true)
@@ -339,11 +349,15 @@ function instrument ({ clockOffsetMs }) {
     return `${node.tagName.toLowerCase()}${classes ? `.${classes}` : ''}`
   }
   const boxOf = (rect) => (rect ? [rect.x, rect.y, rect.width, rect.height].map(Math.round) : null)
+  const transformsSeen = new WeakMap()
   const isMovingByItself = (node, memo) => {
     if (!memo.has(node)) {
       const style = getComputedStyle(node)
+      const transform = `${style.transform}|${style.translate}|${style.scale}`
+      const previous = transformsSeen.get(node)
+      transformsSeen.set(node, transform)
       memo.set(node, node.getAnimations().some((animation) => animation.playState === 'running')
-        || style.transform !== 'none' || style.scale !== 'none')
+        || (previous !== undefined && previous !== transform))
     }
     return memo.get(node)
   }
@@ -426,6 +440,7 @@ function instrument ({ clockOffsetMs }) {
       state.frames = [{ ms: 0, ...snapshot() }]
       state.shifts = []
       state.fades = []
+      state.inputs = []
     },
     get done () { return state.done },
     result: () => ({ ...state, visible: state.visible && document.visibilityState === 'visible' }),
