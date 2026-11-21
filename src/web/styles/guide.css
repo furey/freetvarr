@@ -1091,17 +1091,6 @@
   z-index: 43;
 }
 
-@media (min-width: 768px) and (min-height: 501px) {
-  .programme-sheet-backdrop:not(.is-top) {
-    align-items: flex-start;
-    padding-top: max(24px, 8dvh);
-  }
-
-  .programme-sheet-backdrop:not(.is-top) .programme-sheet {
-    max-height: calc(100dvh - max(24px, 8dvh) - 24px);
-  }
-}
-
 .programme-sheet {
   gap: 14px;
 }
@@ -1513,6 +1502,15 @@
 
 .programme-sheet-more {
   margin-top: 10px;
+}
+
+.programme-sheet-slot {
+  pointer-events: none;
+}
+
+.programme-sheet-slot > :first-child,
+.programme-sheet-slot.is-kept {
+  visibility: hidden;
 }
 
 .programme-sheet-rec-dot {

@@ -27,6 +27,9 @@ export const dislikeGroupOf = (dislike) => {
   ]
 }
 
+export const dislikeSlotCountOf = ({ title, programmeKind = null }) =>
+  dislikeGroupOf({ title, programmeKind, category: { key: 'reserved', title: 'Reserved' } }).filter(Boolean).length
+
 export const recordingNowMenuOf = ({ channelName = '', canStartOver = false }) => [
   [
     canStartOver && { key: 'from-start', label: 'Watch from the start', icon: 'restart' },

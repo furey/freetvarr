@@ -26,7 +26,9 @@ import { guideDetailsOf } from '/more-info.js'
 import { movieChoiceIconOf, movieChoiceLabelOf } from '/movie-choice.js'
 import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { useForYouActions } from '/shared/for-you-session.js'
-import { dislikeGroupOf } from '/home-menus.js'
+import { dislikeGroupOf, dislikeSlotCountOf } from '/home-menus.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
+import { expiringMap } from '/bounded-cache.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
@@ -158,11 +160,17 @@ export const ProgrammeSheetHost = {
             </div>
             <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block programme-sheet-watch" @click="watchSelected"><tv-icon /> Watch live</button>
           </div>
-          <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length" class="library-menu programme-sheet-more">
+          <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length || dislikeSlots" :class="['library-menu', 'programme-sheet-more', { 'is-placeholder-hidden': tastePlaceholderHidden }]">
             <div class="ui-group library-menu-group">
               <button v-if="canShowInGuide" type="button" class="ui-group-row library-menu-item" @click="showSelectedInGuide"><menu-icon name="guide" /><span class="library-menu-text"><span class="library-menu-label">Show in TV guide</span></span></button>
               <button v-if="movieChoiceLabel" type="button" class="ui-group-row library-menu-item" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /><span class="library-menu-text"><span class="library-menu-label">{{ movieChoiceLabel }}</span></span></button>
-              <button v-for="item in dislikeItems" :key="item.key" type="button" class="ui-group-row library-menu-item" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /><span class="library-menu-text"><span class="library-menu-label">{{ item.label }}</span></span></button>
+              <template v-if="tasteSettled">
+                <button v-for="item in dislikeItems" :key="item.key" type="button" class="ui-group-row library-menu-item" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /><span class="library-menu-text"><span class="library-menu-label">{{ item.label }}</span></span></button>
+                <span v-for="n in keptDislikeSlots" :key="'kept-' + n" class="ui-group-row library-menu-item programme-sheet-slot is-kept" aria-hidden="true"><menu-icon name="hide" /><span class="library-menu-text"><span class="library-menu-label">&nbsp;</span></span></span>
+              </template>
+              <template v-else>
+                <span v-for="n in dislikeSlots" :key="'slot-' + n" class="ui-group-row library-menu-item programme-sheet-slot" aria-hidden="true"><menu-icon name="hide" /><span class="library-menu-text"><span class="library-menu-label"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></span></span></span>
+              </template>
             </div>
           </div>
         </template>
@@ -532,12 +540,25 @@ export const ProgrammeSheetHost = {
     const movieChoiceLabel = computed(() => movieChoiceLabelOf(selected.value?.program?.movieChoice))
     const movieChoiceIcon = computed(() => movieChoiceIconOf(selected.value?.program?.movieChoice))
 
+    const tasteKnown = ref(false)
+    const dislikeSlots = ref(0)
     watch(() => sheetProgramme.value?.title, async (title) => {
-      sheetTaste.value = null
-      if (!title) return
+      const cached = title ? tasteCache.get(title) : null
+      sheetTaste.value = cached ?? null
+      tasteKnown.value = Boolean(cached) || !title || !tasteEnabledLastTime()
+      dislikeSlots.value = title && tasteEnabledLastTime()
+        ? dislikeSlotCountOf({ title, programmeKind: sheetProgramme.value?.kind ?? null })
+        : 0
+      if (!title || cached) return
       const taste = await api('GET', `/api/for-you/taste?title=${encodeURIComponent(title)}`).catch(() => null)
-      if (sheetProgramme.value?.title === title) sheetTaste.value = taste
+      if (taste) rememberTaste({ title, taste })
+      if (sheetProgramme.value?.title !== title) return
+      sheetTaste.value = taste
+      tasteKnown.value = true
     })
+    const tastePlaceholder = usePlaceholderTiming(computed(() => Boolean(sheetProgramme.value) && !tasteKnown.value))
+    const tasteSettled = computed(() => tasteKnown.value && !tastePlaceholder.holding.value)
+    const tastePlaceholderHidden = computed(() => !tasteSettled.value && !tastePlaceholder.showing.value)
     const dislikeItem = computed(() => {
       const program = sheetProgramme.value
       const taste = sheetTaste.value
@@ -545,9 +566,11 @@ export const ProgrammeSheetHost = {
       return { title: program.title, start: program.start ?? null, channelId: program.channelId ?? selected.value?.channel?.id ?? null, programmeKind: program.kind ?? null, category: taste.categoryHidden ? null : taste.category }
     })
     const dislikeItems = computed(() => dislikeGroupOf(dislikeItem.value).filter(Boolean))
+    const keptDislikeSlots = computed(() => Math.max(0, dislikeSlots.value - dislikeItems.value.length))
     const chooseDislike = (key) => {
       const item = dislikeItem.value
       if (!item) return
+      forgetTastes()
       closeModal()
       forYouActions.choose(key, item)
     }
@@ -891,6 +914,7 @@ export const ProgrammeSheetHost = {
       pendingActionLabelOf, ANY_CHANNEL_HINT, guideDetailsOf,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
       canWatchLive, watchSelected, fromStartRecording, fromStartLine, watchSelectedFromStart, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind, dislikeItems, chooseDislike,
+      dislikeSlots, keptDislikeSlots, tasteSettled, tastePlaceholderHidden,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,
@@ -905,6 +929,25 @@ export const ProgrammeSheetHost = {
 }
 
 const READY_WAIT_MS = 1500
+
+const TASTE_ENABLED_KEY = 'freetvarr.forYouTasteEnabled'
+const TASTE_TTL_MS = 60_000
+const newTasteCache = () => expiringMap({ limit: 200, ttlMs: TASTE_TTL_MS })
+let tasteCache = newTasteCache()
+const forgetTastes = () => { tasteCache = newTasteCache() }
+
+const tasteEnabledLastTime = () => {
+  try {
+    return localStorage.getItem(TASTE_ENABLED_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+const rememberTaste = ({ title, taste }) => {
+  tasteCache.set(title, taste)
+  try { localStorage.setItem(TASTE_ENABLED_KEY, taste.enabled ? '1' : '0') } catch {}
+}
 const PRELOAD_DELAY_MS = 2000
 
 const ANY_CHANNEL_HINT = 'Records this series whichever channel airs it, for example when it moves from 7 to 7mate. Episodes it already has are not recorded again.'
