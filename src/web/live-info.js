@@ -33,6 +33,11 @@ export const airingCovers = ({ airing, atMs }) => {
   return airing.atMs <= atMs && atMs < (airing.next?.start ?? Infinity)
 }
 
+export const infoPanelScrollsOf = ({ scrollHeight, clientHeight, reservedBand = 0 }) =>
+  scrollHeight > clientHeight + reservedBand + SCROLL_SLACK_PX
+
+const SCROLL_SLACK_PX = 1
+
 const GENRE_LABELS = {
   1: 'Movie / drama',
   2: 'News / current affairs',

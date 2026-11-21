@@ -325,7 +325,6 @@ The **Programme info** button, at the bottom right of the player, shows the reco
 - The description.
 - **ADS**: the ad breaks a scan found or cut.
 - **SAVES TO**: the library file. It reads **REPLACED BY** and the other file when another app replaced it, and **FILE MISSING** when Freetvarr cannot find the file. The player then plays the TVHeadend copy if TVHeadend still has it.
-- **More info**: the cast, crew, and details of the show, as in the [programme sheet](/guide/tv-guide#recording-a-programme). Scroll the panel to see them all.
 
 ## Recording log
 

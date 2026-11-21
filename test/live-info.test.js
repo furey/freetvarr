@@ -9,6 +9,7 @@ import {
   airingBoundary,
   airingCovers,
   watchRowLabel,
+  infoPanelScrollsOf,
 } from '../src/web/live-info.js'
 
 const program = { title: 'News', start: 1_000, end: 2_000 }
@@ -81,4 +82,22 @@ test('watchRowLabel names the channel and the programme on now', () => {
   const channel = { name: 'ABC TV' }
   assert.equal(watchRowLabel({ channel, now: { title: 'Gruen' } }), 'Watch ABC TV live, Gruen on now')
   assert.equal(watchRowLabel({ channel, now: null }), 'Watch ABC TV live')
+})
+
+test('the Info panel scrolls only when its content is taller than the panel without the reserved band', () => {
+  assert.equal(infoPanelScrollsOf({ scrollHeight: 300, clientHeight: 300 }), false)
+  assert.equal(infoPanelScrollsOf({ scrollHeight: 301, clientHeight: 300 }), false)
+  assert.equal(infoPanelScrollsOf({ scrollHeight: 340, clientHeight: 300 }), true)
+})
+
+test('reserving the band above the buttons never changes whether the Info panel scrolls', () => {
+  const content = 330
+  const panel = 315
+  const band = 68
+  const before = infoPanelScrollsOf({ scrollHeight: content, clientHeight: panel })
+  const reserved = infoPanelScrollsOf({ scrollHeight: content, clientHeight: panel - band, reservedBand: band })
+  assert.equal(before, true)
+  assert.equal(reserved, before)
+  const fits = infoPanelScrollsOf({ scrollHeight: 290, clientHeight: panel })
+  assert.equal(infoPanelScrollsOf({ scrollHeight: 290, clientHeight: panel - band, reservedBand: band }), fits)
 })

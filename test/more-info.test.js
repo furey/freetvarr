@@ -13,10 +13,9 @@ import {
   moreInfoSkeletonOf,
   moreInfoToggledOf,
   moreInfoAfterLoadOf,
-  playerCreditsKindOf,
+  UNKNOWN_KIND,
 } from '../src/web/more-info.js'
 import { episodeInfoOf, showInfoOf } from '../src/web/library-menus.js'
-import { recordingRowOf } from '../src/web/show-page.js'
 
 test('More info starts closed with nothing asked, and asks only on the first open', () => {
   assert.deepEqual(MORE_INFO_CLOSED, { opened: false, load: false })
@@ -29,19 +28,10 @@ test('More info starts closed with nothing asked, and asks only on the first ope
   assert.deepEqual(moreInfoToggledOf({ isOpen: true, opened: closedAgain.opened }), { opened: true, load: false })
 })
 
-test('a played recording carries its kind, and the player looks films, one-offs, and unnumbered recordings up as films', () => {
-  assert.equal(playerCreditsKindOf(recordingRowOf({ recordingId: 'r1', title: 'Heat', kind: 'movie', season: 1, episode: 1 })), 'movie')
-  assert.equal(playerCreditsKindOf(recordingRowOf({ recordingId: 'r2', title: 'NCIS', kind: 'show', season: 22, episode: 1 })), '')
-  assert.equal(playerCreditsKindOf({ kind: 'series', season: 22, episode: 1 }), '')
-  assert.equal(playerCreditsKindOf({ kind: 'one-off', season: 3, episode: 2 }), 'movie')
-  assert.equal(playerCreditsKindOf({ kind: null, season: null, episode: null }), 'movie')
-  assert.equal(playerCreditsKindOf({ kind: null, season: 4, episode: 2 }), 'unknown')
-})
-
-test('a recording of unknown kind asks nothing and shows only guide details', async () => {
+test('an unknown kind asks nothing and shows only guide details', async () => {
   const time = fakeTime()
   const asked = []
-  const request = moreInfoRequestOf({ title: 'Mystery', kind: playerCreditsKindOf({ season: 4, episode: 2 }) })
+  const request = moreInfoRequestOf({ title: 'Mystery', kind: UNKNOWN_KIND })
   const answer = await loadMoreInfoCredits({ request, fetchCredits: async () => { asked.push(1); return { status: 'ready' } }, clock: time.now, wait: time.wait })
   assert.equal(answer, null)
   assert.deepEqual(asked, [])
@@ -57,7 +47,7 @@ test('the loading skeleton has a full cast row, three crew rows for a film, two 
 test('only films and series are looked up, so an unknown kind shows its answer with no skeleton', () => {
   assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'Heat', kind: 'movie' })), true)
   assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'NCIS' })), true)
-  assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'Mystery', kind: playerCreditsKindOf({ season: 4, episode: 2 }) })), false)
+  assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'Mystery', kind: UNKNOWN_KIND })), false)
   assert.equal(looksUpCreditsFor(null), false)
 })
 

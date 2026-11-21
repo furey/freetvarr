@@ -1994,17 +1994,6 @@ a.show-cast-hit:active .show-cast-face {
   background: none;
 }
 
-.live-info .more-info {
-  --more-info-bleed: 12px;
-  max-width: 48rem;
-  text-shadow: none;
-}
-
-.live-info .more-info .ui-skeleton {
-  --skeleton-base: rgba(255, 255, 255, 0.06);
-  --skeleton-shine: rgba(255, 255, 255, 0.12);
-}
-
 @keyframes show-section-in {
   from {
     opacity: 0;
