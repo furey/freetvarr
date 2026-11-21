@@ -1,10 +1,11 @@
-import { creditsKeyOf, crewLinesOf, isSettledCredits, shownCastOf } from './credits-display.js'
-import { holdAtLeast } from './pending.js'
+import { MAX_CAST, creditsKeyOf, crewLinesOf, isSettledCredits, shownCastOf } from './credits-display.js'
+import { remainingHoldMs } from './pending.js'
 import { retryDelayOf } from './ratings-display.js'
 import { durationText } from './recording-info.js'
 import { genreLabel } from './live-info.js'
 
 export const MORE_INFO_MIN_MS = 900
+export const MORE_INFO_SKELETON_AFTER_MS = 200
 export const MORE_INFO_CLOSED = { opened: false, load: false }
 export const UNKNOWN_KIND = 'unknown'
 
@@ -24,25 +25,43 @@ export const moreInfoToggledOf = ({ isOpen, opened = false }) => ({
   load: Boolean(isOpen) && !opened,
 })
 
+export const looksUpCreditsFor = (request) => Boolean(request) && request.kind !== UNKNOWN_KIND
+
+export const moreInfoSkeletonOf = (kind = '') => ({
+  cast: MAX_CAST,
+  crew: kind === 'movie' ? FILM_CREW_ROWS : SERIES_CREW_ROWS,
+  details: DETAIL_ROWS,
+})
+
 export const moreInfoAfterLoadOf = (answer) => ({ opened: answer?.status !== 'pending' })
 
 export const guideDetailsOf = ({ genre = null, genres = '' } = {}) => ({
   genres: String(genres || '').trim() || genreLabel(genre),
 })
 
-export const loadMoreInfoCredits = ({
+export const loadMoreInfoCredits = async ({
   request,
   fetchCredits,
   isCurrent = () => true,
+  onSlow = () => {},
   clock = Date.now,
   wait = waitMs,
+  after = afterMs,
+  slowAfterMs = MORE_INFO_SKELETON_AFTER_MS,
   minMs = MORE_INFO_MIN_MS,
-}) => holdAtLeast({
-  task: () => (request?.kind === UNKNOWN_KIND ? null : settledCreditsOf({ request, fetchCredits, isCurrent, wait })),
-  minMs,
-  clock,
-  wait,
-})
+}) => {
+  let shownAt = null
+  const stopTimer = after(slowAfterMs, () => {
+    shownAt = clock()
+    onSlow()
+  })
+  const answer = await (request?.kind === UNKNOWN_KIND ? null : settledCreditsOf({ request, fetchCredits, isCurrent, wait }))
+  stopTimer()
+  if (shownAt === null) return answer
+  const remaining = remainingHoldMs({ startedAt: shownAt, now: clock(), minMs })
+  if (remaining > 0) await wait(remaining)
+  return answer
+}
 
 export const moreInfoOf = ({ credits = null, kind = '', guide = {} }) => {
   const film = kind === 'movie'
@@ -83,6 +102,14 @@ const emptyTextOf = (credits) => {
 
 const waitMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const afterMs = (ms, run) => {
+  const timer = setTimeout(run, ms)
+  return () => clearTimeout(timer)
+}
+
+const FILM_CREW_ROWS = 3
+const SERIES_CREW_ROWS = 2
+const DETAIL_ROWS = 5
 const SERIES_LABELS = { company: 'Network', year: 'First aired', minutes: 'Episode length' }
 const FILM_LABELS = { company: 'Studio', year: 'Released', minutes: 'Length' }
 const FILM_PATH_KINDS = new Set(['movie', 'oneoff', 'one-off'])
