@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAX_GUIDE_RESULTS, buildShowSearch, episodeLineOf, guideRowsOf, matchNoteOf, searchGroupsOf, searchShowsOf } from '../src/web/search-results.js'
-import { showKeyOf as keyOf } from '../src/web/show-key.js'
+import { MAX_GUIDE_RESULTS, buildShowSearch, showEntriesOf, episodeLineOf, guideRowsOf, matchNoteOf, searchGroupsOf, searchShowsOf } from '../src/web/search-results.js'
+import { showHrefOf, showKeyOf as keyOf, showPageHrefOf } from '../src/web/show-key.js'
+import { showHrefOf as heroDetailsHrefOf } from '../src/web/home-feed.js'
 
 const shows = [{ title: 'The Block', recordingCount: 2 }, { title: 'Gruen', recordingCount: 1 }, { title: 'Blockbusters', recordingCount: 1 }]
 const series = [{ title: 'The Block' }, { title: 'Hard Quiz' }]
@@ -114,4 +115,40 @@ test('searchGroupsOf: Show all drops the count when the guide list hit its cap, 
   const programmes = Array.from({ length: MAX_GUIDE_RESULTS }, (_, i) => programmeRow('guide', i))
   const [group] = searchGroupsOf({ programmes })
   assert.deepEqual([group.showAllText, group.showAllLabel], ['Show all', 'Show all in TV guide'])
+})
+
+test('searchShowsOf: library films and one-offs match and say Movie or One-off, series keep their count', () => {
+  const library = buildShowSearch({
+    keyOf,
+    shows: [
+      { title: 'Ali G: Who Iz I?', recordingCount: 1, kind: 'movie' },
+      { title: 'Carols in the Domain', recordingCount: 1, kind: 'oneoff' },
+      { title: 'Alone Australia', recordingCount: 4 },
+    ],
+  })
+  assert.deepEqual(searchShowsOf({ index: library, query: 'ali g' }).map(({ key, title, meta }) => [key, title, meta]), [
+    ['ali-g-who-iz-i', 'Ali G: Who Iz I?', 'Movie'],
+  ])
+  assert.deepEqual(searchShowsOf({ index: library, query: 'carols' }).map(({ meta }) => meta), ['One-off'])
+  assert.deepEqual(searchShowsOf({ index: library, query: 'alone' }).map(({ meta }) => meta), ['4 recordings'])
+})
+
+test('searchShowsOf: a film result opens the same page as the Home hero Details button', () => {
+  const library = buildShowSearch({ keyOf, shows: [{ title: 'Ali G: Who Iz I?', recordingCount: 1, kind: 'movie' }] })
+  const [film] = searchShowsOf({ index: library, query: 'ali' })
+  assert.equal(showHrefOf(film.title), heroDetailsHrefOf({ showKey: 'ali-g-who-iz-i', title: 'Ali G: Who Iz I?' }))
+})
+
+test('showEntriesOf keeps the catalogue key, and a series rule with the same title joins that entry', () => {
+  const entries = showEntriesOf({
+    keyOf,
+    shows: [{ key: 'spicks-folder', title: 'Spicks and Specks', recordingCount: 5 }],
+    series: [{ title: 'Spicks and Specks' }],
+  })
+  assert.deepEqual(entries, [{ key: 'spicks-folder', title: 'Spicks and Specks', recordingCount: 5, hasRule: true }])
+})
+
+test('showPageHrefOf links a result by its catalogue key, not a key made from the title', () => {
+  assert.equal(showPageHrefOf({ key: 'spicks-folder', title: 'Spicks and Specks' }), '#/recordings/show/spicks-folder')
+  assert.equal(showPageHrefOf({ key: 'rocky', title: 'Rocky' }), heroDetailsHrefOf({ showKey: 'rocky', title: 'Rocky' }))
 })

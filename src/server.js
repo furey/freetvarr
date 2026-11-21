@@ -1380,6 +1380,7 @@ mountSearchRoutes({
   csrf: doubleCsrfProtection,
   limiter: epgLimiter,
   loadRecordingTitles: async () => recordingTitlesOf(await getRecordingNow().catch(() => ({}))),
+  loadLibraryShows: async () => (await getLibraryShows()).shows ?? [],
 })
 const reclassifyLibrary = (trigger) => runReclassification({ trigger })
   .catch((err) => console.warn(`[library] folder sort failed: ${err.message}`))

@@ -83,13 +83,20 @@ export const matchNoteOf = ({ reason, matchedName, query }) => {
 
 export const showEntriesOf = ({ keyOf, shows = [], series = [] }) => {
   const entries = new Map()
-  const entryFor = (title) => {
-    const key = keyOf(title)
+  const keyByTitleKey = new Map()
+  const entryFor = ({ title, key: givenKey }) => {
+    const titleKey = keyOf(title)
+    const key = keyByTitleKey.get(titleKey) ?? givenKey ?? titleKey
+    keyByTitleKey.set(titleKey, key)
     if (!entries.has(key)) entries.set(key, { key, title, recordingCount: 0, hasRule: false })
     return entries.get(key)
   }
-  shows.filter((show) => show.title).forEach((show) => { entryFor(show.title).recordingCount += Number(show.recordingCount) || 0 })
-  series.filter((rule) => rule.title).forEach((rule) => { entryFor(rule.title).hasRule = true })
+  shows.filter((show) => show.title).forEach((show) => {
+    const entry = entryFor(show)
+    entry.recordingCount += Number(show.recordingCount) || 0
+    if (show.kind) entry.kind = show.kind
+  })
+  series.filter((rule) => rule.title).forEach((rule) => { entryFor({ title: rule.title }).hasRule = true })
   return [...entries.values()]
 }
 
@@ -102,10 +109,14 @@ export const guideSearchOutcomeOf = async (request) => {
   }
 }
 
-const showMetaOf = ({ recordingCount, hasRule }) => [
-  recordingCount === 1 ? '1 recording' : recordingCount > 1 && `${recordingCount} recordings`,
+const showMetaOf = ({ kind, recordingCount, hasRule }) => [
+  SINGLE_KIND_WORDS[kind] || recordingCountText(recordingCount),
   hasRule && 'Series rule',
 ].filter(Boolean).join(' · ')
+
+const recordingCountText = (count) => (count === 1 ? '1 recording' : count > 1 && `${count} recordings`)
+
+const SINGLE_KIND_WORDS = { movie: 'Movie', oneoff: 'One-off' }
 
 const SEARCH_GROUP_LABELS = { scheduled: 'Scheduled', series: 'Series', recordings: 'Recordings', 'for-you': 'For you', guide: 'TV guide' }
 const GROUP_ORDER = ['scheduled', 'series', 'recordings', 'for-you', 'guide']

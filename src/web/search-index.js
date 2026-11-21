@@ -1,6 +1,6 @@
 import { foldText, normaliseSearchText, withoutAccents, withoutLeadingThe, withoutRegionWords } from './search-text.js'
 
-export const SEARCH_SCORES = { title: 100, contains: 90, alias: 85, yours: 85, 'known-as': 80, initials: 70, fuzzy: 60 }
+export const SEARCH_SCORES = { title: 100, contains: 90, words: 88, alias: 85, yours: 85, 'known-as': 80, initials: 70, fuzzy: 60 }
 
 export const MIN_SEARCH_LENGTH = 2
 
@@ -14,6 +14,7 @@ export const buildSearchIndex = ({ entries = [], curated = [], aliases = [] }) =
       norm,
       spaced: ` ${norm}`,
       words: norm.split(' '),
+      compactStarts: compactStartsOf(norm),
       names: [...(curatedByKey.get(norm) || []), ...(aliasesByKey.get(entry.key) || [])]
         .filter((name) => name.norm && name.norm !== norm),
     }
@@ -126,8 +127,18 @@ const titleMatchOf = ({ item, probe }) => {
   const wordPosition = item.spaced.indexOf(probe.spacedNeedle)
   if (wordPosition >= 0) return { score: SEARCH_SCORES.title, reason: 'title', position: wordPosition }
   const position = probe.regionless ? item.norm.indexOf(probe.regionless) : -1
-  return position >= 0 ? { score: SEARCH_SCORES.contains, reason: 'contains', position } : null
+  if (position >= 0) return { score: SEARCH_SCORES.contains, reason: 'contains', position }
+  if (probe.compact && item.compactStarts.some((tail) => tail.startsWith(probe.compact))) {
+    return { score: SEARCH_SCORES.contains, reason: 'contains', position: 0 }
+  }
+  return hasEveryWord({ item, words: probe.words }) ? { score: SEARCH_SCORES.words, reason: 'words', position: 0 } : null
 }
+
+const hasEveryWord = ({ item, words }) => words.length > 1
+  && words.some((word) => word.length >= MIN_ANCHOR_WORD_LENGTH && !STOP_WORDS.has(word))
+  && words.every((word) => item.words.some((titleWord) => titleWord.startsWith(word)))
+
+const compactStartsOf = (norm) => norm.split(' ').map((_, index, words) => words.slice(index).join(''))
 
 const nameMatchOf = ({ name, probe }) => {
   const matches = name.spaced.includes(probe.spacedNeedle) || (probe.regionless && name.spaced.includes(probe.spacedRegionless))
@@ -137,7 +148,14 @@ const nameMatchOf = ({ name, probe }) => {
   return { score, reason: name.reason, matchedName: name.name, position: 0 }
 }
 
-const probeOf = ({ needle, regionless }) => ({ needle, regionless, spacedNeedle: ` ${needle}`, spacedRegionless: ` ${regionless}` })
+const probeOf = ({ needle, regionless }) => ({
+  needle,
+  regionless,
+  spacedNeedle: ` ${needle}`,
+  spacedRegionless: ` ${regionless}`,
+  words: (regionless || needle).split(' '),
+  compact: !needle.includes(' ') && needle.length >= MIN_COMPACT_LENGTH ? needle : '',
+})
 
 const initialsMatchesOf = ({ index, query }) => {
   if (!isInitialsQuery(query)) return []
@@ -241,6 +259,8 @@ const INITIALS_BELOW = 3
 const MAX_INITIALS = 3
 const LEADING_THE_PENALTY = 20
 const MIN_INITIALS_LETTERS = 3
+const MIN_COMPACT_LENGTH = 4
+const MIN_ANCHOR_WORD_LENGTH = 3
 const MIN_CONTAINMENT = 0.6
 const FUZZY_SHORTLIST = 50
 const MAX_FUZZY = 3
