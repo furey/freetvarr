@@ -1945,6 +1945,10 @@ a.show-cast-hit:active .show-cast-face {
   -webkit-line-clamp: 3;
 }
 
+.more-info .show-cast-hit {
+  min-height: calc(64px + 8px + 2 * 17px + 2px + 3 * 16px);
+}
+
 .more-info-facts {
   display: grid;
   grid-template-columns: var(--more-info-label-width) minmax(0, 1fr);
