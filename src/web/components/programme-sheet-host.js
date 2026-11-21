@@ -28,7 +28,7 @@ import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { useForYouActions } from '/shared/for-you-session.js'
 import { dislikeGroupOf, dislikeSlotCountOf } from '/home-menus.js'
 import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
-import { expiringMap } from '/bounded-cache.js'
+import { forYouTastes } from '/shared/taste-store.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
@@ -544,18 +544,16 @@ export const ProgrammeSheetHost = {
 
     const tasteKnown = ref(false)
     const dislikeSlots = ref(0)
-    watch(() => sheetProgramme.value?.title, async (title) => {
-      const cached = title ? tasteCache.get(title) : null
+    const isSheetFor = ({ title, kind }) => sheetProgramme.value?.title === title && (sheetProgramme.value?.kind ?? null) === kind
+    watch([() => sheetProgramme.value?.title, () => sheetProgramme.value?.kind ?? null], async ([title, kind]) => {
+      const cached = title ? forYouTastes.get({ title, kind }) : null
       const tasteOn = Boolean(title) && tasteEnabledLastTime()
       sheetTaste.value = cached ?? null
       tasteKnown.value = Boolean(cached) || !tasteOn
-      dislikeSlots.value = tasteOn && !cached
-        ? dislikeSlotCountOf({ title, programmeKind: sheetProgramme.value?.kind ?? null })
-        : 0
+      dislikeSlots.value = tasteOn && !cached ? dislikeSlotCountOf({ title, programmeKind: kind }) : 0
       if (!title || cached) return
-      const taste = await api('GET', `/api/for-you/taste?title=${encodeURIComponent(title)}`).catch(() => null)
-      if (taste) rememberTaste({ title, taste })
-      if (!tasteOn || sheetProgramme.value?.title !== title) return
+      const taste = await freshTasteOf({ title, kind })
+      if (!isSheetFor({ title, kind })) return
       sheetTaste.value = taste
       tasteKnown.value = true
     })
@@ -573,7 +571,6 @@ export const ProgrammeSheetHost = {
     const chooseDislike = (key) => {
       const item = dislikeItem.value
       if (!item) return
-      forgetTastes()
       closeModal()
       forYouActions.choose(key, item)
     }
@@ -934,10 +931,7 @@ export const ProgrammeSheetHost = {
 const READY_WAIT_MS = 1500
 
 const TASTE_ENABLED_KEY = 'freetvarr.forYouTasteEnabled'
-const TASTE_TTL_MS = 60_000
-const newTasteCache = () => expiringMap({ limit: 200, ttlMs: TASTE_TTL_MS })
-let tasteCache = newTasteCache()
-const forgetTastes = () => { tasteCache = newTasteCache() }
+const TASTE_FETCH_TRIES = 2
 
 const tasteEnabledLastTime = () => {
   const fromHome = readHomeCache({ storage: browserStorage(), build: loadedBuild || 'dev' })?.forYouPayload?.enabled
@@ -949,8 +943,19 @@ const tasteEnabledLastTime = () => {
   }
 }
 
-const rememberTaste = ({ title, taste }) => {
-  tasteCache.set(title, taste)
+const freshTasteOf = async ({ title, kind }) => {
+  let taste = null
+  for (let tries = 0; tries < TASTE_FETCH_TRIES; tries += 1) {
+    const startedIn = forYouTastes.generation()
+    taste = await api('GET', `/api/for-you/taste?title=${encodeURIComponent(title)}`).catch(() => null)
+    if (!taste) return null
+    rememberTasteEnabled(taste)
+    if (forYouTastes.set({ title, kind, taste, startedIn })) return taste
+  }
+  return taste
+}
+
+const rememberTasteEnabled = (taste) => {
   try { localStorage.setItem(TASTE_ENABLED_KEY, taste.enabled ? '1' : '0') } catch {}
 }
 const PRELOAD_DELAY_MS = 2000

@@ -12,6 +12,7 @@ import {
   tierSummaryOf,
 } from '/for-you.js'
 import { api } from '/shared/api.js'
+import { forYouWrite } from '/shared/taste-store.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
 import { forYouHidden, forYouMutedCategories, forYouShown, keepForYouAnimate, unhideShow, unmuteCategory } from '/shared/for-you-session.js'
 
@@ -190,7 +191,7 @@ export const SuggestionsSettingsView = {
       savingCategory.value = category.key
       error.value = ''
       try {
-        categories.value = (await api('PUT', `/api/for-you/categories/${encodeURIComponent(category.key)}`, { on })).categories
+        categories.value = (await forYouWrite('PUT', `/api/for-you/categories/${encodeURIComponent(category.key)}`, { on })).categories
         if (on) forYouMutedCategories.value = new Set([...forYouMutedCategories.value].filter((key) => key !== category.key))
         await loadHidden()
       } catch (err) {
@@ -228,7 +229,7 @@ export const SuggestionsSettingsView = {
       keepForYouAnimate(settings.value.animateIcon !== false)
       error.value = ''
       try {
-        settings.value = { ...settings.value, ...(await api('PUT', '/api/for-you/settings', patch)) }
+        settings.value = { ...settings.value, ...(await forYouWrite('PUT', '/api/for-you/settings', patch)) }
       } catch (err) {
         settings.value = previous
         error.value = `Could not save: ${err.message}`

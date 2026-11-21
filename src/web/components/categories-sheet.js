@@ -14,6 +14,7 @@ import {
 import { holdAtLeast } from '/pending.js'
 import { nextSegmentIndex } from '/segment-keys.js'
 import { api } from '/shared/api.js'
+import { forYouWrite } from '/shared/taste-store.js'
 import { toast } from '/shared/toast.js'
 
 export const categoriesTitle = ref(null)
@@ -181,13 +182,13 @@ export const CategoriesSheet = {
 
     const save = () => change({
       kind: 'save',
-      request: (title) => api('PUT', categoriesPathOf(title), overrideRequestOf({ title, format: format.value, topics: topics.value, sport: sport.value })),
+      request: (title) => forYouWrite('PUT', categoriesPathOf(title), overrideRequestOf({ title, format: format.value, topics: topics.value, sport: sport.value })),
       text: categoriesSavedTextOf,
     })
 
     const reset = () => change({
       kind: 'reset',
-      request: (title) => api('DELETE', `${categoriesPathOf(title)}?title=${encodeURIComponent(title)}`),
+      request: (title) => forYouWrite('DELETE', `${categoriesPathOf(title)}?title=${encodeURIComponent(title)}`),
       text: categoriesResetTextOf,
     })
 
