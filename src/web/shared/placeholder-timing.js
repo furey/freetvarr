@@ -8,12 +8,19 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
   const showing = ref(false)
   const holding = ref(false)
   let shownAt = 0
+  let cancelPaintWait = () => {}
   let delayTimer = null
   let holdTimer = null
 
   const show = () => {
     shownAt = Date.now()
     showing.value = true
+    afterNextPaint(() => { if (showing.value && !holding.value) shownAt = Date.now() })
+  }
+
+  const cancelDelay = () => {
+    cancelPaintWait()
+    clearTimeout(delayTimer)
   }
 
   const finish = () => {
@@ -22,11 +29,11 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
   }
 
   const update = (pending) => {
-    clearTimeout(delayTimer)
+    cancelDelay()
     if (pending) {
       clearTimeout(holdTimer)
       holding.value = false
-      if (!showing.value) delayTimer = setTimeout(show, delayMs)
+      if (!showing.value) cancelPaintWait = afterNextPaint(() => { delayTimer = setTimeout(show, delayMs) })
       return
     }
     if (!showing.value) return
@@ -38,9 +45,22 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
 
   watch(isPending, update, { immediate: true })
   onScopeDispose(() => {
-    clearTimeout(delayTimer)
+    cancelDelay()
     clearTimeout(holdTimer)
   })
 
   return { showing, holding }
+}
+
+const afterNextPaint = (run) => {
+  if (typeof requestAnimationFrame !== 'function') {
+    run()
+    return () => {}
+  }
+  let timer = null
+  const frame = requestAnimationFrame(() => { timer = setTimeout(run, 0) })
+  return () => {
+    cancelAnimationFrame(frame)
+    clearTimeout(timer)
+  }
 }
