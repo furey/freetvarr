@@ -24,11 +24,12 @@ import { now, tz, fmtClockTz } from '/shared/time.js'
 import { viewStoreOf } from '/shared/view-store.js'
 import { formatDate } from '/time-format.js'
 import { LIVE_CACHE } from '/view-cache.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 
 export const LiveView = {
   components: { ...SORT_PART_COMPONENTS, KindFilterMenu },
   template: `
-    <div ref="pageEl" v-page-reveal class="ui-page live-page">
+    <div ref="pageEl" v-page-reveal :class="['ui-page', 'live-page', { 'is-placeholder-hidden': placeholderHidden }]">
       <page-header title="Live TV" :subtitle="dateSubtitle" :widgets="false">
         <template #actions>
           <recording-chip />
@@ -58,7 +59,7 @@ export const LiveView = {
         <span class="status-readout err">Guide unavailable: <rich-text :text="error" /></span>
         <button type="button" class="ui-button ui-button-secondary ui-button-sm" @click="load"><refresh-icon /> Retry</button>
       </div>
-      <div v-else-if="!data" :class="['live-groups', 'live-skeleton', 'live-zoom-' + zoom, { 'live-images-off': !showImages }]" aria-hidden="true">
+      <div v-else-if="!settled" :class="['live-groups', 'live-skeleton', 'live-zoom-' + zoom, { 'live-images-off': !showImages }]" aria-hidden="true">
         <section class="live-group">
           <div class="live-group-head">
             <h2 class="ui-group-label"><span class="ui-skeleton is-text" style="--skeleton-w: 6em"></span></h2>
@@ -91,7 +92,7 @@ export const LiveView = {
       <p v-else-if="!groups.length && favouritesHint" class="live-note">No favourites yet. Tap <star-icon class="icon-inline" /> next to a channel to add it.</p>
       <p v-else-if="!groups.length" class="live-note">{{ emptyText }}</p>
       <div :class="['live-groups', 'live-zoom-' + zoom, { 'live-images-off': !showImages, 'live-images-leaving': imagesLeaving }]" ref="groupsEl">
-        <section v-for="g in groups" :key="g.key" class="live-group" :data-group-key="g.key" :aria-label="g.label">
+        <section v-for="g in shownGroups" :key="g.key" class="live-group" :data-group-key="g.key" :aria-label="g.label">
           <div class="live-group-head">
             <h2 class="ui-group-label">{{ g.label }}</h2>
             <button v-if="g.key === 'pinned' && narrow && g.entries.length >= 2" type="button" class="sort-edit-order"
@@ -195,6 +196,10 @@ export const LiveView = {
 
     const kindFilter = useKindFilter({ query: filterQ, nameLabel: (q) => `Channels or shows named “${q}”` })
 
+    const placeholder = usePlaceholderTiming(computed(() => !data.value))
+    const settled = computed(() => Boolean(data.value) && !placeholder.holding.value)
+    const placeholderHidden = computed(() => !settled.value && !placeholder.showing.value)
+    const shownGroups = computed(() => (settled.value ? groups.value : []))
     const groups = computed(() => groupsOf({
       entries: (data.value?.entries || []).filter((entry) => matchesFilter({ entry, query: filterQ.value, kind: kindFilter.activeKind.value })),
       favouritesOnly: pinnedOnly.value,
@@ -340,7 +345,7 @@ export const LiveView = {
     })
 
     return {
-      data, error, tvhConfigured, filterQ, pinnedOnly, showImages, toggleImages, imagesLeaving, groupsEl, channelsModal, groups, favouritesHint, emptyText,
+      data, settled, placeholderHidden, shownGroups, error, tvhConfigured, filterQ, pinnedOnly, showImages, toggleImages, imagesLeaving, groupsEl, channelsModal, groups, favouritesHint, emptyText,
       paddedNumber, timeLeftOf, nextLabel, zoomLevels: LIVE_ZOOM_LEVELS, zoomLabels: LIVE_ZOOM_LABELS,
       OFF_AIR_MESSAGE, load, togglePin, isStarred, onChannelPrefsSaved, openDetails, watchLive, watchRowLabel,
       zoom, pageEl, narrow, dateSubtitle, canSort, canEditOrder, editingOrder, toggleOrderEditing, sort, channelsModalMode, openChannelsModal, openOrderEditor,

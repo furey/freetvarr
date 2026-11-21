@@ -2054,6 +2054,10 @@ a.ui-banner:hover {
   pointer-events: none;
 }
 
+.is-placeholder-hidden :is(.ui-skeleton, .ui-skeleton-surface) {
+  visibility: hidden;
+}
+
 .ui-skeleton-surface {
   --skeleton-base: var(--color-surface-2);
   --skeleton-shine: var(--color-surface-3);
