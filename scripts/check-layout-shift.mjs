@@ -59,7 +59,7 @@ const SCREENS = [
   { name: 'search', from: '#/home', click: 'button[aria-label="Search"] >> visible=true' },
   { name: 'programme-sheet', from: '#/guide', click: guideCell, allow: { popInMs: 2500, note: 'the hide rows can wait behind guide pictures; they swap into a reserved slot' } },
   { name: 'programme-sheet-film', from: '#/guide', click: `${guideCell}:has-text("${filmTitle}")` },
-  { name: 'more-info', from: '#/guide', click: guideCell, then: 'summary.more-info-summary', allow: { cls: 0.5, moves: 80, popInMs: 2500, flicker: true, note: 'the opened section grows when its details load, which pushes the actions down and, on a phone, the sheet up' } },
+  { name: 'more-info', from: '#/guide', click: guideCell, then: 'summary.more-info-summary', allow: { popInMs: 2000, note: 'a slow details lookup adds the 900 ms skeleton minimum' } },
   { name: 'info-sheet', from: `#/recordings/show/${series}`, click: '.show-episode-more', then: 'button.library-menu-item:has-text("info")' },
   { name: 'player', from: `#/recordings/show/${film}`, click: '.show-actions >> visible=true >> .ui-button-primary' },
 ]
@@ -100,7 +100,7 @@ const measureScreen = async ({ browser, viewport, screen }) => {
     await page.waitForFunction(() => window.__layoutCheck.done, null, { timeout: watchMs + 20_000 })
     const raw = await page.evaluate(() => window.__layoutCheck.result())
     await stopWatch(cdp)
-    const result = { screen: screen.name, viewport: `${viewport.width}`, allow: screen.allow, ...summarise(raw), pageErrors, requests: requests.since(raw.startWallMs) }
+    const result = { screen: screen.name, viewport: `${viewport.width}`, allow: screen.allow, ...summarise({ raw, inputGraceMs: screen.then ? INPUT_GRACE_MS : 0 }), pageErrors, requests: requests.since(raw.startWallMs) }
     if (framesDir) await saveFrames({ frames, raw, dir: join(framesDir, `${screen.name}-${viewport.width}`) })
     return result
   } catch (error) {
@@ -177,6 +177,7 @@ const CREDITS_FIXTURE = {
   cast: ['Sylvester Stallone', 'Talia Shire', 'Burt Young', 'Carl Weathers', 'Burgess Meredith']
     .map((name) => ({ name, character: '', image: null, url: null })),
   crew: [{ job: 'Director', name: 'John G. Avildsen' }, { job: 'Writer', name: 'Sylvester Stallone' }],
+  details: { company: 'United Artists', year: 1976, genres: ['Drama'], minutes: 120, language: 'English' },
 }
 const RATINGS_FIXTURE = {
   status: 'ready',
@@ -198,7 +199,7 @@ const saveFrames = async ({ frames, raw, dir }) => {
   await writeFile(join(dir, 'frames.json'), JSON.stringify(index.map(({ file, ms }) => ({ file, ms }))))
 }
 
-const summarise = (raw) => {
+const summarise = ({ raw, inputGraceMs }) => {
   const changes = changesOf(raw.frames)
   const content = changes.filter((change) => !isArt(change))
   const arrivals = content.filter((change) => change.kind !== 'out')
@@ -213,7 +214,7 @@ const summarise = (raw) => {
     startMs,
     blankMs: blankMsOf({ frames: raw.frames, startMs }),
     popInMs: late.length ? late.at(-1).ms - startMs : 0,
-    moves: late.filter((change) => change.kind === 'move').length,
+    moves: late.filter((change) => change.kind === 'move' && change.ms >= inputGraceMs).length,
     artMs: art.length && startMs !== null ? Math.max(0, art.at(-1).ms - startMs) : 0,
     flickers: skeletonSpans.filter((span) => span.ended && span.ms < limits.skeletonMs),
     skeletonSpans,
@@ -236,6 +237,7 @@ const blankMsOf = ({ frames, startMs }) => {
 }
 
 const BLANK_SHARE = 0.5
+const INPUT_GRACE_MS = 500
 
 const changesOf = (frames) => frames.slice(1).flatMap((frame, index) => {
   const before = new Map(frames[index].items.map((item) => [item.key, item]))
@@ -337,9 +339,17 @@ function instrument ({ clockOffsetMs }) {
     return `${node.tagName.toLowerCase()}${classes ? `.${classes}` : ''}`
   }
   const boxOf = (rect) => (rect ? [rect.x, rect.y, rect.width, rect.height].map(Math.round) : null)
-  const isAnimating = (el) => {
+  const isMovingByItself = (node, memo) => {
+    if (!memo.has(node)) {
+      const style = getComputedStyle(node)
+      memo.set(node, node.getAnimations().some((animation) => animation.playState === 'running')
+        || style.transform !== 'none' || style.scale !== 'none')
+    }
+    return memo.get(node)
+  }
+  const isAnimating = (el, memo) => {
     for (let node = el; node && node !== document.body; node = node.parentElement) {
-      if (node.getAnimations().some((animation) => animation.playState === 'running')) return true
+      if (isMovingByItself(node, memo)) return true
     }
     return false
   }
@@ -371,6 +381,7 @@ function instrument ({ clockOffsetMs }) {
     const height = innerHeight
     const width = innerWidth
     const seen = new Map()
+    const motion = new Map()
     let skeleton = false
     for (const el of document.querySelectorAll(selector)) {
       const rect = el.getBoundingClientRect()
@@ -380,7 +391,7 @@ function instrument ({ clockOffsetMs }) {
       const box = layoutBoxOf(el)
       let key = keyOf(el)
       while (seen.has(key)) key = `${key}+`
-      seen.set(key, { key, box, animating: isAnimating(el) })
+      seen.set(key, { key, box, animating: isAnimating(el, motion) })
     }
     return { items: [...seen.values()], skeleton }
   }
