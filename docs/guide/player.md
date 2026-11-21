@@ -38,7 +38,7 @@ The row under the position bar shows what is playing on the left:
 
 The right of the row has these buttons, in this order:
 
-- **Programme info**: shows what is playing. **More info**, at the end of the panel, adds the cast, crew, and details. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
+- **Programme info**: shows what is playing. See [Programme info](/guide/live-tv#programme-info) and [Recording info](/guide/recordings#recording-info).
 - **Captions**: turns captions on or off. See [Captions](#captions).
 - **Miniplayer**: shrinks the player so you can use the rest of Freetvarr. See [Miniplayer](#miniplayer). On a very narrow screen, **Miniplayer** is in the **⋯** menu instead.
 - **Full screen**: fills the screen. See [Full screen](#full-screen).
