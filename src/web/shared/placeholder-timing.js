@@ -9,13 +9,14 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
   const holding = ref(false)
   let shownAt = 0
   let cancelPaintWait = () => {}
+  let cancelShownAtWait = () => {}
   let delayTimer = null
   let holdTimer = null
 
   const show = () => {
     shownAt = Date.now()
     showing.value = true
-    afterNextPaint(() => { if (showing.value && !holding.value) shownAt = Date.now() })
+    cancelShownAtWait = afterNextPaint(() => { if (showing.value && !holding.value) shownAt = Date.now() })
   }
 
   const cancelDelay = () => {
@@ -46,6 +47,7 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
   watch(isPending, update, { immediate: true })
   onScopeDispose(() => {
     cancelDelay()
+    cancelShownAtWait()
     clearTimeout(holdTimer)
   })
 

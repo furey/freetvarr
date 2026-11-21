@@ -91,3 +91,24 @@ test('placeholder timing: stopping the scope cancels the timers', async () => {
   await advance(PLACEHOLDER_DELAY_MS + PLACEHOLDER_MIN_MS)
   assert.equal(timing.showing.value, false)
 })
+
+test('placeholder timing: stopping the scope during the wait for the first paint cancels the frame and its timer', async () => {
+  const frames = new Map()
+  let nextFrame = 1
+  globalThis.requestAnimationFrame = (run) => {
+    frames.set(nextFrame, run)
+    return nextFrame++
+  }
+  globalThis.cancelAnimationFrame = (id) => frames.delete(id)
+  try {
+    const { scope, timing } = started()
+    assert.equal(frames.size, 1)
+    scope.stop()
+    assert.equal(frames.size, 0)
+    await advance(PLACEHOLDER_DELAY_MS + PLACEHOLDER_MIN_MS)
+    assert.equal(timing.showing.value, false)
+  } finally {
+    delete globalThis.requestAnimationFrame
+    delete globalThis.cancelAnimationFrame
+  }
+})
