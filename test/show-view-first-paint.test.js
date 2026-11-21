@@ -30,24 +30,30 @@ test('pageTitleOf: the known title, else nothing while loading, else the readabl
 
 test('show hero reserves the meta line and the wide actions row from the first frame', () => {
   assert.match(view, /<p class="show-hero-meta">/)
-  assert.match(view, /<div v-if="!loaded" class="show-actions ui-only-wide" aria-hidden="true">\s*<span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button">/)
+  assert.match(view, /<div v-if="!settled" class="show-actions ui-only-wide" aria-hidden="true">\s*<span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button">/)
   assert.match(css, /\.show-hero-meta \{\n  min-height: 20px;/)
   assert.match(css, /\.show-hero-body \.show-actions \{\n  align-items: center;\n  min-height: 48px;/)
 })
 
 test('show hero skeletons clear once loading ends, even for a missing show', () => {
-  assert.match(view, /<span v-else-if="!loaded" class="ui-skeleton is-text show-meta-skeleton"/)
+  assert.match(view, /<span v-else-if="!settled" class="ui-skeleton is-text show-meta-skeleton"/)
   assert.doesNotMatch(view, /<div v-if="!show" class="show-actions/)
   assert.match(css, /\.show-missing \{\n  align-items: flex-start;\n  text-align: left;/)
 })
 
 test('show page reuses the last loaded detail for an instant repeat visit', () => {
-  assert.match(view, /const show = ref\(cachedDetails\.get\(key\.value\) \|\| null\)/)
+  assert.match(view, /const show = ref\(openingDetailOf\(key\.value\)\)/)
+  assert.match(view, /const cached = cachedDetails\.get\(key\)\n\s*if \(cached\) return cached/)
   assert.match(view, /const isStale = \(\) => requestedKey !== key\.value \|\| !loads\.accept\(ticket\)/)
 })
 
 test('a show that empties while open goes back to Recordings instead of the not-in-library page', () => {
-  assert.match(view, /if \(show\.value\) return leaveEmptiedShow\(\)\n\s*missing\.value = true/)
+  assert.match(view, /if \(show\.value && !show\.value\.seeded\) return leaveEmptiedShow\(\)\n\s*missing\.value = true/)
   assert.match(view, /const leaveEmptiedShow = \(\) => \{\n\s*show\.value = null\n\s*navigate\(BACK_FALLBACK\.route\)/)
   assert.match(view, /<div v-else-if="ruleStatus" class="show-rule is-static">/)
+})
+
+test('a film opened from a shelf paints its final shape from the shelf summary, before the detail arrives', () => {
+  assert.match(view, /const summary = librarySummaryOf\(key\)\n\s*if \(summary\) rememberShowStamps\(summary\)\n\s*return seedDetailOf\(summary\)/)
+  assert.match(view, /playNext: whenLoaded\(playNow\), openShowMenu: whenLoaded\(actions\.openShowMenu\)/)
 })

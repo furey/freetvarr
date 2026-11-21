@@ -1,6 +1,7 @@
-import { resolveRoute, viewKeyOf } from '/route-table.js'
+import { recordingsPageOf, resolveRoute, viewKeyOf } from '/route-table.js'
 import { hashesMatch } from '/scroll-memory.js'
 import { prefetchGet } from '/shared/api.js'
+import { preloadShowHeroArt } from '/shared/show-art.js'
 import { VIEW_FIRST_REQUESTS } from '/view-modules.js'
 import { VIEW_PRELOADS } from '/view-preloads.js'
 
@@ -24,6 +25,20 @@ export const warmRouteOnHover = (event) => {
 }
 
 export const cancelRouteHover = () => clearTimeout(hoverTimer)
+
+export const warmLinkOnPress = (event) => {
+  const link = event.target?.closest?.('a[href^="#/"]')
+  if (!link) return
+  const href = link.getAttribute('href')
+  warmRoute({ href, withData: false })
+  warmShowArt(href)
+}
+
+const warmShowArt = (href) => {
+  const { view, params } = resolveRoute(href)
+  const { showKey } = view === 'recordings' ? recordingsPageOf(params) : {}
+  if (showKey) preloadShowHeroArt(showKey)
+}
 
 let loadViewModule = () => Promise.resolve()
 let hoverTimer = null

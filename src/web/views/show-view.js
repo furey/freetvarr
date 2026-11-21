@@ -14,6 +14,7 @@ import {
   playButtonLabel,
   ruleStatusOf,
   seasonLabel,
+  seedDetailOf,
   showsSeasonChips,
   showTitleIn,
   singleItemOf,
@@ -33,17 +34,20 @@ import { ActionConfirm, DeleteConfirm, LibraryInfoSheet, LibraryMenuSheet, MenuI
 import { RecordingOptionsSheet } from '/components/recording-options-sheet.js'
 import { MoveToShowSheet } from '/components/move-to-show-sheet.js'
 import { ArtworkPicker } from '/components/artwork-picker.js'
-import { useProgrammeRatings } from '/components/programme-ratings.js'
+import { ProgrammeReviewCard, useProgrammeRatings } from '/components/programme-ratings.js'
 import { ShowAbout, ShowCast, useProgrammeCredits } from '/components/show-credits.js'
 import { crewLinesOf, newestSynopsisOf, overviewOf, shownCastOf } from '/credits-display.js'
 import { api, loadedBuild } from '/shared/api.js'
 import { browserStorage } from '/shared/storage.js'
+import { librarySummaryOf } from '/shared/library-store.js'
+import { heroArtUrlOf, rememberShowStamps } from '/shared/show-art.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 import { readHomeCache } from '/home-cache.js'
 import { knownShowTitleOf } from '/show-key.js'
 import { createResponseOrder } from '/response-order.js'
 import { AD_JOB_POLL_MS, hasAdJobRunning } from '/ad-confirm.js'
 import { createPoll } from '/poll.js'
-import { artResolvedTickOf, episodePictureOf, rememberArtworkStamp, stampedShowImage } from '/shared/artwork-stamps.js'
+import { artResolvedTickOf, episodePictureOf, stampedShowImage } from '/shared/artwork-stamps.js'
 import { artKindHintOf, showImageUrlOf } from '/artwork-stamps.js'
 import { useLongPress } from '/shared/long-press.js'
 import { overlayStack } from '/overlay-stack.js'
@@ -67,9 +71,9 @@ import {
 } from '/in-progress-display.js'
 
 export const ShowView = {
-  components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet },
+  components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MenuIcon, ShowAbout, ShowCast, MoveToShowSheet, ProgrammeReviewCard },
   template: `
-    <div v-page-reveal :class="['ui-page', 'show-page', { 'is-selecting': selecting }]">
+    <div v-page-reveal :class="['ui-page', 'show-page', { 'is-selecting': selecting, 'is-placeholder-hidden': placeholderHidden }]">
       <section class="show-hero ui-art-fallback" :style="heroStyle" :aria-label="title">
         <img v-if="heroSrc && !heroFailed" class="show-hero-art" :src="heroSrc" alt="" @error="heroFailed = true" />
         <span class="show-hero-scrim"></span>
@@ -79,9 +83,9 @@ export const ShowView = {
         </div>
         <div class="show-hero-body">
           <h1 class="show-title"><template v-if="title">{{ title }}</template><span v-else class="ui-skeleton is-text show-title-skeleton" aria-hidden="true"></span></h1>
-          <p class="show-hero-meta"><template v-if="show">{{ shownHeroMeta }}</template><span v-else-if="!loaded" class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
+          <p class="show-hero-meta"><template v-if="show && settled">{{ shownHeroMeta }}</template><span v-else-if="!settled" class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
           <span v-if="heroProgress" class="ui-progress show-hero-progress" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: heroProgress + '%' }"></span></span>
-          <div v-if="!loaded" class="show-actions ui-only-wide" aria-hidden="true">
+          <div v-if="!settled" class="show-actions ui-only-wide" aria-hidden="true">
             <span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button"></span>
             <span class="ui-icon-button show-more-button ui-skeleton"></span>
           </div>
@@ -98,11 +102,12 @@ export const ShowView = {
         </div>
       </section>
 
-      <div v-if="!loaded" class="show-body" aria-busy="true">
+      <div v-if="!settled" class="show-body" aria-busy="true">
         <div class="show-actions ui-only-phone" aria-hidden="true">
           <span class="ui-button ui-button-secondary show-options-button ui-skeleton"></span>
           <span class="ui-icon-button show-more-button ui-skeleton"></span>
         </div>
+        <template v-if="collectionSkeleton">
         <div class="show-rule is-static ui-skeleton-surface" aria-hidden="true">
           <span class="show-rule-mark is-idle"><span></span></span>
           <span class="show-rule-text">
@@ -127,6 +132,7 @@ export const ShowView = {
             </li>
           </ul>
         </section>
+        </template>
       </div>
 
       <section v-else-if="missing" class="ui-empty show-missing" aria-label="Show not found">
@@ -227,8 +233,13 @@ export const ShowView = {
           <p class="ui-empty-text">{{ firstEpisodeLine }}</p>
         </section>
 
-        <show-about :synopsis="aboutSynopsis" :review="ratingReview" />
-        <show-cast :cast="castList" :crew="crewLines" />
+        <template v-if="lateShown">
+          <show-about :synopsis="aboutSynopsis" :review="reviewInAbout ? ratingReview : null" />
+          <show-cast :cast="castShown ? castList : []" :crew="castShown ? crewLines : []" />
+          <section v-if="trailingReview" class="show-late-section show-late-review" aria-label="Review">
+            <programme-review-card :review="ratingReview" />
+          </section>
+        </template>
       </div>
 
       <template v-if="selecting">
@@ -275,8 +286,12 @@ export const ShowView = {
     const { showToast, showFlash: flash } = useLibraryToast()
     const { openUpcoming } = useProgrammeSheet()
     const key = computed(() => recordingsPageOf(routeParams.value).showKey || '')
-    const show = ref(cachedDetails.get(key.value) || null)
+    const openingSummary = ref(librarySummaryOf(key.value))
+    const show = ref(openingDetailOf(key.value))
     const loaded = ref(Boolean(show.value))
+    const placeholder = usePlaceholderTiming(computed(() => !loaded.value))
+    const settled = computed(() => loaded.value && !placeholder.holding.value)
+    const placeholderHidden = computed(() => !settled.value && !placeholder.showing.value)
     const missing = ref(false)
     const error = ref('')
     const heroFailed = ref(false)
@@ -308,7 +323,16 @@ export const ShowView = {
     }
 
     const loads = createResponseOrder()
-    const load = async () => {
+    let pendingLoad = null
+    const load = () => {
+      pendingLoad = loadDetail()
+      return pendingLoad
+    }
+    const whenLoaded = (run) => async (...args) => {
+      if (show.value?.seeded) await pendingLoad
+      if (show.value && !show.value.seeded) return run(...args)
+    }
+    const loadDetail = async () => {
       const requestedKey = key.value
       const ticket = loads.issue()
       const isStale = () => requestedKey !== key.value || !loads.accept(ticket)
@@ -326,11 +350,12 @@ export const ShowView = {
         if (isStale()) return
         if (err.status === 404) {
           cachedDetails.delete(requestedKey)
-          if (show.value) return leaveEmptiedShow()
+          if (show.value && !show.value.seeded) return leaveEmptiedShow()
           missing.value = true
           show.value = null
         } else {
           error.value = err.message
+          if (show.value?.seeded) show.value = null
         }
       } finally {
         if (requestedKey === key.value) loaded.value = true
@@ -338,16 +363,20 @@ export const ShowView = {
     }
 
 
+    load()
+
     const actions = useLibraryActions({ show, reload: load, showToast, openOptions: () => { optionsOpen.value = true }, canMove: true })
     const { activeIds, artworkVersion } = actions
 
-    const titleHint = computed(() => show.value?.title || titleHintFor(key.value))
+    const titleHint = computed(() => ((settled.value || show.value?.seeded) && show.value?.title) || titleHintFor(key.value))
     const title = computed(() => pageTitleOf({ titleHint: titleHint.value, loaded: loaded.value, key: key.value }))
     const heroStyle = computed(() => artFallbackStyle(titleHint.value))
     const artStyle = heroStyle
     const versionSuffix = computed(() => (artworkVersion.value ? `&v=${artworkVersion.value}` : ''))
-    const imageKind = computed(() => artKindHintOf(show.value?.kind))
-    const heroSrc = computed(() => (show.value ? `${stampedShowImage(showImageUrlOf({ title: show.value.title, width: 768, kind: imageKind.value }))}${versionSuffix.value}` : ''))
+    const artSource = computed(() => show.value || openingSummary.value)
+    const imageKind = computed(() => artKindHintOf(artSource.value?.kind))
+    const heroSrc = computed(() => (artSource.value ? `${heroArtUrlOf(artSource.value)}${versionSuffix.value}` : ''))
+    const collectionSkeleton = computed(() => !openingSummary.value || isSeriesShow(openingSummary.value))
     const episodeFallbackSrc = computed(() => (show.value ? stampedShowImage(showImageUrlOf({ title: show.value.title, width: 384, kind: imageKind.value })) : ''))
     const posterSrc = computed(() => (show.value ? `${stampedShowImage(`${show.value.poster}&w=192`)}${versionSuffix.value}` : ''))
     const heroMeta = computed(() => (show.value ? heroMetaOf({ show: show.value }) : ''))
@@ -368,13 +397,30 @@ export const ShowView = {
       ? { title: show.value.title, kind: show.value.kind === 'movie' ? 'movie' : '', year: show.value.year ?? null }
       : null))
     const { score: ratingScore, review: ratingReview, cardOpen: ratingCardOpen, loading: ratingLoading } = useProgrammeRatings(programmeInfo, { lateReviews: true })
-    const { credits, answered: creditsAnswered } = useProgrammeCredits(programmeInfo)
+    const { credits, settled: creditsSettled } = useProgrammeCredits(programmeInfo)
     const castList = computed(() => shownCastOf(credits.value))
     const crewLines = computed(() => crewLinesOf(credits.value))
+    const lateWaitOver = ref(false)
+    let lateWaitTimer = null
+    const startLateWait = () => {
+      clearTimeout(lateWaitTimer)
+      lateWaitOver.value = false
+      lateWaitTimer = setTimeout(() => { lateWaitOver.value = true }, LATE_SECTIONS_WAIT_MS)
+    }
+    startLateWait()
+    const hasDetail = computed(() => settled.value && Boolean(show.value) && !show.value.seeded)
+    const lateShown = computed(() => hasDetail.value && (creditsSettled.value || lateWaitOver.value))
+    const reviewInAbout = ref(false)
+    const castShown = ref(false)
+    const trailingReview = computed(() => castShown.value && !reviewInAbout.value && Boolean(ratingReview.value))
     const aboutSynopsis = ref('')
-    const settleAboutSynopsis = () => {
-      if (aboutSynopsis.value || !creditsAnswered.value) return
-      aboutSynopsis.value = overviewOf(credits.value) || newestSynopsisOf(show.value)
+    const settleLateSections = () => {
+      if (!lateShown.value) return
+      if (!aboutSynopsis.value) {
+        aboutSynopsis.value = overviewOf(credits.value) || newestSynopsisOf(show.value)
+        reviewInAbout.value = Boolean(ratingReview.value)
+      }
+      if (creditsSettled.value) castShown.value = true
     }
     const allEpisodes = computed(() => allEpisodesOf(show.value))
     const selectedEpisodes = computed(() => allEpisodes.value.filter((e) => selected.value.has(e.recordingId)))
@@ -403,7 +449,7 @@ export const ShowView = {
       return isRecordingPhase(item) ? recordedPercentOf({ start: item.start, stop: item.stop, nowMs: nowMs.value }) : null
     }
 
-    const playNext = () => {
+    const playNow = () => {
       const target = heroPlayOf(show.value)
       if (target) actions.play(target.episode, { fromStart: target.fromStart })
     }
@@ -469,15 +515,15 @@ export const ShowView = {
     })
 
     onMounted(() => {
-      load()
       window.addEventListener('keydown', onSelectKeydown)
     })
     onUnmounted(() => {
+      clearTimeout(lateWaitTimer)
       adJobPoll.stop()
       window.removeEventListener('keydown', onSelectKeydown)
       document.body.classList.remove('library-selecting')
     })
-    watch([credits, creditsAnswered, show], settleAboutSynopsis)
+    watch([lateShown, credits, creditsSettled, show], settleLateSections)
     watch(selecting, (on) => document.body.classList.toggle('library-selecting', on))
     watch(heroSrc, () => { heroFailed.value = false })
     const heroResolvedTick = computed(() => (show.value ? artResolvedTickOf({ title: show.value.title }) : 0))
@@ -486,13 +532,17 @@ export const ShowView = {
       failedImages.value = {}
     })
     watch(key, () => {
-      show.value = cachedDetails.get(key.value) || null
+      openingSummary.value = librarySummaryOf(key.value)
+      show.value = openingDetailOf(key.value)
       loaded.value = Boolean(show.value)
       selectedSeason.value = firstSeasonOf(show.value)
       missing.value = false
       error.value = ''
       heroFailed.value = false
       aboutSynopsis.value = ''
+      reviewInAbout.value = false
+      castShown.value = false
+      startLateWait()
       stopSelecting()
       load()
     })
@@ -512,11 +562,13 @@ export const ShowView = {
 
     return {
       ...actions,
-      show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
+      show, loaded, settled, placeholderHidden, collectionSkeleton, lateShown, reviewInAbout, castShown, trailingReview,
+      missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, shownRuleStatus, firstEpisodeLine, currentEpisode, heroFromStart, cardFromStart, recordingCard, shownHeroMeta,
       isTappable, openEpisode, recordedPercent, hasShowActions, visibleEpisodes, selectedSeason, seriesShow, pageShape, heroProgress, seasonChips, optionsOpen, failedImages,
       flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable, anySelectable,
-      backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
+      backTarget, goBack, onEpisodeRowClick, load, playEpisode, onStopped, markImageFailed,
+      playNext: whenLoaded(playNow), openShowMenu: whenLoaded(actions.openShowMenu),
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
       episodePress, isLocked, checkLabel, isRecordingNow, selectionTitle,
       episodeHeading, seasonLabel, ratingScore, ratingReview, ratingCardOpen, ratingLoading, aboutSynopsis, castList, crewLines,
@@ -534,10 +586,18 @@ export const ShowView = {
 
 const heroProgressOf = (item) => (item && !item.inProgress && !item.watched && item.watchedPercent > 0 ? item.watchedPercent : null)
 
-const rememberShowStamps = (detail) => ['background', 'poster'].forEach((kind) =>
-  rememberArtworkStamp({ key: detail.key, kind, stamp: detail.artworkStamps?.[kind] ?? null }))
 
 const cachedDetails = new Map()
+
+const LATE_SECTIONS_WAIT_MS = 800
+
+const openingDetailOf = (key) => {
+  const cached = cachedDetails.get(key)
+  if (cached) return cached
+  const summary = librarySummaryOf(key)
+  if (summary) rememberShowStamps(summary)
+  return seedDetailOf(summary)
+}
 
 const firstSeasonOf = (detail) => detail?.seasons[0]?.season
 
