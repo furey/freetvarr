@@ -3,7 +3,6 @@ import { PLAYER_ICON_COMPONENTS } from '/components/player-icons.js'
 import { soundToggleOf, playerMenuItemsOf, baseRowButtonsOf, NO_CAPTIONS_ON_CHANNEL } from '/player-mute.js'
 import { marqueePlanOf, marqueeKeepsGoing, marqueeTextChangeOf } from '/marquee.js'
 import { scrubPillShownOf } from '/player-labels.js'
-import { MoreInfo } from '/components/more-info.js'
 import {
   topBarActionsOf,
   topBarLayoutOf,
@@ -267,6 +266,8 @@ export const PlayerBaseRow = {
       && miniplayerFitsBaseRowOf({ rowWidth: rowWidth.value }))
     watch(miniInRow, (inRow) => emit('minimise-placement', inRow), { immediate: true })
     onUnmounted(() => emit('minimise-placement', false))
+    const actionsEl = ref(null)
+    usePlayerWidthVariable({ insideEl: rowEl, width: useElementWidth(actionsEl), name: BASE_ACTIONS_WIDTH_VARIABLE })
     const lineEl = ref(null)
     const textEl = ref(null)
     const buttons = computed(() => baseRowButtonsOf({
@@ -282,7 +283,7 @@ export const PlayerBaseRow = {
       text: computed(() => (props.showSummary ? props.summary : '')),
       active: computed(() => props.animate && props.showSummary),
     })
-    return { rowEl, miniInRow, lineEl, textEl, buttons, marqueeStage, marqueeText }
+    return { rowEl, actionsEl, miniInRow, lineEl, textEl, buttons, marqueeStage, marqueeText }
   },
   template: `
     <div ref="rowEl" class="pl-base">
@@ -292,7 +293,7 @@ export const PlayerBaseRow = {
         <span v-if="summary" ref="lineEl" :class="['pl-base-line', 'pl-marquee', 'is-' + marqueeStage]"><span ref="textEl" class="pl-marquee-text">{{ marqueeText || summary }}</span></span>
       </div>
       </transition>
-      <div v-if="showActions" class="pl-base-actions">
+      <div v-if="showActions" ref="actionsEl" class="pl-base-actions">
         <button type="button" class="pl-round" aria-label="Programme info" aria-keyshortcuts="i" :title="buttons.info.title"
           :aria-expanded="String(buttons.info.expanded)" :aria-controls="infoId"
           @click="$emit('toggle-info')"><info-icon /></button>
@@ -306,6 +307,17 @@ export const PlayerBaseRow = {
       </div>
     </div>
   `,
+}
+
+const BASE_ACTIONS_WIDTH_VARIABLE = '--pl-base-actions-width'
+
+const usePlayerWidthVariable = ({ insideEl, width, name }) => {
+  let player = null
+  watch([insideEl, width], ([element, px]) => {
+    player = element?.closest('.pl-backdrop') ?? player
+    if (player && px > 0) player.style.setProperty(name, `${px}px`)
+  }, { flush: 'post', immediate: true })
+  onUnmounted(() => player?.style.removeProperty(name))
 }
 
 const useElementWidth = (el) => {
@@ -482,5 +494,4 @@ export const PLAYER_CHROME_COMPONENTS = {
   'player-scrubber': PlayerScrubber,
   'player-base-row': PlayerBaseRow,
   'marquee-text': MarqueeText,
-  'more-info': MoreInfo,
 }

@@ -260,7 +260,7 @@ A recording keeps the label it had when it was recorded or imported. A recording
 
 ### Cast and crew
 
-The page of a recorded show lists its cast and crew; see [Recordings](/guide/recordings#about-and-cast-and-crew). **More info** in the [programme sheet](#recording-a-programme), the [Info sheet](/guide/recordings#episode-menu), and the [player](/guide/live-tv#programme-info) shows the same cast and crew. Freetvarr looks them up by the show title, so reality and game show hosts appear too.
+The page of a recorded show lists its cast and crew; see [Recordings](/guide/recordings#about-and-cast-and-crew). **More info** in the [programme sheet](#recording-a-programme) and the [Info sheet](/guide/recordings#episode-menu) shows the same cast and crew. Freetvarr looks them up by the show title, so reality and game show hosts appear too.
 
 - **Films with a TMDB key**: the cast with photos, the crew, and the details, from TMDB.
 - **Films without a key**: the cast names, the characters, the crew, and the details, from [Wikidata](https://www.wikidata.org). Wikidata has no photos, so each person shows their initials, and a name links to the person's Wikipedia article. When two films share a title, Freetvarr uses the year or the cast named in the guide to pick one. When neither picks one film, the section shows no cast.

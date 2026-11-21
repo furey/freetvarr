@@ -187,3 +187,31 @@ test('the Home hero pause zones sit behind the buttons and dots they surround', 
   assert.match(home, /\.hero-carousel-controls \{[^}]*z-index: 2;/)
   assert.match(home, /\.hero-slide-body \{[^}]*isolation: isolate;/)
 })
+
+test('the player Info panels leave out More info, and the programme and Info sheets keep it', async () => {
+  for (const player of ['components/live-player.js', 'components/recording-player.js']) {
+    assert.doesNotMatch(await read(player), /<more-info\b/, player)
+  }
+  assert.match(await read('components/programme-sheet-host.js'), /<more-info\b/)
+  assert.match(await read('components/library-menus.js'), /<more-info\b/)
+})
+
+test('the last open Info row keeps clear of the measured base row buttons, whatever the row', async () => {
+  const live = await read('styles/live.css')
+  assert.match(live, /--pl-base-reserve: calc\(var\(--pl-edge-right\) \+ var\(--pl-base-actions-width, [^)]+\) \+ 12px\);/)
+  const lastRow = live.match(/\.pl-frame\.is-info-open \.live-info-text > :last-child \{([^}]*)\}/)
+  assert.ok(lastRow, 'last row rule')
+  assert.match(lastRow[1], /min-height: 44px;/)
+  assert.match(lastRow[1], /margin-right: calc\(var\(--pl-base-reserve\) - 1\.25rem\);/)
+  assert.doesNotMatch(live, /\.live-info-text > [.\w-]+:last-child \{[^}]*margin-right/)
+  assert.doesNotMatch(live, /:has\(\.pl-base-actions > :nth-child/)
+  assert.match(await read('components/player-chrome.js'), /'--pl-base-actions-width'/)
+})
+
+test('a scrolling Info panel ends above the base row buttons', async () => {
+  const live = await read('styles/live.css')
+  assert.match(live, /\.pl-frame\.is-info-open \.live-info-body\.is-scrolling \{\s*margin-bottom: calc\(var\(--pl-edge-bottom\) \+ 44px \+ 8px\);\s*\}/)
+  const panel = await read('components/player-parts.js')
+  assert.match(panel, /'is-scrolling': scrolls/)
+  assert.match(panel, /reservedBand: parseFloat\(getComputedStyle\(body\)\.marginBottom\)/)
+})

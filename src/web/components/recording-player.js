@@ -13,7 +13,6 @@ import {
 } from '/recording-info.js'
 import { CAPTION_LINE_PERCENT } from '/live-captions.js'
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
-import { playerCreditsKindOf } from '/more-info.js'
 import { adMarkersOf, leftPillText, percentWithin, joinedParts, endsAtText } from '/player-labels.js'
 import { NO_CAPTIONS_ON_RECORDING } from '/player-mute.js'
 import {
@@ -96,8 +95,6 @@ export const RecordingPlayer = {
           </div>
           <p v-if="metaLine" class="live-info-meta">{{ metaLine }}</p>
           <p v-if="recording?.synopsis" class="live-info-synopsis">{{ recording.synopsis }}</p>
-          <more-info v-if="recording" :key="recording.recording_id" class="live-info-more"
-            :title="recording.show_title_override || recording.title" :kind="playerCreditsKindOf(recording)" />
           <p v-for="line in infoLines" :key="line.label" class="live-info-next">
             <span class="live-info-next-label">{{ line.label }}</span>
             <marquee-text class="live-info-next-value" :text="line.text" :active="infoOpen"><span class="live-info-next-title">{{ line.text }}</span></marquee-text>
@@ -392,7 +389,7 @@ export const RecordingPlayer = {
     })
 
     return {
-      playerCreditsKindOf, playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
+      playback, recording, header, imageSource, episodeLine, airedText, watched, metaLine, sourceBadge, infoLines,
       infoOpen, infoClosing, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,

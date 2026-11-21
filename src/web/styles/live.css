@@ -1198,25 +1198,26 @@ body.player-open .app-tabbar {
   padding-bottom: calc(44px + 0.35rem);
 }
 
+.pl-frame {
+  --pl-base-reserve: calc(var(--pl-edge-right) + var(--pl-base-actions-width, 4 * 44px + 3 * 8px) + 12px);
+}
+
 .pl-frame.is-info-open .live-info-body {
   padding-bottom: var(--pl-edge-bottom);
 }
 
-.pl-frame.is-info-open .live-info-text > :last-child {
-  margin-right: calc(var(--pl-edge-right) + 3 * 44px + 2 * 8px + 12px - 1.25rem);
+.pl-frame.is-info-open .live-info-body.is-scrolling {
+  margin-bottom: calc(var(--pl-edge-bottom) + 44px + 8px);
 }
 
-.pl-frame.is-info-open:has(.pl-base-actions > :nth-child(4)) .live-info-text > :last-child {
-  margin-right: calc(var(--pl-edge-right) + 4 * 44px + 3 * 8px + 12px - 1.25rem);
+.pl-frame.is-info-open .live-info-text > :last-child {
+  min-height: 44px;
+  margin-right: calc(var(--pl-base-reserve) - 1.25rem);
 }
 
 @container (max-width: 40rem) {
   .pl-frame.is-info-open .live-info-text > :last-child {
-    margin-right: calc(var(--pl-edge-right) + 3 * 44px + 2 * 8px + 12px - 0.75rem);
-  }
-
-  .pl-frame.is-info-open:has(.pl-base-actions > :nth-child(4)) .live-info-text > :last-child {
-    margin-right: calc(var(--pl-edge-right) + 4 * 44px + 3 * 8px + 12px - 0.75rem);
+    margin-right: calc(var(--pl-base-reserve) - 0.75rem);
   }
 }
 
@@ -1224,31 +1225,11 @@ body.player-open .app-tabbar {
   display: flex;
   align-items: center;
   gap: 0.4em;
-  min-height: 44px;
 }
 
 .pl-frame.is-info-open .live-info-text > .live-info-next:last-child {
   align-items: center;
   gap: 0;
-}
-
-.pl-frame.is-info-open .live-info-text > .more-info:last-child,
-.pl-frame.is-info-open:has(.pl-base-actions > :nth-child(4)) .live-info-text > .more-info:last-child {
-  display: block;
-  min-height: 0;
-  margin-right: 0;
-}
-
-.pl-frame.is-info-open .live-info-text > .more-info:last-child > .more-info-summary {
-  margin-right: calc(var(--pl-edge-right) + 4 * 44px + 3 * 8px + 12px - 1.25rem);
-}
-
-.pl-frame.is-info-open .live-info-text > .more-info[open]:last-child > .more-info-body {
-  padding-bottom: 52px;
-}
-
-.pl-frame.is-info-open .live-info:has(.more-info[open]) {
-  max-height: calc(100% - env(safe-area-inset-top, 0px) - 80px);
 }
 
 .pl-marquee-line {
@@ -1528,8 +1509,4 @@ body.player-open .app-tabbar {
   .pl-scrub.is-growing :is(.pl-track-buffer, .pl-track-edge, .pl-track-played, .pl-thumb) {
     transition: none;
   }
-}
-
-.live-info-text > .more-info {
-  margin-top: calc(0.35rem + var(--more-info-row-slack));
 }

@@ -9,12 +9,6 @@ export const MORE_INFO_SKELETON_AFTER_MS = 200
 export const MORE_INFO_CLOSED = { opened: false, load: false }
 export const UNKNOWN_KIND = 'unknown'
 
-export const playerCreditsKindOf = ({ kind = null, season = null, episode = null } = {}) => {
-  if (FILM_PATH_KINDS.has(kind)) return 'movie'
-  if (SERIES_PATH_KINDS.has(kind)) return ''
-  return season == null && episode == null ? 'movie' : UNKNOWN_KIND
-}
-
 export const moreInfoRequestOf = ({ title, kind = null, year = null } = {}) => {
   const request = { title: String(title || '').trim(), kind: REQUEST_KINDS.has(kind) ? kind : '', year: year ?? null }
   return creditsKeyOf(request) ? request : null
@@ -112,8 +106,6 @@ const SERIES_CREW_ROWS = 2
 const DETAIL_ROWS = 5
 const SERIES_LABELS = { company: 'Network', year: 'First aired', minutes: 'Episode length' }
 const FILM_LABELS = { company: 'Studio', year: 'Released', minutes: 'Length' }
-const FILM_PATH_KINDS = new Set(['movie', 'oneoff', 'one-off'])
-const SERIES_PATH_KINDS = new Set(['show', 'series'])
 const REQUEST_KINDS = new Set(['movie', UNKNOWN_KIND])
 const STILL_PENDING = { status: 'pending', cast: [], crew: [], details: null }
 const STILL_LOOKING_TEXT = 'Still looking up cast and crew. Close and open More info to try again.'
