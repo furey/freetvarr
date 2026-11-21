@@ -17,6 +17,7 @@ import {
 import { artFallbackStyle } from '/art-fallback.js'
 import { artResolvedTickOf, stampedShowImage } from '/shared/artwork-stamps.js'
 import { api, loadedBuild } from '/shared/api.js'
+import { forYouWrite } from '/shared/taste-store.js'
 import { forYouHiddenKeys, sendShown, useForYouActions } from '/shared/for-you-session.js'
 import { recordingChangeTick } from '/shared/recording-now.js'
 import { now } from '/shared/time.js'
@@ -231,7 +232,7 @@ export const ForYouView = {
       savingPicks.value = true
       picksError.value = null
       try {
-        await api('POST', '/api/for-you/picks', { seriesKeys: [...picked.value] })
+        await forYouWrite('POST', '/api/for-you/picks', { seriesKeys: [...picked.value] })
         picksSaved.value = true
         await load()
       } catch (err) {

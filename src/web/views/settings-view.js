@@ -14,6 +14,7 @@ import { clearedSecretToastOf, rootFieldErrorOf } from '/save-notice.js'
 import { toast } from '/shared/toast.js'
 import { createSettingBaseline } from '/setting-baseline.js'
 import { api, fetchSettings } from '/shared/api.js'
+import { forYouWrite } from '/shared/taste-store.js'
 import { FLASH_DEFAULT_MS } from '/shared/composables.js'
 import { tvhDetectSummary, tvhTestSummary } from '/shared/format.js'
 import {
@@ -911,7 +912,7 @@ export const SettingsView = {
     const saveGenreLookup = async () => {
       const value = genreLookup.value
       if (!genreLookupBaseline.isChanged(value)) return
-      await api('PUT', '/api/for-you/settings', { genreLookup: value })
+      await forYouWrite('PUT', '/api/for-you/settings', { genreLookup: value })
       genreLookupBaseline.remember(value)
     }
 

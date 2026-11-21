@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  dislikeSlotCountOf,
   guideMatchMenuOf,
   onNowMenuOf,
   programmeOfRecording,
@@ -81,4 +82,10 @@ test('onNowMenuOf and guideMatchMenuOf: the movie row follows Programme info whe
   assert.equal(onNowMenuOf({ channelName: 'ABC TV', movieChoice: 'movie' })[1][1].label, 'This is a movie')
   assert.deepEqual(keysOf(guideMatchMenuOf({ movieChoice: 'not-movie' }))[1], ['programme-info', 'movie-kind'])
   assert.deepEqual(keysOf(guideMatchMenuOf({}))[1], ['programme-info'])
+})
+
+test('dislikeSlotCountOf: reserves the most rows the hide group can need, so the sheet opens at its final height', () => {
+  assert.equal(dislikeSlotCountOf({ title: 'Top Gear', programmeKind: 'show' }), 3)
+  assert.equal(dislikeSlotCountOf({ title: 'Rocky', programmeKind: 'movie' }), 2)
+  assert.equal(dislikeSlotCountOf({ title: '' }), 0)
 })

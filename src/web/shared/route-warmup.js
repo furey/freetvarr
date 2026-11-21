@@ -1,6 +1,8 @@
-import { resolveRoute, viewKeyOf } from '/route-table.js'
+import { recordingsPageOf, resolveRoute, viewKeyOf } from '/route-table.js'
 import { hashesMatch } from '/scroll-memory.js'
 import { prefetchGet } from '/shared/api.js'
+import { preloadShowHeroArt } from '/shared/show-art.js'
+import { createPressIntent } from '/press-intent.js'
 import { VIEW_FIRST_REQUESTS } from '/view-modules.js'
 import { VIEW_PRELOADS } from '/view-preloads.js'
 
@@ -24,6 +26,26 @@ export const warmRouteOnHover = (event) => {
 }
 
 export const cancelRouteHover = () => clearTimeout(hoverTimer)
+
+export const warmLinkOnPress = (event) => {
+  const link = event.target?.closest?.('a[href^="#/"]')
+  if (!link) return
+  const href = link.getAttribute('href')
+  warmRoute({ href, withData: false })
+  const showKey = showKeyOfHref(href)
+  if (showKey) showArtPress().arm({ event, onIntent: () => preloadShowHeroArt(showKey) })
+}
+
+const showKeyOfHref = (href) => {
+  const { view, params } = resolveRoute(href)
+  return view === 'recordings' ? recordingsPageOf(params).showKey : null
+}
+
+let showArtIntent = null
+const showArtPress = () => {
+  showArtIntent ??= createPressIntent({ target: document })
+  return showArtIntent
+}
 
 let loadViewModule = () => Promise.resolve()
 let hoverTimer = null

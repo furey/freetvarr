@@ -108,7 +108,7 @@ import { refreshTick } from '/shared/store.js'
 import { loadSyncStatus, ensureSyncPolling } from '/shared/sync-status.js'
 import { tz } from '/shared/time.js'
 import { recordingsPageOf, viewKeyOf } from '/route-table.js'
-import { registerViewLoader, warmView } from '/shared/route-warmup.js'
+import { registerViewLoader, warmLinkOnPress, warmView } from '/shared/route-warmup.js'
 import { VIEW_ENTRIES } from '/view-modules.js'
 import { FolderEditor, FolderSyncButton } from '/views/folder-editor.js'
 import { HomeView } from '/views/home-view.js'
@@ -362,5 +362,6 @@ installImageFocus()
 installVisibleViewport()
 installTypeAheadEnter()
 app.mount('#app')
-registerViewLoader((key) => (VIEW_LOADERS[key] ? VIEW_LOADERS[key]() : Promise.resolve()))
+registerViewLoader((key) => (VIEW_COMPONENTS[key]?.__asyncLoader ?? VIEW_LOADERS[key])?.() ?? Promise.resolve())
+document.addEventListener('pointerdown', warmLinkOnPress, { capture: true, passive: true })
 prefetchViewsAfterLoad()

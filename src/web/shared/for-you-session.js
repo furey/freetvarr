@@ -1,5 +1,6 @@
 import { computed, ref, reactive } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
+import { forYouWrite } from '/shared/taste-store.js'
 import { watchLive } from '/shared/live-session.js'
 import { useProgrammeSheet } from '/shared/programme-sheet-store.js'
 import { now, tz } from '/shared/time.js'
@@ -127,13 +128,25 @@ export const keepForYouRail = ({ shown, ready }) => {
   try { localStorage.setItem(READY_KEY, shown && ready ? '1' : '0') } catch {}
 }
 
-export const sendFeedback = (body) => api('POST', '/api/events/feedback', body).catch(() => {})
+export const sendFeedback = (body) => (TASTE_FEEDBACK_KINDS.has(body?.kind)
+  ? forYouWrite('POST', '/api/events/feedback', body)
+  : api('POST', '/api/events/feedback', body)).catch(() => {})
+
+const TASTE_FEEDBACK_KINDS = new Set([
+  'not_interested',
+  'fewer_like_this',
+  'fewer_like_this_undo',
+  'category_muted',
+  'category_unmuted',
+  'category_boosted',
+  'category_unboosted',
+])
 
 export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }).forEach(sendFeedback)
 
-export const unhideShow = (seriesKey) => api('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
+export const unhideShow = (seriesKey) => forYouWrite('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
 
-export const unmuteCategory = (categoryKey) => api('DELETE', `/api/for-you/categories/${encodeURIComponent(categoryKey)}/mute`)
+export const unmuteCategory = (categoryKey) => forYouWrite('DELETE', `/api/for-you/categories/${encodeURIComponent(categoryKey)}/mute`)
 
 export const useForYouActions = ({ source, isScheduled = () => false, onChanged = () => {} }) => {
   const menuItem = ref(null)

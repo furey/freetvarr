@@ -2,7 +2,6 @@ export const VIEW_PRELOADS = {
   forYou: [
     '/components/for-you-privacy.js',
     '/for-you-privacy.js',
-    '/shared/view-store.js',
     '/views/for-you-view.js',
   ],
   live: [
@@ -20,7 +19,6 @@ export const VIEW_PRELOADS = {
     '/shared/format.js',
     '/shared/guide-images-motion.js',
     '/shared/pin-drag.js',
-    '/shared/view-store.js',
     '/sortable-math.js',
     '/views/live-view.js',
   ],
@@ -43,7 +41,6 @@ export const VIEW_PRELOADS = {
     '/shared/format.js',
     '/shared/guide-images-motion.js',
     '/shared/pin-drag.js',
-    '/shared/view-store.js',
     '/sortable-math.js',
     '/views/epg-view.js',
   ],
@@ -53,14 +50,12 @@ export const VIEW_PRELOADS = {
     '/components/move-to-show-sheet.js',
     '/response-order.js',
     '/row-scroll-memory.js',
-    '/shared/view-store.js',
     '/tuner-plan.js',
     '/views/recordings-library-view.js',
     '/views/scheduled-view.js',
   ],
   scheduled: [
     '/response-order.js',
-    '/shared/view-store.js',
     '/tuner-plan.js',
     '/views/scheduled-view.js',
   ],

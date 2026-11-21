@@ -45,6 +45,7 @@ import { episodePictureOf } from '/shared/artwork-stamps.js'
 import { loadNowAll } from '/shared/channel-twins.js'
 import { browserStorage } from '/shared/storage.js'
 import { freshHomeOf, readHomeCache, writeHomeCache } from '/home-cache.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 import { playRecording } from '/shared/playback-session.js'
 import { watchLive, watchRecordingFromStart, liveChannelOf } from '/shared/live-session.js'
 import { playback } from '/shared/player-shared.js'
@@ -142,9 +143,9 @@ const rowFocusWarmUrlsOf = (row) => row.slice(0, FOCUS_WARM_ROW_ITEMS).map((reco
 export const HomeView = {
   components: { ActionConfirm, DeleteConfirm, ForYouOverlays, ForYouRows, HomeHeroCarousel, LibraryInfoSheet, LibraryMenuSheet, MenuCard, RecordingOptionsSheet },
   template: `
-    <div v-page-reveal class="ui-page home-page">
+    <div v-page-reveal :class="['ui-page', 'home-page', { 'is-placeholder-hidden': placeholderHidden }]">
       <page-header :title="greeting" subtitle="Here's what's happening." subtitle-short="" brand health-alert><template #below><guide-notice /></template></page-header>
-      <template v-if="!loaded">
+      <template v-if="!settled">
         <section class="hero-carousel home-skeleton-hero" aria-hidden="true">
           <div class="hero-carousel-viewport">
             <div class="hero-carousel-stage">
@@ -296,6 +297,9 @@ export const HomeView = {
     const upcoming = computed(() => home.value.upcoming)
     const activeProgramIds = computed(() => home.value.activeProgramIds)
     const loaded = computed(() => Boolean(homeStore.value))
+    const placeholder = usePlaceholderTiming(computed(() => !loaded.value))
+    const settled = computed(() => loaded.value && !placeholder.holding.value)
+    const placeholderHidden = computed(() => !settled.value && !placeholder.showing.value)
     const optionsShow = ref(null)
     const optionsOpen = ref(false)
 
@@ -611,7 +615,7 @@ export const HomeView = {
 
     return {
       showArtOf,
-      episodePictureOf, loaded, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
+      episodePictureOf, loaded, settled, placeholderHidden, greeting, heroSlides, runSlideAction, inProgress, newRecordings, newRecordingsRow, onNow, tonight,
       optionsShow, optionsOpen, load, onOptionsStopped, showFlash, watchChannel, showHref, newCardMeta, newCardLabel,
       clockOf, fallbackStyleOf, onNowMetaOf, tonightMeta: tonightMetaOf,
       forYou, forYouRow, forYouSection, forYouHref: FOR_YOU_HREF, libraryCountText, forYouCountText,

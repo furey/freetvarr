@@ -1182,13 +1182,19 @@
   pointer-events: none;
 }
 
+:root {
+  --score-badge-min-w: 58px;
+}
+
 .programme-score-loading {
   position: absolute;
   left: 10px;
   bottom: 10px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
+  min-width: var(--score-badge-min-w);
   padding: 0 10px;
   border-radius: 14px;
   background: rgba(11, 17, 23, 0.62);
@@ -1218,7 +1224,9 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
+  min-width: var(--score-badge-min-w);
   padding: 0 10px 0 8px;
   border: 0;
   border-radius: 14px;
@@ -1494,6 +1502,15 @@
 
 .programme-sheet-more {
   margin-top: 10px;
+}
+
+.programme-sheet-slot {
+  pointer-events: none;
+}
+
+.programme-sheet-slot > :first-child,
+.programme-sheet-slot.is-kept {
+  visibility: hidden;
 }
 
 .programme-sheet-rec-dot {

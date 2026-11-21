@@ -50,6 +50,43 @@ export const pageShapeOf = (show) => {
   return recordedEpisodesOf(show).length === 1 ? 'single' : 'list'
 }
 
+export const openingDetailOf = ({ cached, summary }) => cached || seedDetailOf(summary)
+
+export const whenDetailLoaded = ({ currentOf, pendingOf }) => (run) => async (...args) => {
+  if (currentOf()?.seeded) await pendingOf()
+  const current = currentOf()
+  if (current && !current.seeded) return run(...args)
+}
+
+export const seedDetailOf = (summary) => (isSeedableSingle(summary)
+  ? { ...summary, seeded: true, seasons: [{ season: summary.latest.season ?? null, episodes: [seedItemOf(summary)] }] }
+  : null)
+
+const isSeedableSingle = (summary) => Boolean(summary?.latest)
+  && summary.kind !== 'show'
+  && summary.counts?.total === 1
+  && !summary.counts.failed
+  && !summary.counts.inProgress
+  && !summary.recordingNow
+  && !summary.rule
+  && !summary.nextAiring
+
+const seedItemOf = ({ title, latest }) => ({
+  ...latest,
+  title,
+  synopsis: null,
+  status: 'done',
+  libraryState: null,
+  failed: false,
+  playable: true,
+  inProgress: null,
+  watchedPercent: latest.watched ? 100 : seedPercentOf(latest),
+})
+
+const seedPercentOf = ({ positionS, durationS }) => (positionS > 0 && durationS > 0
+  ? Math.min(100, Math.round((positionS / durationS) * 100))
+  : 0)
+
 export const singleItemOf = (show) => (pageShapeOf(show) === 'single' ? recordedEpisodesOf(show)[0] ?? null : null)
 
 export const itemNounOf = (kind = 'show') => ITEM_NOUNS[kind] ?? ITEM_NOUNS.oneoff
