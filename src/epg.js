@@ -442,7 +442,7 @@ const classificationLookupFor = async (programmes) => createClassificationLookup
 })
 
 export const savedWithKinds = ({ guide, saved = [] }) => (guide?.kindOf
-  ? withDisplayKinds({ programmes: saved, kindOf: guide.kindOf })
+  ? withDisplayKinds({ programmes: saved, kindOf: guide.kindOf, confirmedOneOffOf: guide.confirmedOneOffOf })
   : saved)
 
 const earliestStartingFrom = ({ rows, fromMs }) => rows
@@ -470,6 +470,7 @@ const trimProgram = (p) => p == null ? null : {
   end: p.end,
   series_link: p.series_link || null,
   kind: p.kind ?? null,
+  one_off_confirmed: p.one_off_confirmed ?? false,
 }
 
 const parseJsonArray = (raw) => {
@@ -1779,7 +1780,8 @@ const loadGuide = async (startMs) => {
   const titleKinds = await saveGuideTitleKinds({ programmes: listed, records, evidence, categories })
   const recordsByKey = withTitleKinds({ records, titleKinds })
   const kindOf = createDisplayKinds({ programmes: listed, recordsByKey, evidence })
-  const events = withDisplayKinds({ programmes: listed, kindOf, confirmedOneOffOf: createConfirmedOneOffs({ recordsByKey, evidence }) })
+  const confirmedOneOffOf = createConfirmedOneOffs({ recordsByKey, evidence })
+  const events = withDisplayKinds({ programmes: listed, kindOf, confirmedOneOffOf })
   if (channels.length === 0) {
     throw new TvheadendError(
       'TVHeadend has no channels yet. Scan the mux and map services to channels in TVHeadend first.',
@@ -1803,6 +1805,7 @@ const loadGuide = async (startMs) => {
     programByEventId,
     imagesByTitle: imagesByTitleOf(events),
     kindOf,
+    confirmedOneOffOf,
     fetchedAt: Date.now(),
     expiresAt: Date.now() + (events.length ? GUIDE_TTL_MS : GUIDE_EMPTY_TTL_MS),
   }

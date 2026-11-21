@@ -69,6 +69,9 @@ test('savedWithKinds: history copies kept from earlier today get a kind from the
   assert.deepEqual(saved.map((p) => p.kind), ['series', 'one-off', 'movie'])
   assert.deepEqual(savedWithKinds({ guide: {}, saved: [happysPlace] }), [happysPlace])
   assert.deepEqual(savedWithKinds({ guide: { kindOf } }), [])
+  const confirmedOneOffOf = (programme) => programme.title === carols.title
+  const marked = savedWithKinds({ guide: { kindOf: () => 'one-off', confirmedOneOffOf }, saved: [carols, happysPlace] })
+  assert.deepEqual(marked.map((programme) => programme.one_off_confirmed), [true, undefined])
 })
 
 test('looksLikeFilm: the library filing rule still needs the ETSI movie genre', () => {
