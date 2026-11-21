@@ -104,6 +104,10 @@ import { isOfferedTitle, loadVariantCandidates, nextVariantsOf, saveTitleVariant
 
 export const seedFreeviewWindow = (window) => freeviewAu.seedWindow(window)
 
+export const holdFreeviewPicturesUntil = (ready) => {
+  freeviewWindowsReady = ready
+}
+
 export const getGuideDay = async ({ day = 0, nowMs = Date.now() } = {}) => {
   const guide = await getCachedGuide()
   const { dayStart, dayEnd, spillEnd } = guideDayWindow({ startMs: localMidnightMs(nowMs), day })
@@ -1628,6 +1632,7 @@ const saveFreeviewPictures = async ({ guide, programmes, titleKeys }) => {
   if (!freeviewAu.isOn() || !titleKeys.length) return 0
   const triplets = await channelTripletsFor(guide.channels)
   if (!triplets) return 0
+  await Promise.resolve(freeviewWindowsReady()).catch(() => {})
   const airings = freeviewAiringsOf({ programmes, titleKeys: new Set(titleKeys), triplets, nowMs: Date.now() })
   const matches = await freeviewAu.matchAirings(airings)
   for (const [eventId, url] of matches) {
@@ -1923,6 +1928,7 @@ const PLEX_TOKEN = /x-plex-token=/i
 const OK_PICTURE = { verdict: OK_VERDICT, reason: null }
 const TVMAZE_IMAGE_HOST = 'static.tvmaze.com'
 let guidePictureRun = null
+let freeviewWindowsReady = () => null
 let freeviewProblem = null
 const SHOW_IMAGE_BUDGET_MS = 3000
 const RECORDING_SAVE_BUDGET_MS = 10_000

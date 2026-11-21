@@ -121,6 +121,7 @@ import { createGuideSources } from './guide-sources/index.js'
 import { suggestionsOf } from './guide-sources/suggested-feeds.js'
 import { broadcastGuideHealthOf } from './broadcast-guide-health.js'
 import { createFreeviewAuSource } from './guide-sources/freeview-au.js'
+import { createWindowStore } from './guide-sources/window-store.js'
 import { createFreeviewNzSource } from './guide-sources/freeview-nz.js'
 import { createTitleAliases } from './title-aliases.js'
 import { createSourceHealthStore } from './guide-source-health.js'
@@ -173,6 +174,7 @@ import {
   frameGrabsBusy,
   thumbnailWarmShare,
   seedFreeviewWindow,
+  holdFreeviewPicturesUntil,
 } from './epg.js'
 import {
   adScansRunning,
@@ -2297,9 +2299,11 @@ const guideChannelTriplets = async () => readGuideChannelTriplets({
   listTriplets: listChannelTriplets,
 })
 
+const guideWindowStore = createWindowStore()
+
 const guideSources = createGuideSources({
-  freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow }),
-  freeviewNz: createFreeviewNzSource({ onWindow: seedFreeviewWindow }),
+  freeviewAu: createFreeviewAuSource({ onWindow: seedFreeviewWindow, store: guideWindowStore }),
+  freeviewNz: createFreeviewNzSource({ onWindow: seedFreeviewWindow, store: guideWindowStore }),
 })
 
 const guideSourceHealth = createSourceHealthStore()
@@ -2316,6 +2320,8 @@ const guideMerge = createGuideMerge({
   listingChoice: () => readListingChoice(getSetting),
   track: activity.track,
 })
+
+holdFreeviewPicturesUntil(guideMerge.firstBuild)
 
 const ownGuideFeedUrl = async (conn) => guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT })
 

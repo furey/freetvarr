@@ -6,11 +6,13 @@ import {
   createCircuitBreaker,
   createHostLimiter,
   createOutboundClient,
+  hostHoldMsOf,
   isOversizeError,
   responseVerdictOf,
   retryAfterOf,
   retryDelayMs,
 } from '../src/outbound-http.js'
+import { FREEVIEW_API_PACE } from '../src/freeview-au.js'
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' }
 
@@ -129,6 +131,39 @@ test('host limiter caps concurrency, spaces starts, and refuses an overfull queu
   crowded.run(task)
   crowded.run(task)
   await assert.rejects(crowded.run(task), { code: 'queue-full' })
+})
+
+test('the Freeview pace spaces starts by 500 ms plus a random share of 500 ms, never less and never more', async () => {
+  const startGaps = async (draw) => {
+    const clock = { ms: 0 }
+    const starts = []
+    const limiter = createHostLimiter({ ...FREEVIEW_API_PACE, now: () => clock.ms, random: () => draw, sleep: async (ms) => { clock.ms += ms } })
+    await Promise.all([1, 2, 3].map(() => limiter.run(async () => starts.push(clock.ms))))
+    return starts.slice(1).map((start, index) => start - starts[index])
+  }
+  assert.deepEqual(await startGaps(0), [500, 500])
+  assert.deepEqual(await startGaps(0.5), [750, 750])
+  assert.deepEqual(await startGaps(1), [1000, 1000])
+})
+
+test('a 429 or 5xx holds the whole host queue for the backoff, and a long Retry-After holds it up to five minutes', async () => {
+  const clock = { ms: 0 }
+  const tooMany = jsonResponse({}, 429, { ...JSON_HEADERS, 'retry-after': '600' })
+  const { client, calls } = clientWith({ responses: [tooMany, jsonResponse({ ok: 1 })], clock })
+  await assert.rejects(client.getJson({ url: 'https://api.example.org/q' }), { code: 'unavailable', status: 429 })
+  const heldFrom = clock.ms
+  assert.deepEqual(await client.getJson({ url: 'https://api.example.org/q' }), { ok: 1 })
+  assert.equal(calls.length, 2)
+  assert.equal(clock.ms - heldFrom, 5 * 60 * 1000)
+  assert.equal(hostHoldMsOf({ status: 503, delayMs: 1000 }), 1000)
+  assert.equal(hostHoldMsOf({ status: 404, delayMs: 1000 }), 0)
+  assert.equal(hostHoldMsOf({ status: undefined, delayMs: 1000 }), 0)
+})
+
+test('getJson fails at once on a status the caller will not retry, so a 504 can be split instead', async () => {
+  const { client, calls } = clientWith({ responses: [jsonResponse({}, 504), jsonResponse({ ok: 1 })] })
+  await assert.rejects(client.getJson({ url: 'https://api.example.org/q', noRetryStatuses: [504] }), { code: 'unavailable', status: 504 })
+  assert.equal(calls.length, 1)
 })
 
 test('getJson sends the User-Agent, retries a 503, and parses the body', async () => {
