@@ -1990,31 +1990,8 @@ a.show-cast-hit:active .show-cast-face {
   text-wrap: pretty;
 }
 
-.more-info-skeleton-person {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.more-info-skeleton-face {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-}
-
-.more-info-skeleton-name {
-  width: 60px;
-}
-
-.more-info-skeleton-role {
-  width: 44px;
-}
-
-.more-info-skeleton-fact {
-  grid-column: 1 / -1;
-  width: 70%;
-  margin-block: 4px;
+.show-cast-face.is-skeleton {
+  background: none;
 }
 
 .live-info .more-info {

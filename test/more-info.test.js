@@ -4,10 +4,13 @@ import assert from 'node:assert/strict'
 import {
   MORE_INFO_CLOSED,
   MORE_INFO_MIN_MS,
+  MORE_INFO_SKELETON_AFTER_MS,
   guideDetailsOf,
   loadMoreInfoCredits,
+  looksUpCreditsFor,
   moreInfoOf,
   moreInfoRequestOf,
+  moreInfoSkeletonOf,
   moreInfoToggledOf,
   moreInfoAfterLoadOf,
   playerCreditsKindOf,
@@ -42,8 +45,20 @@ test('a recording of unknown kind asks nothing and shows only guide details', as
   const answer = await loadMoreInfoCredits({ request, fetchCredits: async () => { asked.push(1); return { status: 'ready' } }, clock: time.now, wait: time.wait })
   assert.equal(answer, null)
   assert.deepEqual(asked, [])
-  assert.deepEqual(time.clock.waits, [900])
+  assert.deepEqual(time.clock.waits, [])
   assert.deepEqual(moreInfoOf({ credits: answer, guide: { genres: 'Drama' } }).rows, [{ label: 'Genres', value: 'Drama' }])
+})
+
+test('the loading skeleton has a full cast row, three crew rows for a film, two for a series, and five details rows', () => {
+  assert.deepEqual(moreInfoSkeletonOf('movie'), { cast: 12, crew: 3, details: 5 })
+  assert.deepEqual(moreInfoSkeletonOf(''), { cast: 12, crew: 2, details: 5 })
+})
+
+test('only films and series are looked up, so an unknown kind shows its answer with no skeleton', () => {
+  assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'Heat', kind: 'movie' })), true)
+  assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'NCIS' })), true)
+  assert.equal(looksUpCreditsFor(moreInfoRequestOf({ title: 'Mystery', kind: playerCreditsKindOf({ season: 4, episode: 2 }) })), false)
+  assert.equal(looksUpCreditsFor(null), false)
 })
 
 const fakeTime = () => {
@@ -84,31 +99,62 @@ test('the Info sheet carries the show title and kind for More info, for episodes
   assert.deepEqual(showInfoOf({ show: film, timeZone: 'Australia/Sydney' }).more, { title: 'Heat', kind: 'movie', year: 1995 })
 })
 
-test('opening More info asks once, and the skeletons stay for the minimum time on a fast answer', async () => {
+test('opening More info asks once, and a fast answer shows at once with no skeleton', async () => {
   const time = fakeTime()
   const asked = []
+  const slow = []
   const answer = await loadMoreInfoCredits({
     request: { title: 'NCIS', kind: '' },
     fetchCredits: async (request) => { asked.push(request.title); return READY },
+    onSlow: () => slow.push(time.now()),
     clock: time.now,
     wait: time.wait,
+    after: neverFires,
   })
   assert.equal(answer, READY)
   assert.deepEqual(asked, ['NCIS'])
-  assert.equal(MORE_INFO_MIN_MS, 900)
-  assert.deepEqual(time.clock.waits, [900])
+  assert.deepEqual(slow, [])
+  assert.deepEqual(time.clock.waits, [])
 })
 
-test('a slow answer is not held any longer than it took', async () => {
+test('an answer slower than 200 ms shows the skeleton, which stays at least 900 ms', async () => {
+  const time = fakeTime()
+  const slow = []
+  const answer = await loadMoreInfoCredits({
+    request: { title: 'NCIS', kind: '' },
+    fetchCredits: async () => { time.clock.ms += 300; return READY },
+    onSlow: () => slow.push(time.now()),
+    clock: time.now,
+    wait: time.wait,
+    after: firesAt({ time, atMs: 200 }),
+  })
+  assert.equal(answer, READY)
+  assert.equal(MORE_INFO_SKELETON_AFTER_MS, 200)
+  assert.equal(MORE_INFO_MIN_MS, 900)
+  assert.deepEqual(slow, [200])
+  assert.deepEqual(time.clock.waits, [600])
+})
+
+test('a skeleton shown longer than the minimum is not held any longer', async () => {
   const time = fakeTime()
   await loadMoreInfoCredits({
     request: { title: 'NCIS', kind: '' },
     fetchCredits: async () => { time.clock.ms += 1500; return READY },
     clock: time.now,
     wait: time.wait,
+    after: firesAt({ time, atMs: 200 }),
   })
   assert.deepEqual(time.clock.waits, [])
 })
+
+const neverFires = () => () => {}
+
+const firesAt = ({ time, atMs }) => (ms, run) => {
+  assert.equal(ms, atMs)
+  time.clock.ms = atMs
+  run()
+  return () => {}
+}
 
 test('a pending answer is asked again until it settles', async () => {
   const time = fakeTime()
