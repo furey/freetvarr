@@ -11,6 +11,10 @@ import { readFileSync } from 'node:fs'
 import { indexFeed } from '../src/guide-sources/mjh-feed.js'
 import { parseProgrammeElement, programmeXml } from '../src/guide-sources/xmltv.js'
 import { OutboundError } from '../src/outbound-http.js'
+import { WINDOW_FORMAT } from '../src/guide-sources/freeview-au.js'
+import { createWindowStore } from '../src/guide-sources/window-store.js'
+import { up as upWindows } from '../migrations/0055_guide_source_windows.js'
+import knexFactory from 'knex'
 
 const HOUR = 60 * 60_000
 const NOW = Date.parse('2026-11-10T00:00:00Z')
@@ -204,24 +208,45 @@ test('freeview: a series-level entry has no sub-title, and NC is not a rating', 
   assert.equal(programme.episode, null)
 })
 
-test('freeview: a 504 on a six-hour window reads it again as two three-hour halves', async () => {
+test('freeview: a 504 on a 12 h window reads it again as two six-hour halves', async () => {
   const client = fakeFreeviewClient(({ url, params }) => {
     if (url.includes('/channels/region/')) return freeviewAnswer({ url })
     const hours = (Date.parse(params.end) - Date.parse(params.start)) / HOUR
-    if (hours === 6) throw new OutboundError('fvau-api-prod.switch.tv HTTP 504', { code: 'unavailable', status: 504 })
+    if (hours === 12) throw new OutboundError('fvau-api-prod.switch.tv HTTP 504', { code: 'unavailable', status: 504 })
     const listing = freeviewListing({ id: params.start, start: params.start, end: new Date(Date.parse(params.start) + HOUR).toISOString() })
     return { data: [listing], meta: { pagination: { more: false } } }
   })
   const source = createFreeviewAuSource({ client, now: () => NOW })
-  const programmes = await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 6 * HOUR })
+  const programmes = await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })
   assert.equal(programmes.length, 2)
   const windows = client.calls.map(({ params }) => [params.start, params.end])
   assert.deepEqual(windows, [
+    ['2026-11-10T00:00:00Z', '2026-11-10T12:00:00Z'],
     ['2026-11-10T00:00:00Z', '2026-11-10T06:00:00Z'],
-    ['2026-11-10T00:00:00Z', '2026-11-10T03:00:00Z'],
-    ['2026-11-10T03:00:00Z', '2026-11-10T06:00:00Z'],
+    ['2026-11-10T06:00:00Z', '2026-11-10T12:00:00Z'],
   ])
-  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 3, failedWindows: 0, splitWindows: 1, windowsRead: 1, windows: 0, failures: 0 })
+  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 3, failedWindows: 0, splitWindows: 1, windowsRead: 1, pendingWindows: 0, windows: 0, failures: 0 })
+})
+
+test('freeview: a 12 h window over the size limit reads it again as two six-hour halves', async () => {
+  const client = fakeFreeviewClient(({ params }) => {
+    if ((Date.parse(params.end) - Date.parse(params.start)) / HOUR === 12) throw new OutboundError('fvau-api-prod.switch.tv sent more than 2097152 bytes', { code: 'too-large' })
+    return { data: [freeviewListing({ id: params.start, start: params.start, end: new Date(Date.parse(params.start) + HOUR).toISOString() })], meta: { pagination: { more: false } } }
+  })
+  const source = createFreeviewAuSource({ client, now: () => NOW })
+  assert.equal((await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })).length, 2)
+  assert.equal(source.stats().splitWindows, 1)
+})
+
+test('freeview: a 12 h window that needs more pages than a six-hour one is still read to the end', async () => {
+  const client = fakeFreeviewClient(({ params }) => {
+    const page = params.offset / params.limit
+    return { data: [freeviewListing({ id: `p${page}`, start: new Date(NOW + page * HOUR).toISOString(), end: new Date(NOW + (page + 1) * HOUR).toISOString() })], meta: { pagination: { more: page < 4 } } }
+  })
+  const source = createFreeviewAuSource({ client, now: () => NOW })
+  const programmes = await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })
+  assert.equal(client.calls.length, 5)
+  assert.equal(programmes.length, 5)
 })
 
 test('freeview: a failed window is empty, backs off, and is not read again until the backoff ends', async () => {
@@ -257,7 +282,7 @@ test('freeview: a window past the horizon (204, no JSON) is empty, not a failure
   })
   const source = createFreeviewAuSource({ client, now: () => NOW })
   assert.deepEqual(await source.listings({ channel: TRIPLET, from: NOW, to: NOW + HOUR }), [])
-  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 1, failedWindows: 0, splitWindows: 0, windowsRead: 1, windows: 0, failures: 0 })
+  assert.deepEqual({ ...source.stats(), windows: 0, failures: 0 }, { requests: 1, failedWindows: 0, splitWindows: 0, windowsRead: 1, pendingWindows: 0, windows: 0, failures: 0 })
 })
 
 test('freeview: a "To Be Advised" placeholder is left out, so mjh fills the slot', () => {
@@ -265,11 +290,77 @@ test('freeview: a "To Be Advised" placeholder is left out, so mjh fills the slot
   assert.equal(freeviewProgrammeOf({ listing: freeviewListing({ title: 'TBA' }) }), null)
 })
 
-test('freeview: each window read hands its raw listings to onWindow, so the picture job can reuse it', async () => {
+test('freeview: each 12 h read goes to onWindow as two six-hour windows with pictures and expiry, so the picture job can reuse it', async () => {
   const seen = []
   const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => NOW, onWindow: (window) => seen.push(window) })
   await source.listings({ channel: TRIPLET, from: NOW, to: NOW + HOUR })
-  assert.deepEqual(seen.map(({ triplet, windowStart, listings }) => [triplet, windowStart, listings.length]), [[TRIPLET, NOW, 1]])
+  assert.deepEqual(seen.map(({ triplet, windowStart, listings, expiresAt }) => [triplet, windowStart, listings.length, expiresAt]), [
+    [TRIPLET, NOW, 1, NOW + 5.5 * HOUR],
+    [TRIPLET, NOW + 6 * HOUR, 0, NOW + 5.5 * HOUR],
+  ])
+  const [picture] = seen[0].listings
+  assert.equal(picture.title, 'American Pickers')
+  assert.equal(Date.parse(picture.start), Date.parse('2026-11-10T00:04:00Z'))
+  assert.equal(picture.related.shows[0].related.images[0].url, 'https://img-store-prod.switch.tv/images/show.jpg')
+  assert.equal(picture.related.episodes[0].related.images[0].url, 'https://img-store-prod.switch.tv/images/ep.jpg')
+})
+
+test('freeview: far windows expire at a random time between half and one and a half of the far lifetime, so rebuilds share the re-reads', async () => {
+  const clock = { ms: NOW }
+  const draws = [0, 0.999, 0.999]
+  const client = fakeFreeviewClient(freeviewAnswer)
+  const source = createFreeviewAuSource({ client, now: () => clock.ms, random: () => draws.shift() })
+  const far = NOW + 5 * 24 * HOUR
+  const readFar = async () => {
+    await source.listings({ channel: TRIPLET, from: far, to: far + HOUR })
+    await source.listings({ channel: '1013:0502:0528', from: far, to: far + HOUR })
+  }
+  await readFar()
+  assert.equal(client.calls.length, 2)
+  clock.ms = NOW + 11.5 * HOUR
+  await readFar()
+  assert.equal(client.calls.length, 2)
+  clock.ms = NOW + 12 * HOUR
+  await readFar()
+  assert.deepEqual(client.calls.slice(2).map(({ url }) => url.split('/').pop()), [TRIPLET.toUpperCase()])
+  clock.ms = NOW + 35.5 * HOUR
+  await readFar()
+  assert.deepEqual(client.calls.slice(3).map(({ url }) => url.split('/').pop()), ['1013:0502:0528'.toUpperCase()])
+})
+
+test('freeview: a far window that comes within two days is read again once it is older than the near lifetime', async () => {
+  const clock = { ms: NOW }
+  const client = fakeFreeviewClient(freeviewAnswer)
+  const source = createFreeviewAuSource({ client, now: () => clock.ms, random: () => 0.999 })
+  const day3 = NOW + 3 * 24 * HOUR
+  await source.listings({ channel: TRIPLET, from: day3, to: day3 + HOUR })
+  clock.ms = NOW + 25 * HOUR
+  await source.listings({ channel: TRIPLET, from: day3, to: day3 + HOUR })
+  assert.equal(client.calls.length, 2)
+})
+
+test('freeview: windows past fetchUntil are read only from memory, stale ones count as pending, and prefetch reads windows in time order across channels', async () => {
+  const clock = { ms: NOW }
+  const client = fakeFreeviewClient(freeviewAnswer)
+  const source = createFreeviewAuSource({ client, now: () => clock.ms, random: () => 0 })
+  const channels = [TRIPLET, '1013:0502:0528']
+  await source.prefetch({ channels, from: NOW, to: NOW + 24 * HOUR })
+  assert.deepEqual(client.calls.map(({ url, params }) => [url.split('/').pop(), params.start]), [
+    [TRIPLET.toUpperCase(), '2026-11-10T00:00:00Z'],
+    ['1013:0502:0528'.toUpperCase(), '2026-11-10T00:00:00Z'],
+    [TRIPLET.toUpperCase(), '2026-11-10T12:00:00Z'],
+    ['1013:0502:0528'.toUpperCase(), '2026-11-10T12:00:00Z'],
+  ])
+  const programmes = await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 36 * HOUR, fetchUntil: NOW + 24 * HOUR })
+  assert.equal(programmes.length, 1)
+  assert.equal(client.calls.length, 4)
+  assert.equal(source.stats().pendingWindows, 1)
+  clock.ms = NOW + 6 * HOUR
+  source.resetStats()
+  const stale = await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR, fetchUntil: NOW })
+  assert.equal(stale.length, 1, 'a stale window is still served while it waits for its re-read')
+  assert.equal(source.stats().pendingWindows, 1)
+  assert.equal(client.calls.length, 4)
 })
 
 test('freeview: requests use the upper-case triplet the API needs, and a 400 stops that channel instead of every later window', async () => {
@@ -282,14 +373,98 @@ test('freeview: requests use the upper-case triplet the API needs, and a 400 sto
   assert.equal(client.calls.length, 1)
 })
 
-test('freeview: windows that ended before the read start are pruned, and the window memory is capped', async () => {
+test('freeview: windows that ended before the read start are pruned, and the capped window memory drops the farthest windows first', async () => {
   const clock = { ms: NOW }
-  const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => clock.ms, maxWindows: 3 })
-  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 24 * HOUR })
+  const client = fakeFreeviewClient(freeviewAnswer)
+  const source = createFreeviewAuSource({ client, now: () => clock.ms, maxWindows: 3 })
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 48 * HOUR })
   assert.equal(source.stats().windows, 3)
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })
+  assert.equal(client.calls.length, 4, 'the nearest window stays in memory')
   clock.ms += 24 * HOUR
-  await source.listings({ channel: TRIPLET, from: clock.ms, to: clock.ms + 6 * HOUR })
+  await source.listings({ channel: TRIPLET, from: clock.ms, to: clock.ms + 12 * HOUR })
   assert.equal(source.stats().windows, 1)
+})
+
+test('freeview: a 504 on a 12 h window splits at once with no retries, the channel starts with halves next time, and a failed half keeps the other half', async () => {
+  const clock = { ms: NOW }
+  const requests = []
+  const client = fakeFreeviewClient(({ params, noRetryStatuses }) => {
+    const hours = (Date.parse(params.end) - Date.parse(params.start)) / HOUR
+    requests.push({ hours, noRetryStatuses })
+    if (hours === 12) throw new OutboundError('fvau-api-prod.switch.tv HTTP 504', { code: 'unavailable', status: 504 })
+    if (Date.parse(params.start) % (12 * HOUR) !== 0 && clock.ms > NOW) throw new OutboundError('fvau-api-prod.switch.tv did not answer', { code: 'unavailable' })
+    return { data: [freeviewListing({ id: params.start, start: params.start, end: new Date(Date.parse(params.start) + HOUR).toISOString() })], meta: { pagination: { more: false } } }
+  })
+  const source = createFreeviewAuSource({ client, now: () => clock.ms })
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })
+  assert.deepEqual(requests.map(({ hours }) => hours), [12, 6, 6])
+  assert.deepEqual(requests[0].noRetryStatuses, [504])
+  clock.ms = NOW + 12 * HOUR
+  source.resetStats()
+  const programmes = await source.listings({ channel: TRIPLET, from: clock.ms, to: clock.ms + 12 * HOUR })
+  assert.deepEqual(requests.slice(3).map(({ hours }) => hours), [6, 6], 'the next read starts with halves')
+  assert.equal(programmes.length, 1, 'the half that answered is kept')
+  assert.equal(source.stats().failedWindows, 1)
+  clock.ms = NOW + 12 * HOUR + 16 * 60_000
+  await source.listings({ channel: TRIPLET, from: NOW + 12 * HOUR, to: NOW + 24 * HOUR })
+  assert.equal(requests.length, 7, 'a window with a failed half is read again after the first backoff')
+})
+
+test('freeview: a saved window older than the stale limit is never served after a restart', async () => {
+  const store = {
+    load: async () => [{ triplet: TRIPLET, windowStart: NOW + 24 * HOUR, fetchedAt: NOW - 4 * 24 * HOUR, expiresAt: NOW + 24 * HOUR, programmes: [{ id: 'old', start: NOW + 25 * HOUR, stop: NOW + 26 * HOUR, title: 'Old' }] }],
+    save: async () => {},
+    prune: async () => {},
+  }
+  const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => NOW, store })
+  assert.deepEqual(await source.listings({ channel: TRIPLET, from: NOW + 24 * HOUR, to: NOW + 36 * HOUR, fetchUntil: NOW }), [])
+  assert.equal(source.stats().pendingWindows, 1)
+})
+
+test('window store: prune and format clean-up apply to every source', async () => {
+  const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
+  await upWindows(database)
+  const store = createWindowStore({ database })
+  const row = (source, windowStart, format = WINDOW_FORMAT) => ({ source, format, triplet: TRIPLET, windowStart, fetchedAt: NOW, expiresAt: NOW + HOUR, programmes: [] })
+  await store.save(row('freeview-au', NOW))
+  await store.save(row('freeview-nz', NOW))
+  await store.save(row('freeview-nz', NOW + 12 * HOUR, WINDOW_FORMAT + 1))
+  await store.save(row('freeview-au', NOW + 12 * HOUR))
+  await store.prune({ source: 'freeview-au', before: NOW + 12 * HOUR })
+  await store.load({ source: 'freeview-au', format: WINDOW_FORMAT })
+  assert.deepEqual(await database('guide_source_windows').select('source', 'window_start'), [{ source: 'freeview-au', window_start: NOW + 12 * HOUR }])
+  await database.destroy()
+})
+
+test('freeview: windows persist across a restart with their fetch time, and a stored format change is read again', async () => {
+  const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
+  await upWindows(database)
+  const store = createWindowStore({ database })
+  const first = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => NOW, store, random: () => 0.5 })
+  const before = await first.listings({ channel: TRIPLET, from: NOW, to: NOW + 24 * HOUR })
+  const offline = fakeFreeviewClient(() => {
+    throw new Error('no request after a restart')
+  })
+  const seen = []
+  const restarted = createFreeviewAuSource({ client: offline, now: () => NOW + HOUR, store, onWindow: (window) => seen.push(window) })
+  assert.deepEqual(await restarted.listings({ channel: TRIPLET, from: NOW, to: NOW + 24 * HOUR }), before)
+  assert.equal(offline.calls.length, 0)
+  assert.deepEqual(seen.map(({ windowStart, expiresAt }) => [windowStart, expiresAt]), [
+    [NOW, NOW + 5.5 * HOUR],
+    [NOW + 6 * HOUR, NOW + 5.5 * HOUR],
+    [NOW + 12 * HOUR, NOW + 5.5 * HOUR],
+    [NOW + 18 * HOUR, NOW + 5.5 * HOUR],
+  ])
+  await database('guide_source_windows').update({ format: WINDOW_FORMAT + 1 })
+  const reread = fakeFreeviewClient(freeviewAnswer)
+  const upgraded = createFreeviewAuSource({ client: reread, now: () => NOW + HOUR, store })
+  await upgraded.listings({ channel: TRIPLET, from: NOW, to: NOW + 24 * HOUR })
+  assert.equal(reread.calls.length, 2)
+  assert.deepEqual(await database('guide_source_windows').distinct('format').pluck('format'), [WINDOW_FORMAT])
+  await upgraded.prefetch({ channels: [TRIPLET], from: NOW + 13 * HOUR, to: NOW + 13 * HOUR })
+  assert.deepEqual(await database('guide_source_windows').pluck('window_start'), [NOW + 12 * HOUR])
+  await database.destroy()
 })
 
 test('xmltv: a written programme keeps the XMLTV DTD element order, extras included', () => {

@@ -9,6 +9,7 @@ export const FREEVIEW_NZ_REGION = 'nz'
 export const FREEVIEW_IMAGE_HOST = 'img-store-prod.switch.tv'
 export const FREEVIEW_WINDOW_MS = 6 * 60 * 60 * 1000
 export const FREEVIEW_MATCH_TOLERANCE_MS = 5 * 60 * 1000
+export const FREEVIEW_API_PACE = Object.freeze({ concurrency: 1, gapMs: 500, jitterMs: 500 })
 
 export const FREEVIEW_REGIONS = {
   'Australia/Sydney': 'region_nsw_sydney',
@@ -237,7 +238,7 @@ export const createFreeviewAu = ({
   const remember = ({ key, listings, ttlMs }) => {
     windows.delete(key)
     windows.set(key, { listings, expiresAt: now() + ttlMs })
-    while (windows.size > maxCached) windows.delete(windows.keys().next().value)
+    dropFarthestWindows({ map: windows, max: maxCached })
   }
 
   const matchAirings = async (airings = []) => {
@@ -266,10 +267,12 @@ export const createFreeviewAu = ({
     return null
   }
 
-  const seedWindow = ({ triplet, windowStart, listings }) => {
-    if (cachedListingsFor({ triplet, windowStart })) return
+  const seedWindow = ({ triplet, windowStart, listings, expiresAt = null }) => {
+    if (expiresAt === null && cachedListingsFor({ triplet, windowStart })) return
     const slim = listings.map(slimListingOf)
-    remember({ key: `${triplet}|${windowStart}`, listings: slim, ttlMs: slim.length ? listingsTtlMs : emptyTtlMs })
+    const ttlMs = expiresAt === null ? (slim.length ? listingsTtlMs : emptyTtlMs) : expiresAt - now()
+    if (ttlMs <= 0) return
+    remember({ key: `${triplet}|${windowStart}`, listings: slim, ttlMs })
   }
 
   return { region, isOn, regionTriplets, listingsFor, matchAirings, seedWindow }
@@ -277,11 +280,25 @@ export const createFreeviewAu = ({
 
 export const freeviewClient = createOutboundClient({
   hosts: {
-    [FREEVIEW_API_HOST]: { concurrency: 1, gapMs: 500 },
-    [FREEVIEW_NZ_API_HOST]: { concurrency: 1, gapMs: 500 },
+    [FREEVIEW_API_HOST]: FREEVIEW_API_PACE,
+    [FREEVIEW_NZ_API_HOST]: FREEVIEW_API_PACE,
     [FREEVIEW_IMAGE_HOST]: { concurrency: 1, gapMs: 250 },
   },
 })
+
+export const dropFarthestWindows = ({ map, max }) => {
+  while (map.size > max) map.delete(farthestWindowKeyOf(map))
+}
+
+const farthestWindowKeyOf = (map) => {
+  let farthest = null
+  for (const key of map.keys()) {
+    if (farthest === null || windowStartOfKey(key) > windowStartOfKey(farthest)) farthest = key
+  }
+  return farthest
+}
+
+const windowStartOfKey = (key) => Number(String(key).split('|').pop())
 
 export const isFreeviewImageSource = (source) => {
   try {

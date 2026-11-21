@@ -7,6 +7,11 @@ export const showKeyOf = (title) => String(title ?? '')
 
 export const showHrefOf = (title) => `#/recordings/show/${rememberShowTitle(title)}`
 
+export const showPageHrefOf = ({ key, title }) => {
+  if (showKeyOf(title) === key) rememberShowTitle(title)
+  return `#/recordings/show/${key}`
+}
+
 export const rememberShowTitle = (title) => {
   const key = showKeyOf(title)
   const text = String(title ?? '').trim()

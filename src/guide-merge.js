@@ -32,11 +32,18 @@ export const createGuideMerge = ({
   now = Date.now,
   intervalMs = BUILD_INTERVAL_MS,
   firstDelayMs = FIRST_BUILD_DELAY_MS,
+  nearMs = NEAR_BUILD_MS,
+  partialRetryMs = PARTIAL_RETRY_MS,
+  firstBuildCeilingMs = FIRST_BUILD_CEILING_MS,
   log = console,
 }) => {
   let running = null
   let again = false
   let latest = null
+  let settleFirstBuild = () => {}
+  const firstBuildDone = new Promise((resolve) => {
+    settleFirstBuild = resolve
+  })
   const timers = []
 
   const planNow = async () => planSources({
@@ -57,8 +64,12 @@ export const createGuideMerge = ({
       listingChoice().catch(() => ({})),
     ])
     const startedAt = now()
+    const writeUpTo = (fetchUntil) => writeMergedGuide({ dir, ...plan, channelTriplets: triplets.linked, tvChannels: triplets.tvChannels, aliases, history, choice, now, fetchUntil })
     try {
-      const { fallbacks, healthRows, ...stats } = await writeMergedGuide({ dir, ...plan, channelTriplets: triplets.linked, tvChannels: triplets.tvChannels, aliases, history, choice, now })
+      const near = await writeUpTo((await matchesPlan()) ? Infinity : now() + nearMs)
+      if (near.primaryPendingWindows) log.log(`[guide-merge] wrote the next ${Math.round(nearMs / HOUR_MS)} h first; reading ${near.primaryPendingWindows} later windows now`)
+      const final = near.primaryPendingWindows ? withPassCounts({ near, full: await writeFullAfterNear(() => writeUpTo(Infinity)) }) : near
+      const { fallbacks, healthRows, ...stats } = final
       await saveHealth({ rows: healthRows, builtAt: startedAt })
       noteFallbacks({ job, fallbacks })
       latest = { ...stats, fallbacks: fallbacks.length, builtAt: now(), durationMs: now() - startedAt }
@@ -68,6 +79,18 @@ export const createGuideMerge = ({
     } catch (err) {
       await saveHealth({ rows: err.stats?.healthRows ?? (err.sourceFailure ? failedSourceRows({ plan, history, nowMs: startedAt }) : null), builtAt: startedAt })
       noteFallbacks({ job, fallbacks: err.stats?.fallbacks ?? [] })
+      throw err
+    }
+  }
+
+  const writeFullAfterNear = async (writeFull) => {
+    try {
+      return await writeFull()
+    } catch (err) {
+      log.warn(`[guide-merge] the full pass failed after the near file was written; trying again in ${Math.round(partialRetryMs / 60_000)} min`)
+      const retry = setTimeout(requestBuild, partialRetryMs)
+      retry.unref?.()
+      timers.push(retry)
       throw err
     }
   }
@@ -101,6 +124,7 @@ export const createGuideMerge = ({
       })
       .finally(() => {
         running = null
+        settleFirstBuild()
         if (again) {
           again = false
           requestBuild()
@@ -159,8 +183,28 @@ export const createGuideMerge = ({
     return matchesPlan()
   }
 
-  return { start, stop, requestBuild, servablePath, builtPath, builtAt, builtRegions, matchesPlan, buildForPlan, savedChannels, planNow, latest: () => latest }
+  const firstBuild = async () => {
+    if (!(await planNow().catch(() => null))) return
+    let ceiling = null
+    await Promise.race([
+      firstBuildDone,
+      new Promise((resolve) => {
+        ceiling = setTimeout(resolve, firstBuildCeilingMs)
+        ceiling.unref?.()
+      }),
+    ])
+    clearTimeout(ceiling)
+  }
+
+  return { start, stop, requestBuild, firstBuild, servablePath, builtPath, builtAt, builtRegions, matchesPlan, buildForPlan, savedChannels, planNow, latest: () => latest }
 }
+
+const withPassCounts = ({ near, full }) => ({
+  ...full,
+  primaryRequests: near.primaryRequests + full.primaryRequests,
+  primaryFailedWindows: near.primaryFailedWindows + full.primaryFailedWindows,
+  primarySplitWindows: near.primarySplitWindows + full.primarySplitWindows,
+})
 
 const tripletsOf = (value) => {
   if (!value) return { linked: new Map(), tvChannels: null }
@@ -194,7 +238,7 @@ export const planSources = ({ ranked = [], timeZone, url = null }) => {
   }
 }
 
-export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplets, tvChannels = null, aliases, history = null, choice = {}, now = Date.now }) => {
+export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplets, tvChannels = null, aliases, history = null, choice = {}, now = Date.now, fetchUntil = Infinity }) => {
   await fsp.mkdir(dir, { recursive: true })
   const file = path.join(dir, MERGED_GUIDE_FILE)
   const temporary = `${file}.${process.pid}.tmp`
@@ -204,7 +248,7 @@ export const writeMergedGuide = async ({ dir, primary, secondary, channelTriplet
   gzip.pipe(output)
   let stats = null
   try {
-    stats = await buildMergedGuide({ primary, secondary, channelTriplets, tvChannels, savedChannels, aliases, history, choice, now, out: gzip })
+    stats = await buildMergedGuide({ primary, secondary, channelTriplets, tvChannels, savedChannels, aliases, history, choice, now, fetchUntil, out: gzip })
     gzip.end()
     await finished(output)
     if (!stats.programmes) throw new Error('every guide source failed')
@@ -232,6 +276,7 @@ export const buildMergedGuide = async ({
   history = null,
   choice = {},
   now = Date.now,
+  fetchUntil = Infinity,
   out,
 }) => {
   const nowMs = now()
@@ -253,6 +298,9 @@ export const buildMergedGuide = async ({
     tvChannels,
     prefix: primary?.source.channelIdPrefix ?? 'primary',
   })
+  if (primaryChannels.ok) {
+    await primary.source.prefetch?.({ channels: channels.map((channel) => channel.primaryId).filter(Boolean), from, to: Math.min(primaryTo, fetchUntil) })
+  }
   const aliasMap = primary && aliases ? await aliases.load(primary.source.id) : new Map()
   const stats = emptyStats({ primary, secondary, primaryChannels, secondaryChannels })
   const health = createBuildHealth({
@@ -268,7 +316,7 @@ export const buildMergedGuide = async ({
   await write(out, `${FEED_HEAD}${channels.map(channelXml).join('\n  ')}\n  `)
   for (const channel of channels) {
     const [primaryRead, secondaryRead] = await Promise.all([
-      listingsOf({ side: primary, channel: channel.primaryId, from, to: primaryTo, ok: primaryChannels.ok }),
+      listingsOf({ side: primary, channel: channel.primaryId, from, to: primaryTo, fetchUntil, ok: primaryChannels.ok }),
       listingsOf({ side: secondary, channel: channel.secondaryId, from, to: Infinity, ok: secondaryChannels.ok }),
     ])
     for (const programme of secondaryRead.programmes) secondaryTitleKeys.add(titleKeyOf(programme.title))
@@ -335,6 +383,7 @@ export const buildMergedGuide = async ({
     primaryRequests: primary?.source.stats?.().requests ?? 0,
     primaryFailedWindows: primary?.source.stats?.().failedWindows ?? 0,
     primarySplitWindows: primary?.source.stats?.().splitWindows ?? 0,
+    primaryPendingWindows: primary?.source.stats?.().pendingWindows ?? 0,
     fallbacks,
     healthRows: health.finish({ failedSources }),
     channelMap: channels,
@@ -520,12 +569,12 @@ const channelsOf = async (side) => {
   }
 }
 
-const listingsOf = async ({ side, channel, from, to, ok }) => {
+const listingsOf = async ({ side, channel, from, to, fetchUntil = Infinity, ok }) => {
   if (!side || !channel) return NOT_CARRIED
   if (!ok) return { programmes: [], carried: true, attempts: 1, failures: 1 }
   const before = side.source.stats?.()
   try {
-    const programmes = await side.source.listings({ region: side.region, channel, from, to })
+    const programmes = await side.source.listings({ region: side.region, channel, from, to, fetchUntil })
     return { programmes, carried: true, ...fetchCountsOf({ before, after: side.source.stats?.() }) }
   } catch {
     return { programmes: [], carried: true, attempts: 1, failures: 1 }
@@ -585,7 +634,11 @@ const FEED_HEAD = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE tv SYSTEM "
 const NOT_CARRIED = Object.freeze({ programmes: [], carried: false, attempts: 0, failures: 0 })
 const NUMBERING_SYSTEMS = new Set(['xmltv_ns', 'SxxExx', 'onscreen'])
 const OVERLAP_ALLOWANCE_MS = 60_000
-const DAY_MS = 24 * 60 * 60_000
+const HOUR_MS = 60 * 60_000
+const DAY_MS = 24 * HOUR_MS
+const NEAR_BUILD_MS = 2 * DAY_MS
+const PARTIAL_RETRY_MS = 20 * 60_000
+const FIRST_BUILD_CEILING_MS = 20 * 60_000
 const PAST_MS = 6 * 60 * 60_000
 const BUILD_INTERVAL_MS = 6 * 60 * 60_000
 const FIRST_BUILD_DELAY_MS = 3 * 60_000
