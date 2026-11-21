@@ -34,9 +34,9 @@ test('cast tiles carry the full name and role as title text, so clamped lines ca
   assert.match(html, /class="show-cast-role" title="Robert &quot;Rocky&quot; Balboa, the Italian Stallion"/)
 })
 
-test('More info clamps cast names to 2 lines and roles to 3, matching its fixed tile height', () => {
+test('More info clamps cast names to 2 lines and roles to 3, with a tile height sized for one name line and one role line', () => {
   const css = readFileSync(new URL('../src/web/styles/recordings.css', import.meta.url), 'utf8')
   assert.match(css, /\.more-info \.show-cast-name \{\n {2}-webkit-line-clamp: 2;/)
   assert.match(css, /\.more-info \.show-cast-role \{\n {2}-webkit-line-clamp: 3;/)
-  assert.match(css, /\.more-info \.show-cast-hit \{\n {2}min-height: calc\(64px \+ 8px \+ 2 \* 17px \+ 2px \+ 3 \* 16px\);/)
+  assert.match(css, /\.more-info \.show-cast-hit \{\n {2}min-height: calc\(64px \+ 8px \+ 17px \+ 2px \+ 16px\);/)
 })
