@@ -163,3 +163,10 @@ test('a one-letter query finds nothing, and a one-letter word must start a title
   assert.deepEqual(search({ titles: ['Ali G: Who Iz I?'], query: 'g' }), [])
   assert.deepEqual(titlesOf(search({ titles: ['Ali G: Who Iz I?', 'Ali Baba'], query: 'g ali' })), ['Ali G: Who Iz I?'])
 })
+
+test('words in any order need one word of three or more letters that is not a stop word', () => {
+  const titles = ['Ali G: Who Iz I?', 'A Bug\'s Life', 'The Simpsons', 'Big Brother']
+  assert.equal(search({ titles, query: 'a b' }).some((m) => m.reason === 'words'), false)
+  assert.equal(search({ titles, query: 'the s' }).some((m) => m.reason === 'words'), false)
+  assert.deepEqual(titlesOf(search({ titles, query: 'g ali' })), ['Ali G: Who Iz I?'])
+})

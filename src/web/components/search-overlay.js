@@ -1,6 +1,6 @@
 import { ref, computed, watch, nextTick, onUnmounted } from '/vendor/vue.esm-browser.prod.js'
 import { GROUP_ROW_LIMIT, MAX_GUIDE_RESULTS, buildShowSearch, guideRowsOf, guideSearchOutcomeOf, remainingBusyMs, searchGroupsOf, searchShowsOf } from '/search-results.js'
-import { showHrefOf, showKeyOf } from '/show-key.js'
+import { showKeyOf, showPageHrefOf } from '/show-key.js'
 import { watchForOfferOf } from '/watch-for.js'
 import { api } from '/shared/api.js'
 import { loadEpgState, recordingStateText, useProgrammeSheet } from '/shared/programme-sheet-store.js'
@@ -91,7 +91,7 @@ export const SearchOverlay = {
     const hasQuery = computed(() => query.value.trim().length >= MIN_QUERY_LENGTH)
     const showIndex = computed(() => buildShowSearch({ keyOf: showKeyOf, ...library.value }))
     const shows = computed(() => (hasQuery.value
-      ? searchShowsOf({ index: showIndex.value, query: query.value }).map((show) => ({ ...show, href: showHrefOf(show.title) }))
+      ? searchShowsOf({ index: showIndex.value, query: query.value }).map((show) => ({ ...show, href: showPageHrefOf(show) }))
       : []))
     const programmes = computed(() => guideRowsOf({
       results: guideResults.value,

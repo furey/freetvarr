@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { nicknameFrom, searchCatalogueOf, showCatalogueOf } from '../src/search-aliases.js'
+import { libraryShowsWithin, nicknameFrom, searchCatalogueOf, showCatalogueOf } from '../src/search-aliases.js'
 
 test('nicknameFrom trims, limits length, and needs two searchable characters', () => {
   assert.deepEqual(nicknameFrom('  MKR '), { name: 'MKR', nameKey: 'mkr' })
@@ -46,4 +46,18 @@ test('searchCatalogueOf keeps one entry per show key and the larger recording co
 test('searchCatalogueOf leaves out library entries that are only scheduled, because the guide search lists those', () => {
   const libraryShows = [{ key: 'wallace-gromit', title: 'Wallace & Gromit', kind: 'movie', counts: { total: 0 } }]
   assert.deepEqual(searchCatalogueOf({ libraryShows }), [])
+})
+
+test('searchCatalogueOf lists a title once, under the library key the show page opens, when the library key differs from the title key', () => {
+  const libraryShows = [{ key: 'spicks-folder', title: 'Spicks and Specks', kind: 'show', counts: { total: 5 } }]
+  assert.deepEqual(searchCatalogueOf({ rows: [{ title: 'Spicks and Specks', count: 3 }], libraryShows }), [
+    { key: 'spicks-folder', title: 'Spicks and Specks', recordingCount: 5 },
+  ])
+})
+
+test('libraryShowsWithin returns the library when it answers in time, and an empty list on a timeout or a failure', async () => {
+  assert.deepEqual(await libraryShowsWithin({ load: async () => [{ key: 'a' }], timeoutMs: 50 }), [{ key: 'a' }])
+  const slow = () => new Promise((resolve) => setTimeout(() => resolve([{ key: 'late' }]), 200))
+  assert.deepEqual(await libraryShowsWithin({ load: slow, timeoutMs: 20 }), [])
+  assert.deepEqual(await libraryShowsWithin({ load: async () => { throw new Error('tvheadend down') }, timeoutMs: 50 }), [])
 })

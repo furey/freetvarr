@@ -83,17 +83,20 @@ export const matchNoteOf = ({ reason, matchedName, query }) => {
 
 export const showEntriesOf = ({ keyOf, shows = [], series = [] }) => {
   const entries = new Map()
-  const entryFor = (title) => {
-    const key = keyOf(title)
+  const keyByTitleKey = new Map()
+  const entryFor = ({ title, key: givenKey }) => {
+    const titleKey = keyOf(title)
+    const key = keyByTitleKey.get(titleKey) ?? givenKey ?? titleKey
+    keyByTitleKey.set(titleKey, key)
     if (!entries.has(key)) entries.set(key, { key, title, recordingCount: 0, hasRule: false })
     return entries.get(key)
   }
   shows.filter((show) => show.title).forEach((show) => {
-    const entry = entryFor(show.title)
+    const entry = entryFor(show)
     entry.recordingCount += Number(show.recordingCount) || 0
     if (show.kind) entry.kind = show.kind
   })
-  series.filter((rule) => rule.title).forEach((rule) => { entryFor(rule.title).hasRule = true })
+  series.filter((rule) => rule.title).forEach((rule) => { entryFor({ title: rule.title }).hasRule = true })
   return [...entries.values()]
 }
 

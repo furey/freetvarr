@@ -135,6 +135,7 @@ const titleMatchOf = ({ item, probe }) => {
 }
 
 const hasEveryWord = ({ item, words }) => words.length > 1
+  && words.some((word) => word.length >= MIN_ANCHOR_WORD_LENGTH && !STOP_WORDS.has(word))
   && words.every((word) => item.words.some((titleWord) => titleWord.startsWith(word)))
 
 const compactStartsOf = (norm) => norm.split(' ').map((_, index, words) => words.slice(index).join(''))
@@ -259,6 +260,7 @@ const MAX_INITIALS = 3
 const LEADING_THE_PENALTY = 20
 const MIN_INITIALS_LETTERS = 3
 const MIN_COMPACT_LENGTH = 4
+const MIN_ANCHOR_WORD_LENGTH = 3
 const MIN_CONTAINMENT = 0.6
 const FUZZY_SHORTLIST = 50
 const MAX_FUZZY = 3
