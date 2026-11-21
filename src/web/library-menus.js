@@ -1,7 +1,7 @@
 import { adMenuItemOf, restoreMenuItemOf } from './ad-confirm.js'
 import { weekdayClockOf } from './library-shelves.js'
 import { airedRangeText, durationText } from './recording-info.js'
-import { countOf, episodeHeading, episodeMetaOf, hasRecordingsIn, isSeriesShow, itemNounOf, singleItemOf } from './show-page.js'
+import { countOf, episodeHeading, episodeMetaOf, hasRecordingsIn, isSeriesShow, itemNounOf, itemNounOfShow, singleItemOf } from './show-page.js'
 import { isSingleTitleKind } from './title-kind.js'
 import { showKeyOf } from './show-key.js'
 import { CHANGE_CATEGORIES } from './category-override.js'
@@ -44,7 +44,7 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false, adRem
 }
 
 const collectionMenuOf = ({ show, activeIds, canMove }) => {
-  const noun = itemNounOf(show.kind)
+  const noun = itemNounOfShow(show)
   const episodes = importedEpisodesOf(show)
   const running = runningEpisodeOf(show)
   const next = show.resumeNext ? episodes.find((e) => e.recordingId === show.resumeNext.recordingId) : null
@@ -97,7 +97,7 @@ const singleTitleMenuOf = ({ show, item, activeIds, canMove, adRemovalEnabled })
     ],
     [
       item.inProgress?.phase === 'recording' && { key: 'stop-recording', label: 'Stop recording…', icon: 'stop', danger: true },
-      !recording && !item.inProgress && { key: 'delete-episode', label: `Delete ${itemNounOf(show.kind).one}`, icon: 'trash', danger: true },
+      !recording && !item.inProgress && { key: 'delete-episode', label: `Delete ${itemNounOfShow(show).one}`, icon: 'trash', danger: true },
     ],
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
 }
@@ -136,7 +136,7 @@ export const titleMenuSubtitleOf = ({ show, timeZone }) => {
   const list = allEpisodesOf(show)
   if (!list.length) return ''
   const unwatched = list.filter((e) => !e.watched && !e.failed).length
-  return `${countOf({ count: list.length, noun: itemNounOf(show.kind) })} · ${unwatched} unwatched`
+  return `${countOf({ count: list.length, noun: itemNounOfShow(show) })} · ${unwatched} unwatched`
 }
 
 export const markAllItemsOf = (episodes) => {
@@ -159,9 +159,8 @@ export const shelfMoveOf = (show) => {
   return null
 }
 
-export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false, kind = 'show' }) => {
+export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false, kind = 'show', noun = itemNounOf(kind) }) => {
   if (episode.inProgress) return inProgressMenuOf({ episode, kind })
-  const noun = itemNounOf(kind)
   const recording = isRecordingNow({ episode, activeIds })
   const resumable = episode.playable && !episode.watched && episode.positionS > 0
   const hasUnwatchedEarlier = earlierEpisodesOf({ episodes, episode }).some((other) => !other.watched && !other.failed)

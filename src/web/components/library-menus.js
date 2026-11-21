@@ -5,7 +5,7 @@ import { menuPendingLabelOf } from '/library-menus.js'
 import { dialogBlocksOf } from '/dialog-blocks.js'
 import { overlayStack } from '/overlay-stack.js'
 import { holdAtLeast } from '/pending.js'
-import { episodeHeading, itemNounOf } from '/show-page.js'
+import { episodeHeading, itemNounOfShow } from '/show-page.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { api } from '/shared/api.js'
 import { stopPlayback } from '/shared/playback-session.js'
@@ -197,7 +197,7 @@ export const DeleteConfirm = {
     const lead = computed(() => props.request?.episodes?.[0] || null)
     const leadTitle = computed(() => (lead.value ? episodeHeading(lead.value) : ''))
     const leadStyle = computed(() => artFallbackStyle(props.request?.show?.title || ''))
-    const noun = computed(() => itemNounOf(props.request?.show?.kind))
+    const noun = computed(() => itemNounOfShow(props.request?.show))
     const loadingTitle = computed(() => (props.request?.variant === 'episode' ? `Delete this ${noun.value.one}?` : `Delete ${noun.value.many}?`))
     const copy = computed(() => (preview.value && props.request
       ? deleteConfirmOf({

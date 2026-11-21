@@ -19,7 +19,7 @@ import {
   unmarkedText,
   watchedChangeTargets,
 } from '/library-menus.js'
-import { episodeById, episodeHeading, episodeMetaOf, isSeriesShow, recordingRowOf, singleItemOf } from '/show-page.js'
+import { episodeById, episodeHeading, episodeMetaOf, isSeriesShow, itemNounOfShow, recordingRowOf, singleItemOf } from '/show-page.js'
 import { adConfirmOf, adStartedToastOf, freshEpisodeOf, restoreConfirmOf, restoredToastOf } from '/ad-confirm.js'
 import { openPlexLink } from '/components/library-menus.js'
 import { openCategories } from '/components/categories-sheet.js'
@@ -60,7 +60,7 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
     ? showMenuOf({ show: show.value, activeIds: activeIds.value, canMove, adRemovalEnabled: adRemovalEnabled.value })
     : []))
   const episodeGroups = computed(() => (menuEpisode.value
-    ? episodeMenuOf({ episode: menuEpisode.value, episodes: episodes.value, activeIds: activeIds.value, adRemovalEnabled: adRemovalEnabled.value, canMove, kind: show.value?.kind })
+    ? episodeMenuOf({ episode: menuEpisode.value, episodes: episodes.value, activeIds: activeIds.value, adRemovalEnabled: adRemovalEnabled.value, canMove, kind: show.value?.kind, noun: itemNounOfShow(show.value) })
     : []))
   const showMenuSubtitle = computed(() => (show.value ? titleMenuSubtitleOf({ show: show.value, timeZone: tz.value }) : ''))
   const episodeTip = computed(() => {

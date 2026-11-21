@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { canRecordSeriesOf, isSingleTitleKind } from '../src/web/title-kind.js'
-import { heroMetaOf, pageShapeOf, playButtonLabel, ruleStatusOf, singleItemOf } from '../src/web/show-page.js'
+import { heroMetaOf, heroPlayOf, pageShapeOf, playButtonLabel, ruleStatusOf, singleItemOf } from '../src/web/show-page.js'
 import { episodeInfoOf, episodeMenuOf, showInfoOf, showMenuOf, titleInfoOf, titleMenuSubtitleOf } from '../src/web/library-menus.js'
 import { deleteConfirmOf, deleteOutcomeOf } from '../src/web/delete-copy.js'
 import { guideMatchMenuOf, onNowMenuOf } from '../src/web/home-menus.js'
@@ -57,13 +57,16 @@ test('title kind: films and one-offs are single titles in every spelling', () =>
   assert.deepEqual(['movie', 'oneoff', 'one-off', 'show', 'series', null].map(isSingleTitleKind), [true, true, true, false, false, false])
 })
 
-test('title kind: only a series with a series link offers Record series', () => {
+test('title kind: a series link offers Record series except for a movie or a confirmed one-off', () => {
   assert.equal(canRecordSeriesOf({ series_link: 'x', kind: 'series' }), true)
   assert.equal(canRecordSeriesOf({ series_link: 'x', kind: null }), true)
   assert.equal(canRecordSeriesOf({ series_link: 'x', kind: 'movie' }), false)
-  assert.equal(canRecordSeriesOf({ series_link: 'x', kind: 'one-off' }), false)
+  assert.equal(canRecordSeriesOf({ series_link: 'x', kind: 'one-off' }), true)
+  assert.equal(canRecordSeriesOf({ series_link: 'x', kind: 'one-off', one_off_confirmed: true }), false)
   assert.equal(canRecordSeriesOf({ series_link: null, kind: 'series' }), false)
-  assert.ok(!labelsOf(onNowMenuOf({ seriesLink: true, kind: 'one-off' })).includes('Record series'))
+  assert.ok(labelsOf(onNowMenuOf({ seriesLink: true, kind: 'one-off' })).includes('Record series'))
+  assert.ok(!labelsOf(onNowMenuOf({ seriesLink: true, kind: 'one-off', oneOffConfirmed: true })).includes('Record series'))
+  assert.ok(!labelsOf(guideMatchMenuOf({ seriesLink: true, kind: 'one-off', oneOffConfirmed: true })).includes('Record series'))
   assert.ok(labelsOf(guideMatchMenuOf({ seriesLink: true, kind: 'series' })).includes('Record series'))
 })
 
@@ -72,7 +75,7 @@ test('page shape: a series lists episodes, a single film or one-off is one item,
   assert.equal(pageShapeOf(titleOf('movie', [plexItem()])), 'single')
   assert.equal(pageShapeOf(titleOf('oneoff', [item()])), 'single')
   assert.equal(pageShapeOf(titleOf('oneoff', [item(), item({ recordingId: 'r2' })])), 'list')
-  assert.equal(pageShapeOf(titleOf('movie', [])), 'single')
+  assert.equal(pageShapeOf(titleOf('movie', [])), 'list')
   assert.equal(singleItemOf(titleOf('oneoff', [item(), item({ recordingId: 'r2' })])), null)
   assert.equal(singleItemOf(titleOf('movie', [plexItem()])).recordingId, 'plex-1')
 })
@@ -84,6 +87,41 @@ test('single title page: year, length, and watched state; Play with no episode n
   assert.equal(ruleStatusOf({ show: film, timeZone: 'UTC' }), null)
   assert.equal(ruleStatusOf({ show: titleOf('show', [item()]), timeZone: 'UTC' }).headline, 'Not recording new episodes')
   assert.equal(playButtonLabel({ show: titleOf('show', [item({ episode: 3 })]) }), 'Play E3')
+})
+
+test('single title hero: Play from the beginning when watched or unstarted, Resume when part way through', () => {
+  const watched = titleOf('movie', [item({ watched: true, positionS: 9000 })], { resumeNext: null })
+  assert.equal(playButtonLabel({ show: watched }), 'Play')
+  assert.deepEqual(heroPlayOf(watched), { episode: watched.seasons[0].episodes[0], fromStart: true })
+  assert.ok(!keysOf(showMenuOf({ show: watched })).includes('play-start'))
+  const unstarted = titleOf('oneoff', [item()])
+  assert.equal(playButtonLabel({ show: unstarted }), 'Play')
+  assert.equal(heroPlayOf(unstarted).fromStart, true)
+  const started = titleOf('movie', [item({ positionS: 600 })])
+  assert.equal(playButtonLabel({ show: started }), 'Resume')
+  assert.equal(heroPlayOf(started).fromStart, false)
+  assert.ok(keysOf(showMenuOf({ show: started })).includes('play-start'))
+  const failed = titleOf('movie', [item({ failed: true, playable: false })])
+  assert.equal(playButtonLabel({ show: failed }), '')
+  assert.equal(heroPlayOf(failed), null)
+})
+
+test('scheduled-only single title: the list path, not the one-item page', () => {
+  const scheduled = item({ recordingId: 'scheduled-1', scheduled: { programId: 7 } })
+  const film = titleOf('movie', [scheduled], { resumeNext: null })
+  assert.equal(pageShapeOf(film), 'list')
+  assert.equal(singleItemOf(film), null)
+  assert.equal(playButtonLabel({ show: film }), '')
+})
+
+test('a movie with several recordings uses recording wording', () => {
+  const film = titleOf('movie', [item(), item({ recordingId: 'r2' })])
+  const groups = showMenuOf({ show: film })
+  assert.equal(groups.flat().find((entry) => entry.key === 'delete-all').label, 'Delete all recordings')
+  assert.equal(groups.flat().find((entry) => entry.key === 'delete-all').detail, '2')
+  assert.equal(titleMenuSubtitleOf({ show: film, timeZone: 'UTC' }), '2 recordings · 2 unwatched')
+  const preview = { count: 2, bytes: 8e9, items: [{ recordingId: 'r1', episode: null, bytes: 4e9 }, { recordingId: 'r2', episode: null, bytes: 4e9 }] }
+  assert.equal(deleteConfirmOf({ variant: 'all', show: film, preview, episodes: film.seasons[0].episodes, totalCount: 2 }).title, 'Delete all 2 recordings of Heat?')
 })
 
 test('single title menu: one menu with the item actions and no episode wording', () => {

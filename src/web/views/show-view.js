@@ -3,10 +3,10 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { recordingsPageOf } from '/route-table.js'
 import {
   activeRecordingFor,
-  episodeById,
   episodeHeading,
   episodeMetaOf,
   heroMetaOf,
+  heroPlayOf,
   isSeriesShow,
   listedEpisodesOf,
   pageShapeOf,
@@ -404,8 +404,8 @@ export const ShowView = {
     }
 
     const playNext = () => {
-      const episode = episodeById({ show: show.value, recordingId: show.value.resumeNext?.recordingId })
-      if (episode) playEpisode(episode)
+      const target = heroPlayOf(show.value)
+      if (target) actions.play(target.episode, { fromStart: target.fromStart })
     }
 
     const isLocked = (episode) => Boolean(episode.scheduled) || isRecordingNow({ episode, activeIds: activeIds.value })

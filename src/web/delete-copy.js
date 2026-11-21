@@ -1,4 +1,4 @@
-import { countOf, episodeHeading, itemNounOf } from './show-page.js'
+import { countOf, episodeHeading, itemNounOf, itemNounOfShow } from './show-page.js'
 
 export const sizeText = (bytes) => {
   if (!(bytes > 0)) return ''
@@ -35,7 +35,7 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
   const removesSeries = offersRemoveSeries && removeSeries
   const recordingBytes = allCopies.length ? recorded.reduce((sum, item) => sum + (item.bytes || 0), 0) : preview.bytes
   const single = variant === 'episode'
-  const noun = itemNounOf(show.kind)
+  const noun = itemNounOfShow(show)
   const onlyFiles = !recorded.length && copies.length > 0 && copies.every((copy) => copy.route === 'disk')
   const chooser = single && items[0]?.canChoose ? choicesOf(items[0].otherManager) : []
   const tvheadendEpisodes = recorded.length ? episodes.filter((episode) => episode.source !== 'plex') : []

@@ -46,13 +46,18 @@ export const seasonYearOf = ({ season, title = '' }) => {
 export const isSeriesShow = (show) => show?.kind === 'show'
 
 export const pageShapeOf = (show) => {
-  if (!show || isSeriesShow(show)) return 'series'
-  return recordedEpisodesOf(show).length > 1 ? 'list' : 'single'
+  if (!show?.kind || isSeriesShow(show)) return 'series'
+  return recordedEpisodesOf(show).length === 1 ? 'single' : 'list'
 }
 
 export const singleItemOf = (show) => (pageShapeOf(show) === 'single' ? recordedEpisodesOf(show)[0] ?? null : null)
 
 export const itemNounOf = (kind = 'show') => ITEM_NOUNS[kind] ?? ITEM_NOUNS.oneoff
+
+export const itemNounOfShow = (show) => {
+  if (pageShapeOf(show) === 'series') return ITEM_NOUNS.show
+  return show.kind === 'movie' && pageShapeOf(show) === 'single' ? ITEM_NOUNS.movie : ITEM_NOUNS.oneoff
+}
 
 export const countOf = ({ count, noun }) => `${count} ${count === 1 ? noun.one : noun.many}`
 
@@ -129,13 +134,29 @@ export const episodeById = ({ show, recordingId }) => show.seasons
   .flatMap((s) => s.episodes)
   .find((e) => e.recordingId === recordingId) || null
 
+export const heroPlayOf = (show) => {
+  const single = singleItemOf(show)
+  if (single) return single.playable && !single.inProgress ? { episode: single, fromStart: !isResumable(single) } : null
+  const episode = show.resumeNext ? episodeById({ show, recordingId: show.resumeNext.recordingId }) : null
+  return episode ? { episode, fromStart: false } : null
+}
+
+const isResumable = (item) => !item.watched && item.positionS > 0
+
 export const playButtonLabel = ({ show }) => {
+  const single = singleItemOf(show)
+  if (single) return singlePlayLabelOf(single)
   const next = show.resumeNext
   if (!next) return ''
   const episode = episodeById({ show, recordingId: next.recordingId })
   const number = isSeriesShow(show) && episode?.episode != null ? ` E${episode.episode}` : ''
   if (next.positionS > 0) return `Resume${number}`
   return number ? `Play${number}` : 'Play'
+}
+
+const singlePlayLabelOf = (item) => {
+  if (!item.playable || item.inProgress) return ''
+  return isResumable(item) ? 'Resume' : 'Play'
 }
 
 export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now() }) => {
