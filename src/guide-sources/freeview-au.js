@@ -6,6 +6,7 @@ import {
   freeviewRegionOf,
   listingEpisodeOf,
   listingImagesOf,
+  dropFarthestWindows,
   placeholderImagesOf,
 } from '../freeview-au.js'
 
@@ -49,6 +50,7 @@ export const createFreeviewSource = ({
   const windows = new Map()
   const failures = new Map()
   const refused = new Map()
+  const halfWindowTriplets = new Map()
   let restored = null
   let counts = emptyCounts()
 
@@ -100,7 +102,7 @@ export const createFreeviewSource = ({
   const restore = () => {
     if (!store) return null
     restored ??= store.load({ source: id, format: WINDOW_FORMAT })
-      .then((rows) => rows.forEach((row) => remember({ triplet: row.triplet, start: row.windowStart, entry: row })))
+      .then((rows) => rows.filter(isServable).forEach((row) => remember({ triplet: row.triplet, start: row.windowStart, entry: row })))
       .catch(() => {})
     return restored
   }
@@ -110,9 +112,11 @@ export const createFreeviewSource = ({
       for (const key of map.keys()) {
         if (Number(key.split('|')[1]) + REQUEST_WINDOW_MS <= from) map.delete(key)
       }
-      while (map.size > maxWindows) map.delete(map.keys().next().value)
+      dropFarthestWindows({ map, max: maxWindows })
     }
-    for (const [triplet, until] of refused) if (until <= now()) refused.delete(triplet)
+    for (const map of [refused, halfWindowTriplets]) {
+      for (const [triplet, until] of map) if (until <= now()) map.delete(triplet)
+    }
   }
 
   const windowListings = async ({ triplet, start }) => {
@@ -121,10 +125,11 @@ export const createFreeviewSource = ({
     const cached = windows.get(key)
     if (isRefused(triplet)) return countedFailure(CHANNEL_REFUSED)
     if (isFresh({ entry: cached, start })) return cached.programmes
-    if (isBackingOff(key)) return countedFailure(cached?.programmes ?? [])
+    if (isBackingOff(key)) return countedFailure(servableProgrammesOf(cached))
     const fetched = await fetchWindow({ triplet, start })
     if (fetched === CHANNEL_REFUSED) return countedFailure(CHANNEL_REFUSED)
-    return fetched ?? countedFailure(cached?.programmes ?? [])
+    if (!fetched) return countedFailure(servableProgrammesOf(cached))
+    return fetched.partial ? countedFailure(fetched.programmes) : fetched.programmes
   }
 
   const deferredListings = ({ triplet, start }) => {
@@ -132,8 +137,12 @@ export const createFreeviewSource = ({
     const cached = windows.get(keyOf(triplet, start))
     if (isFresh({ entry: cached, start })) return cached.programmes
     counts.pendingWindows += 1
-    return cached && now() - cached.fetchedAt < staleLimitMs ? cached.programmes : []
+    return servableProgrammesOf(cached)
   }
+
+  const isServable = (entry) => Boolean(entry) && now() - entry.fetchedAt < staleLimitMs
+
+  const servableProgrammesOf = (entry) => (isServable(entry) ? entry.programmes : [])
 
   const countedFailure = (result) => {
     counts.failedWindows += 1
@@ -143,14 +152,14 @@ export const createFreeviewSource = ({
   const fetchWindow = async ({ triplet, start }) => {
     const key = keyOf(triplet, start)
     try {
-      const listings = await fetchSpan({ triplet, start, end: start + REQUEST_WINDOW_MS, canSplit: true })
+      const { listings, partial } = await fetchWindowSpan({ triplet, start, end: start + REQUEST_WINDOW_MS })
       const placeholders = placeholderImagesOf(listings)
       const programmes = listings.map((listing) => freeviewProgrammeOf({ listing, placeholders, ratingLabels })).filter(Boolean)
-      const entry = { programmes, fetchedAt: now(), expiresAt: now() + ttlFor(start) }
+      const entry = { programmes, fetchedAt: now(), expiresAt: now() + (partial ? failureBackoffMs[0] : ttlFor(start)) }
       remember({ triplet, start, entry })
       failures.delete(key)
       await store?.save({ source: id, format: WINDOW_FORMAT, triplet, windowStart: start, ...entry }).catch(() => {})
-      return programmes
+      return { programmes, partial }
     } catch (error) {
       if (error?.code === 'rejected') {
         refused.set(triplet, now() + failureBackoffMs[0])
@@ -190,22 +199,32 @@ export const createFreeviewSource = ({
 
   const ttlFor = (start) => (isNear(start) ? nearTtlMs : Math.round(farTtlMs * (0.5 + random())))
 
-  const fetchSpan = async ({ triplet, start, end, canSplit }) => {
-    try {
-      return await fetchPages({ triplet, start, end })
-    } catch (error) {
-      if (!canSplit || !isSplittable(error)) throw error
-      counts.splitWindows += 1
-      const middle = start + (end - start) / 2
-      const halves = [
-        await fetchSpan({ triplet, start, end: middle, canSplit: false }),
-        await fetchSpan({ triplet, start: middle, end, canSplit: false }),
-      ]
-      return [...new Map(halves.flat().map((listing) => [listing.id, listing])).values()]
+  const fetchWindowSpan = async ({ triplet, start, end }) => {
+    if (!halfWindowTriplets.has(triplet)) {
+      try {
+        return { listings: await fetchPages({ triplet, start, end, noRetryStatuses: SPLIT_STATUSES }), partial: false }
+      } catch (error) {
+        if (!isSplittable(error)) throw error
+        halfWindowTriplets.set(triplet, now() + HALF_WINDOW_MEMORY_MS)
+      }
     }
+    return fetchHalves({ triplet, start, end })
   }
 
-  const fetchPages = async ({ triplet, start, end }) => {
+  const fetchHalves = async ({ triplet, start, end }) => {
+    counts.splitWindows += 1
+    const middle = start + (end - start) / 2
+    const halves = []
+    for (const [from, to] of [[start, middle], [middle, end]]) {
+      halves.push(await fetchPages({ triplet, start: from, end: to }).then((listings) => ({ listings }), (error) => ({ error })))
+    }
+    const read = halves.filter((half) => !half.error)
+    if (!read.length) throw halves[0].error
+    const listings = [...new Map(read.flatMap((half) => half.listings).map((listing) => [listing.id, listing])).values()]
+    return { listings, partial: read.length < halves.length }
+  }
+
+  const fetchPages = async ({ triplet, start, end, noRetryStatuses = [] }) => {
     const raw = []
     const pageLimit = Math.ceil((maxPages * (end - start)) / FREEVIEW_WINDOW_MS)
     for (let page = 0; page < pageLimit; page += 1) {
@@ -225,6 +244,7 @@ export const createFreeviewSource = ({
         },
         timeoutMs: LISTINGS_TIMEOUT_MS,
         isBackground: true,
+        noRetryStatuses,
       }).catch((error) => {
         if (error?.code === NO_CONTENT) return null
         throw error
@@ -356,6 +376,7 @@ const MAX_SEASON = 9999
 const MAX_EPISODE = 99999
 const EPISODE_SUBTYPE = 'onapi-subtype:episode'
 const GATEWAY_TIMEOUT = 504
+const SPLIT_STATUSES = [GATEWAY_TIMEOUT]
 const TOO_LARGE = 'too-large'
 const CHANNEL_REFUSED = Symbol('channel refused')
 const NO_CONTENT = 'bad-content'
@@ -370,5 +391,6 @@ const NEAR_TTL_MS = 5.5 * HOUR_MS
 const FAR_TTL_MS = 23.5 * HOUR_MS
 const STALE_LIMIT_MS = 3 * 24 * HOUR_MS
 const REQUEST_WINDOW_MS = 12 * HOUR_MS
+const HALF_WINDOW_MEMORY_MS = 24 * HOUR_MS
 const FAILURE_BACKOFF_MS = [15 * 60_000, HOUR_MS, 6 * HOUR_MS]
 const LISTINGS_TIMEOUT_MS = 15_000

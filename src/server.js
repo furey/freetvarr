@@ -2321,7 +2321,7 @@ const guideMerge = createGuideMerge({
   track: activity.track,
 })
 
-holdFreeviewPicturesUntil(guideMerge.firstBuild())
+holdFreeviewPicturesUntil(guideMerge.firstBuild)
 
 const ownGuideFeedUrl = async (conn) => guideFeedUrl({ address: await localAddressToward(conn.url), port: PORT })
 

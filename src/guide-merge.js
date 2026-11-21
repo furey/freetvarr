@@ -33,6 +33,8 @@ export const createGuideMerge = ({
   intervalMs = BUILD_INTERVAL_MS,
   firstDelayMs = FIRST_BUILD_DELAY_MS,
   nearMs = NEAR_BUILD_MS,
+  partialRetryMs = PARTIAL_RETRY_MS,
+  firstBuildCeilingMs = FIRST_BUILD_CEILING_MS,
   log = console,
 }) => {
   let running = null
@@ -66,7 +68,7 @@ export const createGuideMerge = ({
     try {
       const near = await writeUpTo((await matchesPlan()) ? Infinity : now() + nearMs)
       if (near.primaryPendingWindows) log.log(`[guide-merge] wrote the next ${Math.round(nearMs / HOUR_MS)} h first; reading ${near.primaryPendingWindows} later windows now`)
-      const final = near.primaryPendingWindows ? withPassCounts({ near, full: await writeUpTo(Infinity) }) : near
+      const final = near.primaryPendingWindows ? withPassCounts({ near, full: await writeFullAfterNear(() => writeUpTo(Infinity)) }) : near
       const { fallbacks, healthRows, ...stats } = final
       await saveHealth({ rows: healthRows, builtAt: startedAt })
       noteFallbacks({ job, fallbacks })
@@ -77,6 +79,18 @@ export const createGuideMerge = ({
     } catch (err) {
       await saveHealth({ rows: err.stats?.healthRows ?? (err.sourceFailure ? failedSourceRows({ plan, history, nowMs: startedAt }) : null), builtAt: startedAt })
       noteFallbacks({ job, fallbacks: err.stats?.fallbacks ?? [] })
+      throw err
+    }
+  }
+
+  const writeFullAfterNear = async (writeFull) => {
+    try {
+      return await writeFull()
+    } catch (err) {
+      log.warn(`[guide-merge] the full pass failed after the near file was written; trying again in ${Math.round(partialRetryMs / 60_000)} min`)
+      const retry = setTimeout(requestBuild, partialRetryMs)
+      retry.unref?.()
+      timers.push(retry)
       throw err
     }
   }
@@ -169,7 +183,18 @@ export const createGuideMerge = ({
     return matchesPlan()
   }
 
-  const firstBuild = () => firstBuildDone
+  const firstBuild = async () => {
+    if (!(await planNow().catch(() => null))) return
+    let ceiling = null
+    await Promise.race([
+      firstBuildDone,
+      new Promise((resolve) => {
+        ceiling = setTimeout(resolve, firstBuildCeilingMs)
+        ceiling.unref?.()
+      }),
+    ])
+    clearTimeout(ceiling)
+  }
 
   return { start, stop, requestBuild, firstBuild, servablePath, builtPath, builtAt, builtRegions, matchesPlan, buildForPlan, savedChannels, planNow, latest: () => latest }
 }
@@ -612,6 +637,8 @@ const OVERLAP_ALLOWANCE_MS = 60_000
 const HOUR_MS = 60 * 60_000
 const DAY_MS = 24 * HOUR_MS
 const NEAR_BUILD_MS = 2 * DAY_MS
+const PARTIAL_RETRY_MS = 20 * 60_000
+const FIRST_BUILD_CEILING_MS = 20 * 60_000
 const PAST_MS = 6 * 60 * 60_000
 const BUILD_INTERVAL_MS = 6 * 60 * 60_000
 const FIRST_BUILD_DELAY_MS = 3 * 60_000

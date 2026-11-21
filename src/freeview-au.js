@@ -238,7 +238,7 @@ export const createFreeviewAu = ({
   const remember = ({ key, listings, ttlMs }) => {
     windows.delete(key)
     windows.set(key, { listings, expiresAt: now() + ttlMs })
-    while (windows.size > maxCached) windows.delete(windows.keys().next().value)
+    dropFarthestWindows({ map: windows, max: maxCached })
   }
 
   const matchAirings = async (airings = []) => {
@@ -285,6 +285,20 @@ export const freeviewClient = createOutboundClient({
     [FREEVIEW_IMAGE_HOST]: { concurrency: 1, gapMs: 250 },
   },
 })
+
+export const dropFarthestWindows = ({ map, max }) => {
+  while (map.size > max) map.delete(farthestWindowKeyOf(map))
+}
+
+const farthestWindowKeyOf = (map) => {
+  let farthest = null
+  for (const key of map.keys()) {
+    if (farthest === null || windowStartOfKey(key) > windowStartOfKey(farthest)) farthest = key
+  }
+  return farthest
+}
+
+const windowStartOfKey = (key) => Number(String(key).split('|').pop())
 
 export const isFreeviewImageSource = (source) => {
   try {

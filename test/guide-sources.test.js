@@ -373,14 +373,68 @@ test('freeview: requests use the upper-case triplet the API needs, and a 400 sto
   assert.equal(client.calls.length, 1)
 })
 
-test('freeview: windows that ended before the read start are pruned, and the window memory is capped', async () => {
+test('freeview: windows that ended before the read start are pruned, and the capped window memory drops the farthest windows first', async () => {
   const clock = { ms: NOW }
-  const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => clock.ms, maxWindows: 3 })
+  const client = fakeFreeviewClient(freeviewAnswer)
+  const source = createFreeviewAuSource({ client, now: () => clock.ms, maxWindows: 3 })
   await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 48 * HOUR })
   assert.equal(source.stats().windows, 3)
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })
+  assert.equal(client.calls.length, 4, 'the nearest window stays in memory')
   clock.ms += 24 * HOUR
   await source.listings({ channel: TRIPLET, from: clock.ms, to: clock.ms + 12 * HOUR })
-  assert.equal(source.stats().windows, 2)
+  assert.equal(source.stats().windows, 1)
+})
+
+test('freeview: a 504 on a 12 h window splits at once with no retries, the channel starts with halves next time, and a failed half keeps the other half', async () => {
+  const clock = { ms: NOW }
+  const requests = []
+  const client = fakeFreeviewClient(({ params, noRetryStatuses }) => {
+    const hours = (Date.parse(params.end) - Date.parse(params.start)) / HOUR
+    requests.push({ hours, noRetryStatuses })
+    if (hours === 12) throw new OutboundError('fvau-api-prod.switch.tv HTTP 504', { code: 'unavailable', status: 504 })
+    if (Date.parse(params.start) % (12 * HOUR) !== 0 && clock.ms > NOW) throw new OutboundError('fvau-api-prod.switch.tv did not answer', { code: 'unavailable' })
+    return { data: [freeviewListing({ id: params.start, start: params.start, end: new Date(Date.parse(params.start) + HOUR).toISOString() })], meta: { pagination: { more: false } } }
+  })
+  const source = createFreeviewAuSource({ client, now: () => clock.ms })
+  await source.listings({ channel: TRIPLET, from: NOW, to: NOW + 12 * HOUR })
+  assert.deepEqual(requests.map(({ hours }) => hours), [12, 6, 6])
+  assert.deepEqual(requests[0].noRetryStatuses, [504])
+  clock.ms = NOW + 12 * HOUR
+  source.resetStats()
+  const programmes = await source.listings({ channel: TRIPLET, from: clock.ms, to: clock.ms + 12 * HOUR })
+  assert.deepEqual(requests.slice(3).map(({ hours }) => hours), [6, 6], 'the next read starts with halves')
+  assert.equal(programmes.length, 1, 'the half that answered is kept')
+  assert.equal(source.stats().failedWindows, 1)
+  clock.ms = NOW + 12 * HOUR + 16 * 60_000
+  await source.listings({ channel: TRIPLET, from: NOW + 12 * HOUR, to: NOW + 24 * HOUR })
+  assert.equal(requests.length, 7, 'a window with a failed half is read again after the first backoff')
+})
+
+test('freeview: a saved window older than the stale limit is never served after a restart', async () => {
+  const store = {
+    load: async () => [{ triplet: TRIPLET, windowStart: NOW + 24 * HOUR, fetchedAt: NOW - 4 * 24 * HOUR, expiresAt: NOW + 24 * HOUR, programmes: [{ id: 'old', start: NOW + 25 * HOUR, stop: NOW + 26 * HOUR, title: 'Old' }] }],
+    save: async () => {},
+    prune: async () => {},
+  }
+  const source = createFreeviewAuSource({ client: fakeFreeviewClient(freeviewAnswer), now: () => NOW, store })
+  assert.deepEqual(await source.listings({ channel: TRIPLET, from: NOW + 24 * HOUR, to: NOW + 36 * HOUR, fetchUntil: NOW }), [])
+  assert.equal(source.stats().pendingWindows, 1)
+})
+
+test('window store: prune and format clean-up apply to every source', async () => {
+  const database = knexFactory({ client: 'better-sqlite3', connection: { filename: ':memory:' }, useNullAsDefault: true })
+  await upWindows(database)
+  const store = createWindowStore({ database })
+  const row = (source, windowStart, format = WINDOW_FORMAT) => ({ source, format, triplet: TRIPLET, windowStart, fetchedAt: NOW, expiresAt: NOW + HOUR, programmes: [] })
+  await store.save(row('freeview-au', NOW))
+  await store.save(row('freeview-nz', NOW))
+  await store.save(row('freeview-nz', NOW + 12 * HOUR, WINDOW_FORMAT + 1))
+  await store.save(row('freeview-au', NOW + 12 * HOUR))
+  await store.prune({ source: 'freeview-au', before: NOW + 12 * HOUR })
+  await store.load({ source: 'freeview-au', format: WINDOW_FORMAT })
+  assert.deepEqual(await database('guide_source_windows').select('source', 'window_start'), [{ source: 'freeview-au', window_start: NOW + 12 * HOUR }])
+  await database.destroy()
 })
 
 test('freeview: windows persist across a restart with their fetch time, and a stored format change is read again', async () => {

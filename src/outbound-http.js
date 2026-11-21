@@ -36,7 +36,7 @@ export const createOutboundClient = ({
     return breakers.get(host)
   }
 
-  const send = async ({ url, params, headers = {}, timeoutMs, maxBytes, retries, method = 'get', isBackground = false }) => {
+  const send = async ({ url, params, headers = {}, timeoutMs, maxBytes, retries, method = 'get', isBackground = false, noRetryStatuses = [] }) => {
     const target = allowedUrlOf({ url, isAllowedHost })
     const host = target.hostname
     const breaker = breakerFor(host)
@@ -73,7 +73,7 @@ export const createOutboundClient = ({
       const delayMs = retryDelayMs({ attempt, baseMs: retryBaseMs, maxMs: retryMaxMs, retryAfterS, random })
       const holdMs = hostHoldMsOf({ status: outcome.response?.status, delayMs, retryAfterS })
       if (holdMs) limiterFor(host).holdFor(holdMs)
-      if (attempt >= retries || delayMs === null) {
+      if (attempt >= retries || delayMs === null || noRetryStatuses.includes(outcome.response?.status)) {
         const status = outcome.response?.status ?? null
         throw new OutboundError(status ? `${host} HTTP ${status}` : `${host} did not answer`, { code: 'unavailable', host, status })
       }
@@ -81,8 +81,8 @@ export const createOutboundClient = ({
     }
   }
 
-  const getJson = async ({ url, params, headers = {}, timeoutMs = JSON_TIMEOUT_MS, maxBytes = JSON_MAX_BYTES, retries = JSON_RETRIES, isBackground = false }) => {
-    const response = await send({ url, params, headers: { Accept: 'application/json', ...headers }, timeoutMs, maxBytes, retries, isBackground })
+  const getJson = async ({ url, params, headers = {}, timeoutMs = JSON_TIMEOUT_MS, maxBytes = JSON_MAX_BYTES, retries = JSON_RETRIES, isBackground = false, noRetryStatuses = [] }) => {
+    const response = await send({ url, params, headers: { Accept: 'application/json', ...headers }, timeoutMs, maxBytes, retries, isBackground, noRetryStatuses })
     if (!response) return null
     if (!isJsonContentType(contentTypeOf(response.headers))) {
       throw new OutboundError(`${hostOf(url)} sent ${contentTypeOf(response.headers) || 'no content type'}`, { code: 'bad-content', host: hostOf(url) })

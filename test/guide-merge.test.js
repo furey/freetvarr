@@ -453,9 +453,48 @@ test('first build: the promise settles once the first build after start ends, al
   })
   await failing.requestBuild()
   await failing.firstBuild()
+})
+
+test('first build: with no plan the wait ends at once, before any build runs', async () => {
   const noPlan = createGuideMerge({ dir: await tempDir(), sources: { forCountry: () => [] }, timeZone: () => 'Europe/Berlin', log: { log: () => {}, warn: () => {} } })
-  await noPlan.requestBuild()
   await noPlan.firstBuild()
+})
+
+test('first build: a build that never ends releases the wait after the ceiling', async () => {
+  const hanging = createGuideMerge({
+    dir: await tempDir(),
+    sources: { forCountry: () => [{ ...nearFirstPrimary({ reads: [] }), channels: () => new Promise(() => {}) }] },
+    timeZone: () => 'Australia/Sydney',
+    firstBuildCeilingMs: 20,
+    log: { log: () => {}, warn: () => {} },
+  })
+  hanging.requestBuild()
+  const startedAt = Date.now()
+  await hanging.firstBuild()
+  assert.ok(Date.now() - startedAt >= 15)
+})
+
+test('near first: when the full pass fails after the near file was written, a build runs again after the partial retry delay', async () => {
+  const reads = []
+  const primary = nearFirstPrimary({ reads })
+  const failingFull = { ...primary, prefetch: async (request) => { await primary.prefetch(request); if (request.to > NOW + 3 * DAY) throw new Error('HTTP 503') } }
+  const sources = sydneySources()
+  const warnings = []
+  const merge = createGuideMerge({
+    dir: await tempDir(),
+    sources: { forCountry: () => [failingFull, sources.secondary.source] },
+    timeZone: () => 'Australia/Sydney',
+    channelTriplets: async () => ({ linked: new Map(), tvChannels: null }),
+    now: () => NOW,
+    partialRetryMs: 10,
+    log: { log: () => {}, warn: (line) => warnings.push(line) },
+  })
+  await merge.requestBuild()
+  const prefetchesAfterFirst = reads.filter((read) => read.to !== undefined).length
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  merge.stop()
+  assert.ok(reads.filter((read) => read.to !== undefined).length > prefetchesAfterFirst)
+  assert.ok(warnings.some((line) => /trying again in/.test(line)))
 })
 
 test('migration 0047: title_aliases is unique per source title, and down drops it', async () => {

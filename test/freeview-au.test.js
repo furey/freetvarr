@@ -288,6 +288,20 @@ test('listChannelTriplets reads the service and mux grids and maps each channel 
   }
 })
 
+test('seedWindow: the capped picture cache drops the farthest windows first, so near windows stay', async () => {
+  const client = fakeClient(() => ({ data: [] }))
+  const freeview = createFreeviewAu({ client, timeZone: () => 'Australia/Sydney', now: () => START, maxCached: 2 })
+  const first = windowStartOf(START)
+  for (const windowStart of [first, first + 2 * FREEVIEW_WINDOW_MS, first + FREEVIEW_WINDOW_MS]) {
+    freeview.seedWindow({ triplet: TRIPLET, windowStart, listings: [listing({ title: 'Gruen', show: 'gruen.jpg' })], expiresAt: START + 60 * MINUTE })
+  }
+  await freeview.listingsFor({ triplet: TRIPLET, windowStart: first })
+  await freeview.listingsFor({ triplet: TRIPLET, windowStart: first + FREEVIEW_WINDOW_MS })
+  assert.equal(client.calls.length, 0)
+  await freeview.listingsFor({ triplet: TRIPLET, windowStart: first + 2 * FREEVIEW_WINDOW_MS })
+  assert.equal(client.calls.length, 1)
+})
+
 test('seedWindow: a seeded window lives until the expiry the guide build gives it, then is read again', async () => {
   const clock = { ms: START }
   const client = fakeClient(({ url }) => (url.includes('/channels/region/') ? channelsBody : { data: [listing({ title: 'Gruen', show: 'gruen-new.jpg' })] }))

@@ -2,7 +2,7 @@ import { db } from '../db.js'
 
 export const createWindowStore = ({ database = db } = {}) => {
   const load = async ({ source, format }) => {
-    await database(TABLE).where({ source }).whereNot({ format }).delete()
+    await database(TABLE).whereNot({ format }).delete()
     const rows = await database(TABLE).where({ source, format }).orderBy('window_start')
     return rows.map(windowOf).filter(Boolean)
   }
@@ -20,7 +20,7 @@ export const createWindowStore = ({ database = db } = {}) => {
     .onConflict(['source', 'triplet', 'window_start'])
     .merge()
 
-  const prune = ({ source, before }) => database(TABLE).where({ source }).where('window_start', '<', before).delete()
+  const prune = ({ before }) => database(TABLE).where('window_start', '<', before).delete()
 
   return { load, save, prune }
 }

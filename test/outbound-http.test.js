@@ -160,6 +160,12 @@ test('a 429 or 5xx holds the whole host queue for the backoff, and a long Retry-
   assert.equal(hostHoldMsOf({ status: undefined, delayMs: 1000 }), 0)
 })
 
+test('getJson fails at once on a status the caller will not retry, so a 504 can be split instead', async () => {
+  const { client, calls } = clientWith({ responses: [jsonResponse({}, 504), jsonResponse({ ok: 1 })] })
+  await assert.rejects(client.getJson({ url: 'https://api.example.org/q', noRetryStatuses: [504] }), { code: 'unavailable', status: 504 })
+  assert.equal(calls.length, 1)
+})
+
 test('getJson sends the User-Agent, retries a 503, and parses the body', async () => {
   const { client, calls } = clientWith({ responses: [jsonResponse({}, 503), jsonResponse({ ok: 1 })] })
   assert.deepEqual(await client.getJson({ url: 'https://api.example.org/q' }), { ok: 1 })
