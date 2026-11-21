@@ -79,9 +79,9 @@ export const CastScroller = {
           :target="person.url ? '_blank' : undefined" :rel="person.url ? 'noopener noreferrer' : undefined">
           <span class="show-cast-face" :style="faceStyle(person.name)" aria-hidden="true">
             <span class="show-cast-initials">{{ person.initials }}</span>
-            <img v-if="person.image && !failedImages.has(person.image)" :class="['show-cast-photo', { 'is-loaded': loadedImages.has(person.image) }]"
+            <img v-if="person.image && !failedImages.has(person.image)" class="show-cast-photo"
               :src="person.image" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-              @load="markLoaded(person.image)" @error="markFailed(person.image)" />
+              @error="markFailed(person.image)" />
           </span>
           <span class="show-cast-name">{{ person.name }}</span>
           <span v-if="person.character" class="show-cast-role">{{ person.character }}</span>
@@ -90,11 +90,9 @@ export const CastScroller = {
     </ul>
   `,
   setup() {
-    const loadedImages = ref(new Set())
     const failedImages = ref(new Set())
-    const markLoaded = (src) => { loadedImages.value = new Set(loadedImages.value).add(src) }
     const markFailed = (src) => { failedImages.value = new Set(failedImages.value).add(src) }
-    return { loadedImages, failedImages, markLoaded, markFailed, faceStyle: artFallbackStyle }
+    return { failedImages, markFailed, faceStyle: artFallbackStyle }
   },
 }
 

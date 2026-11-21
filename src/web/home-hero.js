@@ -1,6 +1,7 @@
 import { localDayNumber } from './guide-time.js'
 import { formatClock } from './time-format.js'
 import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
+import { isSingleTitleKind } from './title-kind.js'
 import { showKeyOf } from './show-key.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { artUrlKeyOf, pickDistinctArt } from './hero-art.js'
@@ -237,9 +238,7 @@ const continueSlideOf = ({ episode, stampUrl }) => ({
   source: { episode },
 })
 
-const continueLinkLabelOf = (episode) => (SINGLE_RECORDING_KINDS.has(episode.kind) ? 'Details' : 'Episodes')
-
-const SINGLE_RECORDING_KINDS = new Set(['movie', 'oneoff'])
+const continueLinkLabelOf = (episode) => (isSingleTitleKind(episode.kind) ? 'Details' : 'Episodes')
 
 const newEpisodeSlidesOf = ({ newEpisodes, shows, inProgress, nowMs, timeZone, stampUrl }) => {
   const watched = watchedShowKeysOf({ shows, inProgress })

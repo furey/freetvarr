@@ -45,6 +45,22 @@ export const seasonYearOf = ({ season, title = '' }) => {
 
 export const isSeriesShow = (show) => show?.kind === 'show'
 
+export const pageShapeOf = (show) => {
+  if (!show?.kind || isSeriesShow(show)) return 'series'
+  return recordedEpisodesOf(show).length === 1 ? 'single' : 'list'
+}
+
+export const singleItemOf = (show) => (pageShapeOf(show) === 'single' ? recordedEpisodesOf(show)[0] ?? null : null)
+
+export const itemNounOf = (kind = 'show') => ITEM_NOUNS[kind] ?? ITEM_NOUNS.oneoff
+
+export const itemNounOfShow = (show) => {
+  if (pageShapeOf(show) === 'series') return ITEM_NOUNS.show
+  return show.kind === 'movie' && pageShapeOf(show) === 'single' ? ITEM_NOUNS.movie : ITEM_NOUNS.oneoff
+}
+
+export const countOf = ({ count, noun }) => `${count} ${count === 1 ? noun.one : noun.many}`
+
 export const showsSeasonChips = (show) => isSeriesShow(show)
   && recordedEpisodesOf(show).length > 0
   && !(show.seasons.length === 1 && seasonYearOf({ season: show.seasons[0].season, title: show.title }))
@@ -90,6 +106,17 @@ export const episodeStateText = (episode) => {
 }
 
 export const heroMetaOf = ({ show }) => {
+  const single = singleItemOf(show)
+  return single ? singleHeroMetaOf({ show, item: single }) : collectionHeroMetaOf({ show })
+}
+
+const singleHeroMetaOf = ({ show, item }) => [
+  show.year ? String(show.year) : '',
+  durationText(item.durationS),
+  episodeStateText(item),
+].filter(Boolean).join(' · ')
+
+const collectionHeroMetaOf = ({ show }) => {
   const latestSeason = isSeriesShow(show)
     ? show.seasons.find((s) => s.season != null && !seasonYearOf({ season: s.season, title: show.title }))?.season
     : null
@@ -107,13 +134,29 @@ export const episodeById = ({ show, recordingId }) => show.seasons
   .flatMap((s) => s.episodes)
   .find((e) => e.recordingId === recordingId) || null
 
+export const heroPlayOf = (show) => {
+  const single = singleItemOf(show)
+  if (single) return single.playable && !single.inProgress ? { episode: single, fromStart: !isResumable(single) } : null
+  const episode = show.resumeNext ? episodeById({ show, recordingId: show.resumeNext.recordingId }) : null
+  return episode ? { episode, fromStart: false } : null
+}
+
+const isResumable = (item) => !item.watched && item.positionS > 0
+
 export const playButtonLabel = ({ show }) => {
+  const single = singleItemOf(show)
+  if (single) return singlePlayLabelOf(single)
   const next = show.resumeNext
   if (!next) return ''
   const episode = episodeById({ show, recordingId: next.recordingId })
-  const number = episode?.episode != null ? ` E${episode.episode}` : ''
+  const number = isSeriesShow(show) && episode?.episode != null ? ` E${episode.episode}` : ''
   if (next.positionS > 0) return `Resume${number}`
   return number ? `Play${number}` : 'Play'
+}
+
+const singlePlayLabelOf = (item) => {
+  if (!item.playable || item.inProgress) return ''
+  return isResumable(item) ? 'Resume' : 'Play'
 }
 
 export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now() }) => {
@@ -124,12 +167,10 @@ export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now
     return {
       tone: 'scheduled',
       headline: `Records ${lowerDayWord(scheduledWhenOf({ ms: scheduled.airedAt, nowMs, timeZone }))}${channel}`,
-      detail: scheduled.scheduled?.seriesLinkId
-        ? 'Part of a series recording in TVHeadend.'
-        : 'This episode only. To record every episode, open it in the TV guide and choose Every episode.',
+      detail: scheduledDetailOf({ show, scheduled }),
     }
   }
-  if (!rule && !hasRecordingsIn(show)) return null
+  if (!rule && !(isSeriesShow(show) && hasRecordingsIn(show))) return null
   if (!rule) {
     return {
       tone: 'idle',
@@ -138,6 +179,11 @@ export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now
     }
   }
   return { tone: toneOf({ rule, activeRecording }), headline: headlineOf({ show, activeRecording, timeZone }), detail: rule.summary }
+}
+
+const scheduledDetailOf = ({ show, scheduled }) => {
+  if (scheduled.scheduled?.seriesLinkId) return 'Part of a series recording in TVHeadend.'
+  return isSeriesShow(show) ? 'This episode only. To record every episode, open it in the TV guide and choose Every episode.' : ''
 }
 
 export const activeRecordingFor = ({ active = [], key }) =>
@@ -241,6 +287,12 @@ const uniqueBy = (items, keyOf) => {
     seen.add(key)
     return true
   })
+}
+
+const ITEM_NOUNS = {
+  show: { one: 'episode', many: 'episodes' },
+  movie: { one: 'movie', many: 'movies' },
+  oneoff: { one: 'recording', many: 'recordings' },
 }
 
 const STATE_TEXT = {

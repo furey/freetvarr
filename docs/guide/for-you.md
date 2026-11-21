@@ -52,7 +52,7 @@ Press a card to act on it. What happens depends on the suggestion:
 
 Press **⋯** on a card (or hold the card on a touch screen) for more choices:
 
-- **Play**, **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**.
+- **Play**, **Watch live**, **Record this episode**, **Record series**, **Go to show**, and **Programme info**, where they apply. For a movie, the menu reads **Record this movie** and has no **Record series**. For a one-off programme it reads **Record**, and a [confirmed one-off](/guide/tv-guide#recording-a-programme) has no **Record series**.
 - **More like this**: tells Freetvarr that you like the show, so shows like it count for more.
 - **Fewer like this**: lowers the show and the shows like it, by kind of show and by how close their descriptions are. The show is not hidden. The effect is strongest at first and halves every 60 days. A message says `You'll see fewer shows like this`; press **Undo** on it, or press **Fewer like this** again on the same card, to take it back.
 - **Hide this show** (**Hide this film** for a film): hides it from For you and the Home highlights for 90 days.

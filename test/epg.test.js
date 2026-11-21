@@ -31,6 +31,14 @@ test('orderChannels: a pinned channel is never hidden; unknown pins are ignored'
   assert.equal(out.find((c) => c.id === 13).hidden, true)
 })
 
+test('nowAndNext: keeps the confirmed one-off mark that the On now menus read for Record series', () => {
+  const confirmed = { program_id: 1, title: 'Carols By Candlelight', start: 100, end: 200, series_link: 'link', kind: 'one-off', one_off_confirmed: true }
+  const guessed = { ...confirmed, program_id: 2, start: 200, end: 300, one_off_confirmed: undefined }
+  const { now, next } = nowAndNext([confirmed, guessed], 150)
+  assert.equal(now.one_off_confirmed, true)
+  assert.equal(next.one_off_confirmed, false)
+})
+
 test('nowAndNext: picks the airing programme and the nearest future one', () => {
   const programs = [
     { program_id: 1, title: 'Old', start: 0, end: 100 },

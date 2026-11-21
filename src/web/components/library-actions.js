@@ -11,13 +11,15 @@ import {
   menuPendingLabelOf,
   movedText,
   runningEpisodeOf,
-  showInfoOf,
+  SINGLE_ITEM_KEYS,
   showMenuOf,
+  titleInfoOf,
+  titleMenuSubtitleOf,
   undoMovesOf,
   unmarkedText,
   watchedChangeTargets,
 } from '/library-menus.js'
-import { episodeById, episodeHeading, episodeMetaOf, recordingRowOf } from '/show-page.js'
+import { episodeById, episodeHeading, episodeMetaOf, isSeriesShow, itemNounOfShow, recordingRowOf, singleItemOf } from '/show-page.js'
 import { adConfirmOf, adStartedToastOf, freshEpisodeOf, restoreConfirmOf, restoredToastOf } from '/ad-confirm.js'
 import { openPlexLink } from '/components/library-menus.js'
 import { openCategories } from '/components/categories-sheet.js'
@@ -36,6 +38,7 @@ import { showImageUrlOf } from '/artwork-stamps.js'
 import { tz } from '/shared/time.js'
 
 export const SELECT_TIP = 'Tip: tap Select on the show page to mark or delete several episodes at once.'
+export const RECORDINGS_SELECT_TIP = 'Tip: tap Select to mark or delete several recordings at once.'
 
 export const useLibraryActions = ({ show, reload, showToast, openOptions, selectTip = SELECT_TIP, canMove = false }) => {
   const menuEpisode = ref(null)
@@ -53,17 +56,17 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   const activeIds = computed(() => new Set((recordingNow.value.active || []).map((r) => String(r.dvrUuid))))
   const episodes = computed(() => allEpisodesOf(show.value))
-  const showGroups = computed(() => (show.value ? showMenuOf({ show: show.value, activeIds: activeIds.value, canMove }) : []))
-  const episodeGroups = computed(() => (menuEpisode.value
-    ? episodeMenuOf({ episode: menuEpisode.value, episodes: episodes.value, activeIds: activeIds.value, adRemovalEnabled: adRemovalEnabled.value, canMove })
+  const showGroups = computed(() => (show.value
+    ? showMenuOf({ show: show.value, activeIds: activeIds.value, canMove, adRemovalEnabled: adRemovalEnabled.value })
     : []))
-  const showMenuSubtitle = computed(() => {
-    const list = episodes.value
-    if (!list.length) return ''
-    const unwatched = list.filter((e) => !e.watched && !e.failed).length
-    return `${list.length === 1 ? '1 episode' : `${list.length} episodes`} · ${unwatched} unwatched`
+  const episodeGroups = computed(() => (menuEpisode.value
+    ? episodeMenuOf({ episode: menuEpisode.value, episodes: episodes.value, activeIds: activeIds.value, adRemovalEnabled: adRemovalEnabled.value, canMove, kind: show.value?.kind, noun: itemNounOfShow(show.value) })
+    : []))
+  const showMenuSubtitle = computed(() => (show.value ? titleMenuSubtitleOf({ show: show.value, timeZone: tz.value }) : ''))
+  const episodeTip = computed(() => {
+    if (!selectTip) return ''
+    return isSeriesShow(show.value) ? selectTip : RECORDINGS_SELECT_TIP
   })
-  const episodeTip = computed(() => (selectTip ? selectTip : ''))
 
   fetchSettings().then((settings) => {
     adRemovalEnabled.value = Boolean(settings.ad_removal_enabled)
@@ -192,10 +195,10 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
   const onPictureChanged = () => reload()
 
   const openShowInfo = async (current) => {
-    info.value = showInfoOf({ show: current, timeZone: tz.value })
+    info.value = titleInfoOf({ show: current, timeZone: tz.value })
     const nicknames = await loadNicknames(current.key).catch(() => [])
     if (!nicknames.length || info.value?.title !== current.title) return
-    info.value = showInfoOf({ show: current, timeZone: tz.value, nicknames: nicknames.map((nickname) => nickname.name) })
+    info.value = titleInfoOf({ show: current, timeZone: tz.value, nicknames: nicknames.map((nickname) => nickname.name) })
   }
 
   const openInPlex = (url) => openPlexLink({
@@ -307,6 +310,8 @@ export const useLibraryActions = ({ show, reload, showToast, openOptions, select
 
   const startShowAction = (key) => {
     const current = show.value
+    const single = singleItemOf(current)
+    if (single && SINGLE_ITEM_KEYS.has(key)) return startEpisodeAction(key, single)
     if (key === 'from-start') return watchFromStart(runningEpisodeOf(current))
     if (key === 'stop-recording') return openRecordingProgramme(runningEpisodeOf(current))
     if (key === 'play-next') {

@@ -3,18 +3,20 @@ import { artFallbackStyle } from '/art-fallback.js'
 import { recordingsPageOf } from '/route-table.js'
 import {
   activeRecordingFor,
-  episodeById,
   episodeHeading,
   episodeMetaOf,
   heroMetaOf,
+  heroPlayOf,
   isSeriesShow,
   listedEpisodesOf,
+  pageShapeOf,
   pageTitleOf,
   playButtonLabel,
   ruleStatusOf,
   seasonLabel,
   showsSeasonChips,
   showTitleIn,
+  singleItemOf,
 } from '/show-page.js'
 import { firstEpisodeText, scheduledWhenOf } from '/library-shelves.js'
 import {
@@ -78,6 +80,7 @@ export const ShowView = {
         <div class="show-hero-body">
           <h1 class="show-title"><template v-if="title">{{ title }}</template><span v-else class="ui-skeleton is-text show-title-skeleton" aria-hidden="true"></span></h1>
           <p class="show-hero-meta"><template v-if="show">{{ shownHeroMeta }}</template><span v-else-if="!loaded" class="ui-skeleton is-text show-meta-skeleton" aria-hidden="true"></span></p>
+          <span v-if="heroProgress" class="ui-progress show-hero-progress" aria-hidden="true"><span class="ui-progress-fill" :style="{ width: heroProgress + '%' }"></span></span>
           <div v-if="!loaded" class="show-actions ui-only-wide" aria-hidden="true">
             <span class="ui-button ui-button-secondary show-options-button ui-skeleton show-skeleton-button"></span>
             <span class="ui-icon-button show-more-button ui-skeleton"></span>
@@ -170,9 +173,9 @@ export const ShowView = {
           <a href="#/guide" class="ui-button ui-button-sm">TV guide</a>
         </div>
 
-        <section v-if="show.seasons.length" ref="episodesSection" class="show-episodes" aria-labelledby="show-episodes-title">
+        <section v-if="show.seasons.length && pageShape !== 'single'" ref="episodesSection" class="show-episodes" aria-labelledby="show-episodes-title">
           <div class="show-episodes-header">
-            <h2 id="show-episodes-title" :class="['ui-section-title', { 'ui-visually-hidden': !seriesShow }]">{{ seriesShow ? 'Episodes' : 'Recordings' }}</h2>
+            <h2 id="show-episodes-title" class="ui-section-title">{{ seriesShow ? 'Episodes' : 'Recordings' }}</h2>
             <template v-if="seasonChips">
               <div v-if="show.seasons.length > 1" class="ui-chip-row is-scroll show-seasons" role="group" aria-label="Season">
                 <button v-for="s in show.seasons" :key="String(s.season)" type="button" class="ui-chip"
@@ -219,8 +222,8 @@ export const ShowView = {
           </ul>
         </section>
 
-        <section v-else class="ui-empty" aria-label="Episodes">
-          <h2 class="ui-empty-title">No episodes yet</h2>
+        <section v-else-if="!show.seasons.length" class="ui-empty" :aria-label="seriesShow ? 'Episodes' : 'Recordings'">
+          <h2 class="ui-empty-title">{{ seriesShow ? 'No episodes yet' : 'Not recorded yet' }}</h2>
           <p class="ui-empty-text">{{ firstEpisodeLine }}</p>
         </section>
 
@@ -357,6 +360,8 @@ export const ShowView = {
       : ruleStatus.value))
     const firstEpisodeLine = computed(() => firstEpisodeText({ nextAiring: show.value?.nextAiring, timeZone: tz.value }))
     const seriesShow = computed(() => isSeriesShow(show.value))
+    const pageShape = computed(() => pageShapeOf(show.value))
+    const heroProgress = computed(() => heroProgressOf(singleItemOf(show.value)))
     const seasonChips = computed(() => Boolean(show.value) && showsSeasonChips(show.value))
     const visibleEpisodes = computed(() => listedEpisodesOf({ show: show.value, season: selectedSeason.value }))
     const programmeInfo = computed(() => (show.value
@@ -399,8 +404,8 @@ export const ShowView = {
     }
 
     const playNext = () => {
-      const episode = episodeById({ show: show.value, recordingId: show.value.resumeNext?.recordingId })
-      if (episode) playEpisode(episode)
+      const target = heroPlayOf(show.value)
+      if (target) actions.play(target.episode, { fromStart: target.fromStart })
     }
 
     const isLocked = (episode) => Boolean(episode.scheduled) || isRecordingNow({ episode, activeIds: activeIds.value })
@@ -509,7 +514,7 @@ export const ShowView = {
       ...actions,
       show, loaded, missing, error, title, heroStyle, artStyle, heroSrc, posterSrc, heroFailed, heroMeta, playLabel,
       ruleStatus, shownRuleStatus, firstEpisodeLine, currentEpisode, heroFromStart, cardFromStart, recordingCard, shownHeroMeta,
-      isTappable, openEpisode, recordedPercent, hasShowActions, visibleEpisodes, selectedSeason, seriesShow, seasonChips, optionsOpen, failedImages,
+      isTappable, openEpisode, recordedPercent, hasShowActions, visibleEpisodes, selectedSeason, seriesShow, pageShape, heroProgress, seasonChips, optionsOpen, failedImages,
       flash, selecting, selected, episodesSection, seasonAllSelected, seasonSelectable, anySelectable,
       backTarget, goBack, onEpisodeRowClick, load, playEpisode, playNext, onStopped, markImageFailed,
       startSelecting, stopSelecting, toggleEpisode, selectSeason, markSelected, deleteSelected, onDeletedHere,
@@ -526,6 +531,8 @@ export const ShowView = {
     }
   },
 }
+
+const heroProgressOf = (item) => (item && !item.inProgress && !item.watched && item.watchedPercent > 0 ? item.watchedPercent : null)
 
 const rememberShowStamps = (detail) => ['background', 'poster'].forEach((kind) =>
   rememberArtworkStamp({ key: detail.key, kind, stamp: detail.artworkStamps?.[kind] ?? null }))

@@ -95,16 +95,16 @@ The menu depends on the row:
 
 | Row                   | Menu                                                                                                                                                                                                                                                                    |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** and **Go to show**.                                                                                                                                                             |
+| **New recordings**    | The episode menu from [Recordings](/guide/recordings#show-pages), with **Episode info** (**Info** for a movie or one-off) and **Go to show**.                                                                                                                           |
 | **For you**           | **Record this episode**, **Record series**, **Programme info**, **More like this**, **Fewer like this**, **Hide this show**, **Hide** with the kind of show, **Not a movie** or **This is a movie**, and **Why this?**. See [For you](/guide/for-you#the-for-you-page). |
 | **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                                                                                                                                                     |
 | **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**.                                                                                                                          |
 
-For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
+For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**, and a confirmed one-off has no **Record series**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
 
 For a programme with no season or episode number, the menus on **On now** and the highlights can also hold **Not a movie** or **This is a movie**, to correct how Freetvarr lists it; see [TV guide](/guide/tv-guide#recording-a-programme).
 
-**Episode info** shows the details of a recording. **Programme info** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home. **Don't record this episode** cancels that one recording; a series rule still records the next episodes.
+**Episode info** (**Info** for a movie or one-off) shows the details of a recording. **Programme info** opens the [programme sheet](/guide/tv-guide#recording-a-programme) over Home. **Don't record this episode** cancels that one recording; a series rule still records the next episodes.
 
 ## Health alert
 

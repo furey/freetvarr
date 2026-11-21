@@ -71,7 +71,7 @@ test('showMenuOf: lists every action in the approved order with delete counts', 
 })
 
 test('showMenuOf: always lists both mark-all items and disables the one that would change nothing', () => {
-  const markItemsOf = (episodes) => showMenuOf({ show: showWith(episodes) })[0]
+  const markItemsOf = (episodes) => showMenuOf({ show: showWith(episodes, { kind: 'show' }) })[0]
     .filter((item) => item.key.startsWith('mark-all'))
     .map(({ key, disabled = false, detail = '' }) => ({ key, disabled, detail }))
   const untouched = markItemsOf([episode({ recordingId: 'a' }), episode({ recordingId: 'b', episode: 45 })])
@@ -184,12 +184,12 @@ test('episodeInfoOf and showInfoOf: plain rows, empty ones left out', () => {
   assert.equal(info.text, 'Storm week.')
   assert.deepEqual(info.rows.map((row) => row.label), ['Aired', 'Channel', 'Length', 'Watched', 'Saves to'])
   assert.equal(info.rows.find((row) => row.label === 'Watched').value, 'Up to 23:10')
-  const showInfo = showInfoOf({ show: showWith([episode(), episode({ recordingId: 'b', watched: true })], { rule: null }), timeZone: 'UTC' })
+  const showInfo = showInfoOf({ show: showWith([episode(), episode({ recordingId: 'b', watched: true })], { rule: null, kind: 'show' }), timeZone: 'UTC' })
   assert.deepEqual(showInfo.rows, [
     { label: 'Episodes', value: '2 recorded · 1 unwatched' },
     { label: 'Series recording', value: 'Not recording new episodes' },
   ])
-  const downloaded = showInfoOf({ show: showWith([episode({ source: 'plex' }), episode({ recordingId: 'b', watched: true, source: 'plex' })], { rule: null }), timeZone: 'UTC' })
+  const downloaded = showInfoOf({ show: showWith([episode({ source: 'plex' }), episode({ recordingId: 'b', watched: true, source: 'plex' })], { rule: null, kind: 'show' }), timeZone: 'UTC' })
   assert.deepEqual(downloaded.rows, [{ label: 'Episodes', value: '2 in your library · 1 unwatched' }])
 })
 

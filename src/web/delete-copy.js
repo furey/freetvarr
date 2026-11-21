@@ -1,4 +1,4 @@
-import { episodeHeading } from './show-page.js'
+import { countOf, episodeHeading, itemNounOf, itemNounOfShow } from './show-page.js'
 
 export const sizeText = (bytes) => {
   if (!(bytes > 0)) return ''
@@ -18,7 +18,7 @@ export const episodeLabelOf = (item) => (item.episode != null ? `E${item.episode
   episode: null,
 }))
 
-export const episodesText = (count) => (count === 1 ? '1 episode' : `${count} episodes`)
+export const episodesText = (count, noun = itemNounOf('show')) => countOf({ count, noun })
 
 export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCount, stopSeries = false, removeSeries = false, choice = 'both' }) => {
   const items = preview.items || []
@@ -35,13 +35,14 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
   const removesSeries = offersRemoveSeries && removeSeries
   const recordingBytes = allCopies.length ? recorded.reduce((sum, item) => sum + (item.bytes || 0), 0) : preview.bytes
   const single = variant === 'episode'
+  const noun = itemNounOfShow(show)
   const onlyFiles = !recorded.length && copies.length > 0 && copies.every((copy) => copy.route === 'disk')
   const chooser = single && items[0]?.canChoose ? choicesOf(items[0].otherManager) : []
   const tvheadendEpisodes = recorded.length ? episodes.filter((episode) => episode.source !== 'plex') : []
   return {
-    title: onlyFiles && single ? 'Delete this file?' : titleOf({ variant, count, showTitle: show.title }),
+    title: onlyFiles && single ? 'Delete this file?' : titleOf({ variant, count, showTitle: show.title, noun }),
     deleted: [
-      plainRecordingLineOf({ variant, single, copies, recorded: plainRecorded, bytes: recordingBytes, filePath: episodes[0]?.filePath }),
+      plainRecordingLineOf({ variant, single, copies, recorded: plainRecorded, bytes: recordingBytes, filePath: episodes[0]?.filePath, noun }),
       ...managedRecordingLinesOf({ copies: managedRecordings, single, unmonitor: preview.unmonitor !== false, episodeLabel: single ? episodeLabelOf(items[0] || {}) : '' }),
       tvheadendLineOf({ variant, count: recorded.length || count, episodes: tvheadendEpisodes, missingCount: missing.length }),
       ...copyLinesOf({ copies, single, withRecording: recorded.length > 0, unmonitor: preview.unmonitor !== false, episodeLabel: single ? episodeLabelOf(items[0] || {}) : '' }),
@@ -51,7 +52,7 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
     missingNote: missingNoteOf(missing),
     notes: [managedRecordingNoteOf({ copies: managedRecordings, single }), ...copyNotesOf({ copies, single })].filter(Boolean),
     stays: [
-      ...staysOf({ variant, count, totalCount, episodes, show, stopsSeries }),
+      ...staysOf({ variant, count, totalCount, episodes, show, stopsSeries, noun }),
       allCopies.some((copy) => copy.route === 'sonarr') && !removesSeries ? sonarrStaysLineOf({ showTitle: show.title, series: preview.sonarrSeries || [] }) : null,
     ].filter(Boolean),
     undoText: undoTextOf({
@@ -60,7 +61,7 @@ export const deleteConfirmOf = ({ variant, show, preview, episodes = [], totalCo
       tvheadendRecordings: inTvheadendCountOf(tvheadendEpisodes),
       recycleBin: preview.recycleBin || {},
     }),
-    confirmLabel: confirmLabelOf({ variant, count, choice, chooser, onlyFiles }),
+    confirmLabel: confirmLabelOf({ variant, count, choice, chooser, onlyFiles, noun }),
     busyLabel: 'Deleting…',
     offersStopSeries,
     offersRemoveSeries,
@@ -78,17 +79,17 @@ const choicesOf = (manager) => [
 
 const copyNameOf = (manager) => ({ sonarr: 'Sonarr copy', radarr: 'Radarr copy' }[manager] || 'Other copy')
 
-const confirmLabelOf = ({ variant, count, choice, chooser, onlyFiles }) => {
+const confirmLabelOf = ({ variant, count, choice, chooser, onlyFiles, noun }) => {
   if (chooser.length) return { both: 'Delete both', recording: 'Delete recording', other: `Delete ${chooser[2].label.toLowerCase()}` }[choice]
-  if (variant === 'episode') return onlyFiles ? 'Delete file' : 'Delete episode'
-  return `Delete ${episodesText(count)}`
+  if (variant === 'episode') return onlyFiles ? 'Delete file' : `Delete ${noun.one}`
+  return `Delete ${episodesText(count, noun)}`
 }
 
-const plainRecordingLineOf = ({ variant, single, copies, recorded, bytes, filePath }) => {
+const plainRecordingLineOf = ({ variant, single, copies, recorded, bytes, filePath, noun }) => {
   if (!recorded.length) return null
   return copies.length && single
     ? recordingLineOf({ bytes, filePath })
-    : libraryLineOf({ variant, items: recorded, bytes })
+    : libraryLineOf({ variant, items: recorded, bytes, noun })
 }
 
 const managedRecordingLinesOf = ({ copies, single, unmonitor, episodeLabel }) => ['sonarr', 'radarr'].flatMap((route) => {
@@ -210,18 +211,18 @@ const fileNameOf = (filePath) => String(filePath).split(/[\\/]/).pop()
 
 const appNameOf = (manager) => ({ sonarr: 'Sonarr', radarr: 'Radarr' }[manager] || 'The app')
 
-export const deleteOutcomeOf = ({ body, labelsById = {}, recycleBin = {} }) => {
+export const deleteOutcomeOf = ({ body, labelsById = {}, recycleBin = {}, noun = itemNounOf('show') }) => {
   const results = body?.results || []
   const detail = [plexLineOf(body?.plex), recycleLineOf({ results, recycleBin })].filter(Boolean).join('. ')
   const deleted = results.filter((result) => result.ok)
   const failed = results.filter((result) => !result.ok)
-  const failures = failed.map((result) => `${labelsById[result.recordingId] || 'An episode'}: ${failureReasonOf(result)}`)
+  const failures = failed.map((result) => `${labelsById[result.recordingId] || `A ${noun.one}`}: ${failureReasonOf(result)}`)
   if (!failed.length) {
-    return { kind: 'ok', title: `Deleted ${episodesText(deleted.length)}`, detail, failures }
+    return { kind: 'ok', title: `Deleted ${episodesText(deleted.length, noun)}`, detail, failures }
   }
   const title = deleted.length
-    ? `Deleted ${deleted.length} of ${episodesText(results.length)}`
-    : `Could not delete ${results.length === 1 ? 'the episode' : 'the episodes'}`
+    ? `Deleted ${deleted.length} of ${episodesText(results.length, noun)}`
+    : `Could not delete the ${results.length === 1 ? noun.one : noun.many}`
   return { kind: 'partial', title, detail, failures }
 }
 
@@ -246,25 +247,26 @@ export const plexLineOf = (plex = {}) => {
   return failed ? `Plex did not refresh (${failed.error})` : ''
 }
 
-const titleOf = ({ variant, count, showTitle }) => {
-  if (variant === 'episode') return 'Delete this episode?'
-  if (variant === 'watched') return `Delete ${count} watched ${count === 1 ? 'episode' : 'episodes'} of ${showTitle}?`
-  if (variant === 'selected') return `Delete ${count} selected ${count === 1 ? 'episode' : 'episodes'} of ${showTitle}?`
-  if (count === 1) return `Delete the only episode of ${showTitle}?`
-  return `Delete all ${count} episodes of ${showTitle}?`
+const titleOf = ({ variant, count, showTitle, noun }) => {
+  const word = count === 1 ? noun.one : noun.many
+  if (variant === 'episode') return `Delete this ${noun.one}?`
+  if (variant === 'watched') return `Delete ${count} watched ${word} of ${showTitle}?`
+  if (variant === 'selected') return `Delete ${count} selected ${word} of ${showTitle}?`
+  if (count === 1) return `Delete the only ${noun.one} of ${showTitle}?`
+  return `Delete all ${count} ${noun.many} of ${showTitle}?`
 }
 
-const libraryLineOf = ({ variant, items, bytes }) => {
+const libraryLineOf = ({ variant, items, bytes, noun }) => {
   const present = items.filter((item) => !item.missing)
   if (!present.length) return null
   const size = sizeText(bytes)
-  const what = variant === 'episode' ? 'This episode' : presentLabelOf({ variant, present })
+  const what = variant === 'episode' ? `This ${noun.one}` : presentLabelOf({ variant, present, noun })
   return { title: size ? `${what}, ${size}` : what, detail: 'from your library and Plex' }
 }
 
-const presentLabelOf = ({ variant, present }) => {
+const presentLabelOf = ({ variant, present, noun }) => {
   const listable = variant !== 'all' && present.length <= LISTED_MAX && present.every((item) => item.episode != null)
-  return listable ? listText(present.map(episodeLabelOf)) : episodesText(present.length)
+  return listable ? listText(present.map(episodeLabelOf)) : episodesText(present.length, noun)
 }
 
 const tvheadendLineOf = ({ variant, count, episodes, missingCount }) => {
@@ -284,13 +286,13 @@ const missingNoteOf = (missing) => {
     : `${who} are already missing from your library. Someone may have moved or deleted them. Freetvarr deletes only their TVHeadend recordings.`
 }
 
-const staysOf = ({ variant, count, totalCount, episodes, show, stopsSeries }) => {
+const staysOf = ({ variant, count, totalCount, episodes, show, stopsSeries, noun }) => {
   const others = Math.max(0, (totalCount ?? count) - count)
   const series = !stopsSeries && show.rule ? seriesLineOf(show.rule) : null
   const episodesLine = {
-    episode: others ? { title: others === 1 ? `The other episode of ${show.title}` : `The other ${others} episodes of ${show.title}` } : null,
-    watched: others ? { title: `${others} unwatched ${others === 1 ? 'episode' : 'episodes'}` } : null,
-    selected: others ? { title: others === 1 ? 'The other episode' : `The other ${others} episodes` } : null,
+    episode: others ? { title: others === 1 ? `The other ${noun.one} of ${show.title}` : `The other ${others} ${noun.many} of ${show.title}` } : null,
+    watched: others ? { title: `${others} unwatched ${others === 1 ? noun.one : noun.many}` } : null,
+    selected: others ? { title: others === 1 ? `The other ${noun.one}` : `The other ${others} ${noun.many}` } : null,
     all: null,
   }[variant]
   if (variant === 'all') return [series, { title: 'Your other shows' }].filter(Boolean)
