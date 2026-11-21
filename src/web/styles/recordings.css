@@ -1941,6 +1941,10 @@ a.show-cast-hit:active .show-cast-face {
   text-wrap: balance;
 }
 
+.more-info .show-cast-name {
+  -webkit-line-clamp: 2;
+}
+
 .more-info .show-cast-role {
   -webkit-line-clamp: 3;
 }

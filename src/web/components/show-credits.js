@@ -93,8 +93,8 @@ export const CastScroller = {
               :src="person.image" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"
               @error="markFailed(person.image)" />
           </span>
-          <span class="show-cast-name">{{ person.name }}</span>
-          <span v-if="person.character" class="show-cast-role">{{ person.character }}</span>
+          <span class="show-cast-name" :title="person.name">{{ person.name }}</span>
+          <span v-if="person.character" class="show-cast-role" :title="person.character">{{ person.character }}</span>
         </component>
       </li>
     </ul>
