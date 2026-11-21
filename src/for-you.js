@@ -1,5 +1,6 @@
 import { showKeyOf as rawShowKeyOf } from './web/show-key.js'
 import { showImageUrlOf } from './web/artwork-stamps.js'
+import { canRecordSeriesOf, isSingleTitleKind } from './web/title-kind.js'
 import { airingCoverCheckOf, airingIdentityOf, coveredProgrammeIdsOf, preferredAiringsOf } from './airing-identity.js'
 import { orderChannels } from './channel-order.js'
 import {
@@ -658,7 +659,7 @@ export const airingItemOf = ({ programme, context, movie, genreTags, kind, reaso
     programmeKind: programme.kind ?? null,
     reason,
     score: Math.round(score * 1000) / 1000,
-    canRecordSeries: Boolean(programme.series_link) && !film,
+    canRecordSeries: canRecordSeriesOf(programme) && !film,
     movieChoice: movieChoiceOf({ programme, film }),
     seasonNumber: programme.series_no ?? null,
     episodeNumber: programme.episode_no ?? null,
@@ -815,11 +816,11 @@ const localMsOf = ({ timeZone, year, month, day, hour }) => {
   return wall - offsetAt({ ms: guess, timeZone })
 }
 
-const startedSignalsOf = ({ show, item }) => (SINGLE_PROGRAMME_KINDS.has(item.programmeKind)
+const startedSignalsOf = ({ show, item }) => (isSingleTitleKind(item.programmeKind)
   ? [`You watched ${show.title || item.title}`, 'It airs again this week']
   : [`You watched ${plural(show.episodesCompleted, 'episode')} of ${show.title || item.title}`, 'The next episode airs this week'])
 
-const startedReasonOf = ({ show, programme }) => (SINGLE_PROGRAMME_KINDS.has(programme.kind)
+const startedReasonOf = ({ show, programme }) => (isSingleTitleKind(programme.kind)
   ? `You watched ${show.title || programme.title}`
   : `You watched ${plural(show.episodesCompleted, 'episode')}`)
 
@@ -1261,7 +1262,7 @@ const topPickOf = (sections) => {
   return withImage ? { ...withImage.entry.item, section: withImage.key } : null
 }
 
-const isSeriesEntry = (entry) => !entry.movie && !SINGLE_PROGRAMME_KINDS.has(entry.item.programmeKind)
+const isSeriesEntry = (entry) => !entry.movie && !isSingleTitleKind(entry.item.programmeKind)
 
 const watchedSignalOf = ({ show, title, series }) => {
   if (!series) return show.episodesCompleted ? `You watched ${title}` : `You watched part of ${title}`
@@ -1419,7 +1420,6 @@ const MAX_SLOT_RATIO = 2.2
 const TONIGHT_PLAIN_FEATURES = new Set(['prime', 'image', 'hour'])
 const READY_STATUSES = new Set(['done', 'partial'])
 const READY_NOUNS = { movie: 'recording', 'one-off': 'recording' }
-const SINGLE_PROGRAMME_KINDS = new Set(['movie', 'one-off'])
 const READY_IMAGE_WIDTH = 384
 const FINISH_MIN_EPISODES = 1
 const FINISH_MAX_EPISODES = 3

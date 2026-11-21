@@ -1,4 +1,4 @@
-import { recordWordingOf } from './record-wording.js'
+import { canRecordSeriesOf, recordWordingOf } from './record-wording.js'
 import { movieKindRowOf } from './movie-choice.js'
 import { artworkStamps, showImageUrlOf } from './artwork-stamps.js'
 import { dislikeLabelsOf, programmeKindOfItem } from './for-you.js'
@@ -11,7 +11,7 @@ export const onNowMenuOf = ({ channelName = '', seriesLink = false, kind = null,
   [
     { key: 'watch-live', label: 'Watch live', icon: 'play', detail: channelName },
     { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: 'From now' },
-    seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
+    canRecordSeriesOf({ series_link: seriesLink, kind }) && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO, movieKindRowOf(movieChoice)],
   dislikeGroupOf(dislike),
@@ -43,7 +43,7 @@ export const scheduledMenuOf = ({ hasRule = false, kind = null }) => [
 export const guideMatchMenuOf = ({ when = '', seriesLink = false, kind = null, movieChoice = null }) => [
   [
     { key: 'record-episode', label: recordWordingOf({ kind }).menuLabel, icon: 'record', detail: when },
-    seriesLink && kind !== 'movie' && { key: 'record-series', label: 'Record series', icon: 'series' },
+    canRecordSeriesOf({ series_link: seriesLink, kind }) && { key: 'record-series', label: 'Record series', icon: 'series' },
   ],
   [PROGRAMME_INFO, movieKindRowOf(movieChoice)],
 ].map(compact)

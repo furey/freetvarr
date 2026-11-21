@@ -5,8 +5,7 @@ export const recordKindOf = ({ kind, hasRule = false } = {}) => {
 
 export const recordWordingOf = (options) => WORDING[recordKindOf(options)]
 
-export const canRecordSeriesOf = (programme) =>
-  Boolean(programme?.series_link) && programme?.kind !== 'movie'
+export { canRecordSeriesOf } from './title-kind.js'
 
 const WORDING = {
   movie: {

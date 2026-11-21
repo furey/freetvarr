@@ -28,11 +28,11 @@ test('canRecordSeriesOf: never for a movie or a programme with no series link', 
   assert.equal(canRecordSeriesOf({ kind: 'series' }), false)
 })
 
-test('home menus: a movie gets movie wording and no Record series', () => {
+test('home menus: a movie gets movie wording, and neither a movie nor a one-off offers Record series', () => {
   assert.deepEqual(labelsOf(onNowMenuOf({ channelName: 'SBS World Movies', seriesLink: true, kind: 'movie' })), [
     'Watch live', 'Record this movie', 'Programme info',
   ])
-  assert.deepEqual(labelsOf(guideMatchMenuOf({ seriesLink: true, kind: 'one-off' })), ['Record', 'Record series', 'Programme info'])
+  assert.deepEqual(labelsOf(guideMatchMenuOf({ seriesLink: true, kind: 'one-off' })), ['Record', 'Programme info'])
   assert.equal(labelsOf(scheduledMenuOf({ kind: 'movie' })).at(-1), 'Don\'t record this movie')
   assert.equal(labelsOf(scheduledMenuOf({ kind: 'movie', hasRule: true })).at(-1), 'Don\'t record this episode')
   assert.equal(skippedTextOf('Master Cheng', 'movie'), 'Won\'t record Master Cheng')
