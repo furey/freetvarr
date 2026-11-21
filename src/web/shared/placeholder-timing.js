@@ -1,4 +1,4 @@
-import { onUnmounted, ref, watch } from '/vendor/vue.esm-browser.prod.js'
+import { onScopeDispose, ref, watch } from '/vendor/vue.esm-browser.prod.js'
 import { remainingHoldMs } from '/pending.js'
 
 export const PLACEHOLDER_DELAY_MS = 300
@@ -12,7 +12,7 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
   let holdTimer = null
 
   const show = () => {
-    shownAt = performance.now()
+    shownAt = Date.now()
     showing.value = true
   }
 
@@ -30,14 +30,14 @@ export const usePlaceholderTiming = (isPending, { delayMs = PLACEHOLDER_DELAY_MS
       return
     }
     if (!showing.value) return
-    const holdMs = remainingHoldMs({ startedAt: shownAt, now: performance.now(), minMs })
+    const holdMs = remainingHoldMs({ startedAt: shownAt, now: Date.now(), minMs })
     if (!holdMs) return finish()
     holding.value = true
     holdTimer = setTimeout(finish, holdMs)
   }
 
   watch(isPending, update, { immediate: true })
-  onUnmounted(() => {
+  onScopeDispose(() => {
     clearTimeout(delayTimer)
     clearTimeout(holdTimer)
   })
