@@ -1,8 +1,9 @@
-import { computed, nextTick, onUnmounted, ref, shallowRef } from '/vendor/vue.esm-browser.prod.js'
+import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from '/vendor/vue.esm-browser.prod.js'
 import { api } from '/shared/api.js'
 import { creditsUrlOf } from '/credits-display.js'
-import { MORE_INFO_CLOSED, loadMoreInfoCredits, looksUpCreditsFor, moreInfoAfterLoadOf, moreInfoOf, moreInfoRequestOf, moreInfoSkeletonOf, moreInfoToggledOf } from '/more-info.js'
+import { MORE_INFO_CLOSED, MORE_INFO_MIN_MS, MORE_INFO_SKELETON_AFTER_MS, loadMoreInfoCredits, looksUpCreditsFor, moreInfoAfterLoadOf, moreInfoOf, moreInfoRequestOf, moreInfoSkeletonOf, moreInfoToggledOf } from '/more-info.js'
 import { prefersReducedMotion } from '/shared/utils.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 import { CastScroller } from '/components/show-credits.js'
 
 export const MoreInfo = {
@@ -16,7 +17,7 @@ export const MoreInfo = {
   template: `
     <details v-if="request" class="more-info" @toggle="onToggle">
       <summary class="ui-disclosure-summary more-info-summary">More info</summary>
-      <div ref="bodyEl" class="more-info-body" :aria-busy="String(asking)">
+      <div ref="bodyEl" :class="['more-info-body', { 'is-placeholder-hidden': placeholderHidden }]" :aria-busy="String(asking)">
         <template v-if="loading">
           <section class="more-info-section" aria-hidden="true">
             <h3 class="ui-group-label more-info-title">Cast and crew</h3>
@@ -89,28 +90,41 @@ export const MoreInfo = {
       easeHeightChange({ el: bodyEl.value, fromHeight })
     }
 
-    const showSkeleton = () => {
-      if (alive) swapEased(() => { loading.value = true })
-    }
+    const placeholder = usePlaceholderTiming(asking, { delayMs: MORE_INFO_SKELETON_AFTER_MS, minMs: MORE_INFO_MIN_MS })
+    const placeholderHidden = computed(() => loading.value && !placeholder.showing.value)
 
     const lookUp = () => loadMoreInfoCredits({
       request: request.value,
       fetchCredits: (wanted) => api('GET', creditsUrlOf(wanted)),
       isCurrent: () => alive,
-      onSlow: showSkeleton,
+      after: NEVER_SLOW,
     })
 
     const showAnswer = (answer) => {
       credits.value = answer
       opened.value = moreInfoAfterLoadOf(answer).opened
       answered.value = true
-      asking.value = false
       loading.value = false
     }
 
+    const whenPlaceholderDone = () => (placeholder.holding.value
+      ? new Promise((resolve) => {
+        const stop = watch(placeholder.holding, (holding) => {
+          if (holding) return
+          stop()
+          resolve()
+        })
+      })
+      : Promise.resolve())
+
     const load = async () => {
       asking.value = true
-      const answer = looksUpCreditsFor(request.value) ? await lookUp() : null
+      loading.value = looksUpCreditsFor(request.value)
+      const answer = loading.value ? await lookUp() : null
+      if (!alive) return
+      asking.value = false
+      await nextTick()
+      await whenPlaceholderDone()
       if (!alive) return
       if (loading.value) await swapEased(() => showAnswer(answer))
       else showAnswer(answer)
@@ -126,7 +140,7 @@ export const MoreInfo = {
 
     onUnmounted(() => { alive = false })
 
-    return { request, answered, asking, loading, shown, skeleton, bodyEl, onToggle, SKELETON_NAME_WIDTHS, SKELETON_ROLE_WIDTHS }
+    return { request, answered, asking, loading, placeholderHidden, shown, skeleton, bodyEl, onToggle, SKELETON_NAME_WIDTHS, SKELETON_ROLE_WIDTHS }
   },
 }
 
@@ -141,6 +155,7 @@ const easeHeightChange = ({ el, fromHeight }) => {
   )
 }
 
+const NEVER_SLOW = () => () => {}
 const SKELETON_NAME_WIDTHS = ['5.5em', '3.5em']
 const SKELETON_ROLE_WIDTHS = ['5em', '3.5em']
 const HEIGHT_EASE_MS = 240

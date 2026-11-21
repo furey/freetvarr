@@ -71,6 +71,7 @@ import { tz, dateFormat, now, fmtClockTz } from '/shared/time.js'
 import { viewStoreOf } from '/shared/view-store.js'
 import { GUIDE_CACHE } from '/view-cache.js'
 import { guideSkeletonRows } from '/guide-skeleton.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 
 const dayKey = (ms) => dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 
@@ -108,7 +109,7 @@ const SCHEDULED_HREF = '#/recordings/scheduled'
 export const EpgView = {
   components: { ...SORT_PART_COMPONENTS, GuideRow, KindFilterMenu },
   template: `
-    <div v-page-reveal class="ui-page guide-page">
+    <div v-page-reveal :class="['ui-page', 'guide-page', { 'is-placeholder-hidden': placeholderHidden }]">
       <page-header title="TV guide" :subtitle="dateSubtitle" :widgets="false">
         <template #actions>
           <a href="#/recordings/scheduled" class="guide-scheduled-chip" :aria-label="scheduledLabel + '. Open Scheduled'">
@@ -222,7 +223,7 @@ export const EpgView = {
           <p class="ui-empty-text"><rich-text :text="error" /> Check the TVHeadend connection in <a href="#/settings/system/tvheadend">Settings</a>.</p>
           <button type="button" class="ui-button ui-button-secondary" @click="loadDay(day, { force: true })">Try again</button>
         </div>
-        <template v-else-if="loading && !guide">
+        <template v-else-if="guidePlaceholder">
           <div v-if="!narrow" class="guide-label-row" aria-hidden="true">
             <h2 class="ui-group-label">Channels</h2>
             <span class="guide-filter"><search-glyph /></span>
@@ -368,6 +369,18 @@ export const EpgView = {
     const loading = ref(false)
     const error = ref('')
     const errorCode = ref('')
+    const placeholder = usePlaceholderTiming(computed(() => loading.value && !guide.value))
+    const guidePlaceholder = computed(() => (loading.value && !guide.value) || placeholder.holding.value)
+    const placeholderHidden = computed(() => guidePlaceholder.value && !placeholder.showing.value)
+    const guideShown = () => (placeholder.holding.value
+      ? new Promise((resolve) => {
+        const stop = watch(placeholder.holding, (holding) => {
+          if (holding) return
+          stop()
+          resolve()
+        })
+      })
+      : Promise.resolve())
     const state = epgState
     const scrollEl = ref(null)
     const searchQ = ref('')
@@ -748,7 +761,7 @@ export const EpgView = {
     }
 
     watch([railItems, zoom, narrow, scrollEl, railPx], measureRowBands, { flush: 'post' })
-    watch(guide, () => requestAnimationFrame(syncCellWindow))
+    watch([guide, guidePlaceholder], () => requestAnimationFrame(syncCellWindow))
 
     const skeletonCardEl = ref(null)
     const skeletonRows = computed(() => guideSkeletonRows({ zoom: zoom.value }))
@@ -822,6 +835,8 @@ export const EpgView = {
     const loadState = loadEpgState
 
     const scrollToMs = async (ms, { anchor = 0, leadPx = 60 } = {}) => {
+      await nextTick()
+      await guideShown()
       await nextTick()
       if (!scrollEl.value || !guide.value) return
       scrollViewW.value = scrollEl.value.clientWidth
@@ -1437,7 +1452,7 @@ export const EpgView = {
     })
 
     return {
-      skeletonCardEl, skeletonRows,
+      skeletonCardEl, skeletonRows, guidePlaceholder, placeholderHidden,
       day, dayChips, dateSubtitle, setDay, pickDay, LISTINGS_LOADING_TEXT,
       loadingIds, loadingNoteMaxPx,
       guide, loading, error, errorCode, loadDay, state, stateMeta, scheduledCount, scheduledLabel, scheduledHref: SCHEDULED_HREF,

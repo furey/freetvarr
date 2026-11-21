@@ -1941,8 +1941,16 @@ a.show-cast-hit:active .show-cast-face {
   text-wrap: balance;
 }
 
+.more-info .show-cast-name {
+  -webkit-line-clamp: 2;
+}
+
 .more-info .show-cast-role {
   -webkit-line-clamp: 3;
+}
+
+.more-info .show-cast-hit {
+  min-height: calc(64px + 8px + 2 * 17px + 2px + 3 * 16px);
 }
 
 .more-info-facts {

@@ -34,7 +34,8 @@ import { useLongPress } from '/shared/long-press.js'
 import { recordingNow, recordingChangeTick, recordingSetKey } from '/shared/recording-now.js'
 import { inProgressCardMetaOf, isRecordingPhase, recordedPercentOf } from '/in-progress-display.js'
 import { storedChoice, storedFlag } from '/shared/storage.js'
-import { viewStoreOf } from '/shared/view-store.js'
+import { libraryStore } from '/shared/library-store.js'
+import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 import { syncStatus } from '/shared/sync-status.js'
 import { now, tz } from '/shared/time.js'
 import { LIBRARY_CACHE } from '/view-cache.js'
@@ -50,7 +51,6 @@ const SKELETON_TITLE_WIDTHS = { shows: '4em', movies: '4.6em', oneoffs: '10em' }
 const OVERVIEW_ORDER = { sort: 'recent', unwatchedOnly: false }
 const FAILED_RECORDINGS_URL = '/api/recordings?status=failed&sort=aired_at&dir=desc&pageSize=10'
 
-const libraryStore = viewStoreOf(LIBRARY_CACHE)
 const rowScroll = createRowScrollMemory()
 
 let libraryDraft = null
@@ -79,11 +79,11 @@ export const loadLibraryData = () => Promise.all([fetchLibraryShows(), fetchFail
 export const RecordingsLibraryView = {
   components: { ActionConfirm, RecordingOptionsSheet, ArtworkPicker, LibraryMenuSheet, LibraryInfoSheet, DeleteConfirm, MoveToShowSheet },
   template: `
-    <div v-page-reveal="{ hold: 2 }" :class="['ui-page', 'recordings-page', { 'library-kind-page': kind }]">
+    <div v-page-reveal="{ hold: 2 }" :class="['ui-page', 'recordings-page', { 'library-kind-page': kind, 'is-placeholder-hidden': placeholderHidden }]">
       <template v-if="kind">
         <a href="#/recordings" class="library-back" @click.prevent="goBack"><back-glyph /> Library</a>
         <page-header :title="kind.title" :subtitle="kindSubtitle">
-          <template v-if="!loaded" #subtitle><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></template>
+          <template v-if="!settled" #subtitle><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></template>
         </page-header>
         <div class="library-toolbar">
           <ui-segmented tabs :model-value="kind.slug" :options="kindTabs" aria-label="Library" @update:model-value="switchKind" />
@@ -112,7 +112,7 @@ export const RecordingsLibraryView = {
 
       <p v-if="stale" class="ui-banner is-warning" role="status">TVHeadend is not answering, so shows waiting for a first episode may be missing.</p>
 
-      <template v-if="!loaded">
+      <template v-if="!settled">
         <section v-for="row in skeletonRows" :key="row.key" class="ui-section" aria-label="Loading recordings" aria-busy="true">
           <div v-if="!kind" class="ui-row-header" aria-hidden="true">
             <h2 class="ui-section-title"><span class="ui-skeleton is-text" :style="{ '--skeleton-w': row.titleWidth }"></span></h2>
@@ -189,6 +189,9 @@ export const RecordingsLibraryView = {
     const shows = ref(saved?.shows || [])
     const stale = ref(Boolean(saved?.stale))
     const loaded = ref(Boolean(saved))
+    const placeholder = usePlaceholderTiming(computed(() => !loaded.value))
+    const settled = computed(() => loaded.value && !placeholder.holding.value)
+    const placeholderHidden = computed(() => !settled.value && !placeholder.showing.value)
     const error = ref('')
     const failedRows = ref(saved?.failedRows || [])
     const scheduledState = shallowRef(cachedScheduled()?.state ?? null)
@@ -236,7 +239,7 @@ export const RecordingsLibraryView = {
     const isOverview = !kind.value
     if (isOverview && latestArrival().fresh) rowScroll.forget()
     let rowsRestored = false
-    watch(() => groups.value.length, (count) => {
+    watch(() => (settled.value ? groups.value.length : 0), (count) => {
       if (!isOverview || rowsRestored || !count) return
       rowsRestored = true
       restoreRowScroll()
@@ -364,7 +367,7 @@ export const RecordingsLibraryView = {
     return {
       ...actions,
       menuShow, menuLoadingKey, optionsOpen, openPosterMenu, posterPress, onStopped, onOptionsFlash, reloadMenuShow,
-      shows, stale, loaded, error, failureBanner, scheduledCount, sortKey, unwatchedOnly,
+      shows, stale, loaded, settled, placeholderHidden, error, failureBanner, scheduledCount, sortKey, unwatchedOnly,
       kind, groups, kindTotal, kindSubtitle, kindEmpty, kindTabs, skeletonRows, layoutClassOf, switchKind, goBack, kindCountText, setRowScroller,
       LIBRARY_SORTS, FAILED_LOG_HREF, tz,
       metaOf, posterLabel, unwatchedCountOf, unwatchedLabelOf, inProgressMeta, recordingPercent, posterSrc, cardSrc, isScheduledOnly, showHrefOf,

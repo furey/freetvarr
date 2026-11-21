@@ -9,6 +9,7 @@ import { expiringMap } from '/bounded-cache.js'
 export const useProgrammeCredits = (programme) => {
   const credits = shallowRef(null)
   const answered = ref(false)
+  const settled = ref(false)
   let token = 0
   let retryTimer = null
 
@@ -25,10 +26,14 @@ export const useProgrammeCredits = (programme) => {
     if (isSettledCredits(result)) {
       creditsCache.set(request.key, result)
       credits.value = result
+      settled.value = true
       return
     }
     const delay = result?.status === 'pending' ? retryDelayOf(attempt) : null
-    if (delay == null) return
+    if (delay == null) {
+      settled.value = true
+      return
+    }
     retryTimer = setTimeout(() => load({ request, attempt: attempt + 1 }), delay)
   }
 
@@ -36,12 +41,17 @@ export const useProgrammeCredits = (programme) => {
     stop()
     credits.value = null
     answered.value = false
+    settled.value = false
     const key = creditsKeyOf(program || {})
-    if (!key) return
+    if (!key) {
+      settled.value = true
+      return
+    }
     const cached = creditsCache.get(key)
     if (cached) {
       credits.value = cached
       answered.value = true
+      settled.value = true
       return
     }
     load({ request: { key, title: program.title, kind: program.kind, year: program.year, token }, attempt: 0 })
@@ -50,7 +60,7 @@ export const useProgrammeCredits = (programme) => {
   watch(() => creditsKeyOf(programme.value || {}), () => start(programme.value), { immediate: true })
   onUnmounted(stop)
 
-  return { credits, answered }
+  return { credits, answered, settled }
 }
 
 export const ShowAbout = {
@@ -83,8 +93,8 @@ export const CastScroller = {
               :src="person.image" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"
               @error="markFailed(person.image)" />
           </span>
-          <span class="show-cast-name">{{ person.name }}</span>
-          <span v-if="person.character" class="show-cast-role">{{ person.character }}</span>
+          <span class="show-cast-name" :title="person.name">{{ person.name }}</span>
+          <span v-if="person.character" class="show-cast-role" :title="person.character">{{ person.character }}</span>
         </component>
       </li>
     </ul>
