@@ -13,8 +13,9 @@ import {
   pageTitleOf,
   playButtonLabel,
   ruleStatusOf,
+  whenDetailLoaded,
   seasonLabel,
-  seedDetailOf,
+  openingDetailOf,
   showsSeasonChips,
   showTitleIn,
   singleItemOf,
@@ -287,7 +288,7 @@ export const ShowView = {
     const { openUpcoming } = useProgrammeSheet()
     const key = computed(() => recordingsPageOf(routeParams.value).showKey || '')
     const openingSummary = ref(librarySummaryOf(key.value))
-    const show = ref(openingDetailOf(key.value))
+    const show = ref(openingDetailFor(key.value))
     const loaded = ref(Boolean(show.value))
     const placeholder = usePlaceholderTiming(computed(() => !loaded.value))
     const settled = computed(() => loaded.value && !placeholder.holding.value)
@@ -328,10 +329,7 @@ export const ShowView = {
       pendingLoad = loadDetail()
       return pendingLoad
     }
-    const whenLoaded = (run) => async (...args) => {
-      if (show.value?.seeded) await pendingLoad
-      if (show.value && !show.value.seeded) return run(...args)
-    }
+    const whenLoaded = whenDetailLoaded({ currentOf: () => show.value, pendingOf: () => pendingLoad })
     const loadDetail = async () => {
       const requestedKey = key.value
       const ticket = loads.issue()
@@ -402,13 +400,13 @@ export const ShowView = {
     const crewLines = computed(() => crewLinesOf(credits.value))
     const lateWaitOver = ref(false)
     let lateWaitTimer = null
-    const startLateWait = () => {
+    const hasDetail = computed(() => settled.value && Boolean(show.value) && !show.value.seeded)
+    const restartLateWait = () => {
       clearTimeout(lateWaitTimer)
       lateWaitOver.value = false
-      lateWaitTimer = setTimeout(() => { lateWaitOver.value = true }, LATE_SECTIONS_WAIT_MS)
+      if (hasDetail.value) lateWaitTimer = setTimeout(() => { lateWaitOver.value = true }, LATE_SECTIONS_WAIT_MS)
     }
-    startLateWait()
-    const hasDetail = computed(() => settled.value && Boolean(show.value) && !show.value.seeded)
+    watch([hasDetail, key], restartLateWait, { immediate: true })
     const lateShown = computed(() => hasDetail.value && (creditsSettled.value || lateWaitOver.value))
     const reviewInAbout = ref(false)
     const castShown = ref(false)
@@ -533,7 +531,7 @@ export const ShowView = {
     })
     watch(key, () => {
       openingSummary.value = librarySummaryOf(key.value)
-      show.value = openingDetailOf(key.value)
+      show.value = openingDetailFor(key.value)
       loaded.value = Boolean(show.value)
       selectedSeason.value = firstSeasonOf(show.value)
       missing.value = false
@@ -542,7 +540,6 @@ export const ShowView = {
       aboutSynopsis.value = ''
       reviewInAbout.value = false
       castShown.value = false
-      startLateWait()
       stopSelecting()
       load()
     })
@@ -591,12 +588,10 @@ const cachedDetails = new Map()
 
 const LATE_SECTIONS_WAIT_MS = 800
 
-const openingDetailOf = (key) => {
-  const cached = cachedDetails.get(key)
-  if (cached) return cached
+const openingDetailFor = (key) => {
   const summary = librarySummaryOf(key)
   if (summary) rememberShowStamps(summary)
-  return seedDetailOf(summary)
+  return openingDetailOf({ cached: cachedDetails.get(key), summary })
 }
 
 const firstSeasonOf = (detail) => detail?.seasons[0]?.season

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { pageTitleOf, showTitleIn, titleFromKey } from '../src/web/show-page.js'
+import { openingDetailOf, pageShapeOf, pageTitleOf, showTitleIn, titleFromKey, whenDetailLoaded } from '../src/web/show-page.js'
 
 const view = readFileSync(new URL('../src/web/views/show-view.js', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../src/web/styles/recordings.css', import.meta.url), 'utf8')
@@ -41,9 +41,34 @@ test('show hero skeletons clear once loading ends, even for a missing show', () 
   assert.match(css, /\.show-missing \{\n  align-items: flex-start;\n  text-align: left;/)
 })
 
-test('show page reuses the last loaded detail for an instant repeat visit', () => {
-  assert.match(view, /const show = ref\(openingDetailOf\(key\.value\)\)/)
-  assert.match(view, /const cached = cachedDetails\.get\(key\)\n\s*if \(cached\) return cached/)
+const filmSummary = {
+  key: 'rocky',
+  title: 'Rocky',
+  kind: 'movie',
+  year: 1976,
+  counts: { total: 1, unwatched: 1, failed: 0, inProgress: 0 },
+  recordingNow: false,
+  rule: null,
+  nextAiring: null,
+  latest: { recordingId: 'plex-1', airedAt: 1, durationS: 7200, watched: false, positionS: null },
+}
+
+test('openingDetailOf: a repeat visit reuses the last loaded detail', () => {
+  const cached = { key: 'rocky', title: 'Rocky', kind: 'movie', seasons: [] }
+  assert.equal(openingDetailOf({ cached, summary: filmSummary }), cached)
+})
+
+test('openingDetailOf: a film opened from a shelf starts in its final single shape', () => {
+  const opening = openingDetailOf({ cached: undefined, summary: filmSummary })
+  assert.equal(opening.seeded, true)
+  assert.equal(pageShapeOf(opening), 'single')
+})
+
+test('openingDetailOf: with no cached detail and no shelf summary the page starts empty', () => {
+  assert.equal(openingDetailOf({ cached: undefined, summary: null }), null)
+})
+
+test('show page drops answers for a show it has left', () => {
   assert.match(view, /const isStale = \(\) => requestedKey !== key\.value \|\| !loads\.accept\(ticket\)/)
 })
 
@@ -53,7 +78,36 @@ test('a show that empties while open goes back to Recordings instead of the not-
   assert.match(view, /<div v-else-if="ruleStatus" class="show-rule is-static">/)
 })
 
-test('a film opened from a shelf paints its final shape from the shelf summary, before the detail arrives', () => {
-  assert.match(view, /const summary = librarySummaryOf\(key\)\n\s*if \(summary\) rememberShowStamps\(summary\)\n\s*return seedDetailOf\(summary\)/)
+const gateOf = (state) => whenDetailLoaded({ currentOf: () => state.show, pendingOf: () => state.pending })
+
+test('whenDetailLoaded: Play pressed on a seeded page waits for the real detail, then plays it', async () => {
+  const played = []
+  const load = Promise.withResolvers()
+  const state = { show: { key: 'rocky', seeded: true }, pending: load.promise }
+  const press = gateOf(state)((target) => played.push(target))('play')
+  await Promise.resolve()
+  assert.deepEqual(played, [])
+  state.show = { key: 'rocky' }
+  load.resolve()
+  await press
+  assert.deepEqual(played, ['play'])
+})
+
+test('whenDetailLoaded: a press does nothing when the detail fails to load', async () => {
+  const played = []
+  const state = { show: { key: 'rocky', seeded: true }, pending: Promise.resolve() }
+  const press = gateOf(state)(() => played.push('play'))()
+  state.show = null
+  await press
+  assert.deepEqual(played, [])
+})
+
+test('whenDetailLoaded: a press on a loaded page runs at once', async () => {
+  const played = []
+  await gateOf({ show: { key: 'rocky' }, pending: null })(() => played.push('play'))()
+  assert.deepEqual(played, ['play'])
+})
+
+test('show page wires Play and More through the loaded-detail gate', () => {
   assert.match(view, /playNext: whenLoaded\(playNow\), openShowMenu: whenLoaded\(actions\.openShowMenu\)/)
 })

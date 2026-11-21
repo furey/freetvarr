@@ -50,6 +50,14 @@ export const pageShapeOf = (show) => {
   return recordedEpisodesOf(show).length === 1 ? 'single' : 'list'
 }
 
+export const openingDetailOf = ({ cached, summary }) => cached || seedDetailOf(summary)
+
+export const whenDetailLoaded = ({ currentOf, pendingOf }) => (run) => async (...args) => {
+  if (currentOf()?.seeded) await pendingOf()
+  const current = currentOf()
+  if (current && !current.seeded) return run(...args)
+}
+
 export const seedDetailOf = (summary) => (isSeedableSingle(summary)
   ? { ...summary, seeded: true, seasons: [{ season: summary.latest.season ?? null, episodes: [seedItemOf(summary)] }] }
   : null)
