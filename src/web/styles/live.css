@@ -1232,7 +1232,8 @@ body.player-open .app-tabbar {
   gap: 0;
 }
 
-.pl-frame.is-info-open .live-info-text > .more-info:last-child {
+.pl-frame.is-info-open .live-info-text > .more-info:last-child,
+.pl-frame.is-info-open:has(.pl-base-actions > :nth-child(4)) .live-info-text > .more-info:last-child {
   display: block;
   min-height: 0;
   margin-right: 0;

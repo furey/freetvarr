@@ -92,13 +92,13 @@ export const LibraryInfoSheet = {
       <template v-if="info">
         <p v-if="info.note" class="library-info-text">{{ info.note }}</p>
         <p v-if="info.text" class="library-info-text">{{ info.text }}</p>
+        <more-info v-if="info.more" :key="[info.title, info.more.title].join('/')" :title="info.more.title" :kind="info.more.kind" :year="info.more.year" />
         <dl class="ui-group library-info-rows">
           <div v-for="(row, index) in info.rows" :key="index" class="ui-group-row library-info-row">
             <dt class="library-info-label">{{ row.label }}</dt>
             <dd :class="['library-info-value', { 'ui-mono': row.mono }]">{{ row.value }}</dd>
           </div>
         </dl>
-        <more-info v-if="info.more" :key="[info.title, info.more.title].join('/')" :title="info.more.title" :kind="info.more.kind" :year="info.more.year" />
       </template>
       <template #footer>
         <button type="button" class="ui-button ui-button-block" @click="$emit('close')">Close</button>
