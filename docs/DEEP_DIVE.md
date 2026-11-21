@@ -2550,7 +2550,9 @@ FREETVARR_URL=http://127.0.0.1:3801 CAPTURE_CLOCK_OFFSET_MS=<offset the server p
 
 - The check sets 4x CPU throttling and widths of `390` and `1280` px.
 - On a loopback address, it answers the credits and ratings lookups with a fixture after `250 ms`. `movie-page-cold-lookups` answers `pending` first, like a lookup that is not cached yet.
+- It taps the first matching element whose centre is not covered by another element, as a person would. If no match is on screen, it scrolls the first match into view and then picks again.
 - After each frame is painted, it records the visible headings, text, buttons, list rows, pictures, and skeletons, with their layout boxes.
+- From the tap until the watch ends, it compares the box of each guide cell (by `data-key`) with its box at the tap. A move of more than `0.5 px` fails the screen and shows in the `guide` column, whether or not the move comes before the first new frame.
 - It fails a screen for a layout shift above `0.02`, a blank gap between two screens, an item that moves after the first frame while no ancestor runs an animation or changes its transform, a skeleton that appears and then shows for less than `700 ms` (one already showing when the watch starts is not timed), content that arrives more than `1500 ms` after the first frame, or a page error. Pictures that finish loading are reported in the `art` column and do not fail the check.
 - A screen can name the items that wait on a slow answer (`slowItems`): About and Cast on the film page with cold lookups, the hide rows and score in the programme sheet, the channel list on Live TV, and the details in More info. Those items appear in the `slow` column and fail only after `2500 ms`; every other item keeps the `1500 ms` limit.
 - On `more-info`, moves in the first `500 ms` after the tap count as the response to the tap, as the browser's layout shift score does. A screen with nothing to open in the demo pack (the one-off page) is skipped.

@@ -94,8 +94,10 @@ const measureScreen = async ({ browser, viewport, screen }) => {
       await page.goto(`${baseUrl}/${screen.from}`, { waitUntil: 'load' })
       await settle(page)
       if (screen.click && !await page.locator(screen.click).count()) return { screen: screen.name, viewport: `${viewport.width}`, skipped: 'nothing to open here' }
-      if (screen.click) await page.locator(screen.click).first().scrollIntoViewIfNeeded({ timeout: 5000 })
+      if (screen.click) await tagTapTarget({ page, selector: screen.click })
+      if (screen.click) await page.locator(TAP_TARGET).scrollIntoViewIfNeeded({ timeout: 5000 })
       await settle(page)
+      if (screen.click) await tagTapTarget({ page, selector: screen.click })
       await startWatch({ cdp, frames })
       await page.evaluate((ms) => window.__layoutCheck.begin({ watchMs: ms }), watchMs)
       await openScreen({ page, screen })
@@ -130,13 +132,28 @@ const watchRequests = (page) => {
 const openScreen = async ({ page, screen }) => {
   if (screen.to) return page.evaluate((hash) => { location.hash = hash }, screen.to)
   if (screen.press) return page.keyboard.press(screen.press)
-  await page.locator(screen.click).first().click({ timeout: 5000 })
+  await page.locator(TAP_TARGET).click({ timeout: 5000 })
   if (screen.then) {
     await page.waitForTimeout(600)
     await page.evaluate(() => window.__layoutCheck.restart())
     await page.locator(screen.then).first().click({ timeout: 5000 })
   }
 }
+
+const TAP_TARGET_ATTRIBUTE = 'data-layout-tap-target'
+const TAP_TARGET = `[${TAP_TARGET_ATTRIBUTE}]`
+
+const tagTapTarget = ({ page, selector }) => page.locator(selector).evaluateAll((elements, attribute) => {
+  document.querySelectorAll(`[${attribute}]`).forEach((element) => element.removeAttribute(attribute))
+  const centreHitsItself = (element) => {
+    const rect = element.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return false
+    const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+    return Boolean(hit) && element.contains(hit)
+  }
+  const target = elements.find(centreHitsItself) ?? elements[0]
+  target?.setAttribute(attribute, '')
+}, TAP_TARGET_ATTRIBUTE)
 
 const startWatch = async ({ cdp, frames }) => {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate })
@@ -223,6 +240,8 @@ const summarise = ({ raw, inputGrace, slowItems }) => {
     popInMs: lateContent.length ? lateContent.at(-1).ms - startMs : 0,
     slowItemsMs: lateSlow.length ? lateSlow.at(-1).ms - startMs : 0,
     moves: late.filter((change) => change.kind === 'move' && !isTapResponse(change)).length,
+    guideMoves: raw.guideMoves.length,
+    guideMoveItems: raw.guideMoves.slice(0, 8),
     artMs: art.length && startMs !== null ? Math.max(0, art.at(-1).ms - startMs) : 0,
     flickers: skeletonSpans.filter((span) => span.start > 0 && span.ended && span.ms < limits.skeletonMs),
     skeletonSpans,
@@ -278,6 +297,7 @@ const failuresOf = (result) => {
     result.popInMs > (allow.popInMs ?? limits.popInMs) ? `content still arriving ${result.popInMs} ms after the first frame` : '',
     result.slowItemsMs > limits.slowItemsMs ? `the named slow items still arriving ${result.slowItemsMs} ms after the first frame` : '',
     result.moves > (allow.moves ?? 0) ? `${result.moves} shifted items` : '',
+    result.guideMoves ? `${result.guideMoves} guide cells moved after the tap` : '',
     result.flickers.length && !allow.flicker ? `placeholder shown only ${result.flickers.map((f) => f.ms).join('/')} ms` : '',
     result.visible === false ? 'tab not visible' : '',
     result.pageErrors?.length ? `page error: ${result.pageErrors[0]}` : '',
@@ -285,10 +305,10 @@ const failuresOf = (result) => {
 }
 
 const printTable = (results) => {
-  const columns = ['screen', 'width', 'CLS', 'blank', 'pop-in', 'slow', 'moves', 'art', 'flicker']
+  const columns = ['screen', 'width', 'CLS', 'blank', 'pop-in', 'slow', 'moves', 'guide', 'art', 'flicker']
   console.log(columns.map((name, n) => name.padEnd(n ? 8 : 26)).join(''))
   results.forEach((r) => console.log([
-    r.screen, r.viewport, r.cls, r.blankMs, r.popInMs, r.slowItemsMs, r.moves, r.artMs,
+    r.screen, r.viewport, r.cls, r.blankMs, r.popInMs, r.slowItemsMs, r.moves, r.guideMoves, r.artMs,
     r.skipped ?? r.error ?? (r.flickers.length ? r.flickers.map((f) => `${f.ms}ms`).join(' ') : '-'),
   ].map((value, n) => String(value ?? '-').padEnd(n ? 8 : 26)).join('')))
 }
@@ -315,7 +335,7 @@ function instrument ({ clockOffsetMs }) {
     sessionStorage.setItem('freetvarr.introPlayed', '1')
     localStorage.setItem('freetvarr.introPlayedOn', day)
   } catch {}
-  const state = { start: 0.0001, shifts: [], frames: [], fades: [], inputs: [], done: false, watchMs: 0, visible: null, startWallMs: 0 }
+  const state = { start: 0.0001, shifts: [], frames: [], fades: [], inputs: [], guideBaseline: null, guideMoves: [], done: false, watchMs: 0, visible: null, startWallMs: 0 }
   const noteFade = (target, source) => {
     if (!target?.isConnected) return
     state.fades.push({ ms: Math.round(performance.now() - state.start), node: describe(target), source })
@@ -326,7 +346,23 @@ function instrument ({ clockOffsetMs }) {
     if (first && Number(first.opacity) === 0) noteFade(this, 'script')
     return animate.call(this, keyframes, options)
   }
-  document.addEventListener('pointerdown', () => state.inputs.push(Math.round(performance.now() - state.start)), true)
+  const guideCellBoxes = () => new Map([...document.querySelectorAll('button.epg-cell[data-key]')].map((cell) => {
+    const rect = cell.getBoundingClientRect()
+    return [cell.dataset.key, [rect.x, rect.y, rect.width, rect.height]]
+  }))
+  const noteGuideMoves = (ms) => {
+    if (!state.guideBaseline) return
+    const noted = new Set(state.guideMoves.map((move) => move.key))
+    for (const [key, box] of guideCellBoxes()) {
+      const before = state.guideBaseline.get(key)
+      if (!before || noted.has(key) || !box.some((value, n) => Math.abs(value - before[n]) > 0.5)) continue
+      state.guideMoves.push({ ms, key, from: before.map(Math.round), to: box.map(Math.round) })
+    }
+  }
+  document.addEventListener('pointerdown', () => {
+    state.inputs.push(Math.round(performance.now() - state.start))
+    if (state.watchMs && !state.guideBaseline) state.guideBaseline = guideCellBoxes()
+  }, true)
   document.addEventListener('animationstart', (event) => {
     if (Number(getComputedStyle(event.target).opacity) < 0.05) noteFade(event.target, event.animationName)
   }, true)
@@ -413,6 +449,7 @@ function instrument ({ clockOffsetMs }) {
   afterPaint.port1.onmessage = () => {
     const ms = Math.round(performance.now() - state.start)
     state.frames.push({ ms, ...snapshot() })
+    noteGuideMoves(ms)
     if (ms >= state.watchMs) {
       state.done = true
       return
@@ -426,6 +463,8 @@ function instrument ({ clockOffsetMs }) {
       state.startWallMs = performance.timeOrigin + (fromNavigation ? 0 : state.start)
       state.watchMs = watchMs
       state.visible = document.visibilityState === 'visible'
+      state.guideBaseline = null
+      state.guideMoves = []
       if (!fromNavigation) {
         state.frames = []
         state.shifts = []
