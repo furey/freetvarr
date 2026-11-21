@@ -835,6 +835,7 @@ export const EpgView = {
     const loadState = loadEpgState
 
     const scrollToMs = async (ms, { anchor = 0, leadPx = 60 } = {}) => {
+      await nextTick()
       await guideShown()
       await nextTick()
       if (!scrollEl.value || !guide.value) return
