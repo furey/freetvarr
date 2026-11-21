@@ -1814,12 +1814,6 @@ a.show-cast-hit:focus-visible .show-cast-face {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transition: opacity 220ms var(--ease-standard);
-}
-
-.show-cast-photo.is-loaded {
-  opacity: 1;
 }
 
 .show-cast-name,
