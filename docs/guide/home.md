@@ -100,7 +100,7 @@ The menu depends on the row:
 | **On now**            | **Watch live**, **Record this episode**, **Record series**, and **Programme info**.                                                                                                                                                                                     |
 | **Recording tonight** | **Programme info**, **Go to show**, **Recording options** (for a show with a [series rule](/guide/series)), and **Don't record this episode**.                                                                                                                          |
 
-For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**, and **Record series** does not show. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
+For a movie, **Record this episode** reads **Record this movie**, **Don't record this episode** reads **Don't record this movie**, and **Record series** does not show. For a one-off programme they read **Record** and **Don't record this**, and a confirmed one-off has no **Record series**. The [TV guide](/guide/tv-guide#recording-a-programme) says how Freetvarr tells them apart.
 
 For a programme with no season or episode number, the menus on **On now** and the highlights can also hold **Not a movie** or **This is a movie**, to correct how Freetvarr lists it; see [TV guide](/guide/tv-guide#recording-a-programme).
 
