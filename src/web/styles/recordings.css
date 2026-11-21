@@ -187,6 +187,12 @@
   color: var(--color-text-soft);
 }
 
+.show-hero-progress {
+  display: block;
+  width: min(240px, 60%);
+  margin-top: 10px;
+}
+
 .show-title-skeleton {
   --skeleton-w: 7em;
 }

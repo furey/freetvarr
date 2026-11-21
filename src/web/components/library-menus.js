@@ -5,7 +5,7 @@ import { menuPendingLabelOf } from '/library-menus.js'
 import { dialogBlocksOf } from '/dialog-blocks.js'
 import { overlayStack } from '/overlay-stack.js'
 import { holdAtLeast } from '/pending.js'
-import { episodeHeading } from '/show-page.js'
+import { episodeHeading, itemNounOf } from '/show-page.js'
 import { keepFocusInside } from '/components/ui-sheet.js'
 import { api } from '/shared/api.js'
 import { stopPlayback } from '/shared/playback-session.js'
@@ -197,7 +197,8 @@ export const DeleteConfirm = {
     const lead = computed(() => props.request?.episodes?.[0] || null)
     const leadTitle = computed(() => (lead.value ? episodeHeading(lead.value) : ''))
     const leadStyle = computed(() => artFallbackStyle(props.request?.show?.title || ''))
-    const loadingTitle = computed(() => (props.request?.variant === 'episode' ? 'Delete this episode?' : 'Delete episodes?'))
+    const noun = computed(() => itemNounOf(props.request?.show?.kind))
+    const loadingTitle = computed(() => (props.request?.variant === 'episode' ? `Delete this ${noun.value.one}?` : `Delete ${noun.value.many}?`))
     const copy = computed(() => (preview.value && props.request
       ? deleteConfirmOf({
         variant: props.request.variant,
@@ -279,7 +280,7 @@ export const DeleteConfirm = {
         })
         const seriesFailure = copy.value.offersStopSeries && stopSeries.value ? await stopSeriesRecording() : ''
         const labelsById = Object.fromEntries(props.request.episodes.map((episode) => [episode.recordingId, episodeHeading(episode)]))
-        const outcome = deleteOutcomeOf({ body, labelsById, recycleBin: preview.value.recycleBin })
+        const outcome = deleteOutcomeOf({ body, labelsById, recycleBin: preview.value.recycleBin, noun: noun.value })
         refreshAfterRecordingChange()
         busy.value = false
         emit('done', {

@@ -164,7 +164,7 @@ test('library menus: an in-progress row offers watching and stopping, never dele
   assert.deepEqual(keys(episodeMenuOf({ episode: running, canMove: true })), ['from-start', 'watch-live', 'episode-info', 'stop-recording'])
   assert.deepEqual(keys(episodeMenuOf({ episode: episode({ inProgress: item({ phase: 'finishing' }) }) })), ['episode-info'])
   assert.equal(isRecordingNow({ episode: episode({ inProgress: item({ phase: 'finishing' }) }), activeIds: new Set() }), true)
-  const show = { seasons: [{ season: 26, episodes: [running, imported] }], resumeNext: null, rule: null }
+  const show = { kind: 'show', seasons: [{ season: 26, episodes: [running, imported] }], resumeNext: null, rule: null }
   const showKeys = keys(showMenuOf({ show, canMove: true }))
   assert.ok(showKeys.includes('from-start'))
   assert.ok(showKeys.includes('stop-recording'))

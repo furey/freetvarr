@@ -45,6 +45,17 @@ export const seasonYearOf = ({ season, title = '' }) => {
 
 export const isSeriesShow = (show) => show?.kind === 'show'
 
+export const pageShapeOf = (show) => {
+  if (!show || isSeriesShow(show)) return 'series'
+  return recordedEpisodesOf(show).length > 1 ? 'list' : 'single'
+}
+
+export const singleItemOf = (show) => (pageShapeOf(show) === 'single' ? recordedEpisodesOf(show)[0] ?? null : null)
+
+export const itemNounOf = (kind = 'show') => ITEM_NOUNS[kind] ?? ITEM_NOUNS.oneoff
+
+export const countOf = ({ count, noun }) => `${count} ${count === 1 ? noun.one : noun.many}`
+
 export const showsSeasonChips = (show) => isSeriesShow(show)
   && recordedEpisodesOf(show).length > 0
   && !(show.seasons.length === 1 && seasonYearOf({ season: show.seasons[0].season, title: show.title }))
@@ -90,6 +101,17 @@ export const episodeStateText = (episode) => {
 }
 
 export const heroMetaOf = ({ show }) => {
+  const single = singleItemOf(show)
+  return single ? singleHeroMetaOf({ show, item: single }) : collectionHeroMetaOf({ show })
+}
+
+const singleHeroMetaOf = ({ show, item }) => [
+  show.year ? String(show.year) : '',
+  durationText(item.durationS),
+  episodeStateText(item),
+].filter(Boolean).join(' · ')
+
+const collectionHeroMetaOf = ({ show }) => {
   const latestSeason = isSeriesShow(show)
     ? show.seasons.find((s) => s.season != null && !seasonYearOf({ season: s.season, title: show.title }))?.season
     : null
@@ -111,7 +133,7 @@ export const playButtonLabel = ({ show }) => {
   const next = show.resumeNext
   if (!next) return ''
   const episode = episodeById({ show, recordingId: next.recordingId })
-  const number = episode?.episode != null ? ` E${episode.episode}` : ''
+  const number = isSeriesShow(show) && episode?.episode != null ? ` E${episode.episode}` : ''
   if (next.positionS > 0) return `Resume${number}`
   return number ? `Play${number}` : 'Play'
 }
@@ -124,12 +146,10 @@ export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now
     return {
       tone: 'scheduled',
       headline: `Records ${lowerDayWord(scheduledWhenOf({ ms: scheduled.airedAt, nowMs, timeZone }))}${channel}`,
-      detail: scheduled.scheduled?.seriesLinkId
-        ? 'Part of a series recording in TVHeadend.'
-        : 'This episode only. To record every episode, open it in the TV guide and choose Every episode.',
+      detail: scheduledDetailOf({ show, scheduled }),
     }
   }
-  if (!rule && !hasRecordingsIn(show)) return null
+  if (!rule && !(isSeriesShow(show) && hasRecordingsIn(show))) return null
   if (!rule) {
     return {
       tone: 'idle',
@@ -138,6 +158,11 @@ export const ruleStatusOf = ({ show, activeRecording, timeZone, nowMs = Date.now
     }
   }
   return { tone: toneOf({ rule, activeRecording }), headline: headlineOf({ show, activeRecording, timeZone }), detail: rule.summary }
+}
+
+const scheduledDetailOf = ({ show, scheduled }) => {
+  if (scheduled.scheduled?.seriesLinkId) return 'Part of a series recording in TVHeadend.'
+  return isSeriesShow(show) ? 'This episode only. To record every episode, open it in the TV guide and choose Every episode.' : ''
 }
 
 export const activeRecordingFor = ({ active = [], key }) =>
@@ -241,6 +266,12 @@ const uniqueBy = (items, keyOf) => {
     seen.add(key)
     return true
   })
+}
+
+const ITEM_NOUNS = {
+  show: { one: 'episode', many: 'episodes' },
+  movie: { one: 'movie', many: 'movies' },
+  oneoff: { one: 'recording', many: 'recordings' },
 }
 
 const STATE_TEXT = {

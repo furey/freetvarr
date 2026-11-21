@@ -1,7 +1,8 @@
 import { adMenuItemOf, restoreMenuItemOf } from './ad-confirm.js'
 import { weekdayClockOf } from './library-shelves.js'
 import { airedRangeText, durationText } from './recording-info.js'
-import { episodeHeading, hasRecordingsIn } from './show-page.js'
+import { countOf, episodeHeading, episodeMetaOf, hasRecordingsIn, isSeriesShow, itemNounOf, singleItemOf } from './show-page.js'
+import { isSingleTitleKind } from './title-kind.js'
 import { showKeyOf } from './show-key.js'
 import { CHANGE_CATEGORIES } from './category-override.js'
 
@@ -36,7 +37,14 @@ export const clockOf = (seconds) => {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`
 }
 
-export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => {
+export const showMenuOf = ({ show, activeIds = new Set(), canMove = false, adRemovalEnabled = false }) => {
+  const single = singleItemOf(show)
+  if (single) return singleTitleMenuOf({ show, item: single, activeIds, canMove, adRemovalEnabled })
+  return collectionMenuOf({ show, activeIds, canMove })
+}
+
+const collectionMenuOf = ({ show, activeIds, canMove }) => {
+  const noun = itemNounOf(show.kind)
   const episodes = importedEpisodesOf(show)
   const running = runningEpisodeOf(show)
   const next = show.resumeNext ? episodes.find((e) => e.recordingId === show.resumeNext.recordingId) : null
@@ -54,8 +62,8 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
       show.rule && (show.rule.paused
         ? { key: 'resume-series', label: 'Resume recording', icon: 'play' }
         : { key: 'pause-series', label: 'Pause recording', icon: 'pause' }),
-      { key: 'show-info', label: 'Show info', icon: 'info' },
-      canMove && episodes.some(isRecorded) && { key: 'move', label: 'Merge into another show…', icon: 'move' },
+      titleInfoItemOf(show),
+      canMerge({ canMove, kind: show.kind }) && episodes.some(isRecorded) && MERGE_ITEM,
       shelfMoveOf(show),
       episodes.some((e) => e.filePath) && { key: 'plex', label: 'Open in Plex', icon: 'external' },
       hasArtwork && { key: 'change-picture', label: 'Change picture', icon: 'picture' },
@@ -64,10 +72,71 @@ export const showMenuOf = ({ show, activeIds = new Set(), canMove = false }) => 
     ],
     [
       running && { key: 'stop-recording', label: 'Stop recording…', icon: 'stop', danger: true },
-      watchedCount && { key: 'delete-watched', label: 'Delete watched episodes', icon: 'trash', danger: true, detail: String(watchedCount) },
-      deletable.length && { key: 'delete-all', label: 'Delete all episodes', icon: 'trash', danger: true, detail: String(deletable.length) },
+      watchedCount && { key: 'delete-watched', label: `Delete watched ${noun.many}`, icon: 'trash', danger: true, detail: String(watchedCount) },
+      deletable.length && { key: 'delete-all', label: `Delete all ${noun.many}`, icon: 'trash', danger: true, detail: String(deletable.length) },
     ],
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
+}
+
+const singleTitleMenuOf = ({ show, item, activeIds, canMove, adRemovalEnabled }) => {
+  const recording = isRecordingNow({ episode: item, activeIds })
+  return [
+    singlePlayItemsOf(item),
+    [
+      ...ruleItemsOf(show),
+      titleInfoItemOf(show),
+      canMerge({ canMove, kind: show.kind }) && isRecorded(item) && MERGE_ITEM,
+      shelfMoveOf(show),
+      canImport(item) && { key: 'import', label: importLabelOf(item), icon: 'refresh' },
+      adRemovalEnabled && canRescan(item) && adMenuItemOf(item),
+      canRescan(item) && restoreMenuItemOf(item),
+      item.filePath && { key: 'plex', label: 'Open in Plex', icon: 'external' },
+      { key: 'change-picture', label: 'Change picture', icon: 'picture' },
+      show.kind !== 'movie' && CHANGE_CATEGORIES,
+      { key: 'refresh-artwork', label: 'Refresh artwork', icon: 'refresh' },
+    ],
+    [
+      item.inProgress?.phase === 'recording' && { key: 'stop-recording', label: 'Stop recording…', icon: 'stop', danger: true },
+      !recording && !item.inProgress && { key: 'delete-episode', label: `Delete ${itemNounOf(show.kind).one}`, icon: 'trash', danger: true },
+    ],
+  ].map((group) => group.filter(Boolean)).filter((group) => group.length)
+}
+
+const singlePlayItemsOf = (item) => {
+  if (item.inProgress) return [item.inProgress.canPlayFromStart && { key: 'from-start', label: 'Watch from the start', icon: 'restart' }]
+  const resumable = item.playable && !item.watched && item.positionS > 0
+  return [
+    resumable && { key: 'play-start', label: 'Play from the start', icon: 'restart' },
+    !item.failed && (item.watched
+      ? { key: 'unwatched', label: 'Mark as unwatched', icon: 'unwatched' }
+      : { key: 'watched', label: 'Mark as watched', icon: 'check' }),
+  ]
+}
+
+const ruleItemsOf = (show) => (show.rule
+  ? [
+    { key: 'options', label: 'Recording options', icon: 'options' },
+    show.rule.paused
+      ? { key: 'resume-series', label: 'Resume recording', icon: 'play' }
+      : { key: 'pause-series', label: 'Pause recording', icon: 'pause' },
+  ]
+  : [])
+
+const titleInfoItemOf = (show) => ({ key: 'show-info', label: isSeriesShow(show) ? 'Show info' : 'Info', icon: 'info' })
+
+const canMerge = ({ canMove, kind }) => canMove && kind !== 'movie'
+
+const MERGE_ITEM = { key: 'move', label: 'Merge into another show…', icon: 'move' }
+
+export const SINGLE_ITEM_KEYS = new Set(['play-start', 'watched', 'unwatched', 'import', 'remove-ads', 'restore-original', 'delete-episode'])
+
+export const titleMenuSubtitleOf = ({ show, timeZone }) => {
+  const single = singleItemOf(show)
+  if (single) return episodeMetaOf({ episode: single, timeZone })
+  const list = allEpisodesOf(show)
+  if (!list.length) return ''
+  const unwatched = list.filter((e) => !e.watched && !e.failed).length
+  return `${countOf({ count: list.length, noun: itemNounOf(show.kind) })} · ${unwatched} unwatched`
 }
 
 export const markAllItemsOf = (episodes) => {
@@ -90,8 +159,9 @@ export const shelfMoveOf = (show) => {
   return null
 }
 
-export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false }) => {
-  if (episode.inProgress) return inProgressMenuOf(episode)
+export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), adRemovalEnabled = false, canMove = false, kind = 'show' }) => {
+  if (episode.inProgress) return inProgressMenuOf({ episode, kind })
+  const noun = itemNounOf(kind)
   const recording = isRecordingNow({ episode, activeIds })
   const resumable = episode.playable && !episode.watched && episode.positionS > 0
   const hasUnwatchedEarlier = earlierEpisodesOf({ episodes, episode }).some((other) => !other.watched && !other.failed)
@@ -104,23 +174,25 @@ export const episodeMenuOf = ({ episode, episodes = [], activeIds = new Set(), a
       !episode.failed && (episode.watched
         ? { key: 'unwatched', label: 'Mark as unwatched', icon: 'unwatched' }
         : { key: 'watched', label: 'Mark as watched', icon: 'check' }),
-      hasUnwatchedEarlier && { key: 'watched-earlier', label: 'Mark earlier episodes as watched', icon: 'check-list' },
+      hasUnwatchedEarlier && { key: 'watched-earlier', label: `Mark earlier ${noun.many} as watched`, icon: 'check-list' },
     ],
     [
-      { key: 'episode-info', label: 'Episode info', icon: 'info' },
-      canMove && isRecorded(episode) && { key: 'move', label: 'Merge into another show…', icon: 'move' },
+      itemInfoItemOf(kind),
+      canMerge({ canMove, kind }) && isRecorded(episode) && MERGE_ITEM,
       canImport(episode) && { key: 'import', label: importLabelOf(episode), icon: 'refresh' },
       adRemovalEnabled && canRescan(episode) && adMenuItemOf(episode),
       canRescan(episode) && restoreMenuItemOf(episode),
       episode.filePath && { key: 'plex', label: 'Open in Plex', icon: 'external' },
     ],
     [
-      !recording && { key: 'delete-episode', label: 'Delete episode', icon: 'trash', danger: true },
+      !recording && { key: 'delete-episode', label: `Delete ${noun.one}`, icon: 'trash', danger: true },
     ],
   ].map((group) => group.filter(Boolean)).filter((group) => group.length)
 }
 
-export const inProgressMenuOf = (episode) => {
+const itemInfoItemOf = (kind) => ({ key: 'episode-info', label: isSingleTitleKind(kind) ? 'Info' : 'Episode info', icon: 'info' })
+
+export const inProgressMenuOf = ({ episode, kind = 'show' }) => {
   const recording = episode.inProgress.phase === 'recording'
   return [
     [
@@ -128,7 +200,7 @@ export const inProgressMenuOf = (episode) => {
       recording && { key: 'watch-live', label: 'Watch live', icon: 'show' },
     ],
     [
-      { key: 'episode-info', label: 'Episode info', icon: 'info' },
+      itemInfoItemOf(kind),
     ],
     [
       recording && { key: 'stop-recording', label: 'Stop recording…', icon: 'stop', danger: true },
@@ -179,25 +251,33 @@ export const unmarkedText = ({ failed, total }) => {
   return `Could not mark ${what}`
 }
 
-export const episodeInfoOf = ({ episode, showTitle, timeZone, kind = '', year = null }) => {
+export const episodeInfoOf = ({ episode, showTitle, timeZone, kind = '', year = null, nicknames = [] }) => {
   const fromPlex = episode.source === 'plex'
   const copies = fromPlex ? episode.versions || [] : episode.otherVersions || []
   const versionCount = copies.length + (fromPlex ? 0 : 1)
+  const title = isSingleTitleKind(kind) ? showTitle : episodeHeading(episode)
   return {
-    title: episodeHeading(episode),
-    subtitle: showTitle,
+    title,
+    subtitle: title === showTitle ? '' : showTitle,
     more: moreInfoOfShow({ title: showTitle, kind, year }),
-    note: versionCount > 1 ? versionsNoteOf({ count: versionCount, fromPlex }) : '',
+    note: versionCount > 1 ? versionsNoteOf({ count: versionCount, fromPlex, noun: itemNounOf(kind) }) : '',
     text: episode.synopsis || '',
     rows: [
-      { label: 'Aired', value: airedRangeText({ airedAt: episode.airedAt, durationSeconds: episode.durationS, timeZone }) },
+      airedRowOf({ episode, kind, fromPlex, timeZone }),
       { label: 'Channel', value: episode.channelName || '' },
       { label: 'Length', value: durationText(episode.durationS) },
       { label: 'Watched', value: watchedTextOf(episode) },
       !fromPlex && { label: copies.length ? 'Recording' : 'Saves to', value: episode.filePath || '', mono: true },
       ...copies.flatMap((copy, i) => copyRowsOf({ copy, label: copyLabelOf({ copy, index: i, fromPlex, count: copies.length }) })),
+      { label: 'Also known as', value: nicknames.join(', ') },
     ].filter((row) => row && row.value),
   }
+}
+
+const airedRowOf = ({ episode, kind, fromPlex, timeZone }) => {
+  const value = airedRangeText({ airedAt: episode.airedAt, durationSeconds: episode.durationS, timeZone })
+  if (!isSingleTitleKind(kind)) return { label: 'Aired', value }
+  return fromPlex ? null : { label: 'Recorded', value }
 }
 
 export const moreInfoOfShow = ({ title, kind = '', year = null }) => ({
@@ -216,9 +296,9 @@ export const copySizeText = (copy) => [
   audioCodecText(copy.audioCodec),
 ].filter(Boolean).join(' · ')
 
-const versionsNoteOf = ({ count, fromPlex }) => (fromPlex
-  ? `This episode has ${count} versions. Freetvarr plays the first; Plex picks either.`
-  : `This episode has ${count} versions. Freetvarr plays the recording; Plex picks either.`)
+const versionsNoteOf = ({ count, fromPlex, noun }) => (fromPlex
+  ? `This ${noun.one} has ${count} versions. Freetvarr plays the first; Plex picks either.`
+  : `This ${noun.one} has ${count} versions. Freetvarr plays the recording; Plex picks either.`)
 
 const copyLabelOf = ({ copy, index, fromPlex, count }) => {
   if (fromPlex) return count > 1 ? `Version ${index + 1}` : 'Came from'
@@ -252,6 +332,12 @@ const seriesRecordingTextOf = ({ show, recorded }) => {
   return recorded ? 'Not recording new episodes' : ''
 }
 
+export const titleInfoOf = ({ show, timeZone, nicknames = [] }) => {
+  const single = singleItemOf(show)
+  if (!single) return showInfoOf({ show, timeZone, nicknames })
+  return episodeInfoOf({ episode: single, showTitle: show.title, timeZone, kind: show.kind, year: show.year, nicknames })
+}
+
 export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
   const episodes = allEpisodesOf(show)
   const unwatched = episodes.filter((e) => !e.watched && !e.failed).length
@@ -263,12 +349,12 @@ export const showInfoOf = ({ show, timeZone, nicknames = [] }) => {
     text: '',
     more: moreInfoOfShow({ title: show.title, kind: show.kind, year: show.year }),
     rows: [
-      { label: 'Episodes', value: `${episodes.length} ${recorded ? 'recorded' : 'in your library'} · ${unwatched} unwatched` },
-      { label: 'Series recording', value: seriesRecordingTextOf({ show, recorded }) },
+      { label: isSeriesShow(show) ? 'Episodes' : 'Recordings', value: `${episodes.length} ${recorded ? 'recorded' : 'in your library'} · ${unwatched} unwatched` },
+      (isSeriesShow(show) || show.rule) && { label: 'Series recording', value: seriesRecordingTextOf({ show, recorded }) },
       { label: 'Next airing', value: next ? `${weekdayClockOf({ ms: next.startDate, timeZone })}${next.channelName ? ` on ${next.channelName}` : ''}` : '' },
       { label: 'Saves to', value: show.rule?.savesTo?.path || '', mono: true },
       { label: 'Also known as', value: nicknames.join(', ') },
-    ].filter((row) => row.value),
+    ].filter((row) => row && row.value),
   }
 }
 
