@@ -70,7 +70,7 @@ Freetvarr runs in [Docker](https://docs.docker.com/) on a computer that stays on
 
 A walkthrough of the app: Home, Live TV, the TV guide, and Recordings.
 
-<https://github.com/user-attachments/assets/85ea5e5e-6ae5-475e-a21a-bd7dcb62682d>
+<https://github.com/user-attachments/assets/858de2d3-83ad-4651-bbce-9f8316ebf8af>
 
 The one-line install, from the `curl` command to the address of the setup wizard.
 
