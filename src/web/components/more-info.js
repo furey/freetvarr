@@ -2,7 +2,7 @@ import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from '/vendor
 import { api } from '/shared/api.js'
 import { creditsUrlOf } from '/credits-display.js'
 import { MORE_INFO_CLOSED, MORE_INFO_MIN_MS, MORE_INFO_SKELETON_AFTER_MS, loadMoreInfoCredits, looksUpCreditsFor, moreInfoAfterLoadOf, moreInfoOf, moreInfoRequestOf, moreInfoSkeletonOf, moreInfoToggledOf } from '/more-info.js'
-import { prefersReducedMotion } from '/shared/utils.js'
+import { easeHeightChange } from '/shared/ease-height.js'
 import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
 import { CastScroller } from '/components/show-credits.js'
 
@@ -144,19 +144,6 @@ export const MoreInfo = {
   },
 }
 
-const easeHeightChange = ({ el, fromHeight }) => {
-  if (!el?.animate || !fromHeight || prefersReducedMotion()) return
-  const toHeight = el.offsetHeight
-  if (Math.abs(toHeight - fromHeight) < 1) return
-  const clip = 'inset(0 -100vw)'
-  el.animate(
-    [{ height: `${fromHeight}px`, clipPath: clip }, { height: `${toHeight}px`, clipPath: clip }],
-    { duration: HEIGHT_EASE_MS, easing: HEIGHT_EASING },
-  )
-}
-
 const NEVER_SLOW = () => () => {}
 const SKELETON_NAME_WIDTHS = ['5.5em']
 const SKELETON_ROLE_WIDTHS = ['5em']
-const HEIGHT_EASE_MS = 240
-const HEIGHT_EASING = 'cubic-bezier(0.2, 0, 0, 1)'
