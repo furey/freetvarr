@@ -23,6 +23,18 @@ const main = async () => {
     .flatMap((title, index) => householdEventsOf({ title, channelId: channelOf.get(title), index, episodes: EPISODES_PER_ROW[row], nowMs })))
   await db.batchInsert('user_events', rows, 50)
   console.log(`[pack-household] ${rows.length} watch and record events for the ${CATEGORY_ROWS.join(', ')} rows`)
+  const dated = await seedFilmYears(manifest)
+  console.log(`[pack-household] release years on ${dated} film recordings and Plex items`)
+}
+
+const seedFilmYears = async (manifest) => {
+  const films = manifest.titles.filter((title) => title.kind === 'film' && title.facts?.year)
+  let dated = 0
+  for (const { title, facts } of films) {
+    dated += await db('recordings').where({ title }).update({ year: facts.year })
+    dated += await db('library_items').where({ title, kind: 'movie' }).update({ year: facts.year })
+  }
+  return dated
 }
 
 const channelsByTitle = async () => {
