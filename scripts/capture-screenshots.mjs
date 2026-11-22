@@ -35,6 +35,7 @@ const DESKTOP_SHOTS = [
   { hash: '#/recordings/scheduled', file: 'screenshot-scheduled.png', wait: '.scheduled-view, .ui-empty' },
   { hash: '#/recordings/show/:seriesShow', file: 'screenshot-show.png', wait: '.show-view, .show-hero' },
   { hash: '#/recordings/show/:scheduledOnly', file: 'screenshot-show-scheduled.png', wait: '.show-hero' },
+  { hash: '#/recordings/show/:moviePage', file: 'screenshot-movie-page.png', wait: '.show-hero', prepare: (page) => waitForPageSettled(page) },
   { hash: '#/recordings/show/:copyShow', file: 'screenshot-delete.png', wait: '.show-hero', prepare: (page, picks) => openEpisodeAction(page, { label: 'Delete episode', episode: picks.copyEpisode }) },
   { hash: '#/recordings/show/:showcase', file: 'screenshot-merge.png', wait: '.show-hero', prepare: (page) => openEpisodeAction(page, { label: 'Merge into another show…' }) },
 ]
@@ -125,6 +126,15 @@ const openChangeCategories = async (page, pick) => {
 const SEARCH_QUERY = requiredEnv('SEARCH_QUERY')
 const SERIES_WITH_OTHER_TITLES = requiredEnv('OTHER_TITLES_SERIES')
 const SHOWCASE_TITLE = process.env.SHOWCASE_TITLE ?? requiredEnv('SHOW_TITLE')
+const MOVIE_PAGE_TITLE = 'Independence Day'
+
+const demoFilmOf = (title) => {
+  if (!requiredEnv('DEMO_FILMS').split('|').includes(title)) throw new Error(`demo pack has no film ${title}`)
+  return title
+}
+
+const waitForPageSettled = (page) => page.waitForFunction(() => !document.querySelector('.ui-skeleton, [aria-busy=true]'),
+  null, { timeout: 10_000 })
 
 const openSearch = async (page, query) => {
   await page.getByRole('button', { name: 'Search' }).first().click()
@@ -221,6 +231,7 @@ const resolveHash = (hash, picks) => hash
   .replace(':seriesShow', encodeURIComponent(picks.seriesShowKey || ''))
   .replace(':scheduledOnly', encodeURIComponent(picks.scheduledOnlyKey || ''))
   .replace(':copyShow', encodeURIComponent(picks.copyShowKey || ''))
+  .replace(':moviePage', encodeURIComponent(picks.moviePageKey || ''))
 
 const showKeyOf = (title) => String(title ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -242,6 +253,7 @@ const libraryKeys = async ({ request, base }) => {
     scheduledOnlyKey: scheduledOnly ? showKeyOf(scheduledOnly.title) : null,
     copyShowKey: withCopy?.key ?? showcase?.key,
     copyEpisode: withCopy ? copyEpisodeOf(withCopy).episode : null,
+    moviePageKey: shows.find((s) => s.kind === 'movie' && s.title === demoFilmOf(MOVIE_PAGE_TITLE))?.key,
   }
 }
 
