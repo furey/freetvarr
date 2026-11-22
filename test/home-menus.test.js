@@ -84,8 +84,8 @@ test('onNowMenuOf and guideMatchMenuOf: the movie row follows Programme info whe
   assert.deepEqual(keysOf(guideMatchMenuOf({}))[1], ['programme-info'])
 })
 
-test('dislikeSlotCountOf: reserves the most rows the hide group can need, so the sheet opens at its final height', () => {
+test('dislikeSlotCountOf: reserves the most rows the hide group can need, and no category row for a film', () => {
   assert.equal(dislikeSlotCountOf({ title: 'Top Gear', programmeKind: 'show' }), 3)
-  assert.equal(dislikeSlotCountOf({ title: 'Rocky', programmeKind: 'movie' }), 2)
+  assert.equal(dislikeSlotCountOf({ title: 'Rocky', programmeKind: 'movie' }), 1)
   assert.equal(dislikeSlotCountOf({ title: '' }), 0)
 })

@@ -1508,8 +1508,7 @@
   pointer-events: none;
 }
 
-.programme-sheet-slot > :first-child,
-.programme-sheet-slot.is-kept {
+.programme-sheet-slot > :first-child {
   visibility: hidden;
 }
 
