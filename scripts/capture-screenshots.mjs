@@ -133,6 +133,12 @@ const demoFilmOf = (title) => {
   return title
 }
 
+const moviePageKeyOf = (shows) => {
+  const film = shows.find((s) => s.kind === 'movie' && s.title === demoFilmOf(MOVIE_PAGE_TITLE))
+  if (!film) throw new Error(`the library has no movie ${MOVIE_PAGE_TITLE}`)
+  return film.key
+}
+
 const waitForPageSettled = (page) => page.waitForFunction(() => !document.querySelector('.ui-skeleton, [aria-busy=true]'),
   null, { timeout: 10_000 })
 
@@ -253,7 +259,7 @@ const libraryKeys = async ({ request, base }) => {
     scheduledOnlyKey: scheduledOnly ? showKeyOf(scheduledOnly.title) : null,
     copyShowKey: withCopy?.key ?? showcase?.key,
     copyEpisode: withCopy ? copyEpisodeOf(withCopy).episode : null,
-    moviePageKey: shows.find((s) => s.kind === 'movie' && s.title === demoFilmOf(MOVIE_PAGE_TITLE))?.key,
+    moviePageKey: moviePageKeyOf(shows),
   }
 }
 
