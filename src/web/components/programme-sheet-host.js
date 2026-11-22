@@ -28,6 +28,7 @@ import { changeProgrammeKind } from '/shared/programme-kind-session.js'
 import { useForYouActions } from '/shared/for-you-session.js'
 import { dislikeGroupOf, dislikeSlotCountOf } from '/home-menus.js'
 import { usePlaceholderTiming } from '/shared/placeholder-timing.js'
+import { easeHeightChange } from '/shared/ease-height.js'
 import { forYouTastes } from '/shared/taste-store.js'
 import { canRecordSeriesOf } from '/record-wording.js'
 import { repeatNoticeOf } from '/scheduled-groups.js'
@@ -162,13 +163,12 @@ export const ProgrammeSheetHost = {
             </div>
             <button v-if="canWatchLive" type="button" class="ui-button ui-button-secondary ui-button-block programme-sheet-watch" @click="watchSelected"><tv-icon /> Watch live</button>
           </div>
-          <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length || dislikeSlots" :class="['library-menu', 'programme-sheet-more', { 'is-placeholder-hidden': tastePlaceholderHidden }]">
-            <div class="ui-group library-menu-group">
+          <div v-if="canShowInGuide || movieChoiceLabel || dislikeItems.length || reservedDislikeSlots" :class="['library-menu', 'programme-sheet-more', { 'is-placeholder-hidden': tastePlaceholderHidden }]">
+            <div ref="moreGroupEl" class="ui-group library-menu-group">
               <button v-if="canShowInGuide" type="button" class="ui-group-row library-menu-item" @click="showSelectedInGuide"><menu-icon name="guide" /><span class="library-menu-text"><span class="library-menu-label">Show in TV guide</span></span></button>
               <button v-if="movieChoiceLabel" type="button" class="ui-group-row library-menu-item" @click="changeSelectedKind"><menu-icon :name="movieChoiceIcon" /><span class="library-menu-text"><span class="library-menu-label">{{ movieChoiceLabel }}</span></span></button>
               <template v-if="tasteSettled">
                 <button v-for="item in dislikeItems" :key="item.key" type="button" class="ui-group-row library-menu-item" @click="chooseDislike(item.key)"><menu-icon :name="item.icon" /><span class="library-menu-text"><span class="library-menu-label">{{ item.label }}</span></span></button>
-                <span v-for="n in keptDislikeSlots" :key="'kept-' + n" class="ui-group-row library-menu-item programme-sheet-slot is-kept" aria-hidden="true"><menu-icon name="hide" /><span class="library-menu-text"><span class="library-menu-label">&nbsp;</span></span></span>
               </template>
               <template v-else>
                 <span v-for="n in dislikeSlots" :key="'slot-' + n" class="ui-group-row library-menu-item programme-sheet-slot" aria-hidden="true"><menu-icon name="hide" /><span class="library-menu-text"><span class="library-menu-label"><span class="ui-skeleton is-text" style="--skeleton-w: 9em"></span></span></span></span>
@@ -567,7 +567,13 @@ export const ProgrammeSheetHost = {
       return { title: program.title, start: program.start ?? null, channelId: program.channelId ?? selected.value?.channel?.id ?? null, programmeKind: program.kind ?? null, category: taste.categoryHidden ? null : taste.category }
     })
     const dislikeItems = computed(() => dislikeGroupOf(dislikeItem.value).filter(Boolean))
-    const keptDislikeSlots = computed(() => Math.max(0, dislikeSlots.value - dislikeItems.value.length))
+    const reservedDislikeSlots = computed(() => (tasteSettled.value ? 0 : dislikeSlots.value))
+    const moreGroupEl = ref(null)
+    watch(tasteSettled, (settled) => {
+      if (!settled) return
+      const heightsBefore = [sheetEl.value, moreGroupEl.value].map((el) => ({ el, fromHeight: el?.offsetHeight ?? 0 }))
+      nextTick(() => heightsBefore.forEach(easeHeightChange))
+    })
     const chooseDislike = (key) => {
       const item = dislikeItem.value
       if (!item) return
@@ -914,7 +920,7 @@ export const ProgrammeSheetHost = {
       pendingActionLabelOf, ANY_CHANNEL_HINT, guideDetailsOf,
       selected, selectedChannelId, sheetEl, closeModal, modalBusy, modalAction,
       canWatchLive, watchSelected, fromStartRecording, fromStartLine, watchSelectedFromStart, canShowInGuide, showSelectedInGuide, movieChoiceLabel, movieChoiceIcon, changeSelectedKind, dislikeItems, chooseDislike,
-      dislikeSlots, keptDislikeSlots, tasteSettled, tastePlaceholderHidden,
+      dislikeSlots, reservedDislikeSlots, moreGroupEl, tasteSettled, tastePlaceholderHidden,
       modalStatusText, modalStatusKind,
       leadTime, lagTime, episodesToKeep, anyChannel, addToLibrary, libraryNote,
       keepSteps: SHEET_KEEP_STEPS,

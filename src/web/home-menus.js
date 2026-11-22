@@ -28,7 +28,9 @@ export const dislikeGroupOf = (dislike) => {
 }
 
 export const dislikeSlotCountOf = ({ title, programmeKind = null }) =>
-  dislikeGroupOf({ title, programmeKind, category: { key: 'reserved', title: 'Reserved' } }).filter(Boolean).length
+  dislikeGroupOf({ title, programmeKind, category: reservedCategoryOf(programmeKind) }).filter(Boolean).length
+
+const reservedCategoryOf = (programmeKind) => (programmeKind === 'movie' ? null : { key: 'reserved', title: 'Reserved' })
 
 export const recordingNowMenuOf = ({ channelName = '', canStartOver = false }) => [
   [
