@@ -49,3 +49,4 @@ img screenshot-mobile-recording-banner.png
 img screenshot-search.png
 img screenshot-series-drawer.png
 img screenshot-change-categories.png
+img screenshot-movie-page.png

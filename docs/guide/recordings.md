@@ -121,6 +121,12 @@ A movie, or a one-off with one recording, has a page for that one item. It has n
 - **Info** shows the synopsis and **More info** (cast, crew, and details). Below them are the length and how much you watched. For your own recording, it also shows when it recorded, the channel, and the file. For a download, it shows each file with where it came from and its size. A movie that you recorded and that Radarr also downloaded is one item, and **Info** lists both versions.
 - A movie has no **Merge into another show…**.
 
+<!-- markdownlint-disable MD033 -->
+<BrowserFrame label="http://freetvarr.lan/#/recordings/show/independence-day">
+  <img src="../img/screenshot-movie-page.png" alt="The movie page of Independence Day, with the length and the minutes left under the title, a bar for how much you watched, Resume and ⋯ buttons, and the synopsis under About" width="2560" height="1872" loading="lazy">
+</BrowserFrame>
+<!-- markdownlint-enable MD033 -->
+
 A one-off with more than one recording lists them under **Recordings**, newest first, one row for each. Its menus say **Info** and **Delete recording**, and [Select mode](#select-mode) works as it does for episodes.
 
 ### Recordings in progress
