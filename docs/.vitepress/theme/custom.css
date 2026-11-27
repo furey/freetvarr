@@ -1128,10 +1128,14 @@ kbd {
 
 .VPHero .text :is(.hero-line-1, .hero-line-2, .hero-line-3) {
   display: block;
-  color: var(--ftv-hero-soft);
+  color: var(--ftv-text-1);
 }
 
-.VPHero .text .hero-em { color: var(--ftv-text-1); font-style: normal; }
+.dark .VPHero .text :is(.hero-line-1, .hero-line-2, .hero-line-3) {
+  color: #fff;
+}
+
+.VPHero .text .hero-em { color: inherit; font-style: normal; }
 
 .VPHero .heading .name:has(.hero-brand) {
   padding-bottom: 0.3em;
@@ -1150,11 +1154,7 @@ kbd {
   line-height: 1.4;
   font-size: 18px;
   font-weight: 500;
-  color: var(--ftv-text-1);
-}
-
-.dark .VPHero .tagline.tagline {
-  color: #fff;
+  color: var(--ftv-hero-soft);
 }
 
 .VPHero .actions.actions {
