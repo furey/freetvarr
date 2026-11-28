@@ -1,3 +1,5 @@
+import { pageScrollRoot } from './page-scroll.js'
+
 export const GUIDE_SCROLL_SELECTOR = '.epg-scroll'
 export const NEAR_VIEW_MARGIN = '100% 50%'
 export const RAIL_EDGE_MARGIN = '50% -25% 50% 0px'
@@ -5,7 +7,7 @@ export const RAIL_EDGE_ATTRIBUTE = 'data-at-rail-edge'
 
 export const observeInScroller = ({ el, rootSelector, rootMargin, onChange }) => {
   if (!el) return
-  const observer = observerFor({ root: el.closest(rootSelector), rootMargin })
+  const observer = observerFor({ root: el.closest(rootSelector) || pageScrollRoot(), rootMargin })
   targets.set(el, { observer, onChange })
   observer.observe(el)
 }

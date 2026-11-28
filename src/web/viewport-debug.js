@@ -43,6 +43,7 @@ const readoutLinesOf = ({ doc, win, insets, probes }) => {
     `theme-color ${doc.querySelector('meta[name="theme-color"]')?.getAttribute('content') ?? '-'}`,
     `bar tint ${doc.querySelector('.player-bar-tint') ? 'on' : 'off'}`,
     `standalone ${win.matchMedia('(display-mode: standalone)').matches}`,
+    `page scroll ${doc.documentElement.dataset.pageScroll ?? '-'} window ${Math.round(win.scrollY)} #app ${Math.round(doc.getElementById('app')?.scrollTop ?? 0)}`,
   ]
 }
 

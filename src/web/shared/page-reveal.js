@@ -1,5 +1,6 @@
 import { isRevealArrival, revealDelaysOf, revealPlanOf } from '/page-reveal.js'
 import { latestArrival } from '/shared/router.js'
+import { pageScrollTop } from '/shared/page-scroll.js'
 import { prefersReducedMotion } from '/shared/utils.js'
 
 export const pageReveal = {
@@ -77,7 +78,7 @@ const isMovable = (el) => getComputedStyle(el).position !== 'fixed'
 
 const boxOf = (el) => {
   const { top, height } = el.getBoundingClientRect()
-  return { top: top + window.scrollY, height }
+  return { top: top + pageScrollTop(), height }
 }
 
 const slideIn = ({ el, delay, plan }) => el.animate(

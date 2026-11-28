@@ -57,6 +57,7 @@ import {
   describeTvhRecordingsPath,
 } from '/shared/path-check.js'
 import { tz, browserTimeZone } from '/shared/time.js'
+import { scrollPageTo } from '/shared/page-scroll.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
 import { SetupRunList, SetupStatusIcon, BOOTSTRAP_REVEAL_POLL_MS } from '/views/welcome-shared.js'
 import { SystemTour } from '/components/system-tour.js'
@@ -777,7 +778,7 @@ export const WelcomeView = {
     }, { flush: 'sync' })
 
     watch(step, async (curr) => {
-      window.scrollTo({ top: 0 })
+      scrollPageTo({ top: 0 })
       await nextTick()
       heading.value?.focus({ preventScroll: true })
       if (curr === totalSteps && complete.value && markState.value === 'bars') playDoneMorph()

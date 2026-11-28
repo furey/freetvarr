@@ -2,6 +2,7 @@ import { ref, nextTick } from '/vendor/vue.esm-browser.prod.js'
 import { resolveRoute } from '/route-table.js'
 import { entryStateWithOrigin, replaceUrlKeepingEntry, replacedEntryStateOf } from '/back-target.js'
 import { createScrollMemory, entryStateWithKey, restoreScrollTop } from '/scroll-memory.js'
+import { maxPageScrollTop, pageScrollTop, scrollPageTo } from '/shared/page-scroll.js'
 
 const resolveCurrentHash = () => {
   const resolved = resolveRoute(window.location.hash || '')
@@ -44,7 +45,7 @@ const RESTORE_LIMIT_MS = 1500
 const RESTORE_RETRY_MS = 50
 const USER_SCROLL_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown']
 
-const maxScrollY = () => document.documentElement.scrollHeight - window.innerHeight
+const maxScrollY = () => maxPageScrollTop()
 
 const frameOrTimeout = (run) => {
   let ran = false
@@ -66,7 +67,7 @@ const restoreScroll = (top) => {
   const restore = restoreScrollTop({
     top,
     maxScrollY,
-    scrollTo: (target) => window.scrollTo({ top: target }),
+    scrollTo: (target) => scrollPageTo({ top: target }),
     nextAttempt: frameOrTimeout,
     now: () => performance.now(),
     limitMs: RESTORE_LIMIT_MS,
@@ -78,7 +79,7 @@ const restoreScroll = (top) => {
 }
 
 const scrollForArrival = async (view) => {
-  scrollMemory.leave({ key: currentEntryKey, scrollY: window.scrollY })
+  scrollMemory.leave({ key: currentEntryKey, scrollY: pageScrollTop() })
   arrival = { fresh: !history.state?.entryKey, sameView: view === route.value, at: performance.now() }
   const { key, top } = scrollMemory.arrive(history.state)
   currentEntryKey = stampEntryKey(key)

@@ -9,6 +9,7 @@ import { ForYouNavIcon } from '/components/nav-icons.js'
 import { forYouRailKnown, forYouReady, forYouShown, keepForYouAnimate, keepForYouRail, twinkleForYouOnce } from '/shared/for-you-session.js'
 import { FOR_YOU_URL, forYouReadyOf } from '/for-you.js'
 import { hashesMatch } from '/scroll-memory.js'
+import { scrollPageTo } from '/shared/page-scroll.js'
 import { cancelRouteHover, warmRouteOnHover, warmRouteOnPress } from '/shared/route-warmup.js'
 
 const NAV_ICONS = {
@@ -47,7 +48,7 @@ const scrollTopOnRepeatTap = (event) => {
   const href = event.currentTarget.getAttribute('href')
   if (!hashesMatch(href, window.location.hash)) return
   event.preventDefault()
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  scrollPageTo({ top: 0, behavior: 'smooth' })
 }
 
 export const AppNav = {

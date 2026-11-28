@@ -6,6 +6,7 @@ import { useMediaQuery } from '/shared/composables.js'
 import { healthSummary } from '/shared/health.js'
 import { routeParams } from '/shared/router.js'
 import { prefersReducedMotion } from '/shared/utils.js'
+import { addPageScrollListener, maxPageScrollTop, pageScrollTop, removePageScrollListener, scrollPageTo } from '/shared/page-scroll.js'
 
 const PieceDetail = {
   props: {
@@ -156,26 +157,26 @@ export const SystemDiagramView = {
     let scrollBeforeSheet = null
     let paddingTimer = 0
 
-    const scrollPage = (top) => window.scrollTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    const scrollPage = (top) => scrollPageTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
 
     const revealAboveSheet = async () => {
       const node = nodeOf({ map: map.value, id: selected.value })
       if (!node) return
       clearTimeout(paddingTimer)
-      scrollBeforeSheet ??= window.scrollY
+      scrollBeforeSheet ??= pageScrollTop()
       const box = node.getBoundingClientRect()
       const reveal = sheetRevealOf({
         nodeTop: box.top,
         nodeBottom: box.bottom,
-        scrollY: window.scrollY,
-        maxScroll: document.scrollingElement.scrollHeight - revealPadding.value - window.innerHeight,
+        scrollY: pageScrollTop(),
+        maxScroll: maxPageScrollTop() - revealPadding.value,
         visibleTop: 0,
         sheetTop: window.innerHeight - sheetHeight.value,
         margin: REVEAL_MARGIN,
       })
       revealPadding.value = reveal.padding
       await nextTick()
-      if (reveal.top !== window.scrollY) scrollPage(reveal.top)
+      if (reveal.top !== pageScrollTop()) scrollPage(reveal.top)
     }
 
     const restoreScroll = () => {
@@ -190,7 +191,7 @@ export const SystemDiagramView = {
     const dropPaddingAt = (top) => {
       const startedAt = performance.now()
       const poll = () => {
-        const arrived = Math.abs(window.scrollY - top) < 1
+        const arrived = Math.abs(pageScrollTop() - top) < 1
         if (arrived || performance.now() - startedAt > PADDING_HOLD_MAX_MS) {
           revealPadding.value = 0
           return
@@ -221,7 +222,7 @@ export const SystemDiagramView = {
 
     onMounted(() => {
       if (selected.value) settleCard()
-      window.addEventListener('scroll', schedulePlace, { passive: true })
+      addPageScrollListener(schedulePlace, { passive: true })
       window.addEventListener('resize', schedulePlace)
       document.addEventListener('keydown', onKeydown)
       layoutWatcher.observe(document.body)
@@ -230,7 +231,7 @@ export const SystemDiagramView = {
     onUnmounted(() => {
       cancelAnimationFrame(frame)
       clearTimeout(paddingTimer)
-      window.removeEventListener('scroll', schedulePlace)
+      removePageScrollListener(schedulePlace)
       window.removeEventListener('resize', schedulePlace)
       document.removeEventListener('keydown', onKeydown)
       layoutWatcher.disconnect()

@@ -97,6 +97,7 @@ import { refreshFromPull, installPullToRefresh } from '/shared/pull-to-refresh.j
 import { pollHealth } from '/shared/health.js'
 import { installImageFocus } from '/shared/image-focus.js'
 import { installVisibleViewport } from '/shared/visible-viewport.js'
+import { installWindowPinning } from '/shared/page-scroll.js'
 import { isViewportDebugOn, showViewportDebug } from '/viewport-debug.js'
 import { installTypeAheadEnter } from '/shared/type-ahead-enter.js'
 import { loadArtworkStamps } from '/shared/artwork-stamps.js'
@@ -362,6 +363,7 @@ PAGE_ZOOM_GESTURES.forEach((type) => document.addEventListener(type, stopPageZoo
 installImageFocus()
 installVisibleViewport()
 installTypeAheadEnter()
+installWindowPinning()
 if (isViewportDebugOn(location.search)) showViewportDebug()
 app.mount('#app')
 registerViewLoader((key) => (VIEW_COMPONENTS[key]?.__asyncLoader ?? VIEW_LOADERS[key])?.() ?? Promise.resolve())
