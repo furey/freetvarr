@@ -38,6 +38,10 @@ const readoutLinesOf = ({ doc, win, insets, probes }) => {
     `--visible-viewport-bottom ${rootStyle.getPropertyValue('--visible-viewport-bottom') || 'unset'}`,
     ...WATCHED_ELEMENTS.map((selector) => rectLineOf(doc, selector)),
     `body ${doc.body.className || '-'}`,
+    `html bg ${win.getComputedStyle(doc.documentElement).backgroundColor}`,
+    `body bg ${win.getComputedStyle(doc.body).backgroundColor}`,
+    `theme-color ${doc.querySelector('meta[name="theme-color"]')?.getAttribute('content') ?? '-'}`,
+    `bar tint ${doc.querySelector('.player-bar-tint') ? 'on' : 'off'}`,
     `standalone ${win.matchMedia('(display-mode: standalone)').matches}`,
   ]
 }

@@ -38,3 +38,32 @@ test('isViewportDebugOn reads the debug query switch', async () => {
   assert.equal(isViewportDebugOn('?debug=other'), false)
   assert.equal(isViewportDebugOn(''), false)
 })
+
+const fakeBarDoc = () => {
+  const moves = []
+  const doc = { tint: null, moves, activeElement: null }
+  const tabbar = { contains: () => false, nextSibling: 'next', parentNode: { insertBefore: (el, ref) => moves.push([el, ref]) } }
+  doc.body = { append: (el) => { doc.tint = el } }
+  doc.createElement = () => ({ setAttribute() {}, remove: () => { doc.tint = null } })
+  doc.querySelector = (selector) => (selector === '.app-tabbar' ? tabbar : doc.tint)
+  return { doc, tabbar }
+}
+
+test('syncBarTint adds a fresh black strip while the full player is open', async () => {
+  const { syncBarTint, BAR_TINT_CLASS } = await import('../src/web/player-theme-color.js')
+  const { doc } = fakeBarDoc()
+  syncBarTint(true, doc)
+  const first = doc.tint
+  assert.equal(first.className, BAR_TINT_CLASS)
+  syncBarTint(true, doc)
+  assert.notEqual(doc.tint, first)
+})
+
+test('syncBarTint removes the strip and re-inserts the tab bar in place on close', async () => {
+  const { syncBarTint } = await import('../src/web/player-theme-color.js')
+  const { doc, tabbar } = fakeBarDoc()
+  syncBarTint(true, doc)
+  syncBarTint(false, doc)
+  assert.equal(doc.tint, null)
+  assert.deepEqual(doc.moves, [[tabbar, 'next']])
+})

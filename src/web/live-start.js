@@ -26,6 +26,15 @@ export const liveErrorActionOf = ({ type, eager, reattaches }) => {
   return reattaches < LIVE_MAX_REATTACHES ? 'reattach' : 'end'
 }
 
+export const LIVE_MAX_RETUNES = 1
+
+export const pollOutcomeOf = ({ session, sessionId, retunes }) => {
+  if (!session && retunes < LIVE_MAX_RETUNES) return { action: 'retune' }
+  if (!session) return { action: 'end', reason: { code: 'unavailable' } }
+  if (session.id !== sessionId || session.status === 'ended') return { action: 'end', reason: session.reason }
+  return { action: 'continue' }
+}
+
 const NETWORK_ERROR = 'networkError'
 const MEDIA_ERROR = 'mediaError'
 const GAP_TOLERANCE_S = 0.5

@@ -8,6 +8,8 @@ import {
   isReadyToStart,
   seekFloorOf,
   liveErrorActionOf,
+  pollOutcomeOf,
+  LIVE_MAX_RETUNES,
 } from '../src/web/live-start.js'
 
 test('bufferedAhead measures the range under the playhead', () => {
@@ -52,4 +54,30 @@ test('liveErrorActionOf: a network drop reattaches while the server keeps the se
   assert.equal(liveErrorActionOf({ type: 'networkError', eager: true, reattaches: 0 }), 'abandon')
   assert.equal(liveErrorActionOf({ type: 'mediaError', eager: false, reattaches: 0 }), 'recover')
   assert.equal(liveErrorActionOf({ type: 'otherError', eager: false, reattaches: 0 }), 'end')
+})
+
+test('pollOutcomeOf retunes once when the server has forgotten the session, then reports it unavailable', () => {
+  assert.deepEqual(pollOutcomeOf({ session: null, sessionId: 'a', retunes: 0 }), { action: 'retune' })
+  assert.deepEqual(
+    pollOutcomeOf({ session: null, sessionId: 'a', retunes: LIVE_MAX_RETUNES }),
+    { action: 'end', reason: { code: 'unavailable' } },
+  )
+})
+
+test('pollOutcomeOf ends with the server reason when the session ended or was replaced', () => {
+  const reason = { code: 'gone' }
+  assert.deepEqual(
+    pollOutcomeOf({ session: { id: 'a', status: 'ended', reason }, sessionId: 'a', retunes: 0 }),
+    { action: 'end', reason },
+  )
+  assert.deepEqual(
+    pollOutcomeOf({ session: { id: 'b', status: 'ended', reason }, sessionId: 'a', retunes: 0 }),
+    { action: 'end', reason },
+  )
+})
+
+test('pollOutcomeOf continues while our session is tuning or live', () => {
+  for (const status of ['tuning', 'live']) {
+    assert.deepEqual(pollOutcomeOf({ session: { id: 'a', status, reason: null }, sessionId: 'a', retunes: 0 }), { action: 'continue' })
+  }
 })

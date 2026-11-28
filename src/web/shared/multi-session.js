@@ -37,6 +37,7 @@ import {
 } from '/shared/live-session.js'
 import { live, playerMuted, captionTracksOf } from '/shared/player-shared.js'
 import { captionsShowing } from '/live-captions.js'
+import { pollOutcomeOf } from '/live-start.js'
 
 const emptyCompanion = () => ({
   channel: null, sessionId: null, playlist: '', bufferSeconds: 0, captions: false, phase: 'idle', message: '',
@@ -97,7 +98,7 @@ export const canAddPicture = computed(() => canAddPictureOf({
 }))
 
 const rigs = Object.fromEntries(COMPANIONS.map((id) => [id, {
-  video: null, hls: null, edgeAnchor: null, run: 0, pollTimer: null, attached: false, nativeListeners: null, track: () => trackCompanion(id),
+  video: null, hls: null, edgeAnchor: null, run: 0, retunes: 0, pollTimer: null, attached: false, nativeListeners: null, track: () => trackCompanion(id),
 }]))
 
 export const setCompanionVideo = (id, el) => {
@@ -322,9 +323,10 @@ const changeCompanion = (id, channel) => {
   startCompanion(id, channel)
 }
 
-const startCompanion = async (id, channel) => {
+const startCompanion = async (id, channel, { retunes = 0 } = {}) => {
   const rig = rigs[id]
   const run = ++rig.run
+  rig.retunes = retunes
   multi.companions[id] = { ...emptyCompanion(), channel, phase: 'tuning' }
   applyMuting()
   try {
@@ -357,16 +359,24 @@ const pollCompanion = async (id, run) => {
     const params = new URLSearchParams({ channel: state.channel.id, session: state.sessionId })
     const r = await api('GET', `/api/live/preflight?${params}`)
     if (run !== rig.run) return
+    const outcome = pollOutcomeOf({ session: r.session, sessionId: state.sessionId, retunes: rig.retunes })
+    if (outcome.action === 'retune') return retuneForgottenCompanion(id)
+    if (outcome.action === 'end') return endCompanion(id, run, liveReasonText(outcome.reason))
     const session = r.session
-    if (!session || session.id !== state.sessionId || session.status === 'ended') {
-      return endCompanion(id, run, liveReasonText(session?.reason))
-    }
     if (session.status === 'live' && !rig.attached) await attachCompanion(id, run, session.playlist)
   } catch {
     if (run !== rig.run) return
   }
   clearTimeout(rig.pollTimer)
   rig.pollTimer = setTimeout(() => pollCompanion(id, run), rig.attached ? POLL_PLAYING_MS : POLL_TUNING_MS)
+}
+
+const retuneForgottenCompanion = (id) => {
+  const { channel } = multi.companions[id]
+  const retunes = rigs[id].retunes + 1
+  multi.companions[id].sessionId = null
+  stopCompanion(id)
+  startCompanion(id, channel, { retunes })
 }
 
 const attachCompanion = async (id, run, playlist) => {
@@ -412,6 +422,7 @@ const endCompanionOnNativeError = (id, run) => {
 const markCompanionLive = (id, run) => {
   if (run !== rigs[id].run || multi.companions[id].phase === 'ended') return
   multi.companions[id].phase = 'live'
+  rigs[id].retunes = 0
   rigs[id].video?.play()?.catch(() => {})
 }
 
