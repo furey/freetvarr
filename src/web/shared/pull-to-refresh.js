@@ -5,6 +5,7 @@ import { refreshTick, unsavedSettings } from '/shared/store.js'
 import { route } from '/shared/router.js'
 import { loadSyncStatus } from '/shared/sync-status.js'
 import { wait, prefersReducedMotion } from '/shared/utils.js'
+import { addPageScrollListener, isInnerPageScroll, pageScrollTop } from '/shared/page-scroll.js'
 import { pullMoveOf, pullOffsetOf, pullProgressOf, isPullCommitted, isPullRefreshAllowed } from '/pull-gesture.js'
 
 const PULL_HOLD_PX = 52
@@ -28,7 +29,7 @@ const hasScrolledAncestor = (el) => {
   return false
 }
 
-const pullBlocked = (e) => window.scrollY > 0
+const pullBlocked = (e) => pageScrollTop() > 0
   || !isPullRefreshAllowed({ route: route.value, unsavedSettings: unsavedSettings.value })
   || e.touches.length > 1
   || Boolean(e.target.closest?.('.ui-sheet-backdrop, .ui-search-backdrop, .epg-row.pinned .epg-rail-cell, .live-row.pinned .live-row-handle'))
@@ -46,7 +47,7 @@ export const refreshFromPull = async () => {
 }
 
 export const installPullToRefresh = ({ onRefresh }) => {
-  if (!isStandaloneApp()) return
+  if (!isStandaloneApp() && !isInnerPageScroll()) return
   const page = document.getElementById('app')
   const indicator = document.createElement('div')
   indicator.className = 'pull-refresh'
@@ -145,14 +146,14 @@ export const installPullToRefresh = ({ onRefresh }) => {
   }
   let moveListening = false
   const syncMoveListener = () => {
-    const wanted = Boolean(start) || window.scrollY <= 0
+    const wanted = Boolean(start) || pageScrollTop() <= 0
     if (wanted === moveListening) return
     moveListening = wanted
     if (wanted) window.addEventListener('touchmove', onTouchMove, { passive: false })
     else window.removeEventListener('touchmove', onTouchMove, { passive: false })
   }
   syncMoveListener()
-  window.addEventListener('scroll', syncMoveListener, { passive: true })
+  addPageScrollListener(syncMoveListener, { passive: true })
   window.addEventListener('touchend', (e) => {
     if (!start || e.touches.length > 0) return
     release()

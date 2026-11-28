@@ -11,6 +11,7 @@ import { fmtBytes } from '/shared/format.js'
 import { routeSection } from '/shared/router.js'
 import { now, tz } from '/shared/time.js'
 import { formatClock } from '/time-format.js'
+import { scrollPageTo } from '/shared/page-scroll.js'
 import { SyncsView } from '/views/syncs-view.js'
 
 const FULL_REFRESH_MS = 10_000
@@ -359,7 +360,7 @@ export const ActivityView = {
       { value: 'now', label: 'Now', href: '#/settings/system/activity' },
       { value: 'syncs', label: 'Syncs', href: '#/settings/system/activity/syncs' },
     ]
-    watch(tab, () => window.scrollTo({ top: 0 }))
+    watch(tab, () => scrollPageTo({ top: 0 }))
     return { tab, tabs }
   },
 }
