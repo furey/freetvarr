@@ -166,6 +166,36 @@ export const startsOnKeyframe = (plan) => plan?.videoMode === 'transcode' || pla
 
 export const hasSegments = (playlist) => /^seg\d+\.ts$/m.test(playlist)
 
+export const servedMasterPlaylist = (master) => withPeakBandwidth(withCaptionLabels(master))
+
+export const withPeakBandwidth = (master) => master
+  .split('\n')
+  .map((line) => line.startsWith(STREAM_INF) ? withVariantPeak(line) : line)
+  .join('\n')
+
+const withVariantPeak = (line) => {
+  const declared = Number(line.match(BANDWIDTH_ATTRIBUTE)?.[1] ?? 0)
+  const peak = Math.max(declared, peakBandwidthForHeight(heightOf(line)))
+  return line.replace(BANDWIDTH_ATTRIBUTE, `BANDWIDTH=${peak}`)
+}
+
+const heightOf = (line) => Number(line.match(RESOLUTION_ATTRIBUTE)?.[1] ?? 0) || null
+
+export const peakBandwidthForHeight = (height) => {
+  if (height == null) return PEAK_BANDWIDTH_UNKNOWN
+  return PEAK_BANDWIDTHS.find(({ maxHeight }) => height <= maxHeight)?.bandwidth ?? PEAK_BANDWIDTH_UNKNOWN
+}
+
+const STREAM_INF = '#EXT-X-STREAM-INF:'
+const BANDWIDTH_ATTRIBUTE = /(?<![-A-Z])BANDWIDTH=(\d+)/
+const RESOLUTION_ATTRIBUTE = /RESOLUTION=\d+x(\d+)/
+const PEAK_BANDWIDTHS = [
+  { maxHeight: 576, bandwidth: 5_000_000 },
+  { maxHeight: 720, bandwidth: 10_000_000 },
+  { maxHeight: 1080, bandwidth: 16_000_000 },
+]
+const PEAK_BANDWIDTH_UNKNOWN = 16_000_000
+
 export const withCaptionLabels = (master) => master
   .split('\n')
   .map((line) => line.startsWith('#EXT-X-MEDIA:TYPE=SUBTITLES') ? labelCaptionRendition(line) : line)
@@ -581,7 +611,7 @@ export const createLiveSessions = ({
   const readPlaylist = async (session, name = MEDIA_PLAYLIST) => {
     const text = await readText(path.join(session.dir, name))
     if (text == null) return null
-    if (name === MASTER_PLAYLIST) return withCaptionLabels(text)
+    if (name === MASTER_PLAYLIST) return servedMasterPlaylist(text)
     const trimmed = startsOnKeyframe(session.plan) ? text : withoutCutInSegment(text, CUT_IN_FILES[name])
     if (name !== CAPTIONS_PLAYLIST) return trimmed
     const media = (await readText(path.join(session.dir, MEDIA_PLAYLIST))) ?? ''

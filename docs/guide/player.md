@@ -98,14 +98,21 @@ On a tablet or computer, the card always shows the sound button, **Captions**, t
 
 The AirPlay button plays live TV or a recording on an Apple TV, or on a TV with AirPlay built in. It works in Safari on an iPhone, and shows when Safari finds an AirPlay device on your network. Press it, then choose the TV.
 
+The TV loads the video itself, from the address in Safari's address bar, so the TV must be able to reach that address:
+
+- The home address, such as `http://192.168.1.10:3733`, works when the TV is on your home network.
+- A Tailscale address, such as `https://freetvarr.tail1234.ts.net`, works only when the Apple TV runs Tailscale too. See [AirPlay away from home](/guide/away-from-home#airplay).
+
+When the TV cannot reach the address, it shows an error in place of the picture. When you use a name that is not a home address, the player shows a reminder under `Playing on your TV`.
+
 While the TV plays:
 
 - The player says `Playing on your TV`. When the AirPlay button is in the **⋯** menu, the menu shows **AirPlay** `On`.
-- The controls stay on the screen.
+- The controls stay on the screen, and a tap on the picture does not hide them.
 - **Multiview** is not available.
 - The [Miniplayer](#miniplayer) says `On your TV`.
 
-To bring the picture back, press the AirPlay button and choose the iPhone. Closing the player stops AirPlay; for live TV, it also frees the tuner.
+To stop AirPlay and watch on the iPhone again, press **Watch on iPhone** under `Playing on your TV`, then choose **iPhone** in the list. The AirPlay button opens the same list. Closing the player also stops AirPlay; for live TV, it frees the tuner too.
 
 ## Full screen
 

@@ -29,6 +29,10 @@ export const pausedStateAfter = (state, { type, video, nowMs, pageVisible = true
 
 export const shownPausedOf = (state) => state.paused || state.stuck
 
+export const toggleActionOf = ({ paused, stuck }) => (paused || stuck ? 'play' : 'pause')
+
+export const rebaselinedState = (state, nowMs) => ({ ...state, stuck: false, lastMovedAt: nowMs })
+
 const bufferingAfter = ({ state, type, video }) => {
   if (BUFFERING_EVENTS.has(type) || video?.seeking) return true
   if (RESUMED_EVENTS.has(type)) return false

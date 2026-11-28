@@ -7,6 +7,7 @@ import { addAttentionSource, reportAttention } from '/shared/attention-session.j
 import { stopLive, DEVICE_TOKEN } from '/shared/live-session.js'
 import { postRecordingPosition } from '/shared/recording-position.js'
 import { closePictureInPictureOf } from '/mini-player.js'
+import { toggleActionOf } from '/player-paused.js'
 import {
   live,
   liveCaptionsOn,
@@ -257,7 +258,7 @@ export const togglePlayback = () => {
   if (!playback.sessionId && playback.phase === 'playing') return startPlaybackAt(retryOffset())
   if (!playVideo || playback.phase !== 'playing') return
   if (playVideo.ended) return seekPlaybackTo(0)
-  if (playVideo.paused || playback.stuck) return playVideo.play()?.catch(() => {})
+  if (toggleActionOf({ paused: playVideo.paused, stuck: playback.stuck }) === 'play') return playVideo.play()?.catch(() => {})
   playVideo.pause()
 }
 

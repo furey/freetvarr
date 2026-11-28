@@ -237,6 +237,14 @@ Tailscale is the better choice for most people:
 - Every video you watch away from home leaves through your home internet upload, then passes through Cloudflare.
 - Cloudflare's [service terms](https://www.cloudflare.com/service-specific-terms-application-services/) let it limit or disable a site that serves video through its network without one of its paid video products.
 
+## AirPlay
+
+With [AirPlay](/guide/player#airplay), the TV loads the video itself, from the address that Safari shows. So the TV must be able to reach that address:
+
+- **Home address**, such as `http://192.168.1.10:3733`: works when the Apple TV is on your home network.
+- **Tailscale address**, such as `https://freetvarr.tail1234.ts.net`: install Tailscale on the Apple TV and sign in with the same account ([Install Tailscale on an Apple TV](https://tailscale.com/docs/install/appletv)). Until then, the TV shows an error in place of the picture.
+- **Cloudflare Tunnel address**: the TV cannot pass the Cloudflare sign-in. Use the home address at home.
+
 ## Port forwarding
 
 Never forward a port on your router to Freetvarr, and never put it behind a public reverse proxy without a sign-in in front. Freetvarr has no login, so anyone who finds the address can see everything and change its settings, including the TVHeadend, Sonarr, and Radarr credentials that it holds ([Security](https://github.com/furey/freetvarr#security)).

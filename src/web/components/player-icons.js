@@ -52,6 +52,8 @@ export const CornerGripIcon = {
 
 export const PhoneRotateIcon = icon('<rect x="4.5" y="1.75" width="7" height="12.5" rx="1.5"/><path d="M2 9.5a3 3 0 0 0 2.5 3"/>')
 
+export const PhoneIcon = icon('<rect x="4.5" y="1.75" width="7" height="12.5" rx="1.5"/><path d="M7.25 11.75h1.5"/>')
+
 export const PLAYER_ICON_COMPONENTS = {
   'pip-icon': PictureInPictureIcon,
   'pop-out-icon': PopOutIcon,
@@ -70,6 +72,7 @@ export const PLAYER_ICON_COMPONENTS = {
   'speaker-icon': SpeakerIcon,
   'speaker-muted-icon': SpeakerMutedIcon,
   'phone-rotate-icon': PhoneRotateIcon,
+  'phone-icon': PhoneIcon,
   'resize-arrows-icon': ResizeArrowsIcon,
   'corner-grip-icon': CornerGripIcon,
 }

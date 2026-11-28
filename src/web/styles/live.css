@@ -672,13 +672,20 @@ body.player-open .app-tabbar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
   padding-inline: 32px;
   text-align: center;
   pointer-events: none;
 }
 
-.pl-airplay-status svg {
+.pl-airplay-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pl-airplay-message svg {
   width: 32px;
   height: 32px;
   margin-bottom: 8px;
@@ -701,15 +708,38 @@ body.player-open .app-tabbar {
   text-wrap: balance;
 }
 
+.pl-airplay-hint {
+  max-width: 320px;
+  margin: 0;
+  color: var(--color-text-2);
+  font-size: 13px;
+  line-height: 18px;
+  text-wrap: balance;
+}
+
+.pl-frame .pl-airplay-back {
+  pointer-events: auto;
+}
+
+.pl-airplay-back svg {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-height: 500px) {
   .pl-airplay-status {
     bottom: calc(50% + 64px);
-    flex-direction: row;
+    flex-flow: row wrap;
     justify-content: center;
+    gap: 4px 16px;
+  }
+
+  .pl-airplay-message {
+    flex-direction: row;
     gap: 8px;
   }
 
-  .pl-airplay-status svg {
+  .pl-airplay-message svg {
     width: 20px;
     height: 20px;
     margin-bottom: 0;
@@ -723,6 +753,10 @@ body.player-open .app-tabbar {
   .pl-airplay-detail {
     font-size: 13px;
     line-height: 22px;
+  }
+
+  .pl-airplay-hint {
+    display: none;
   }
 }
 

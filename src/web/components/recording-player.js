@@ -27,6 +27,7 @@ import {
 import { PlayerMini, usePictureInPicture } from '/components/player-mini.js'
 import { miniMetaOf, captionLineOf, recordingMiniMetaOnTvOf, onTvArtUrlOf } from '/mini-player.js'
 import { airplayActionOf } from '/player-top-actions.js'
+import { airplayReachHintOf } from '/airplay-target.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
 import {
   playInfoOpen,
@@ -64,7 +65,7 @@ import {
   playerMuted,
 } from '/shared/player-shared.js'
 import { tz, fmtTime, fmtClockTz, now } from '/shared/time.js'
-import { VIDEO_STATE_EVENTS, initialPausedState, pausedStateAfter } from '/player-paused.js'
+import { VIDEO_STATE_EVENTS, initialPausedState, pausedStateAfter, rebaselinedState } from '/player-paused.js'
 
 export const RecordingPlayer = {
   components: { ...PLAYER_CHROME_COMPONENTS, 'player-mini': PlayerMini },
@@ -78,7 +79,8 @@ export const RecordingPlayer = {
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
         <player-on-tv v-if="playback.playingOnTv && !mini" :art="onTvArt"
-          :show-status="playback.phase !== 'ended' && !infoOpen" :detail="overlayText || undefined" />
+          :show-status="playback.phase !== 'ended' && !infoOpen" :detail="overlayText || undefined" :hint="airplayHint"
+          @choose-screen="showAirplayPicker" />
         <span v-if="overlayText && playback.phase !== 'ended' && !playback.playingOnTv" class="pl-caption" role="status">{{ overlayText }}</span>
         <div class="pl-scrim is-top" aria-hidden="true"></div>
         <div class="pl-scrim is-bottom" aria-hidden="true"></div>
@@ -111,7 +113,7 @@ export const RecordingPlayer = {
           :actions="topActions" @action="onTopAction" />
         <transition name="pl-reveal">
         <player-center-controls v-if="playback.phase !== 'ended' && !infoOpen" :paused="shownPaused"
-          :show-start-over="playback.resumed" @start-over="startPlaybackOver" @toggle-pause="togglePlayback" />
+          :show-start-over="playback.resumed" @start-over="startPlaybackOver" @toggle-pause="togglePause" />
         </transition>
         <div v-if="playback.phase === 'ended'" class="pl-ended">
           <p class="pl-ended-message">{{ playback.message }}</p>
@@ -143,7 +145,7 @@ export const RecordingPlayer = {
           :paused="shownPaused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
           :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" :no-captions-title="NO_CAPTIONS_ON_RECORDING" @toggle-captions="togglePlayCaptions"
           :playing-on-tv="playback.playingOnTv" :art="onTvArt" :on-tv-meta="miniMetaOnTv"
-          @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
+          @expand="expand" @toggle-pause="togglePause" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
     </transition>
@@ -263,9 +265,9 @@ export const RecordingPlayer = {
     const {
       controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
     } = useControlsAutoHide({
-      enabled: computed(() => playback.open && !mini.value),
+      enabled: computed(() => playback.open && !mini.value && !playback.playingOnTv),
       holdShown: computed(() => shownPaused.value || playback.phase !== 'playing' || playback.waiting
-        || playback.scrubbing || infoOpen.value || playback.playingOnTv),
+        || playback.scrubbing || infoOpen.value),
       rootEl: stageEl,
     })
     const placeCaptions = () => placeCaptionCues({
@@ -283,6 +285,7 @@ export const RecordingPlayer = {
     watch([mini, controlsShown], remeasure, { flush: 'post' })
 
     const { showAirplayPicker } = useAirplayTarget({ videoEl, state: playback, isOpen: () => playback.open })
+    const airplayHint = airplayReachHintOf(location.hostname)
     const topActions = computed(() => [airplayActionOf({ available: playback.airplay, playingOnTv: playback.playingOnTv })])
     const onTopAction = (key) => {
       if (key === 'airplay') showAirplayPicker()
@@ -297,6 +300,13 @@ export const RecordingPlayer = {
       playback.stuck = pausedState.stuck && isPlaying
       if (isPlaying && !DIRECT_PAUSE_EVENTS.has(type)) playback.waiting = pausedState.buffering
     }
+    const togglePause = () => {
+      const wasStuck = playback.stuck
+      togglePlayback()
+      if (!wasStuck) return
+      pausedState = rebaselinedState(pausedState, Date.now())
+      playback.stuck = false
+    }
     watch(now, () => syncPaused({ type: 'tick' }))
     usePausedResync(syncPaused)
 
@@ -304,7 +314,7 @@ export const RecordingPlayer = {
       infoOpen,
       onPointerDown: onPlayPointerDown,
       onPointerUp: (e) => onPlayPointerUp(e, {
-        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, hideControls, togglePause: togglePlayback }),
+        onSingleTap: singleTapActionFor({ pointerType: e.pointerType, controlsShown, revealControls, hideControls, togglePause }),
       }),
       onClick: () => {},
       onDoubleClick: onPlayDoubleClick,
@@ -341,7 +351,7 @@ export const RecordingPlayer = {
       toggleInfo,
       canToggleCaptions: () => playback.captions && !infoOpen.value,
       toggleCaptions: togglePlayCaptions,
-      togglePause: togglePlayback,
+      togglePause,
       skip: skipPlaybackByKey,
       toggleFullscreen,
       toggleMute: togglePlayerMuted,
@@ -397,8 +407,8 @@ export const RecordingPlayer = {
       infoOpen, infoClosing, toggleInfo, videoEl, stageEl, footerEl, shownPosition, scrubMax, fillPercent, adMarkers, leftText, endsText, NO_CAPTIONS_ON_RECORDING,
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
-      stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, isStageFullscreen, topActions, onTopAction, shownPaused,
+      stopPlayback, togglePlayback, togglePause, startPlaybackOver, onScrubInput, onScrubCommit,
+      toggleFullscreen, isStageFullscreen, topActions, airplayHint, showAirplayPicker, onTopAction, shownPaused,
       captionsOn: liveCaptionsOn, togglePlayCaptions,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
       mini, minimise, miniInRow, expand, miniMeta, miniMetaOnTv, onTvArt, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,

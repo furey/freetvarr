@@ -18,7 +18,7 @@ import {
   teletextDecoderArgs,
   teletextPageOf,
   variantStreamMap,
-  withCaptionLabels,
+  servedMasterPlaylist,
 } from './live-tv.js'
 import { localPathFor } from './sync.js'
 
@@ -381,7 +381,7 @@ export const createPlaybackSessions = ({
     if (!hasSegments(await readPlaylist(session))) return null
     const playlist = await readPlaylist(session, name)
     if (playlist == null) return null
-    if (name === MASTER_PLAYLIST) return withCaptionLabels(playlist)
+    if (name === MASTER_PLAYLIST) return servedMasterPlaylist(playlist)
     return playlistForClient({ playlist, finished: session.finished })
   }
 
