@@ -1154,3 +1154,8 @@ test('withPeakBandwidth: gives each STREAM-INF line its own floor', () => {
     '#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=720x576',
   ])
 })
+
+test('statusForChannel on fresh sessions returns null, so a client can tell a restarted server from an ended stream', async () => {
+  const h = fakeHarness()
+  assert.equal(await h.sessions.statusForChannel('c1'), null)
+})

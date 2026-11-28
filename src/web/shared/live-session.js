@@ -12,7 +12,7 @@ import {
   captionsShowing,
   captionPreferenceAfterChange,
 } from '/live-captions.js'
-import { isReadyToStart, liveErrorActionOf } from '/live-start.js'
+import { isReadyToStart, liveErrorActionOf, pollOutcomeOf } from '/live-start.js'
 import { fromStartGoneAction, fromStartResumeSecondsOf } from '/from-start-timeline.js'
 import { deviceTokenFrom } from '/device-token.js'
 import { fromStartProgrammeOf } from '/from-start-programme.js'
@@ -53,6 +53,7 @@ let liveRun = 0
 let fromStartBeatTimer = null
 let fromStartRestarts = 0
 let liveReattaches = 0
+let liveRetunes = 0
 
 export const DEVICE_TOKEN = deviceTokenFrom({
   storage: browserStorage(),
@@ -72,6 +73,7 @@ export const watchLive = ({ channel, nowTitle }) => {
   if (live.open && live.channel?.id === channel.id && live.phase !== 'ended') return
   if (playback.open) playbackHooks.stopPlayback()
   stopLive()
+  liveRetunes = 0
   playerWindowed.value = false
   playerMini.value = false
   Object.assign(live, {
@@ -288,9 +290,9 @@ const pollLive = async (run) => {
     if (run !== liveRun) return
     live.conflict = r.conflict
     const session = r.session
-    if (!session || session.id !== live.sessionId || session.status === 'ended') {
-      return endLive(run, session?.reason)
-    }
+    const outcome = pollOutcomeOf({ session, sessionId: live.sessionId, retunes: liveRetunes })
+    if (outcome.action === 'retune') return retuneForgottenSession()
+    if (outcome.action === 'end') return endLive(run, outcome.reason)
     live.captions = Boolean(session.captions)
     if (session.status === 'live' && !liveAttached) await attachLiveVideo(run, session.playlist)
   } catch {
@@ -298,6 +300,12 @@ const pollLive = async (run) => {
   }
   clearTimeout(livePollTimer)
   livePollTimer = setTimeout(() => pollLive(run), liveAttached ? LIVE_POLL_PLAYING_MS : LIVE_POLL_TUNING_MS)
+}
+
+const retuneForgottenSession = () => {
+  liveRetunes += 1
+  live.sessionId = null
+  retuneLive({ channel: live.channel, nowTitle: live.nowTitle })
 }
 
 const playsHlsOnlyNatively = () =>
@@ -333,6 +341,7 @@ const markLiveStarted = (run) => {
   if (run !== liveRun || !liveAttached || live.phase === 'ended') return
   liveStarted = true
   liveReattaches = 0
+  liveRetunes = 0
   live.phase = 'live'
 }
 
@@ -490,6 +499,7 @@ export const liveReasonText = (reason) => {
   if (reason.code === 'idle') return 'Stopped: nobody was watching.'
   if (reason.code === 'replaced') return 'Stopped: this device started another stream.'
   if (reason.code === 'shutdown') return 'Stopped: Freetvarr restarted.'
+  if (reason.code === 'unavailable') return 'Stopped: the stream is no longer available.'
   if (reason.code === 'no-tuner') return 'No free tuner.'
   if (reason.code === 'no-source') return "Stopped: TVHeadend can't tune this channel. It isn't broadcasting, or every tuner is busy."
   if (reason.code === 'ffmpeg') return `ffmpeg failed${detail}`

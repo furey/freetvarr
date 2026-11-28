@@ -546,6 +546,23 @@ html:has(> body.player-open) {
   transition: background-color 0s linear var(--motion-sheet);
 }
 
+.player-bar-tint {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 39;
+  height: 12px;
+  background: #000;
+  pointer-events: none;
+}
+
+@media (display-mode: standalone) {
+  .player-bar-tint {
+    display: none;
+  }
+}
+
 body.player-open .app-tabbar {
   display: none;
 }
