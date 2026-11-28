@@ -326,7 +326,7 @@ The recording player adds these to the [player controls](/guide/player#controls)
 - **Skip ad** appears at the right, above the position bar, while you watch an ad break that detection found (see [Ad removal](/guide/ad-removal)). Press it to jump to the end of the break.
 - The row under the position bar says when the episode ends if you watch to the end, such as `Ends 9:42pm`.
 - The position bar marks the ad breaks. On a screen wider than a phone held upright, a pill after the end time says how many minutes are left.
-- The AirPlay button sends the episode to an Apple TV, from Safari.
+- The AirPlay button plays the episode on an Apple TV, from Safari on an iPhone. See [AirPlay](/guide/player#airplay).
 
 The player uses the imported file, or the TVHeadend copy when the recording is not imported. A recording still in progress plays from its show page with **Watch from the start**; you can also use **Start over** → **From the start** in the [live player](/guide/player#start-over).
 

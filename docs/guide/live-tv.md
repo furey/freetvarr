@@ -61,7 +61,7 @@ A dimmed channel marked `Off air` is not broadcasting right now, so a press show
 </BrowserFrame>
 <!-- markdownlint-enable MD033 -->
 
-The [Player](/guide/player) page covers the controls that live TV shares with recordings: **Start over**, sound, captions, the Miniplayer, **Pop out (picture in picture)**, full screen, [Multiview](/guide/player#multiview), and the keyboard shortcuts.
+The [Player](/guide/player) page covers the controls that live TV shares with recordings: **Start over**, sound, captions, the Miniplayer, **Pop out (picture in picture)**, [AirPlay](/guide/player#airplay), full screen, [Multiview](/guide/player#multiview), and the keyboard shortcuts.
 
 ## Programme info
 

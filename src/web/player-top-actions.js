@@ -21,6 +21,21 @@ export const BASE_ROW_BUTTON_GAP = 8
 export const BASE_ROW_SUMMARY_GAP = 12
 export const BASE_ROW_MIN_SUMMARY_WIDTH = 140
 
+export const airplayActionOf = ({ available, playingOnTv }) => ({
+  key: 'airplay',
+  order: 5,
+  priority: 2,
+  icon: 'airplay-icon',
+  label: 'AirPlay',
+  ariaLabel: playingOnTv ? 'AirPlay: playing on your TV' : 'AirPlay',
+  title: 'AirPlay',
+  menuLabel: 'AirPlay',
+  round: true,
+  hidden: !available && !playingOnTv,
+  on: playingOnTv,
+  menuValue: playingOnTv ? 'On' : '',
+})
+
 export const topBarActionsOf = ({ actions = [], prePlay }) => {
   if (prePlay) return []
   return actions.filter((action) => action && !action.hidden)

@@ -61,6 +61,73 @@
   display: none;
 }
 
+.pl-mini-airplay {
+  position: absolute;
+  inset: 8px auto auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 85px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+  color: var(--color-primary);
+  pointer-events: none;
+}
+
+.pl-mini-airplay img {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(14px) brightness(0.42) saturate(1.2);
+}
+
+.pl-mini-airplay svg {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.pl-mini-airplay-label {
+  display: none;
+}
+
+@media (min-width: 768px) and (min-height: 501px) {
+  .pl-mini-airplay {
+    inset: 0 0 auto 0;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--mini-video-h);
+    padding: 0 14px 14px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .pl-mini-airplay img {
+    filter: blur(28px) brightness(0.42) saturate(1.2);
+  }
+
+  .pl-mini-airplay svg {
+    width: 18px;
+    height: 18px;
+    margin-bottom: 1px;
+  }
+
+  .pl-mini-airplay-label {
+    position: relative;
+    display: block;
+    color: var(--color-text-1);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 18px;
+  }
+}
+
 .pl-mini-badge {
   position: absolute;
   top: 12px;

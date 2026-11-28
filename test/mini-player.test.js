@@ -11,6 +11,10 @@ import {
   miniMenuItemsOf,
   miniCaptionsOnCardOf,
   miniMetaWithSoundOf,
+  miniBarMetaOf,
+  liveMiniMetaOnTvOf,
+  recordingMiniMetaOnTvOf,
+  onTvArtUrlOf,
   MINI_CAPTIONS_MIN_WIDTH,
   miniPictureClickOf,
   minutesLeftText,
@@ -195,4 +199,21 @@ test('closePictureInPictureOf does nothing for an inline or missing video', () =
   assert.equal(closePictureInPictureOf({ video, doc: {} }), false)
   assert.equal(closePictureInPictureOf({ video: null, doc: {} }), false)
   assert.deepEqual(modes, [])
+})
+
+test('the phone bar says On your TV while AirPlay plays', () => {
+  assert.equal(liveMiniMetaOnTvOf({ channelName: '7 Sydney' }), '7 Sydney · On your TV')
+  assert.equal(recordingMiniMetaOnTvOf({ leftText: '20 min left' }), 'On your TV · 20 min left')
+  const meta = { meta: '7 Sydney · 14 min left', onTvMeta: '7 Sydney · On your TV' }
+  assert.equal(miniBarMetaOf({ ...meta, playingOnTv: true, phone: true }), '7 Sydney · On your TV')
+  assert.equal(miniBarMetaOf({ ...meta, playingOnTv: true, phone: false }), '7 Sydney · 14 min left')
+  assert.equal(miniBarMetaOf({ ...meta, playingOnTv: false, phone: true }), '7 Sydney · 14 min left')
+})
+
+test('the on-TV artwork uses the saved picture, then the guide picture, then the show picture', () => {
+  const stamp = (url) => `${url}${url.includes('?') ? '&' : '?'}c=s`
+  assert.equal(onTvArtUrlOf({ source: '/api/recordings/r1/image', eventId: 9, title: 'Seinfeld', stamp }), '/api/recordings/r1/image?c=s')
+  assert.equal(onTvArtUrlOf({ eventId: 9, title: 'Seinfeld', stamp }), '/api/epg/image/9?c=s&w=384')
+  assert.equal(onTvArtUrlOf({ title: 'Home and Away' }), '/api/epg/show-image?title=Home%20and%20Away&w=384')
+  assert.equal(onTvArtUrlOf({}), null)
 })

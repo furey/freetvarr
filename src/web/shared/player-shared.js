@@ -6,6 +6,7 @@ import { loadPlayerMuted, savePlayerMuted } from '/player-mute.js'
 import { PAGE_RESYNC_EVENTS } from '/player-paused.js'
 import { initialRotateState, rotateStepOf, fullscreenExitedState, isPhoneScreen } from '/rotate-fullscreen.js'
 import { liftedCaptionLineOf } from '/mini-player.js'
+import { listenForAirplay } from '/airplay-target.js'
 
 export const live = reactive({
   open: false,
@@ -31,6 +32,8 @@ export const live = reactive({
   paused: false,
   stuck: false,
   fromStart: null,
+  airplay: false,
+  playingOnTv: false,
 })
 
 export const playerMini = ref(false)
@@ -118,6 +121,15 @@ export const useRotateToFullscreen = ({ isEligible, enter, getVideo }) => {
     document.removeEventListener('fullscreenchange', onFullscreenChange)
     video?.removeEventListener('webkitendfullscreen', onFullscreenChange)
   })
+}
+
+export const useAirplayTarget = ({ videoEl, state, isOpen }) => {
+  const showAirplayPicker = () => videoEl.value?.webkitShowPlaybackTargetPicker?.()
+  let listener = null
+  watch(isOpen, (open) => listener?.syncOpen(open))
+  onMounted(() => { listener = listenForAirplay({ video: videoEl.value, state }) })
+  onUnmounted(() => listener?.stop())
+  return { showAirplayPicker }
 }
 
 export const usePausedResync = (resync) => {
@@ -232,6 +244,7 @@ export const playback = reactive({
   scrubValue: 0,
   skipHint: null,
   airplay: false,
+  playingOnTv: false,
   adBreaks: [],
   source: '',
   captions: false,

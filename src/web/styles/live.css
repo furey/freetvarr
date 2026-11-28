@@ -645,6 +645,87 @@ body.player-open .app-tabbar {
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
 }
 
+.pl-airplay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: #000;
+  pointer-events: none;
+}
+
+.pl-airplay-art {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(40px) brightness(0.42) saturate(1.2);
+}
+
+.pl-airplay-status {
+  position: absolute;
+  right: 0;
+  bottom: calc(50% + 72px);
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 32px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.pl-airplay-status svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  color: var(--color-primary);
+}
+
+.pl-airplay-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 26px;
+  text-wrap: balance;
+}
+
+.pl-airplay-detail {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: 14px;
+  line-height: 20px;
+  text-wrap: balance;
+}
+
+@media (max-height: 500px) {
+  .pl-airplay-status {
+    bottom: calc(50% + 50px);
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .pl-airplay-status svg {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 0;
+  }
+
+  .pl-airplay-title {
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .pl-airplay-detail {
+    font-size: 13px;
+    line-height: 22px;
+  }
+}
+
 .pl-top {
   position: absolute;
   top: 0;
@@ -1166,13 +1247,15 @@ body.player-open .app-tabbar {
   margin-left: auto;
 }
 
-.pl-frame .pl-base-actions .pl-round:is([aria-pressed="true"], [aria-expanded="true"]) {
+.pl-frame .pl-base-actions .pl-round:is([aria-pressed="true"], [aria-expanded="true"]),
+.pl-frame .pl-top .pl-round.is-on {
   background: var(--color-primary-tint);
   color: var(--color-primary);
 }
 
 @media (hover: hover) {
-  .pl-frame .pl-base-actions .pl-round:is([aria-pressed="true"], [aria-expanded="true"]):hover:not([aria-disabled="true"]) {
+  .pl-frame .pl-base-actions .pl-round:is([aria-pressed="true"], [aria-expanded="true"]):hover:not([aria-disabled="true"]),
+  .pl-frame .pl-top .pl-round.is-on:hover {
     background: rgba(92, 225, 198, 0.24);
   }
 
