@@ -69,7 +69,8 @@ import {
   seasonalKeyOf,
 } from './for-you-occasions.js'
 import { classificationTitleKey } from './classification-labels.js'
-import { requestKindOf } from './title-kinds.js'
+import { MOVIE_KIND, requestKindOf } from './title-kinds.js'
+import { hasEpisodeDetails } from './episode-details.js'
 import { countryForTimeZone } from './zone-countries.js'
 import { msOf } from './user-events.js'
 import {
@@ -157,7 +158,7 @@ export const buildForYou = ({
     seriesFactsOf: (programme) => seriesRatings.get(showKeyOf(programme.title)) || null,
   }
   context.genreShares = genreSharesOf({ profile, genreTagsOf: context.genreTagsOf, programmes: [...upcoming, ...history] })
-  context.similarity = similarityContextOf({ profile, upcoming, history, recordings, keyOf, vectorsByHash, tier })
+  context.similarity = similarityContextOf({ profile, upcoming, history, recordings, keyOf, vectorsByHash, tier, genreTagsOf: context.genreTagsOf, records })
 
   const allowed = upcoming.filter((programme) => !isExcluded({ programme, context }))
   const scored = allowed
@@ -517,7 +518,8 @@ const genreSharesOf = ({ profile, genreTagsOf, programmes }) => {
   return shares
 }
 
-const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, vectorsByHash, tier }) => {
+const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, vectorsByHash, tier, genreTagsOf, records }) => {
+  const filmKeys = filmKeysOf({ programmes: [...history, ...upcoming], genreTagsOf, records })
   const liked = likedShowsOf(profile).slice(0, MAX_ANCHORS)
   const fewer = fewerShowsOf(profile).slice(0, MAX_ANCHORS)
   const textsByKey = new Map()
@@ -538,7 +540,7 @@ const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, ve
       return keyVectors.get(key)
     }
     const anchorsOf = (shows, weightOf) => shows
-      .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), mark: fewerMarkOf(show), vector: keyVector(show.key) }))
+      .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), mark: fewerMarkOf(show), film: filmKeys.has(show.key), vector: keyVector(show.key) }))
       .filter((anchor) => anchor.vector)
     const anchors = anchorsOf(liked, (show) => show.affinity)
     const fewerAnchors = anchorsOf(fewer, (show) => show.fewerWeight)
@@ -546,12 +548,12 @@ const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, ve
       const text = embedTextOf(programme)
       return (text && vectorsByHash.get(textHashOf(text))) || keyVector(showKeyOf(programme.title))
     }
-    return { method: 'embedding', anchors, fewerAnchors, vectorOf, cosine: dotProduct, scale: SIMILARITY_SCALES.embedding, cache: new Map(), fewerCache: new Map() }
+    return { method: 'embedding', anchors, fewerAnchors, vectorOf, cosine: dotProduct, scale: SIMILARITY_SCALES.embedding, cache: { films: new Map(), series: new Map() }, fewerCache: new Map() }
   }
   const docs = new Map([...textsByKey].map(([key, texts]) => [key, [...texts.values()].join(' ')]))
   const vectors = bm25VectorsOf({ docs })
   const anchorsOf = (shows, weightOf) => shows
-    .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), mark: fewerMarkOf(show), vector: vectors.get(show.key) }))
+    .map((show) => ({ key: show.key, title: show.title, affinity: weightOf(show), mark: fewerMarkOf(show), film: filmKeys.has(show.key), vector: vectors.get(show.key) }))
     .filter((anchor) => anchor.vector?.size)
   return {
     method: 'bm25',
@@ -561,9 +563,28 @@ const similarityContextOf = ({ profile, upcoming, history, recordings, keyOf, ve
     vectorOf: (programme) => vectors.get(showKeyOf(programme.title)),
     cosine: sparseCosine,
     scale: SIMILARITY_SCALES.bm25,
-    cache: new Map(),
+    cache: { films: new Map(), series: new Map() },
   }
 }
+
+const filmKeysOf = ({ programmes, genreTagsOf, records }) => {
+  const filmAirings = new Set()
+  const episodic = new Set()
+  for (const programme of programmes) {
+    const key = showKeyOf(programme.title)
+    if (isFilmProgramme({ programme, genreTagsOf })) filmAirings.add(key)
+    if (hasEpisodeDetails(programme)) episodic.add(key)
+  }
+  const filmKeys = new Set([...filmAirings].filter((key) => !episodic.has(key)))
+  for (const [key, record] of records) {
+    if (!record.titleKind) continue
+    if (titleKindOfRecord(record) === MOVIE_KIND) filmKeys.add(key)
+    else filmKeys.delete(key)
+  }
+  return filmKeys
+}
+
+const isFilmProgramme = ({ programme, genreTagsOf }) => programme.kind === 'movie' || genreTagsOf(programme).includes('movie')
 
 const scoreAiring = ({ programme, context }) => {
   const { nowMs, profile, hourOf } = context
@@ -578,8 +599,8 @@ const scoreAiring = ({ programme, context }) => {
   const channelName = context.channelNames.get(channelId) || null
   const hour = hourOf(Number(programme.start))
   const contributions = []
-  const add = (feature, weight, text) => {
-    if (weight > 0.001) contributions.push({ feature, weight, text })
+  const add = (feature, weight, text, fallback = '') => {
+    if (weight > 0.001) contributions.push({ feature, weight, text, fallback })
   }
 
   const source = affinitySourceOf(show)
@@ -604,7 +625,7 @@ const scoreAiring = ({ programme, context }) => {
   if (genre && !liked) add('genre', W.genre * genre.score, `Because you like ${(GENRE_TAG_LABELS[genre.category] || genre.category).toLowerCase()}`)
 
   const nearest = similarOf({ programme, key, context })
-  if (nearest && !liked) add('similar', W.similar * nearest.score, `Similar to ${nearest.title}`)
+  if (nearest && !liked) add('similar', W.similar * nearest.score, nearest.named ? `Similar to ${nearest.title}` : '', film ? 'Like films you watch' : 'Like shows you watch')
 
   if (context.pinned.has(channelId)) add('pinned', W.pinned, 'On one of your favourite channels')
   if ((context.coldStart || movie) && hour >= PRIME_START && hour < PRIME_END) add('prime', W.prime, 'On in prime time')
@@ -632,7 +653,7 @@ const scoreAiring = ({ programme, context }) => {
     contributions,
     primaryGenre: genreTags.find((category) => category !== 'movie') || (movie ? 'movie' : 'other'),
     otherLanguage: movie && isOtherLanguage(context.filmFactsOf(programme)),
-    item: airingItemOf({ programme, context, movie, genreTags, kind, reason: top.text, score: total }),
+    item: airingItemOf({ programme, context, movie, genreTags, kind, reason: top.text || top.fallback, score: total }),
   }
 }
 
@@ -907,12 +928,14 @@ const affinityReasonOf = ({ source, title }) => {
   return ''
 }
 
-const reasonOf = (contributions) => {
+const reasonOf = (allContributions) => {
+  const contributions = allContributions.filter((contribution) => contribution.feature !== 'similar' || contribution.text)
   const leading = contributions.find((contribution) => LEADING_FEATURES.has(contribution.feature))
   if (leading) return leading
   const top = contributions.find((contribution) => REASON_FEATURES.has(contribution.feature))
     || contributions.find((contribution) => contribution.text)
     || contributions[0]
+    || allContributions[0]
   const similar = contributions.find((contribution) => contribution.feature === 'similar')
   return top.feature === 'genre' && similar && similar.weight >= top.weight * SIMILAR_REASON_RATIO ? similar : top
 }
@@ -938,11 +961,14 @@ const similarOf = ({ programme, key, context }) => {
   if (!anchors.length) return null
   const vector = vectorOf(programme)
   if (!vector) return null
-  if (cache.has(vector)) return cache.get(vector)
-  const [nearest] = nearestLikedOf({ vector, anchors, cosine, excludeKey: key, topK: 1 })
+  const film = isFilmProgramme({ programme, genreTagsOf: context.genreTagsOf })
+  const cacheKey = film ? cache.films : cache.series
+  if (cacheKey.has(vector)) return cacheKey.get(vector)
+  const sameKind = anchors.filter((anchor) => anchor.film === film)
+  const [nearest] = nearestLikedOf({ vector, anchors: sameKind, cosine, excludeKey: key, topK: 1 })
   const score = nearest ? similarityScoreOf({ similarity: nearest.similarity, ...scale }) * (0.5 + 0.5 * nearest.affinity) : 0
-  const result = score > 0 ? { ...nearest, score } : null
-  cache.set(vector, result)
+  const result = score > 0 ? { ...nearest, score, named: nearest.similarity >= scale.namedFloor } : null
+  cacheKey.set(vector, result)
   return result
 }
 
@@ -1293,7 +1319,7 @@ const explanationOf = ({ entry, context }) => {
   if (entry.genre) {
     signals.push(`${GENRE_TAG_LABELS[entry.genre.category] || entry.genre.category} is ${Math.round(entry.genre.share * 100)}% of what you watched and recorded`)
   }
-  if (entry.nearest) signals.push(`Its description is close to ${entry.nearest.title}, which you watched or recorded`)
+  if (entry.nearest?.named) signals.push(`Its description is close to ${entry.nearest.title}, which you watched or recorded`)
   const dismissals = show?.dismissed.filter((ts) => context.nowMs - ts < DISMISS_WINDOW_DAYS * DAY_MS).length || 0
   if (dismissals) signals.push(`You dismissed it ${plural(dismissals, 'time')} recently`)
   if (context.pinned.has(item.channelId)) signals.push(`${item.channelName || 'The channel'} is one of your favourite channels`)
