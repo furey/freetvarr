@@ -24,6 +24,7 @@ import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/pla
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf, liveMiniMetaOnTvOf, onTvArtUrlOf } from '/mini-player.js'
 import { airplayActionOf } from '/player-top-actions.js'
+import { airplayReachHintOf } from '/airplay-target.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT, retryActionOf } from '/start-over.js'
 import {
@@ -126,7 +127,8 @@ export const LivePlayer = {
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline x-webkit-airplay="allow" controlslist="nofullscreen"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
-        <player-on-tv v-if="onTvShown" :art="onTvArt" :show-status="!panelOpen && !tuneInExit" />
+        <player-on-tv v-if="onTvShown" :art="onTvArt" :show-status="!panelOpen && !tuneInExit" :hint="airplayHint"
+          @choose-screen="showAirplayPicker" />
         <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
           <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
             <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -598,9 +600,8 @@ export const LivePlayer = {
     const {
       controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
     } = useControlsAutoHide({
-      enabled: computed(() => live.open && !mini.value && !multi.active),
+      enabled: computed(() => live.open && !mini.value && !multi.active && !live.playingOnTv),
       holdShown: computed(() => shownPaused.value || live.phase !== 'live' || live.scrubbing || infoOpen.value || tuneInShown.value
-        || live.playingOnTv
         || (chips.value !== 'hidden' && !tuneInExit.value) || programmeSheetOpen.value),
       quietRelease: takesQuietRelease,
       rootEl: frameEl,
@@ -722,6 +723,7 @@ export const LivePlayer = {
 
     const playerTitle = computed(() => info.value.now?.title || live.nowTitle || live.channel?.name || '')
 
+    const airplayHint = airplayReachHintOf(location.hostname)
     const onTvShown = computed(() => live.playingOnTv && !mini.value && !multi.active && live.phase === 'live' && chips.value === 'hidden')
     const onTvArt = computed(() => {
       const program = info.value.now
@@ -905,7 +907,7 @@ export const LivePlayer = {
       bufferStartText, bufferEndText, summaryEpisode, summaryText, phonePortrait, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, miniInRow, expand, miniMeta, miniProgress,
-      miniMetaOnTv, onTvShown, onTvArt,
+      miniMetaOnTv, onTvShown, onTvArt, airplayHint, showAirplayPicker,
       multi, primarySlotClass, primarySlotStyle, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor,
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,

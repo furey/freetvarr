@@ -167,11 +167,14 @@ const menuItemOf = (action) => ({
 const PILL_LABEL_MIN_FRAME = 1150
 
 export const PlayerOnTv = {
+  components: PLAYER_ICON_COMPONENTS,
   props: {
     art: { type: String, default: null },
     showStatus: Boolean,
     detail: { type: String, default: 'AirPlay' },
+    hint: { type: String, default: '' },
   },
+  emits: ['choose-screen'],
   setup(props) {
     const artFailed = ref(false)
     watch(() => props.art, () => { artFailed.value = false })
@@ -181,10 +184,16 @@ export const PlayerOnTv = {
     <div class="pl-airplay" aria-hidden="true">
       <img v-if="art && !artFailed" class="pl-airplay-art" :src="art" alt="" decoding="async" @error="artFailed = true">
     </div>
-    <div v-if="showStatus" class="pl-airplay-status" role="status">
-      <airplay-icon />
-      <p class="pl-airplay-title">Playing on your TV</p>
-      <p class="pl-airplay-detail">{{ detail }}</p>
+    <div v-if="showStatus" class="pl-airplay-status">
+      <div class="pl-airplay-message" role="status">
+        <airplay-icon />
+        <p class="pl-airplay-title">Playing on your TV</p>
+        <p class="pl-airplay-detail">{{ detail }}</p>
+      </div>
+      <p v-if="hint" class="pl-airplay-hint">{{ hint }}</p>
+      <button type="button" class="pl-pill pl-airplay-back" @click="$emit('choose-screen')">
+        <phone-icon />Watch on iPhone
+      </button>
     </div>
   `,
 }

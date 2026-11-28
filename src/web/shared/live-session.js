@@ -18,7 +18,7 @@ import { deviceTokenFrom } from '/device-token.js'
 import { fromStartProgrammeOf } from '/from-start-programme.js'
 import { liveWindowOf, steadyLiveWindowOf, videoLiveInputOf, rangesOf } from '/live-edge.js'
 import { captionLineOf, closePictureInPictureOf } from '/mini-player.js'
-import { initialPausedState, pausedStateAfter } from '/player-paused.js'
+import { initialPausedState, pausedStateAfter, rebaselinedState, toggleActionOf } from '/player-paused.js'
 import { csrfToken, api } from '/shared/api.js'
 import { browserStorage } from '/shared/storage.js'
 import { postRecordingPosition } from '/shared/recording-position.js'
@@ -700,7 +700,11 @@ export const onLiveClick = (e) => {
 
 export const toggleLivePause = () => {
   if (!liveAttached) return
-  if (!liveVideo.paused && !live.stuck) return liveVideo.pause()
+  if (toggleActionOf({ paused: liveVideo.paused, stuck: live.stuck }) === 'pause') return liveVideo.pause()
+  if (live.stuck) {
+    livePausedState = rebaselinedState(livePausedState, Date.now())
+    live.stuck = false
+  }
   liveVideo.play()?.catch(() => {})
 }
 

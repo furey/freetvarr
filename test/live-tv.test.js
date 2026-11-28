@@ -23,6 +23,9 @@ import {
   teletextPageOf,
   missingTeletext,
   withCaptionLabels,
+  withPeakBandwidth,
+  servedMasterPlaylist,
+  peakBandwidthForHeight,
   liveContentType,
   servedCaptionSegment,
   captionCuesOf,
@@ -1102,4 +1105,52 @@ test('withCaptionDateTimes: gives each caption segment the date time of its vide
 
 test('liveStreamWeightOf: later pictures ask TVHeadend for a lower weight so a recording takes their tuner first', () => {
   assert.deepEqual([0, 1, 2, 3, 9, -1, undefined].map(liveStreamWeightOf), [50, 40, 30, 20, 20, 50, 50])
+})
+
+const streamInfOf = (master) => master.split('\n').find((line) => line.startsWith('#EXT-X-STREAM-INF:'))
+
+test('withPeakBandwidth: declares a broadcast peak in place of the audio-only figure ffmpeg writes for copied video', () => {
+  assert.equal(streamInfOf(withPeakBandwidth(MASTER)), '#EXT-X-STREAM-INF:BANDWIDTH=16000000,RESOLUTION=1920x1080,SUBTITLES="subs"')
+  const hd720 = MASTER.replace('RESOLUTION=1920x1080', 'RESOLUTION=1280x720')
+  assert.match(streamInfOf(withPeakBandwidth(hd720)), /^#EXT-X-STREAM-INF:BANDWIDTH=10000000,/)
+})
+
+test('withPeakBandwidth: keeps a declared figure above the peak and leaves AVERAGE-BANDWIDTH alone', () => {
+  const high = MASTER.replace('BANDWIDTH=140800', 'BANDWIDTH=25000000,AVERAGE-BANDWIDTH=140800')
+  assert.equal(streamInfOf(withPeakBandwidth(high)), '#EXT-X-STREAM-INF:BANDWIDTH=25000000,AVERAGE-BANDWIDTH=140800,RESOLUTION=1920x1080,SUBTITLES="subs"')
+})
+
+test('peakBandwidthForHeight: scales with the picture height and assumes HD when unknown', () => {
+  assert.equal(peakBandwidthForHeight(576), 5_000_000)
+  assert.equal(peakBandwidthForHeight(720), 10_000_000)
+  assert.equal(peakBandwidthForHeight(1080), 16_000_000)
+  assert.equal(peakBandwidthForHeight(null), 16_000_000)
+})
+
+test('servedMasterPlaylist: labels captions and declares the peak together', () => {
+  const served = servedMasterPlaylist(MASTER)
+  assert.ok(served.includes('NAME="English"'))
+  assert.ok(served.includes('BANDWIDTH=16000000'))
+  assert.ok(!served.includes('BANDWIDTH=140800'))
+})
+
+test('withPeakBandwidth: leaves a STREAM-INF line with no BANDWIDTH unchanged', () => {
+  const bare = MASTER.replace('BANDWIDTH=140800,', '')
+  assert.equal(withPeakBandwidth(bare), bare)
+})
+
+test('withPeakBandwidth: gives each STREAM-INF line its own floor', () => {
+  const twoVariants = [
+    '#EXTM3U',
+    '#EXT-X-STREAM-INF:BANDWIDTH=140800,RESOLUTION=1280x720',
+    'hd.m3u8',
+    '#EXT-X-STREAM-INF:BANDWIDTH=140800,RESOLUTION=720x576',
+    'sd.m3u8',
+    '',
+  ].join('\n')
+  const lines = withPeakBandwidth(twoVariants).split('\n').filter((line) => line.startsWith('#EXT-X-STREAM-INF:'))
+  assert.deepEqual(lines, [
+    '#EXT-X-STREAM-INF:BANDWIDTH=10000000,RESOLUTION=1280x720',
+    '#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=720x576',
+  ])
 })

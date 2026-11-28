@@ -2,6 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   initialPausedState,
+  toggleActionOf,
+  rebaselinedState,
   pausedStateAfter,
   shownPausedOf,
   STUCK_AFTER_MS,
@@ -121,4 +123,32 @@ test('a hidden page never counts a still picture as frozen', () => {
   const steps = [{ type: 'playing', video, nowMs: 0 }]
   for (let ms = 1_000; ms <= 10_000; ms += 1_000) steps.push({ type: 'tick', video, nowMs: ms, pageVisible: false })
   assert.equal(shownPausedOf(run(steps)), false)
+})
+
+const tapToggle = (state, { video, nowMs }) => {
+  const action = toggleActionOf({ paused: video.paused, stuck: state.stuck })
+  if (action === 'pause') video.paused = true
+  const next = state.stuck ? rebaselinedState(state, nowMs) : state
+  return { action, state: pausedStateAfter(next, { type: 'tick', video, nowMs }) }
+}
+
+test('a frozen clock on a playing video: the first tap plays, the second tap pauses', () => {
+  const video = fakeVideo()
+  const frozen = pausedStateAfter(run([{ type: 'playing', video, nowMs: 0 }]), { type: 'tick', video, nowMs: STUCK_AFTER_MS + 500 })
+  assert.equal(shownPausedOf(frozen), true)
+  const first = tapToggle(frozen, { video, nowMs: STUCK_AFTER_MS + 1_000 })
+  assert.equal(first.action, 'play')
+  assert.equal(shownPausedOf(first.state), false)
+  const second = tapToggle(first.state, { video, nowMs: STUCK_AFTER_MS + 2_000 })
+  assert.equal(second.action, 'pause')
+  assert.equal(video.paused, true)
+})
+
+test('a stream that stays frozen after the tap offers Play again', () => {
+  const video = fakeVideo()
+  const frozen = pausedStateAfter(run([{ type: 'playing', video, nowMs: 0 }]), { type: 'tick', video, nowMs: STUCK_AFTER_MS + 500 })
+  const tapped = tapToggle(frozen, { video, nowMs: STUCK_AFTER_MS + 1_000 })
+  const later = pausedStateAfter(tapped.state, { type: 'tick', video, nowMs: 2 * STUCK_AFTER_MS + 1_000 })
+  assert.equal(later.stuck, true)
+  assert.equal(toggleActionOf({ paused: video.paused, stuck: later.stuck }), 'play')
 })
