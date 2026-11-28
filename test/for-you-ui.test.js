@@ -34,6 +34,10 @@ import {
   tierSummaryOf,
   undoneMovieKindToastOf,
   topRatedSlideOf,
+  rowHiddenKeyOf,
+  rowHiddenKeysOf,
+  rowHiddenToastOf,
+  rowShowAgainOf,
   whyRowsOf,
 } from '../src/web/for-you.js'
 
@@ -203,6 +207,30 @@ test('menuOf: Watch live only while on, record actions until scheduled, and the 
   assert.equal(later.actions[0].detail, 'Wed 7:30pm')
   assert.deepEqual(menuOf({ item: item(), scheduled: true, nowMs, timeZone }).actions.map((a) => a.key), ['show', 'programme-info'])
   assert.deepEqual(later.more.map((a) => a.label), ['Hide this show', 'Change categories', 'Why this?'])
+})
+
+test('menuOf and sectionsOf: Hide from Finish what you started only on that row, and it hides only that card', () => {
+  const started = item({ kind: 'continue', reason: 'You watched 2 episodes' })
+  const { more } = menuOf({ item: started, nowMs, timeZone })
+  assert.deepEqual(more.slice(0, 2).map((a) => [a.key, a.label]), [['hide-row', 'Hide from Finish what you started'], ['not-interested', 'Hide this show']])
+  assert.ok(!menuOf({ item: item(), nowMs, timeZone }).more.some((a) => a.key === 'hide-row'))
+  assert.equal(rowHiddenToastOf('finish-started'), 'This show is hidden from Finish what you started until you watch an episode')
+  const hiddenKeys = new Set([rowHiddenKeyOf({ row: 'finish-started', seriesKey: 'grand-designs-australia' })])
+  const sections = sectionsOf({
+    hiddenKeys,
+    payload: { sections: [
+      { key: 'finish-started', items: [started] },
+      { key: 'might-like', items: [item({ id: 'e9' })] },
+    ] },
+  })
+  assert.deepEqual(sections.map((section) => section.key), ['might-like'])
+  const hide = feedbackOf({ kind: 'row_hidden', item: started, source: 'for-you', meta: { row: 'finish-started' } })
+  assert.deepEqual(hide.meta, { row: 'finish-started' })
+  const showAgain = rowShowAgainOf({ row: 'finish-started', seriesKey: hide.series_key, title: hide.title })
+  assert.deepEqual([showAgain.kind, showAgain.series_key, showAgain.title, showAgain.meta], ['row_hidden_undo', hide.series_key, hide.title, { row: 'finish-started' }])
+  const sessionKey = rowHiddenKeyOf({ row: 'finish-started', seriesKey: hide.series_key })
+  assert.ok(rowHiddenKeysOf({ row: 'finish-started', seriesKey: 'grand-designs-australia', title: 'Grand Designs Australia' }).has(sessionKey))
+  assert.ok(rowHiddenKeysOf({ row: 'finish-started', seriesKey: 'other-key', title: started.title }).has(sessionKey))
 })
 
 test('sheetRequestOf: opens the programme sheet on its guide day with the right strength', () => {

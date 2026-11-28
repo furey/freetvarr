@@ -15,9 +15,11 @@ export const FEEDBACK_KINDS = new Set([
   'category_unmuted',
   'category_boosted',
   'category_unboosted',
+  'row_hidden',
+  'row_hidden_undo',
 ])
 
-export const CHOICE_KINDS = new Set(['not_interested', 'thumb_up', 'thumb_down', 'fewer_like_this', 'fewer_like_this_undo', 'thumb_clear', 'category_muted', 'category_unmuted', 'category_boosted', 'category_unboosted'])
+export const CHOICE_KINDS = new Set(['not_interested', 'thumb_up', 'thumb_down', 'fewer_like_this', 'fewer_like_this_undo', 'thumb_clear', 'category_muted', 'category_unmuted', 'category_boosted', 'category_unboosted', 'row_hidden', 'row_hidden_undo'])
 
 export const VIEWING_HISTORY_KEY = 'viewing_history_enabled'
 export const HISTORY_RETENTION_MS = 730 * 24 * 60 * 60 * 1000
@@ -249,7 +251,12 @@ const recordingDeletedOf = ({ row, source }) => ({
   position_s: row.playback_position_s,
   programme_len_s: row.duration_s,
   source,
-  meta: { watched: Boolean(row.watched_at) },
+  meta: {
+    watched: Boolean(row.watched_at),
+    season: row.season ?? null,
+    episode: row.episode ?? null,
+    watched_at: row.watched_at ?? null,
+  },
 })
 
 const guideEventOf = ({ kind, body, context, meta }) => ({

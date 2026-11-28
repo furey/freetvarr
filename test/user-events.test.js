@@ -149,7 +149,7 @@ test('routeEventsOf maps watchlist changes and deletions', () => {
   const [removed] = routeEventsOf({ method: 'DELETE', path: '/api/watchlist/3', context: { watchlist } })
   assert.equal(removed.kind, 'record_cancel')
 
-  const recordings = new Map([['r1', { recording_id: 'r1', title: 'Bluey', watched_at: '2026-01-01', duration_s: 420 }]])
+  const recordings = new Map([['r1', { recording_id: 'r1', title: 'Bluey', season: 3, episode: 12, watched_at: '2026-01-01', duration_s: 420 }]])
   const deleted = routeEventsOf({
     method: 'POST',
     path: '/api/library/delete',
@@ -157,6 +157,7 @@ test('routeEventsOf maps watchlist changes and deletions', () => {
     context: { recordings },
   })
   assert.deepEqual(deleted.map((e) => [e.kind, e.recording_id, e.meta.watched, e.source]), [['recording_deleted', 'r1', true, 'library']])
+  assert.deepEqual(deleted[0].meta, { watched: true, season: 3, episode: 12, watched_at: '2026-01-01' })
   const [fromTvh] = routeEventsOf({ method: 'POST', path: '/api/recordings/r1/delete-from-tvh', context: { recordings } })
   assert.equal(fromTvh.source, 'tvheadend')
   assert.deepEqual(routeEventsOf({ method: 'GET', path: '/api/watchlist' }), [])
@@ -170,6 +171,13 @@ test('positionPingOf recognises position saves', () => {
 
 test('feedbackEventsFrom accepts a programme sheet open', () => {
   assert.equal(feedbackEventsFrom({ kind: 'programme_opened', title: 'Harry Brown', source: 'sheet' }).events[0].kind, 'programme_opened')
+})
+
+test('feedbackEventsFrom accepts a row hide and its undo with the row in meta', () => {
+  for (const kind of ['row_hidden', 'row_hidden_undo']) {
+    const [event] = feedbackEventsFrom({ kind, series_key: 'the-block', title: 'The Block', source: 'for-you', meta: { row: 'finish-started' } }).events
+    assert.deepEqual([event.kind, event.meta], [kind, { row: 'finish-started' }])
+  }
 })
 
 test('feedbackEventsFrom validates kinds, keys, and sizes', () => {
