@@ -23,6 +23,7 @@ import {
   fewerMarkOf,
   fewerShowsOf,
   hourHabitOf,
+  isRowHidden,
   likedShowsOf,
   localHourOf,
   profileOf,
@@ -645,6 +646,7 @@ const scoreAiring = ({ programme, context }) => {
     premiere,
     newSeason,
     back,
+    behind: Boolean(show) && isBehindWatched({ show, programme }),
     nearest,
     habit,
     genre,
@@ -764,13 +766,14 @@ export const finishStartedOf = ({ choices, context }) => {
   for (const programme of choices) {
     const key = showKeyOf(programme.title)
     const show = context.profile.shows.get(key)
-    if (!isStartedShow({ show, nowMs: context.nowMs })) continue
+    if (!isStartedShow({ show, nowMs: context.nowMs }) || isRowHidden({ show, row: FINISH_ROW })) continue
     const genreTags = context.genreTagsOf(programme)
-    if (!isEpisodeChoice({ programme, genreTags })) continue
+    if (!isEpisodeChoice({ programme, genreTags }) || isBehindWatched({ show, programme })) continue
     if (isLaterThanKnown({ known: byKey.get(key), programme })) continue
     byKey.set(key, {
       key,
       show,
+      next: isNextEpisode({ show, programme }),
       item: airingItemOf({ programme, context, movie: false, genreTags, kind: 'continue', reason: startedReasonOf({ show, programme }), score: show.affinity }),
     })
   }
@@ -837,9 +840,9 @@ const localMsOf = ({ timeZone, year, month, day, hour }) => {
   return wall - offsetAt({ ms: guess, timeZone })
 }
 
-const startedSignalsOf = ({ show, item }) => (isSingleTitleKind(item.programmeKind)
+const startedSignalsOf = ({ show, item, next }) => (isSingleTitleKind(item.programmeKind)
   ? [`You watched ${show.title || item.title}`, 'It airs again this week']
-  : [`You watched ${plural(show.episodesCompleted, 'episode')} of ${show.title || item.title}`, 'The next episode airs this week'])
+  : [`You watched ${plural(show.episodesCompleted, 'episode')} of ${show.title || item.title}`, ...(next ? ['The next episode airs this week'] : [])])
 
 const startedReasonOf = ({ show, programme }) => (isSingleTitleKind(programme.kind)
   ? `You watched ${show.title || programme.title}`
@@ -865,9 +868,35 @@ const isLaterThanKnown = ({ known, programme }) => Boolean(known) && known.item.
 const isStartedShow = ({ show, nowMs }) => Boolean(show)
   && !show.abandoned
   && !show.hidden
+  && !isRecentlyStopped({ show, nowMs })
   && show.episodesCompleted >= FINISH_MIN_EPISODES
   && show.episodesCompleted <= FINISH_MAX_EPISODES
   && nowMs - (show.lastActivityTs || 0) <= FINISH_RECENT_MS
+
+const isRecentlyStopped = ({ show, nowMs }) => show.stops
+  .some((ts) => nowMs - ts < FINISH_STOPPED_MS && !show.requests.some((request) => request.ts > ts))
+
+const seasonEpisodeOf = (programme) => {
+  const season = Number(programme.series_no)
+  const episode = Number(programme.episode_no)
+  return season > 0 && episode > 0 ? { season, episode } : null
+}
+
+const isBehindWatched = ({ show, programme }) => {
+  const known = seasonEpisodeOf(programme)
+  if (!known || show.maxSeason == null || !isSameNumbering(known.season, show.maxSeason)) return false
+  if (known.season < show.maxSeason) return true
+  return known.episode <= (show.watchedEpisodeBySeason.get(known.season) ?? 0)
+}
+
+const isSameNumbering = (guideSeason, librarySeason) => isYearNumbered(guideSeason) === isYearNumbered(librarySeason)
+
+const isYearNumbered = (season) => season >= FIRST_YEAR_SEASON
+
+const isNextEpisode = ({ show, programme }) => {
+  const known = seasonEpisodeOf(programme)
+  return Boolean(known) && show.watchedEpisodeBySeason.get(known.season) === known.episode - 1
+}
 
 const isReadyRecording = (row) => READY_STATUSES.has(row.status)
   && row.purged_at == null
@@ -1214,7 +1243,7 @@ const sectionsOf = ({ items, topRated, rows, limit, nowMs, genreShares, otherLim
   const readyKeys = new Set(ready.map((entry) => entry.key))
   const finish = take(rows.finish.filter((entry) => fresh(entry) && !readyKeys.has(entry.key)).slice(0, rowLimit))
   const newSeasons = take(items.filter((entry) => fresh(entry) && entry.liked && (entry.newSeason || entry.back)).slice(0, limit))
-  const comingUp = take(capped(items.filter((entry) => fresh(entry) && entry.liked))
+  const comingUp = take(capped(items.filter((entry) => fresh(entry) && entry.liked && !entry.behind))
     .slice(0, limit)
     .sort((a, b) => a.item.start - b.item.start))
   const tonight = take(capped(rows.tonight.filter(fresh)).slice(0, rowLimit))
@@ -1359,10 +1388,10 @@ const ROW_EXPLANATIONS = {
       ...(count > 1 ? ['This is the oldest one'] : []),
     ],
   }),
-  'finish-started': ({ entry: { item, show } }) => ({
+  'finish-started': ({ entry: { item, show, next } }) => ({
     title: item.title,
     reasons: [{ text: 'A show you started', weight: 1 }],
-    signals: startedSignalsOf({ show, item }),
+    signals: startedSignalsOf({ show, item, next }),
   }),
   'tonight-movies': ({ entry: { item, facts }, known }) => ({
     title: item.title,
@@ -1450,3 +1479,6 @@ const READY_IMAGE_WIDTH = 384
 const FINISH_MIN_EPISODES = 1
 const FINISH_MAX_EPISODES = 3
 const FINISH_RECENT_MS = 60 * DAY_MS
+const FINISH_STOPPED_MS = 90 * DAY_MS
+const FINISH_ROW = 'finish-started'
+const FIRST_YEAR_SEASON = 1900

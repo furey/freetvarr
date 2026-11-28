@@ -23,7 +23,8 @@ import { showKeyOf } from './web/show-key.js'
 import { showTitleKey } from './show-artwork.js'
 import { FILM_RATINGS_PREFIX, filmFactsByKeyOf, filmFactsForTitlesOf, otherLanguageChoiceFrom, tvmazeIdOf } from './top-rated.js'
 import { createSeriesRatings, loadSeriesRatings, seriesRatingStamp, warmSeriesRatingsIfEmpty } from './series-ratings.js'
-import { hiddenShowsOf, profileOf } from './for-you-profile.js'
+import { hiddenRowsOf, hiddenShowsOf, profileOf } from './for-you-profile.js'
+import { SECTION_TITLES } from './for-you.js'
 import { SPORT_ROW_KEY, SPORT_ROW_TITLE, CATEGORY_KINDS, createCategoryIndex, hiddenCategoriesOf, categoryChoicesOf, categoryMuteKeyOf, categorySettingsOf } from './for-you-categories.js'
 import { hiddenOccasionsOf, isSeasonalKey, occasionOf, seasonalSettingsOf } from './for-you-occasions.js'
 import { currentTimeZone } from './time-zone.js'
@@ -39,7 +40,7 @@ import { labellerTitlesOf } from './labeller-titles.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 15
+export const SCORING_VERSION = 16
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 
@@ -276,15 +277,20 @@ export const knownKeysOf = ({ programmes = [], history = [], seriesKeys = [] }) 
 
 export const getHiddenShows = async ({ nowMs = Date.now() } = {}) => {
   await flushUserEvents().catch(() => {})
-  const [events, categoryEvents] = await Promise.all([
+  const [events, categoryEvents, rowEvents, recordings] = await Promise.all([
     db('user_events').whereIn('kind', HIDING_KINDS).orderBy('ts'),
     db('user_events').whereIn('kind', [...CATEGORY_KINDS]).orderBy('ts'),
+    db('user_events').whereIn('kind', ROW_HIDING_KINDS).orderBy('ts'),
+    db('recordings').select(...RECORDING_COLUMNS),
   ])
   const { mutes } = categoryChoicesOf(categoryEvents)
   const categories = hiddenCategoriesOf({ index: currentCategoryIndex(), mutes, nowMs })
   const occasions = hiddenOccasionsOf({ ...installPlace(), mutes, nowMs })
   const shows = hiddenShowsOf({ profile: profileOf({ events, nowMs }), nowMs }).sort((a, b) => b.hiddenAt - a.hiddenAt)
-  return [...categories, ...occasions, ...shows]
+  const rows = rowEvents.some((event) => event.kind === 'row_hidden')
+    ? hiddenRowsOf({ profile: profileOf({ events: rowEvents, recordings, nowMs }), rowTitles: SECTION_TITLES })
+    : []
+  return [...categories, ...occasions, ...shows, ...rows]
 }
 
 export const getCategorySettings = async ({ nowMs = Date.now() } = {}) => {
@@ -749,6 +755,7 @@ const GUIDE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 const GUIDE_CATEGORY_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000
 const HIDING_KINDS = ['not_interested', 'not_interested_undo', 'thumb_up', 'thumb_down', 'thumb_clear']
 const HIDING_CHOICES = ['not_interested', 'thumb_down']
+const ROW_HIDING_KINDS = ['row_hidden', 'row_hidden_undo', 'watch_end', 'recording_deleted']
 const THUMB_KINDS = ['thumb_up', 'thumb_down', 'thumb_clear']
 const BUCKET_MS = 5 * 60 * 1000
 const STARTUP_DELAY_MS = 20 * 1000

@@ -43,13 +43,14 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     const airedAt = Number(row.aired_at) || msOf(row.imported_at) || null
     show.recordings += 1
     show.recordingTimes.push(airedAt)
-    if (Number(row.season) > 0) show.maxSeason = Math.max(show.maxSeason ?? 0, Number(row.season))
+    noteSeason({ show, season: row.season })
     const length = Number(row.duration_s) || null
     const position = Number(row.playback_position_s) || 0
     const fraction = row.watched_at ? 1 : (length ? position / length : 0)
     if (row.watched_at || position > 0) {
       noteEpisode({ show, episodeKey: `rec:${row.recording_id}`, fraction, length, ts: msOf(row.watched_at) ?? msOf(row.played_at) ?? airedAt })
     }
+    if (fraction >= COMPLETE_FRACTION) noteWatchedEpisode({ show, season: row.season, episode: row.episode })
   }
 
   const ordered = [...events].sort((a, b) => Number(a.ts) - Number(b.ts))
@@ -82,6 +83,7 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'record_cancel') show.cancels.push(ts)
     if (event.kind === 'series_stop') show.stops.push(ts)
     if (event.kind === 'recording_deleted' && !meta?.watched) show.unwatchedDeletes.push(ts)
+    if (event.kind === 'recording_deleted' && meta?.watched) noteWatchedDelete({ show, event, meta, ts })
     if (event.kind === 'thumb_up') show.thumbsUp.push(ts)
     if (event.kind === 'thumb_down') show.thumbsDown.push(ts)
     if (event.kind === 'fewer_like_this') show.fewer.push(ts)
@@ -97,6 +99,8 @@ export const profileOf = ({ events = [], recordings = [], nowMs = Date.now(), ke
     if (event.kind === 'suggestion_accepted') show.accepted.push(ts)
     if (INTEREST_KINDS.has(event.kind)) show.interest.push(ts)
     if (event.kind === 'suggestion_shown') show.shown.push(ts)
+    if (event.kind === 'row_hidden' && meta?.row) show.rowHides.set(String(meta.row), ts)
+    if (event.kind === 'row_hidden_undo' && meta?.row) show.rowHides.delete(String(meta.row))
   }
 
   for (const show of shows.values()) scoreShow({ show, nowMs })
@@ -180,6 +184,23 @@ export const hiddenShowsOf = ({ profile, nowMs }) => [...profile.shows.values()]
   })
   .sort((a, b) => b.hiddenAt - a.hiddenAt)
 
+export const isRowHidden = ({ show, row }) => Boolean(show?.rowHides.has(row))
+  && show.rowHides.get(row) > (show.lastWatchTs ?? 0)
+
+export const hiddenRowsOf = ({ profile, rowTitles = {} }) => [...profile.shows.values()]
+  .flatMap((show) => [...show.rowHides.keys()]
+    .filter((row) => isRowHidden({ show, row }))
+    .map((row) => ({
+      seriesKey: `${row}:${show.key}`,
+      showKey: show.key,
+      showTitle: show.title || show.key,
+      row,
+      title: `${show.title || show.key} · ${rowTitles[row] || row}`,
+      hiddenAt: show.rowHides.get(row),
+      until: null,
+    })))
+  .sort((a, b) => b.hiddenAt - a.hiddenAt)
+
 export const localHourOf = (ms) => new Date(ms).getHours()
 
 const displayTitleOf = ({ title, key }) => {
@@ -194,6 +215,7 @@ const emptyShow = ({ key, title }) => ({
   recordings: 0,
   recordingTimes: [],
   maxSeason: null,
+  watchedEpisodeBySeason: new Map(),
   starts: 0,
   episodes: new Map(),
   episodesStarted: 0,
@@ -211,7 +233,9 @@ const emptyShow = ({ key, title }) => ({
   accepted: [],
   interest: [],
   shown: [],
+  rowHides: new Map(),
   lastEventTs: null,
+  lastWatchTs: null,
   lastActivityTs: null,
   affinity: 0,
   raw: 0,
@@ -228,6 +252,27 @@ const noteEpisode = ({ show, episodeKey, fraction, ts, seconds = 0, length = nul
     length: known?.length ?? length,
   }
   show.episodes.set(episodeKey, next)
+}
+
+const noteWatchedDelete = ({ show, event, meta, ts }) => {
+  noteEpisode({
+    show,
+    episodeKey: `rec:${event.recording_id ?? ts}`,
+    fraction: 1,
+    length: Number(event.programme_len_s) || null,
+    ts: msOf(meta.watched_at) ?? (Number(event.programme_start) || ts),
+  })
+  noteSeason({ show, season: meta.season })
+  noteWatchedEpisode({ show, season: meta.season, episode: meta.episode })
+}
+
+const noteSeason = ({ show, season }) => {
+  if (Number(season) > 0) show.maxSeason = Math.max(show.maxSeason ?? 0, Number(season))
+}
+
+const noteWatchedEpisode = ({ show, season, episode }) => {
+  if (!(Number(season) > 0 && Number(episode) > 0)) return
+  show.watchedEpisodeBySeason.set(Number(season), Math.max(show.watchedEpisodeBySeason.get(Number(season)) ?? 0, Number(episode)))
 }
 
 const noteHabit = ({ habits, event, ts, nowMs, hourOf }) => {
@@ -267,6 +312,7 @@ const scoreShow = ({ show, nowMs }) => {
   show.hidden = isHiddenShow({ show, nowMs })
   if (show.hidden) show.affinity = 0
   show.fewerWeight = fewerWeightOf({ show, nowMs })
+  show.lastWatchTs = Math.max(0, ...episodes.filter((episode) => episode.fraction >= WATCHED_FRACTION).map((episode) => episode.ts || 0)) || null
   show.lastActivityTs = Math.max(
     0,
     ...episodes.map((episode) => episode.ts || 0),

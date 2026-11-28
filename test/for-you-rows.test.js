@@ -7,6 +7,7 @@ process.env.DB_PATH ??= path.join(os.tmpdir(), `freetvarr-for-you-rows-${process
 
 const { buildForYou, tonightWindowOf } = await import('../src/for-you.js')
 const { isTopRatedSeries, seriesFactsByKeyOf, tvmazeIdOf } = await import('../src/top-rated.js')
+const { hiddenRowsOf, profileOf } = await import('../src/for-you-profile.js')
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -75,6 +76,40 @@ const recording = (title, extra = {}) => ({
   purged_at: null,
   library_state: null,
   ...extra,
+})
+
+const deletedWatched = (title, { daysAgo = 3, season = null, episode = null } = {}) => ({
+  id: nextId++,
+  ts: NOW - daysAgo * DAY,
+  kind: 'recording_deleted',
+  series_key: null,
+  title,
+  programme_start: NOW - (daysAgo + 1) * DAY,
+  channel_id: SEVEN,
+  recording_id: `d${nextId++}`,
+  duration_s: null,
+  position_s: null,
+  programme_len_s: 3600,
+  source: 'library',
+  meta_json: JSON.stringify({ watched: true, ...(season ? { season, episode } : {}) }),
+})
+
+const userEvent = (kind, title, { daysAgo = 1, meta = null } = {}) => ({
+  id: nextId++,
+  ts: NOW - daysAgo * DAY,
+  kind,
+  series_key: null,
+  title,
+  source: 'for-you',
+  meta_json: meta ? JSON.stringify(meta) : null,
+})
+
+const watchedRecording = (title, { season, episode, daysAgo = 3 }) => recording(title, {
+  season,
+  episode,
+  aired_at: NOW - (daysAgo + 1) * DAY,
+  watched_at: new Date(NOW - daysAgo * DAY).toISOString(),
+  purged_at: NOW - daysAgo * DAY,
 })
 
 const run = (options) => buildForYou({ nowMs: NOW, channels, hourOf, timeZone: 'UTC', limit: 20, ...options })
@@ -180,6 +215,85 @@ test('finish what you started: a show you already record as a series is left out
   const events = [...engagedEvents(), ...watched('The Newsreader', { episodes: 2 })]
   const result = run({ programmes: [airing('The Newsreader')], events, ruleKeys: new Set(['the-newsreader']) })
   assert.equal(sectionOf(result, 'finish-started'), undefined)
+})
+
+test('finish what you started: watched recordings that were deleted count as watched episodes', () => {
+  const events = [...engagedEvents(), deletedWatched('Utopia', { daysAgo: 5 }), deletedWatched('Utopia', { daysAgo: 4 })]
+  const recordings = [watchedRecording('Utopia', { season: 1, episode: 3 })]
+  const result = run({ programmes: [airing('Utopia', { episode_no: 4 })], events, recordings })
+  assert.equal(sectionOf(result, 'finish-started').items[0].reason, 'You watched 3 episodes')
+})
+
+test('finish what you started: a stopped series recording leaves the show out until you record it again', () => {
+  const started = [...engagedEvents(), ...watched('Utopia', { episodes: 2 })]
+  const stopped = [...started, userEvent('series_stop', 'Utopia', { daysAgo: 2 })]
+  assert.equal(sectionOf(run({ programmes: [airing('Utopia')], events: stopped }), 'finish-started'), undefined)
+  const recordedAgain = [...stopped, userEvent('record_request', 'Utopia', { daysAgo: 1, meta: { type: 'episode' } })]
+  assert.deepEqual(titlesIn(run({ programmes: [airing('Utopia')], events: recordedAgain }), 'finish-started'), ['Utopia'])
+})
+
+test('finish what you started: repeats of older seasons and episodes already watched are left out', () => {
+  const events = engagedEvents()
+  const recordings = [watchedRecording('Utopia', { season: 2, episode: 5 })]
+  const finishOf = (extra) => sectionOf(run({ programmes: [airing('Utopia', extra)], events, recordings }), 'finish-started')
+  assert.equal(finishOf({ series_no: 1, episode_no: 7 }), undefined)
+  assert.equal(finishOf({ series_no: 2, episode_no: 5 }), undefined)
+  const next = run({ programmes: [airing('Utopia', { series_no: 2, episode_no: 6 })], events, recordings })
+  const [item] = sectionOf(next, 'finish-started').items
+  assert.deepEqual(next.explanations.get(item.id).signals, ['You watched 1 episode of Utopia', 'The next episode airs this week'])
+  const unnumbered = run({ programmes: [airing('Utopia', { series_no: null, episode_no: null })], events, recordings })
+  const [plain] = sectionOf(unnumbered, 'finish-started').items
+  assert.deepEqual(unnumbered.explanations.get(plain.id).signals, ['You watched 1 episode of Utopia'])
+})
+
+test('finish what you started: a repeat of an old season stays out', () => {
+  const events = [...engagedEvents(), deletedWatched('The Block', { daysAgo: 29 }), deletedWatched('The Block', { daysAgo: 30 })]
+  const recordings = [watchedRecording('The Block', { season: 22, episode: 50, daysAgo: 28 })]
+  const programmes = [airing('The Block', { series_no: 12, episode_no: 13, start: NOW + 30 * HOUR })]
+  assert.equal(sectionOf(run({ programmes, events, recordings }), 'finish-started'), undefined)
+})
+
+test('finish what you started: seasons numbered by year in the library and by number in the guide are not compared', () => {
+  const events = engagedEvents()
+  const recordings = [watchedRecording('Utopia', { season: 2024, episode: 5 })]
+  const programmes = [airing('Utopia', { series_no: 36, episode_no: 3 })]
+  assert.deepEqual(titlesIn(run({ programmes, events, recordings }), 'finish-started'), ['Utopia'])
+  const byYear = run({ programmes: [airing('Utopia', { series_no: 2023, episode_no: 3 })], events, recordings })
+  assert.equal(sectionOf(byYear, 'finish-started'), undefined)
+})
+
+test('finish what you started: a short look at a hidden show does not bring it back', () => {
+  const peek = (seconds) => ({ ...watched('Utopia', { daysAgo: 0 })[0], duration_s: seconds, position_s: seconds })
+  const hidden = [...engagedEvents(), ...watched('Utopia', { episodes: 2 }), userEvent('row_hidden', 'Utopia', { meta: { row: 'finish-started' } })]
+  for (const seconds of [20, 700]) {
+    const events = [...hidden, peek(seconds)]
+    assert.equal(sectionOf(run({ programmes: [airing('Utopia', { episode_no: 2 })], events }), 'finish-started'), undefined)
+  }
+})
+
+test('finish what you started: hiding a show from the row lasts until you watch it again, and is no taste signal', () => {
+  const started = [...engagedEvents(), ...watched('Utopia', { episodes: 2 })]
+  const hidden = [...started, userEvent('row_hidden', 'Utopia', { meta: { row: 'finish-started' } })]
+  assert.equal(sectionOf(run({ programmes: [airing('Utopia')], events: hidden }), 'finish-started'), undefined)
+  const affinityOf = (events) => profileOf({ events, nowMs: NOW }).shows.get('utopia').affinity
+  assert.equal(affinityOf(hidden), affinityOf(started))
+  assert.deepEqual(hiddenRowsOf({ profile: profileOf({ events: hidden, nowMs: NOW }), rowTitles: { 'finish-started': 'Finish what you started' } })
+    .map((entry) => [entry.seriesKey, entry.title]), [['finish-started:utopia', 'Utopia · Finish what you started']])
+  const undone = [...hidden, userEvent('row_hidden_undo', 'Utopia', { daysAgo: 0, meta: { row: 'finish-started' } })]
+  assert.deepEqual(titlesIn(run({ programmes: [airing('Utopia')], events: undone }), 'finish-started'), ['Utopia'])
+  const watchedAgain = [...hidden, ...watched('Utopia', { daysAgo: 0 })]
+  assert.deepEqual(titlesIn(run({ programmes: [airing('Utopia', { episode_no: 2 })], events: watchedAgain }), 'finish-started'), ['Utopia'])
+  assert.deepEqual(hiddenRowsOf({ profile: profileOf({ events: watchedAgain, nowMs: NOW }) }), [])
+})
+
+test('coming up: repeats of older seasons and episodes already watched are left out', () => {
+  const events = [...engagedEvents(), ...watched('Rosehaven', { episodes: 5 })]
+  const recordings = [watchedRecording('Rosehaven', { season: 3, episode: 4 })]
+  const comingUpOf = (extra) => titlesIn(run({ programmes: [airing('Rosehaven', { start: NOW + 6 * HOUR, ...extra })], events, recordings }), 'coming-up')
+  assert.ok(!comingUpOf({ series_no: 2, episode_no: 1 }).includes('Rosehaven'))
+  assert.ok(!comingUpOf({ series_no: 3, episode_no: 4 }).includes('Rosehaven'))
+  assert.ok(comingUpOf({ series_no: 3, episode_no: 5 }).includes('Rosehaven'))
+  assert.ok(comingUpOf({ series_no: null, episode_no: null }).includes('Rosehaven'))
 })
 
 test('tonight: films from 5 pm to 3 am ranked by fit and rating, posters only', () => {

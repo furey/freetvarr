@@ -68,8 +68,28 @@ export const identityOf = (item) => item.seriesKey || showKeyOf(item.title)
 
 export const categoryHiddenKeyOf = (categoryKey) => `category:${categoryKey}`
 
+export const FINISH_ROW = 'finish-started'
+
+export const rowHiddenKeyOf = ({ row, seriesKey }) => `row:${row}:${seriesKey}`
+
+export const rowHiddenKeysOf = ({ row, seriesKey, title }) => new Set([
+  rowHiddenKeyOf({ row, seriesKey }),
+  rowHiddenKeyOf({ row, seriesKey: identityOf({ title }) }),
+])
+
+export const rowShowAgainOf = ({ row, seriesKey, title }) => ({
+  kind: 'row_hidden_undo',
+  series_key: seriesKey,
+  title,
+  source: 'for-you',
+  meta: { row },
+})
+
 export const isHiddenSuggestion = ({ item, hiddenKeys }) => hiddenKeys.has(identityOf(item))
   || Boolean(item.category?.key && hiddenKeys.has(categoryHiddenKeyOf(item.category.key)))
+  || (isFinishItem(item) && hiddenKeys.has(rowHiddenKeyOf({ row: FINISH_ROW, seriesKey: identityOf(item) })))
+
+export const isFinishItem = (item) => item?.kind === 'continue'
 
 export const scheduleKeyOf = ({ channelId, startMs }) => `${channelId}@${Math.round(startMs / 60_000)}`
 
@@ -202,6 +222,7 @@ export const menuOf = ({ item, scheduled = false, nowMs, timeZone }) => {
     { key: 'programme-info', label: 'Programme info', icon: 'info' },
   ].filter(Boolean)
   const more = [
+    isFinishItem(item) && { key: 'hide-row', label: rowHideLabelOf(FINISH_ROW), icon: 'hide' },
     { key: 'not-interested', label: dislikeLabelsOf({ kind: programmeKindOfItem(item) }).show, icon: 'hide' },
     item.category?.key && { key: 'hide-category', label: dislikeLabelsOf({ category: item.category }).category, icon: 'hide' },
     programmeKindOfItem(item) !== 'movie' && CHANGE_CATEGORIES,
@@ -257,13 +278,14 @@ export const liveChannelOfItem = (item) => ({
   hasLogo: true,
 })
 
-export const feedbackOf = ({ kind, item, source }) => ({
+export const feedbackOf = ({ kind, item, source, meta }) => ({
   kind,
   series_key: identityOf(item),
   title: item.title,
   ...(msOf(item.start) ? { programme_start: Math.round(msOf(item.start)) } : {}),
   ...(item.channelId != null ? { channel_id: String(item.channelId) } : {}),
   source,
+  ...(meta ? { meta } : {}),
 })
 
 export const thumbToggleOf = ({ current, direction }) => (current === direction
@@ -403,6 +425,10 @@ export const categoryShowsOf = (category) => {
 const NAMES_PROGRAMMES = /^(soap operas|documentaries)$/i
 
 export const hiddenCategoryTitleOf = (category) => capitalisedOf(categoryShowsOf(category))
+
+export const rowHideLabelOf = (row) => `Hide from ${SECTION_TITLES[row]}`
+
+export const rowHiddenToastOf = (row) => `This show is hidden from ${SECTION_TITLES[row]} until you watch an episode`
 
 export const programmeHiddenToastOf = (kind) => `This ${programmeNounOf(kind)} is hidden for 90 days`
 

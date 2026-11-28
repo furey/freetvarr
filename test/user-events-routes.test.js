@@ -112,7 +112,7 @@ test('clearing history deletes every event and stops the backfill from refilling
 
 test('library deletes and watchlist removals are logged from the route responses', async () => {
   await db('recordings').insert([
-    { recording_id: 'r1', title: 'Bluey', watched_at: '2026-01-01T00:00:00.000Z', duration_s: 420 },
+    { recording_id: 'r1', title: 'Bluey', season: 3, episode: 12, watched_at: '2026-01-01T00:00:00.000Z', duration_s: 420 },
     { recording_id: 'r2', title: 'Hard Quiz', duration_s: 1800, playback_position_s: 60 },
     { recording_id: 'r3', title: 'Kept' },
   ])
@@ -121,8 +121,8 @@ test('library deletes and watchlist removals are logged from the route responses
   await call('DELETE', `/api/watchlist/${watchId}`)
   const rows = await events()
   assert.deepEqual(rows.map((r) => [r.kind, r.recording_id ?? r.title, r.meta_json]), [
-    ['recording_deleted', 'r1', '{"watched":true}'],
-    ['recording_deleted', 'r2', '{"watched":false}'],
+    ['recording_deleted', 'r1', '{"watched":true,"season":3,"episode":12,"watched_at":"2026-01-01T00:00:00.000Z"}'],
+    ['recording_deleted', 'r2', '{"watched":false,"season":null,"episode":null,"watched_at":null}'],
     ['record_cancel', 'Spicks', '{"type":"record"}'],
   ])
 })

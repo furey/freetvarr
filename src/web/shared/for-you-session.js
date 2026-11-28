@@ -13,6 +13,7 @@ import { playRecording } from '/shared/playback-session.js'
 import { episodeById, recordingRowOf } from '/show-page.js'
 import {
   FEWER_TOAST,
+  FINISH_ROW,
   feedbackOf,
   sheetRequestOf,
   programmeHiddenToastOf,
@@ -25,6 +26,10 @@ import {
   categoryBoostedToastOf,
   categoryFeedbackOf,
   categoryHiddenKeyOf,
+  rowHiddenKeyOf,
+  rowHiddenKeysOf,
+  rowHiddenToastOf,
+  rowShowAgainOf,
   thumbToggleOf,
 } from '/for-you.js'
 
@@ -140,11 +145,19 @@ const TASTE_FEEDBACK_KINDS = new Set([
   'category_unmuted',
   'category_boosted',
   'category_unboosted',
+  'row_hidden',
+  'row_hidden_undo',
 ])
 
 export const sendShown = ({ items, source }) => shownBatchesOf({ items, source }).forEach(sendFeedback)
 
 export const unhideShow = (seriesKey) => forYouWrite('DELETE', `/api/for-you/hidden/${encodeURIComponent(seriesKey)}`)
+
+export const showInRow = async ({ row, seriesKey, title }) => {
+  await forYouWrite('POST', '/api/events/feedback', rowShowAgainOf({ row, seriesKey, title }))
+  const keys = rowHiddenKeysOf({ row, seriesKey, title })
+  forYouHidden.value = new Set([...forYouHidden.value].filter((hidden) => !keys.has(hidden)))
+}
 
 export const unmuteCategory = (categoryKey) => forYouWrite('DELETE', `/api/for-you/categories/${encodeURIComponent(categoryKey)}/mute`)
 
@@ -187,6 +200,7 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     'thumb-up': (item) => toggleThumb(item, 'up'),
     'thumb-down': (item) => toggleThumb(item, 'down'),
     'not-interested': (item) => hide(item),
+    'hide-row': (item) => hideFromRow(item, FINISH_ROW),
     'hide-category': (item) => muteCategory(item.category),
     'change-categories': (item) => openCategories(item.title),
     'movie-kind': (item) => changeMovieKind(item),
@@ -236,6 +250,17 @@ export const useForYouActions = ({ source, isScheduled = () => false, onChanged 
     const key = identityOf(item)
     forYouHidden.value = new Set([...forYouHidden.value].filter((hidden) => hidden !== key))
     await unhideShow(key).catch(() => {})
+    onChanged()
+  }
+
+  const hideFromRow = (item, row) => {
+    forYouHidden.value = new Set([...forYouHidden.value, rowHiddenKeyOf({ row, seriesKey: identityOf(item) })])
+    sendFeedback(feedbackOf({ kind: 'row_hidden', item, source, meta: { row } }))
+    toast({ text: rowHiddenToastOf(row), action: { label: 'Undo', run: () => undoHideFromRow(item, row) } })
+  }
+
+  const undoHideFromRow = async (item, row) => {
+    await showInRow({ row, seriesKey: identityOf(item), title: item.title }).catch(() => {})
     onChanged()
   }
 

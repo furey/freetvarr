@@ -14,7 +14,7 @@ import {
 import { api } from '/shared/api.js'
 import { forYouWrite } from '/shared/taste-store.js'
 import { REPO_HREF, privacyLookupTextOf } from '/for-you-privacy.js'
-import { forYouHidden, forYouMutedCategories, forYouShown, keepForYouAnimate, unhideShow, unmuteCategory } from '/shared/for-you-session.js'
+import { forYouHidden, forYouMutedCategories, forYouShown, keepForYouAnimate, showInRow, unhideShow, unmuteCategory } from '/shared/for-you-session.js'
 
 export const SuggestionsSettingsView = {
   components: { ConfirmDialog },
@@ -254,9 +254,11 @@ export const SuggestionsSettingsView = {
     const showAgain = async (show) => {
       unhiding.value = show.seriesKey
       try {
-        if (show.categoryKey) await unmuteCategory(show.categoryKey)
+        if (show.row) await showInRow({ row: show.row, seriesKey: show.showKey, title: show.showTitle })
+        else if (show.categoryKey) await unmuteCategory(show.categoryKey)
         else await unhideShow(show.seriesKey)
         hidden.value = hidden.value.filter((entry) => entry.seriesKey !== show.seriesKey)
+        if (show.row) return
         if (show.categoryKey) {
           forYouMutedCategories.value = new Set([...forYouMutedCategories.value].filter((key) => key !== show.categoryKey))
           await loadCategories()
