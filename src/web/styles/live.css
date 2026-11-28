@@ -703,7 +703,7 @@ body.player-open .app-tabbar {
 
 @media (max-height: 500px) {
   .pl-airplay-status {
-    bottom: calc(50% + 50px);
+    bottom: calc(50% + 64px);
     flex-direction: row;
     justify-content: center;
     gap: 8px;
