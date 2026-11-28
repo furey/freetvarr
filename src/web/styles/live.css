@@ -537,6 +537,13 @@
 
 body.player-open {
   overflow: hidden;
+  background-color: #000;
+  transition: background-color 0s linear var(--motion-sheet);
+}
+
+html:has(> body.player-open) {
+  background-color: #000;
+  transition: background-color 0s linear var(--motion-sheet);
 }
 
 body.player-open .app-tabbar {

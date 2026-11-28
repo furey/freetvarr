@@ -24,6 +24,7 @@ import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/pla
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
 import { minutesLeftText, miniMetaOf, liveMiniMetaOnTvOf, onTvArtUrlOf } from '/mini-player.js'
 import { airplayActionOf } from '/player-top-actions.js'
+import { syncThemeColor } from '/player-theme-color.js'
 import { airplayReachHintOf } from '/airplay-target.js'
 import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT, retryActionOf } from '/start-over.js'
@@ -365,6 +366,7 @@ export const LivePlayer = {
     const mini = playerMini
     watch(() => (live.open || playback.open) && !mini.value, (open) => {
       document.body.classList.toggle(PLAYER_OPEN_CLASS, open)
+      syncThemeColor(open)
     }, { immediate: true })
     watch(() => (live.open || playback.open) && mini.value, (isMini) => {
       document.body.classList.toggle(PLAYER_MINI_CLASS, isMini)
