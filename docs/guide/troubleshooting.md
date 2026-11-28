@@ -385,7 +385,7 @@ These names always work, with no setup:
 - Names that end in `.local`, `.lan`, `.home`, `.home.arpa`, `.internal`, `.localdomain`, or `.corp`, such as `freetvarr.lan` or `nas.local`
 - The name of the computer that runs Freetvarr
 
-Any other name needs to be on the list, for example a reverse proxy name such as `freetvarr.example.com`, a full Tailscale name such as `nas.tail1234.ts.net`, or a router name such as `nas.fritz.box`.
+Any other name needs to be on the list, for example a reverse proxy name such as `freetvarr.example.com`, a full Tailscale name such as `nas.tail1234.ts.net` ([Away from home](/guide/away-from-home)), or a router name such as `nas.fritz.box`.
 
 > [!IMPORTANT]<br>
 > A page opened by a name that is not on the list shows **Hostname not allowed**, with a link to Freetvarr by its IP address. The IP address always works. The [Health](/guide/doctor#host-names) check **Allowed hostnames** names each refused name.

@@ -278,7 +278,7 @@ Freetvarr adds the parts TVHeadend leaves to you:
 
 - **An indexer**: Freetvarr does not search the internet for content. It works with the recordings TVHeadend makes, and with the Plex library you already have. Sonarr and Radarr connect only so that a delete goes through them.
 - **A tuner**: TVHeadend drives the hardware, scans the muxes, and writes the files. Freetvarr talks to TVHeadend's HTTP API and never touches the tuner.
-- **Authentication**: Freetvarr has no login, so anyone who can reach it can change its settings. Do not expose it to the internet (see [Security](#security)).
+- **Authentication**: Freetvarr has no login, so anyone who can reach it can change its settings. Do not expose it to the internet without a sign-in in front (see [Security](#security)).
 - **A converter**: files arrive from TVHeadend as `.ts` (the raw broadcast format) and stay `.ts`. Only the live TV player re-encodes, and only what it streams to the browser. Add [Tdarr](https://home.tdarr.io/) or similar afterwards if you need `.mkv`.
 - **A notifier**: there is no Discord, ntfy, or push integration. **Add to watchlist** adds a show to a list in the app; it sends no message.
 
@@ -327,7 +327,7 @@ Freetvarr keeps two settings for one folder: `recordings_root` is where Freetvar
 
 ## Security
 
-Freetvarr has no login. Anyone who can reach the port can see everything and change settings, including the TVHeadend, Sonarr, and Radarr credentials it holds. CSRF protection (blocks forged requests from other sites), rate limiting, a strict CSP (a browser rule that limits which scripts run), and `noindex` headers are in place, but the design assumes a home network you trust. Do not port-forward or reverse-proxy it to the internet. [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model) covers the supply-chain hardening and the HTTP security headers. [SECURITY.md](SECURITY.md) covers vulnerability reporting and the accepted residual risks.
+Freetvarr has no login. Anyone who can reach the port can see everything and change settings, including the TVHeadend, Sonarr, and Radarr credentials it holds. CSRF protection (blocks forged requests from other sites), rate limiting, a strict CSP (a browser rule that limits which scripts run), and `noindex` headers are in place, but the design assumes a home network you trust. Do not port-forward it, and do not put it on the internet without a sign-in in front. To reach it away from home, use a private network such as Tailscale, which can also give Freetvarr an HTTPS address ([Away from home](https://furey.github.io/freetvarr/guide/away-from-home)). [`docs/DEEP_DIVE.md`](docs/DEEP_DIVE.md#security-model) covers the supply-chain hardening and the HTTP security headers. [SECURITY.md](SECURITY.md) covers vulnerability reporting and the accepted residual risks.
 
 ## Technical deep dive
 
