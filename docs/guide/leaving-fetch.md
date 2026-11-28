@@ -573,7 +573,7 @@ You need one only for Path 2. Path 1 needs no computer at all. For Path 2, any a
 
 ### Watching away from home
 
-Freetvarr works only on your home network and has no sign-in, so never make it reachable from the internet. To watch away from home, connect your phone to your home network with a VPN (a private, encrypted link) such as [Tailscale](https://tailscale.com) or [WireGuard](https://www.wireguard.com/). Freetvarr then works as if you were at home.
+Freetvarr has no sign-in, so never make it reachable from the internet. To watch away from home, connect your phone to your home network with a VPN (a private, encrypted link) such as [Tailscale](https://tailscale.com) or [WireGuard](https://www.wireguard.com/). Freetvarr then works as if you were at home. [Away from home](/guide/away-from-home) sets up Tailscale, and an optional HTTPS address for Freetvarr.
 
 ### Captions
 

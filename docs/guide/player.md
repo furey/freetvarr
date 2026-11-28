@@ -22,7 +22,7 @@ The top bar has these controls:
 - The back button closes the player. For live TV, closing also frees the tuner (the device that receives the broadcast).
 - The channel logo and the title of what is playing.
 - **Multiview** (live TV only): watch up to four channels at once. See [Multiview](#multiview).
-- The AirPlay button (recordings only): sends the episode to an Apple TV. It shows in Safari when Safari finds an AirPlay device.
+- The AirPlay button (Safari on an iPhone): plays live TV or the recording on an Apple TV, or on a TV with AirPlay. See [AirPlay](#airplay).
 - **Series** and **Record** (live TV only): record what is on. See [Record from the player](/guide/live-tv#record-from-the-player).
 - The sound button: turns the sound on or off. See [Sound](#sound).
 - **⋯** (**More**): **Pop out (picture in picture)** (see [Pop out](#pop-out)), the buttons that do not fit in the top bar, such as **Multiview**, and **Miniplayer** when the row under the position bar has no room for it. The **⋯** button shows only when the menu has something in it.
@@ -93,6 +93,19 @@ On a tablet or computer, the card always shows the sound button, **Captions**, t
 ## Pop out
 
 **Pop out (picture in picture)** in the **⋯** menu moves the video into a small window that the browser keeps on top of other apps and windows. It shows only in a browser that supports picture in picture. Press **Close pop out (picture in picture)** to bring the video back.
+
+## AirPlay
+
+The AirPlay button plays live TV or a recording on an Apple TV, or on a TV with AirPlay built in. It works in Safari on an iPhone, and shows when Safari finds an AirPlay device on your network. Press it, then choose the TV.
+
+While the TV plays:
+
+- The player says `Playing on your TV`. When the AirPlay button is in the **⋯** menu, the menu shows **AirPlay** `On`.
+- The controls stay on the screen.
+- **Multiview** is not available.
+- The [Miniplayer](#miniplayer) says `On your TV`.
+
+To bring the picture back, press the AirPlay button and choose the iPhone. Closing the player stops AirPlay; for live TV, it also frees the tuner.
 
 ## Full screen
 

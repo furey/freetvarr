@@ -22,7 +22,9 @@ import {
 import { PLAYER_CHROME_COMPONENTS } from '/components/player-chrome.js'
 import { PlayerMini, StartOverSheet, usePictureInPicture } from '/components/player-mini.js'
 import { MultiViewLayer, MultiviewSheet } from '/components/multi-view.js'
-import { minutesLeftText, miniMetaOf } from '/mini-player.js'
+import { minutesLeftText, miniMetaOf, liveMiniMetaOnTvOf, onTvArtUrlOf } from '/mini-player.js'
+import { airplayActionOf } from '/player-top-actions.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 import { startOverOptionsOf, startOverNoteOf, startOverActionOf, behindLiveText, fromStartRecordingOf, NOTHING_BUFFERED_TEXT, retryActionOf } from '/start-over.js'
 import {
   behindPillText,
@@ -98,6 +100,7 @@ import {
   playerMuted,
   useLiftedCaptionLine,
   useMatchMedia,
+  useAirplayTarget,
 } from '/shared/player-shared.js'
 import { VIDEO_STATE_EVENTS } from '/player-paused.js'
 import { recordingNow, pollRecordingNow, recordingChangeTick } from '/shared/recording-now.js'
@@ -121,8 +124,9 @@ export const LivePlayer = {
       <div ref="frameEl" tabindex="-1" :class="['live-frame', 'pl-frame', { 'is-controls-hidden': !controlsShown && !mini, 'is-multi': multi.active, 'is-tune-in': tuneInShown, 'is-tune-in-exit': tuneInExit, 'is-heading-held': headingHeld, 'is-info-open': (infoOpen || infoClosing) && !tuneInShown, 'is-info-closing': infoClosing }]"
         :style="multiFrameStyle" @pointerdown="onFramePointerDownAll" @pointerup="onFramePointerUpAll"
         @pointercancel="cancelLiveTap" @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
-        <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline controlslist="nofullscreen"></video>
+        <video ref="videoEl" :class="['live-video', 'pl-video', primarySlotClass, { 'is-veiled': chips !== 'hidden' }]" :style="primarySlotStyle" playsinline x-webkit-airplay="allow" controlslist="nofullscreen"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
+        <player-on-tv v-if="onTvShown" :art="onTvArt" :show-status="!panelOpen && !tuneInExit" />
         <div v-if="chips !== 'hidden'" :key="chipsRun" :class="['live-chips', chips]" aria-hidden="true">
           <span v-for="n in 3" :key="n" class="live-chip-orbit" :style="{ '--i': n - 1 }">
             <span class="live-chip-arm"><i class="live-chip"></i></span>
@@ -229,6 +233,7 @@ export const LivePlayer = {
         <player-mini v-if="mini" :title="playerTitle" :meta="miniMeta" is-live :progress="miniProgress"
           :paused="shownPaused" :pause-disabled="live.phase !== 'live'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
           :has-captions="Boolean(live.captions)" :captions-on="captionsOn" @toggle-captions="toggleLiveCaptions"
+          :playing-on-tv="live.playingOnTv" :art="onTvArt" :on-tv-meta="miniMetaOnTv"
           @expand="expand" @toggle-pause="toggleLivePause" @close="stopLive" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
@@ -385,7 +390,7 @@ export const LivePlayer = {
     })
     usePausedResync(syncLivePaused)
     useRotateToFullscreen({
-      isEligible: () => live.open && !mini.value && !multi.active && live.phase === 'live',
+      isEligible: () => live.open && !mini.value && !multi.active && live.phase === 'live' && !live.playingOnTv,
       enter: () => enterStageFullscreen({ stage: frameEl.value, video: liveVideo }),
       getVideo: () => liveVideo,
     })
@@ -566,6 +571,7 @@ export const LivePlayer = {
       live.channel?.name,
       live.fromStart ? behindLiveText(behindMinutes.value * 60) : minutesLeftText({ endMs: info.value.now?.end, nowMs: now.value.getTime() }),
     ]))
+    const miniMetaOnTv = computed(() => liveMiniMetaOnTvOf({ channelName: live.channel?.name }))
     const miniProgress = computed(() => infoProgress.value)
 
     const pickerOpen = ref(false)
@@ -594,6 +600,7 @@ export const LivePlayer = {
     } = useControlsAutoHide({
       enabled: computed(() => live.open && !mini.value && !multi.active),
       holdShown: computed(() => shownPaused.value || live.phase !== 'live' || live.scrubbing || infoOpen.value || tuneInShown.value
+        || live.playingOnTv
         || (chips.value !== 'hidden' && !tuneInExit.value) || programmeSheetOpen.value),
       quietRelease: takesQuietRelease,
       rootEl: frameEl,
@@ -714,6 +721,13 @@ export const LivePlayer = {
     })
 
     const playerTitle = computed(() => info.value.now?.title || live.nowTitle || live.channel?.name || '')
+
+    const onTvShown = computed(() => live.playingOnTv && !mini.value && !multi.active && live.phase === 'live' && chips.value === 'hidden')
+    const onTvArt = computed(() => {
+      const program = info.value.now
+      const title = program?.title || live.nowTitle || ''
+      return onTvArtUrlOf({ eventId: program?.has_image ? program.program_id : null, title, stamp: (url) => stampedShowImage(url, title) })
+    })
 
     const playerSubtitle = computed(() => joinedParts([
       live.channel?.name,
@@ -866,7 +880,8 @@ export const LivePlayer = {
     const topActions = computed(() => [
       {
         key: 'multiview', order: 1, priority: 4, icon: 'watch-alongside-icon', label: 'Multiview',
-        ariaLabel: 'Multiview: add a second channel', menuLabel: 'Multiview', hidden: live.phase !== 'live' || Boolean(live.fromStart),
+        ariaLabel: 'Multiview: add a second channel', menuLabel: 'Multiview',
+        hidden: live.phase !== 'live' || Boolean(live.fromStart) || live.playingOnTv,
       },
       {
         key: 'series', order: 3, priority: 2, icon: 'series-record-icon', iconProps: { set: seriesButton.value.set }, label: 'Series',
@@ -874,9 +889,12 @@ export const LivePlayer = {
         pressed: seriesButton.value.set, on: seriesButton.value.set, hidden: seriesButton.value.hidden,
         menuLabel: seriesButton.value.set ? 'Series recording set' : 'Record series',
       },
+      airplayActionOf({ available: live.airplay, playingOnTv: live.playingOnTv }),
     ])
+    const { showAirplayPicker } = useAirplayTarget({ videoEl, state: live, isOpen: () => live.open })
     const onTopAction = (key) => {
       if (key === 'multiview') return openPicker()
+      if (key === 'airplay') return showAirplayPicker()
       if (key === 'series') recordSeriesFromLive()
     }
 
@@ -887,6 +905,7 @@ export const LivePlayer = {
       bufferStartText, bufferEndText, summaryEpisode, summaryText, phonePortrait, playerTitle, playerSubtitle,
       returnToLive, startOverOpen, startOverOptions, startOverNote, startOverAction, startOverButtonTitle, openStartOver, chooseStartOver,
       canPip, pipActive, togglePip, playerMuted, togglePlayerMuted, mini, minimise, miniInRow, expand, miniMeta, miniProgress,
+      miniMetaOnTv, onTvShown, onTvArt,
       multi, primarySlotClass, primarySlotStyle, multiFrameStyle, pickerOpen, pickerTarget, openPicker, openPickerFor,
       openAddPicker, choosePickerChannel,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,

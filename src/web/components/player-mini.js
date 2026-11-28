@@ -8,6 +8,7 @@ import {
   miniMenuItemsOf,
   miniCaptionsOnCardOf,
   miniMetaWithSoundOf,
+  miniBarMetaOf,
   miniPictureClickOf,
   pictureInPictureSupportOf,
   isInPictureInPicture,
@@ -69,6 +70,9 @@ export const PlayerMini = {
     hasCaptions: Boolean,
     captionsOn: Boolean,
     noCaptionsTitle: { type: String, default: 'No captions on this channel' },
+    playingOnTv: Boolean,
+    art: { type: String, default: null },
+    onTvMeta: { type: String, default: '' },
   },
   emits: ['expand', 'toggle-pause', 'close', 'toggle-pip', 'toggle-mute', 'toggle-captions'],
   setup(props, { emit }) {
@@ -158,7 +162,13 @@ export const PlayerMini = {
     }
 
     const captionsOnCard = computed(() => card.value && miniCaptionsOnCardOf({ cardWidth: shownWidth.value }))
-    const shownMeta = computed(() => miniMetaWithSoundOf({ meta: props.meta, muted: props.muted, phone: phone.value }))
+    const shownMeta = computed(() => miniMetaWithSoundOf({
+      meta: miniBarMetaOf({ meta: props.meta, onTvMeta: props.onTvMeta, playingOnTv: props.playingOnTv, phone: phone.value }),
+      muted: props.muted,
+      phone: phone.value,
+    }))
+    const artFailed = ref(false)
+    watch(() => props.art, () => { artFailed.value = false })
     const shownWidth = computed(() => dragWidth.value ?? miniWidthOf({ share: miniShare.value, viewportWidth: viewportWidth.value }))
     const gripRange = computed(() => ({
       min: Math.round(MINI_RULE.min * 100),
@@ -248,7 +258,7 @@ export const PlayerMini = {
     return {
       card, gripRange, sizeChip, dragWidth, gripCorner: MINI_GRIP_CORNER, resetSize,
       onGripDown, onGripMove, finishGrip, cancelGrip, onGripKeydown,
-      rootEl, moreEl, thumbEl, phone, sound, captionsOnCard, shownMeta, controlsShown, menuItems, menuOpen, sheetOpen,
+      artFailed, rootEl, moreEl, thumbEl, phone, sound, captionsOnCard, shownMeta, controlsShown, menuItems, menuOpen, sheetOpen,
       onPointerEnter, onPointerLeave, onPointerDown, onPictureClick, syncFocus, onFocusOut, openMore, chooseItem,
     }
   },
@@ -256,6 +266,10 @@ export const PlayerMini = {
     <div ref="rootEl" :class="['pl-mini', { 'is-controls-shown': controlsShown }]"
       @pointerenter="onPointerEnter" @pointerleave="onPointerLeave" @pointerdown.capture="onPointerDown"
       @focusin="syncFocus" @focusout="onFocusOut">
+      <div v-if="playingOnTv" class="pl-mini-airplay" aria-hidden="true">
+        <img v-if="art && !artFailed" :src="art" alt="" decoding="async" @error="artFailed = true">
+        <airplay-icon /><span class="pl-mini-airplay-label">Playing on your TV</span>
+      </div>
       <button type="button" class="pl-mini-expand" :aria-label="'Open full player: ' + title" @click="$emit('expand')"></button>
       <div class="pl-mini-picture" aria-hidden="true" @click="onPictureClick"><span class="pl-mini-scrim"></span></div>
       <span v-if="isLive && !phone" class="ui-live-badge pl-mini-badge"><span class="ui-live-dot" aria-hidden="true"></span>Live</span>

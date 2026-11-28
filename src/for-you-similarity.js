@@ -78,8 +78,8 @@ export const nearestLikedOf = ({ vector, anchors = [], cosine = denseCosine, exc
 export const similarityScoreOf = ({ similarity, floor, span }) => Math.max(0, Math.min(1, (similarity - floor) / span))
 
 export const SIMILARITY_SCALES = {
-  embedding: { floor: 0.25, span: 0.4 },
-  bm25: { floor: 0.04, span: 0.3 },
+  embedding: { floor: 0.25, span: 0.4, namedFloor: 0.45 },
+  bm25: { floor: 0.04, span: 0.3, namedFloor: 0.04 },
 }
 
 const normaliseSparse = (weights) => {

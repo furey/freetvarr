@@ -25,7 +25,9 @@ import {
   useInfoCloseReveal,
 } from '/components/player-controls.js'
 import { PlayerMini, usePictureInPicture } from '/components/player-mini.js'
-import { miniMetaOf, captionLineOf } from '/mini-player.js'
+import { miniMetaOf, captionLineOf, recordingMiniMetaOnTvOf, onTvArtUrlOf } from '/mini-player.js'
+import { airplayActionOf } from '/player-top-actions.js'
+import { stampedShowImage } from '/shared/artwork-stamps.js'
 import {
   playInfoOpen,
   applyPlayCaptions,
@@ -56,6 +58,7 @@ import {
   usePausedResync,
   placeCaptionCues,
   useLiftedCaptionLine,
+  useAirplayTarget,
   playback,
   playerMini,
   playerMuted,
@@ -74,7 +77,9 @@ export const RecordingPlayer = {
         @pointermove="onControlsPointerMove" @click.capture="onFrameClickAll" @dblclick.capture="onFrameDoubleClickAll">
         <video ref="videoEl" :class="['live-video', 'pl-video', { 'is-veiled': playback.phase !== 'playing' }]" playsinline x-webkit-airplay="allow" preload="auto"></video>
         <div class="player-tap-layer" aria-hidden="true"></div>
-        <span v-if="overlayText && playback.phase !== 'ended'" class="pl-caption" role="status">{{ overlayText }}</span>
+        <player-on-tv v-if="playback.playingOnTv && !mini" :art="onTvArt"
+          :show-status="playback.phase !== 'ended' && !infoOpen" :detail="overlayText || undefined" />
+        <span v-if="overlayText && playback.phase !== 'ended' && !playback.playingOnTv" class="pl-caption" role="status">{{ overlayText }}</span>
         <div class="pl-scrim is-top" aria-hidden="true"></div>
         <div class="pl-scrim is-bottom" aria-hidden="true"></div>
         <player-info-panel :open="infoOpen" panel-id="play-info">
@@ -137,6 +142,7 @@ export const RecordingPlayer = {
         <player-mini v-if="mini" :title="header.title" :meta="miniMeta" :progress="fillPercent"
           :paused="shownPaused" :pause-disabled="playback.phase === 'starting'" :can-pip="canPip" :pip-active="pipActive" :muted="playerMuted"
           :has-captions="Boolean(playback.captions)" :captions-on="captionsOn" :no-captions-title="NO_CAPTIONS_ON_RECORDING" @toggle-captions="togglePlayCaptions"
+          :playing-on-tv="playback.playingOnTv" :art="onTvArt" :on-tv-meta="miniMetaOnTv"
           @expand="expand" @toggle-pause="togglePlayback" @close="stopPlayback" @toggle-pip="togglePip" @toggle-mute="togglePlayerMuted" />
       </div>
     </div>
@@ -246,16 +252,20 @@ export const RecordingPlayer = {
     }
     const expand = () => { mini.value = false }
     const miniInRow = ref(false)
-    const miniMeta = computed(() => miniMetaOf([
-      playback.recording?.channel_name,
-      playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - playback.position)).toLowerCase() : '',
-    ]))
+    const miniLeftText = computed(() =>
+      (playback.duration > 0 ? leftPillText(Math.max(0, playback.duration - playback.position)).toLowerCase() : ''))
+    const miniMeta = computed(() => miniMetaOf([playback.recording?.channel_name, miniLeftText.value]))
+    const miniMetaOnTv = computed(() => recordingMiniMetaOnTvOf({ leftText: miniLeftText.value }))
+    const onTvArt = computed(() => {
+      const title = playback.recording?.show_title_override || playback.recording?.title || ''
+      return onTvArtUrlOf({ source: imageSource.value, title, stamp: (url) => stampedShowImage(url, title) })
+    })
     const {
       controlsShown, revealControls, hideControls, onPointerMove: onControlsPointerMove, onPointerDown: onControlsPointerDown,
     } = useControlsAutoHide({
       enabled: computed(() => playback.open && !mini.value),
       holdShown: computed(() => shownPaused.value || playback.phase !== 'playing' || playback.waiting
-        || playback.scrubbing || infoOpen.value),
+        || playback.scrubbing || infoOpen.value || playback.playingOnTv),
       rootEl: stageEl,
     })
     const placeCaptions = () => placeCaptionCues({
@@ -272,13 +282,10 @@ export const RecordingPlayer = {
     })
     watch([mini, controlsShown], remeasure, { flush: 'post' })
 
-    const showAirplay = () => playVideo?.webkitShowPlaybackTargetPicker?.()
-    const topActions = computed(() => [{
-      key: 'airplay', order: 5, priority: 2, icon: 'airplay-icon', label: 'AirPlay', ariaLabel: 'AirPlay', title: 'AirPlay',
-      menuLabel: 'AirPlay', round: true, hidden: !playback.airplay,
-    }])
+    const { showAirplayPicker } = useAirplayTarget({ videoEl, state: playback, isOpen: () => playback.open })
+    const topActions = computed(() => [airplayActionOf({ available: playback.airplay, playingOnTv: playback.playingOnTv })])
     const onTopAction = (key) => {
-      if (key === 'airplay') showAirplay()
+      if (key === 'airplay') showAirplayPicker()
     }
 
     let pausedState = initialPausedState
@@ -378,12 +385,9 @@ export const RecordingPlayer = {
         if (!playHls) applyPlayCaptions()
       })
       playVideo.textTracks?.addEventListener?.('change', syncPlayCaptionPreference)
-      playVideo.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
-        playback.airplay = e.availability === 'available'
-      })
     })
     useRotateToFullscreen({
-      isEligible: () => playback.open && !mini.value && playback.phase === 'playing',
+      isEligible: () => playback.open && !mini.value && playback.phase === 'playing' && !playback.playingOnTv,
       enter: () => enterStageFullscreen({ stage: stageEl.value, video: playVideo }),
       getVideo: () => playVideo,
     })
@@ -394,10 +398,10 @@ export const RecordingPlayer = {
       controlsShown, onControlsPointerMove, cancelPlayTap,
       statusText, overlayText, fmtPlayTime, inAdBreak, skipCurrentAd,
       stopPlayback, togglePlayback, startPlaybackOver, onScrubInput, onScrubCommit,
-      toggleFullscreen, isStageFullscreen, showAirplay, topActions, onTopAction, shownPaused,
+      toggleFullscreen, isStageFullscreen, topActions, onTopAction, shownPaused,
       captionsOn: liveCaptionsOn, togglePlayCaptions,
       onFramePointerDownAll, onFramePointerUpAll, onFrameClickAll, onFrameDoubleClickAll,
-      mini, minimise, miniInRow, expand, miniMeta, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
+      mini, minimise, miniInRow, expand, miniMeta, miniMetaOnTv, onTvArt, canPip, pipActive, togglePip, playerMuted, togglePlayerMuted,
     }
   },
 }

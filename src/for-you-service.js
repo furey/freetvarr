@@ -39,7 +39,7 @@ import { labellerTitlesOf } from './labeller-titles.js'
 
 const SAVED_RESULT_SETTING = 'for_you_saved_result'
 const SAVED_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const SCORING_VERSION = 14
+export const SCORING_VERSION = 15
 
 export const isForYouEnabled = async () => forYouEnabledFrom(await getSetting(SETTINGS.enabled))
 

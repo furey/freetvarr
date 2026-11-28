@@ -111,7 +111,7 @@ export const stopLive = () => {
   if (live.sessionId) api('DELETE', `/api/live/${live.sessionId}`).catch(() => {})
   stopFromStartSession()
   Object.assign(live, {
-    open: false, sessionId: null, phase: 'idle', message: '', holders: [], conflict: null, captions: false,
+    open: false, sessionId: null, phase: 'idle', message: '', holders: [], conflict: null, captions: false, playingOnTv: false,
   })
   playerMini.value = false
   for (const hook of liveStopHooks) hook()

@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  airplayActionOf,
   topBarActionsOf,
   topBarLayoutOf,
   optionalWidthOf,
@@ -126,4 +127,22 @@ test('Miniplayer joins the base row while the summary keeps at least 140 px', ()
   assert.equal(miniplayerFitsBaseRowOf({ rowWidth: 351 }), false)
   assert.equal(miniplayerFitsBaseRowOf({ rowWidth: 288 }), false)
   assert.equal(miniplayerFitsBaseRowOf({ rowWidth: 0 }), false)
+})
+
+test('the AirPlay action shows only when a TV is in reach or already playing', () => {
+  assert.equal(airplayActionOf({ available: false, playingOnTv: false }).hidden, true)
+  assert.equal(airplayActionOf({ available: true, playingOnTv: false }).hidden, false)
+  assert.equal(airplayActionOf({ available: false, playingOnTv: true }).hidden, false)
+})
+
+test('the AirPlay action reads as on, without a toggle state, while the TV plays', () => {
+  const idle = airplayActionOf({ available: true, playingOnTv: false })
+  assert.equal(idle.on, false)
+  assert.equal(idle.menuValue, '')
+  assert.equal(idle.ariaLabel, 'AirPlay')
+  const onTv = airplayActionOf({ available: true, playingOnTv: true })
+  assert.equal(onTv.on, true)
+  assert.equal(onTv.menuValue, 'On')
+  assert.equal(onTv.ariaLabel, 'AirPlay: playing on your TV')
+  assert.equal('pressed' in onTv, false)
 })

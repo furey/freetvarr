@@ -122,8 +122,8 @@ export const PlayerTopBar = {
       </div>
       <div ref="actionsEl" class="pl-actions">
         <template v-for="action in inlineActions" :key="action.key">
-          <button v-if="action.round" type="button" class="pl-round" :aria-label="action.ariaLabel" :title="action.title || null"
-            @click="chooseAction(action.key)"><component :is="action.icon" v-bind="action.iconProps || {}" /></button>
+          <button v-if="action.round" type="button" :class="['pl-round', { 'is-on': action.on }]" :aria-label="action.ariaLabel"
+            :title="action.title || null" @click="chooseAction(action.key)"><component :is="action.icon" v-bind="action.iconProps || {}" /></button>
           <button v-else type="button" :class="['pl-pill', { 'is-on': action.on }]" :disabled="action.disabled || null"
             :title="action.title || null" :aria-label="action.ariaLabel"
             :aria-pressed="action.pressed == null ? null : String(action.pressed)"
@@ -165,6 +165,29 @@ const menuItemOf = (action) => ({
 })
 
 const PILL_LABEL_MIN_FRAME = 1150
+
+export const PlayerOnTv = {
+  props: {
+    art: { type: String, default: null },
+    showStatus: Boolean,
+    detail: { type: String, default: 'AirPlay' },
+  },
+  setup(props) {
+    const artFailed = ref(false)
+    watch(() => props.art, () => { artFailed.value = false })
+    return { artFailed }
+  },
+  template: `
+    <div class="pl-airplay" aria-hidden="true">
+      <img v-if="art && !artFailed" class="pl-airplay-art" :src="art" alt="" decoding="async" @error="artFailed = true">
+    </div>
+    <div v-if="showStatus" class="pl-airplay-status" role="status">
+      <airplay-icon />
+      <p class="pl-airplay-title">Playing on your TV</p>
+      <p class="pl-airplay-detail">{{ detail }}</p>
+    </div>
+  `,
+}
 
 export const PlayerCenterControls = {
   components: PLAYER_ICON_COMPONENTS,
@@ -491,6 +514,7 @@ export const PLAYER_CHROME_COMPONENTS = {
   ...PLAYER_ICON_COMPONENTS,
   'player-top-bar': PlayerTopBar,
   'player-center-controls': PlayerCenterControls,
+  'player-on-tv': PlayerOnTv,
   'player-scrubber': PlayerScrubber,
   'player-base-row': PlayerBaseRow,
   'marquee-text': MarqueeText,

@@ -271,6 +271,42 @@ test('embedding similarity explains with the nearest liked title', () => {
   assert.ok(!itemFor(result, 'Cricket Talk') || itemFor(result, 'Cricket Talk').reason !== 'Similar to The Block')
 })
 
+const similarReasonFor = ({ anchorKind, candidateKind, cosine }) => {
+  const events = [...baseEvents(), ...watched('Anchor Title', { episodes: 6 })]
+  const anchor = airing('Anchor Title', { synopsis: 'Anchor synopsis.', kind: anchorKind })
+  const candidate = airing('Candidate Title', { synopsis: 'Candidate synopsis.', kind: candidateKind, start: NOW + 17 * HOUR })
+  const vectorsByHash = new Map([
+    [textHashOf(embedTextOf(anchor)), Float32Array.from([1, 0])],
+    [textHashOf(embedTextOf(candidate)), Float32Array.from([cosine, Math.sqrt(1 - cosine * cosine)])],
+  ])
+  const result = run({ programmes: [anchor, candidate], events, vectorsByHash, tier: 'standard' })
+  const item = itemFor(result, 'Candidate Title')
+  assert.ok(item)
+  return item.reason
+}
+
+test('a film is never named as similar to a series', () => {
+  assert.notEqual(similarReasonFor({ anchorKind: null, candidateKind: 'movie', cosine: 0.4 }), 'Similar to Anchor Title')
+  assert.notEqual(similarReasonFor({ anchorKind: null, candidateKind: 'movie', cosine: 0.8 }), 'Similar to Anchor Title')
+})
+
+test('a series is never named as similar to a film', () => {
+  assert.notEqual(similarReasonFor({ anchorKind: 'movie', candidateKind: null, cosine: 0.8 }), 'Similar to Anchor Title')
+})
+
+test('a series is named as similar to a series on a strong match', () => {
+  assert.equal(similarReasonFor({ anchorKind: null, candidateKind: null, cosine: 0.6 }), 'Similar to Anchor Title')
+})
+
+test('a weak same-kind match is not named', () => {
+  assert.notEqual(similarReasonFor({ anchorKind: null, candidateKind: null, cosine: 0.3 }), 'Similar to Anchor Title')
+  assert.ok(similarReasonFor({ anchorKind: null, candidateKind: null, cosine: 0.3 }))
+})
+
+test('a film is named as similar to a film on a strong match', () => {
+  assert.equal(similarReasonFor({ anchorKind: 'movie', candidateKind: 'movie', cosine: 0.7 }), 'Similar to Anchor Title')
+})
+
 test('the basic tier uses BM25 text similarity', () => {
   const events = [...baseEvents(), ...watched('The Block', { episodes: 6 })]
   const programmes = [

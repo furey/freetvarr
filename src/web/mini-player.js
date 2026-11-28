@@ -1,3 +1,5 @@
+import { showImageUrlOf } from './artwork-stamps.js'
+
 export const SWIPE_DOWN_MIN_PX = 80
 export const SWIPE_MAX_MS = 700
 
@@ -14,6 +16,29 @@ export const minutesLeftText = ({ endMs, nowMs }) => {
 }
 
 export const miniMetaOf = (parts) => parts.filter(Boolean).join(' · ')
+
+export const ON_YOUR_TV_TEXT = 'On your TV'
+
+export const liveMiniMetaOnTvOf = ({ channelName }) => miniMetaOf([channelName, ON_YOUR_TV_TEXT])
+
+export const recordingMiniMetaOnTvOf = ({ leftText }) => miniMetaOf([ON_YOUR_TV_TEXT, leftText])
+
+export const onTvArtUrlOf = ({ source = null, eventId = null, title = '', stamp = (url) => url }) => {
+  if (source) return stamp(source)
+  const base = onTvArtBaseOf({ eventId, title })
+  if (!base) return null
+  const stamped = stamp(base)
+  return `${stamped}${stamped.includes('?') ? '&' : '?'}w=${ON_TV_ART_WIDTH}`
+}
+
+const onTvArtBaseOf = ({ eventId, title }) => {
+  if (eventId != null) return `/api/epg/image/${encodeURIComponent(eventId)}`
+  return title ? showImageUrlOf({ title }) : null
+}
+
+const ON_TV_ART_WIDTH = 384
+
+export const miniBarMetaOf = ({ meta, onTvMeta, playingOnTv, phone }) => (phone && playingOnTv && onTvMeta ? onTvMeta : meta)
 
 export const pictureInPictureSupportOf = ({ video, doc }) => {
   if (!video || video.disablePictureInPicture) return false

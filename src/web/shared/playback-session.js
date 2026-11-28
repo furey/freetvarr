@@ -85,7 +85,7 @@ export const stopPlayback = () => {
   closePictureInPictureOf({ video: playVideo, doc: document })
   detachPlayVideo()
   if (playback.sessionId) api('DELETE', `/api/play/${playback.sessionId}`).catch(() => {})
-  Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '' })
+  Object.assign(playback, { open: false, sessionId: null, phase: 'idle', message: '', playingOnTv: false })
   playInfoOpen.value = false
   if (!live.open) playerMini.value = false
 }

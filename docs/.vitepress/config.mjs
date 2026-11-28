@@ -158,6 +158,7 @@ export default withMermaid(defineConfig({
         text: 'Help',
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
+          { text: 'Away from home', link: '/guide/away-from-home' },
           { text: 'Troubleshooting', link: '/guide/troubleshooting' },
           { text: 'Windows (untested)', link: '/guide/windows' }
         ]
